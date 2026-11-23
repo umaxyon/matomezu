@@ -6,6 +6,7 @@ import { PALETTE } from "../../../core/color"
 import type { ThemeDef, TokenDef } from "../../../core/def/theme"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import { splitId } from "../../../core/names"
+import { NO_PAGE } from "../../../core/stage"
 import type { Shades } from "../../../core/theme"
 import { useMessages } from "../../../ui/i18n"
 import { openedOf, pageTypeOf, useScope } from "../../../ui/scope"
@@ -48,7 +49,8 @@ export function useOutermostOf(): string | undefined {
 // 描いているページのタイプが、ページと中の形に使えるテーマ（book-look/theme-types.ts。ページを描いていなければ空）
 export function usePageThemes(): ThemeDef[] {
   const catalog = useCatalog().core
-  const type = usePage()?.type
+  const page = usePage()
+  const type = page === NO_PAGE ? undefined : page.type
   return useMemo(() => (type === undefined ? [] : themesFor(catalog, type)), [catalog, type])
 }
 
@@ -56,7 +58,7 @@ export function usePageThemes(): ThemeDef[] {
 export function usePageTheme(): string | undefined {
   const catalog = useCatalog().core
   const page = useShownPage()
-  return useMemo(() => (page ? pageTheme(catalog, page) : undefined), [catalog, page])
+  return useMemo(() => (page === NO_PAGE ? undefined : pageTheme(catalog, page)), [catalog, page])
 }
 
 // 色の見本: テーマ looks の代表色と、「なし」の色（形の塗りのテーマキー fill の値）。表に無いテーマなら null

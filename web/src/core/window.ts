@@ -12,7 +12,15 @@ import type { LibraryAndBooks } from "./library"
 import type { ItemPage } from "./placed"
 import { sameData } from "./same"
 import type { BinderEntry, Book } from "./schema/book"
-import { openBook, openOutsideBinder, openOutsidePage, type Stage } from "./stage"
+import {
+  NO_STAGE,
+  NOTHING_OPENED,
+  openBook,
+  openedEntry,
+  openOutsideBinder,
+  openOutsidePage,
+  type Stage,
+} from "./stage"
 import { emptied, focus, followLibrary, mapStage, NO_STAGES_LEFT, newWorkspace, type Workspace } from "./workspace"
 
 // 開いているスクリーン 1 枚
@@ -196,7 +204,7 @@ export function followLibraryIn(
 
 // スクリーン screen のステージの並び（左から。何かを開いているか付き。ステージを並べないスクリーンなら空）
 export const stageListOf = (screen: Pick<OpenedScreen, "stages">): readonly StageListed[] =>
-  screen.stages?.stages.map(st => ({ id: st.id, opened: st.opened !== null })) ?? NO_STAGE_LIST
+  screen.stages?.stages.map(st => ({ id: st.id, opened: st.opened !== NOTHING_OPENED })) ?? NO_STAGE_LIST
 export interface StageListed {
   id: string
   opened: boolean // 何かを開いているか
@@ -204,7 +212,7 @@ export interface StageListed {
 const NO_STAGE_LIST: readonly StageListed[] = []
 
 // スクリーン screen のカレントのステージの id（ステージを並べないスクリーンなら null）
-export const currentStageOf = (screen: Pick<OpenedScreen, "stages">): string | null => screen.stages?.current ?? null
+export const currentStageOf = (screen: Pick<OpenedScreen, "stages">): string => screen.stages?.current ?? NO_STAGE
 
 // 開いたままにする枚数（定義の maxOpen）を超えたスクリーンを閉じる（カレントにしたのが古い物から。超えていなければ同じ窓を返す）
 export function withinLimits(win: WindowState, catalog: CoreCatalog): WindowState {
@@ -225,7 +233,7 @@ export function overLimit(win: Pick<WindowState, "screens" | "order">, def: stri
 export function bookScreenShowing(win: Pick<WindowState, "screens" | "order">, book: string): BookScreen | undefined {
   for (let i = win.order.length - 1; i >= 0; i--) {
     const s = win.screens.find(x => x.id === win.order[i])
-    if (s && holdsStages(s) && s.stages.stages.some(st => st.opened?.outermost.id === book)) return s
+    if (s && holdsStages(s) && s.stages.stages.some(st => openedEntry(st.opened)?.id === book)) return s
   }
   return undefined
 }
@@ -278,7 +286,7 @@ function shown(
       stage,
     }
   }
-  const stages = showing.stages.stages.filter(st => st.opened?.outermost.id === entry)
+  const stages = showing.stages.stages.filter(st => openedEntry(st.opened)?.id === entry)
   const stage = (stages.find(st => st.id === showing.stages.current) ?? stages[0])?.id ?? ""
   return {
     win: makeCurrent(

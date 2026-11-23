@@ -5,6 +5,7 @@ import { expect, test } from "bun:test"
 import { z } from "zod"
 import type { MatomezuError } from "../../web/src/core/errors"
 import { defineMessages } from "../../web/src/core/i18n/messages"
+import { openedEntry } from "../../web/src/core/stage"
 import {
   closeScreen,
   currentKindOf,
@@ -113,7 +114,7 @@ test("ブックを開くと、ブックスクリーンをカレントスクリ�
   showCenter({ state, actions })
   actions.openBook("s1", "b2")
   expect(currentKindOf(state.getState().window)).toBe("book-screen")
-  expect(screenOf(state.getState().window).stages[0]?.opened?.outermost.id).toBe("b2")
+  expect(openedEntry(screenOf(state.getState().window).stages[0]?.opened)?.id).toBe("b2")
 })
 
 test("コントロールセンターがカレントスクリーンの間は、ステージの範囲のキーが効かず、後ろのステージは変わらない", () => {
@@ -166,7 +167,7 @@ test("AI の show は、ブックを渡すとブックスクリーンをカレ�
   showCenter(store)
   showIn(store, { to: "book", book: "b2" })
   expect(currentKindOf(store.state.getState().window)).toBe("book-screen")
-  expect(screenOf(store.state.getState().window).stages[0]?.opened?.outermost.id).toBe("b2")
+  expect(openedEntry(screenOf(store.state.getState().window).stages[0]?.opened)?.id).toBe("b2")
 })
 
 test("store の openScreen は、定義の渡す値の形に合えば開いてカレントスクリーンにし、合わない値と無い定義は開かない。closeScreen で閉じると前の物に戻る", () => {
@@ -210,7 +211,7 @@ test("2 枚目のブックスクリーンのステージにも、ステージの
   actions.resizeStage(stage, { w: 800, h: 600 })
   expect(stageOf().stages[0]!.view).toEqual({ w: 800, h: 600 })
   actions.openBook(stage, "b2")
-  expect(stageOf().stages[0]!.opened?.outermost.id).toBe("b2")
+  expect(openedEntry(stageOf().stages[0]!.opened)?.id).toBe("b2")
   actions.zoomStage(stage, 2)
   expect(stageOf().stages[0]!.zoom).toBe(2)
   actions.select(stage, ["x"])
@@ -222,7 +223,7 @@ test("2 枚目のブックスクリーンのステージにも、ステージの
   actions.closeStage(right)
   expect(stageOf().stages.map(s => s.id)).toEqual([stage])
   // 1 枚目のブックスクリーンは変わらない（ステージ s1 は b1 を開いたまま）
-  expect(stageIn(state.getState().window, "s1")?.opened?.outermost.id).toBe("b1")
+  expect(openedEntry(stageIn(state.getState().window, "s1")?.opened)?.id).toBe("b1")
   expect(stageIn(state.getState().window, "s1")?.zoom).toBe(1)
 })
 
@@ -315,7 +316,7 @@ const bookScreens = (store: ReturnType<typeof newStore>) =>
   store.state
     .getState()
     .window.screens.filter(s => s.stages)
-    .map(s => ({ id: s.id, books: s.stages?.stages.map(st => st.opened?.outermost.id ?? null) }))
+    .map(s => ({ id: s.id, books: s.stages?.stages.map(st => openedEntry(st.opened)?.id ?? null) }))
 
 test("宛先なしで作った窓は、ブックスクリーンが 0 枚。AI の view は bookScreen が none で、キーを押しても落ちない", () => {
   const store = createMatomezu({

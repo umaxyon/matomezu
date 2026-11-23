@@ -3,6 +3,7 @@
 
 import { useCallback } from "react"
 import type { PluginStateDef, PluginStateScope } from "../core/def/plugin-state"
+import { NO_STAGE } from "../core/stage"
 import { ownedPluginState, type PluginPlace, placeOf } from "../store/plugin-state"
 import {
   type Owner,
@@ -12,7 +13,7 @@ import {
   useUpdatePluginStateAt,
 } from "./at-hooks"
 import { useScope, useStageId } from "./scope"
-import { useScreenContext } from "./screen-context"
+import { useScreenIdHere } from "./screen-context"
 import { useInstance } from "./store-context"
 
 // 値のある場所: ステージごとの宣言は向け先のステージ、スクリーンごとの宣言は描いているスクリーン（どちらも呼び出しには渡さなくてよい。描いている場所から決まる）。
@@ -27,8 +28,9 @@ function usePluginPlace(
 ): (given: string | undefined) => PluginPlace | null {
   const here = useScope()
   const closed = use === "write" && here.actsOn.kind === "none" // 向け先が無い所からは、どの範囲の値も書かない
-  const stage = useStageId()
-  const screen = useScreenContext()?.id ?? (here.actsOn.kind === "screen" ? here.actsOn.screen : null)
+  const id = useStageId()
+  const stage = id === NO_STAGE ? null : id
+  const screen = useScreenIdHere() ?? (here.actsOn.kind === "screen" ? here.actsOn.screen : null)
   return useCallback(
     given => (closed ? null : placeOf(scope, { stage, screen: given ?? screen })),
     [scope, stage, screen, closed],
@@ -85,7 +87,7 @@ export function useSetPluginState<S, Sc extends PluginStateScope>(
 // 同じ値なら何も変わらず、ブラウザの履歴に積まない。ほかのプラグインのコードは読まず、id の文字と値だけで頼む（自分の宣言は useSetPluginState）
 export function useSetPluginStateById(): (id: string, value: unknown, at?: { screenDef?: string }) => boolean {
   const { setPluginStateById } = useInstance()
-  const here = useScreenContext()?.id
+  const here = useScreenIdHere()
   const stage = useStageId()
   const nowhere = useScope().actsOn.kind === "none"
   return useCallback(
@@ -93,7 +95,7 @@ export function useSetPluginStateById(): (id: string, value: unknown, at?: { scr
       !nowhere &&
       setPluginStateById(id, value, {
         ...(here !== undefined ? { screen: here } : {}),
-        ...(stage !== null ? { stage } : {}),
+        ...(stage !== NO_STAGE ? { stage } : {}),
         ...(at?.screenDef !== undefined ? { screenDef: at.screenDef } : {}),
       }),
     [setPluginStateById, here, stage, nowhere],
@@ -108,8 +110,9 @@ export function useSetPluginStates(
   const { setPluginStates } = useInstance()
   const id = kit.id
   const here = useScope()
-  const stage = useStageId()
-  const screen = useScreenContext()?.id ?? (here.actsOn.kind === "screen" ? here.actsOn.screen : null)
+  const stageId = useStageId()
+  const stage = stageId === NO_STAGE ? null : stageId
+  const screen = useScreenIdHere() ?? (here.actsOn.kind === "screen" ? here.actsOn.screen : null)
   const nowhere = here.actsOn.kind === "none"
   return useCallback(
     changes =>

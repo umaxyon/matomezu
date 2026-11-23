@@ -26,7 +26,16 @@ import { splitId } from "../core/names"
 import { type Patch, patchOf, undoneIn } from "../core/patch"
 import { readerOf, sourceOf } from "../core/record-source"
 import { sameData } from "../core/same"
-import { type Stage, shownPageId, shownType, toPaper } from "../core/stage"
+import {
+  NO_PAGE,
+  NO_PAGE_TYPE,
+  NO_PAPER,
+  openedEntry,
+  type Stage,
+  shownPageId,
+  shownType,
+  toPaper,
+} from "../core/stage"
 import { shownBookScreens, shownScreens } from "../core/window"
 import type { StoreCatalog } from "./plugin"
 import { ownedPluginState, pluginValueOf } from "./plugin-state"
@@ -69,18 +78,28 @@ export function createUnseenChanges(deps: {
     const catalog = deps.catalog()
     const opened = st.opened
     const type = shownType(opened)
-    const def = type && catalog.presentations.get(catalog.pageTypes.get(type)?.presentation ?? "")
+    const def =
+      type === NO_PAGE_TYPE ? undefined : catalog.presentations.get(catalog.pageTypes.get(type)?.presentation ?? "")
     if (!def?.seen) return undefined
-    const a = st.view && toPaper(st, { x: 0, y: 0 })
-    const b = st.view && toPaper(st, { x: st.view.w, y: st.view.h })
-    const shown = st.mode.kind === "edit" && a && b ? { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y } : null
+    const a = st.view ? toPaper(st, { x: 0, y: 0 }) : NO_PAPER
+    const b = st.view ? toPaper(st, { x: st.view.w, y: st.view.h }) : NO_PAPER
+    const shown =
+      st.mode.kind === "edit" && a !== NO_PAPER && b !== NO_PAPER
+        ? { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y }
+        : null
     return (page, item) => !!shown && !!def.seen?.(deps.catalog(), page, item, shown)
   }
   // 見えているブックスクリーンのステージで見えたか
   const seenIn = (u: Unseen) =>
     shownBookScreens(deps.catalog(), getState().window)
       .flatMap(s => s.stages.stages)
-      .some(st => st.opened?.outermost.id === u.outermost && changeSeen(u.step, shownPageId(st.opened), seenTestOf(st)))
+      .some(st => {
+        const page = shownPageId(st.opened)
+        return (
+          openedEntry(st.opened)?.id === u.outermost &&
+          changeSeen(u.step, page === NO_PAGE ? null : page, seenTestOf(st))
+        )
+      })
   // まだ見ていない変更のうち、どこかのステージで見えた物を、そのステージエントリの画面の履歴に届いた順の位置で差し込む（窓が見えていない間は差し込まない）
   const checkSeen = () => {
     checkSeenInLibrary()

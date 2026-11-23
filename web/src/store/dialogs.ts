@@ -2,6 +2,7 @@
 // 画面に出すダイアログは 1 つだけで、どれを出すかは id、どこから開いたかは stage、何について開いたかは args で決まる
 import type { DialogExtras, DialogId, DialogTable } from "../core/catalog"
 import type { ShapeAddArgs, ShapeEditArgs, ShapeItemDef } from "../core/def/item"
+import { NO_STAGE } from "../core/stage"
 
 declare const ARGS: unique symbol
 
@@ -52,8 +53,8 @@ export interface PageSettingsArgs {
 
 export type DialogArgs<Id extends DialogId> = [DialogArgsOf<Id>] extends [undefined] ? [] : [DialogArgsOf<Id>]
 
-// ステージを持たずに開いたダイアログの stage の値
-export const NO_STAGE = "none"
+// ステージを持たずに開いたダイアログの stage の値は NO_STAGE（core/stage.ts）
+export { NO_STAGE }
 
 // ダイアログ・右クリックのメニューを開いた場所: 開いたステージ stage（ステージを持たないスクリーンから開いたなら NO_STAGE）と、
 // 開いたスクリーン screen（ステージから開いたなら、そのステージを並べているスクリーン）
@@ -64,6 +65,9 @@ export interface OpenedPlace {
 
 // 開いた場所の id（ステージの id。ステージを持たずに開いたら、スクリーンの id）。そこから、コマンドを呼び、操作を向ける
 export const openedAt = (opened: OpenedPlace): string => (opened.stage !== NO_STAGE ? opened.stage : opened.screen)
+
+// コマンドの文脈の dialog の、ダイアログを開いていないときの値
+export const NO_DIALOG = "none"
 
 export interface OpenedDialog {
   id: DialogId

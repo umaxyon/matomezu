@@ -4,6 +4,8 @@ import { slideIsBackground } from "../../web/src/core/def/page-type"
 import {
   editingBackground,
   endBackground,
+  NO_PLACING,
+  NOTHING_OPENED,
   newStage,
   openBook,
   openPage,
@@ -45,7 +47,7 @@ test("背景編集モードには、背景を持つタイプのページを開�
   const busy = { ...open(DRAWING), selection: ["x"], placing: ELLIPSE as never }
   const entered = startBackground(CORE_CATALOG, busy)
   expect(entered.selection).toEqual([])
-  expect(entered.placing).toBeNull()
+  expect(entered.placing).toBe(NO_PLACING)
   const left = endBackground({ ...entered, selection: ["bg"] })
   expect(left.edits).toBe("items")
   expect(left.selection).toEqual([])
@@ -57,7 +59,7 @@ test("背景編集モードの間は、ページを替えない。印刷プレ�
   expect(openPage(CORE_CATALOG, entered, b, "p2")).toBe(entered)
   expect(openPrintPreview(entered).edits).toBe("slide")
   expect(openBook(CORE_CATALOG, entered, b).edits).toBe("items")
-  expect(shownPageId(openPage(CORE_CATALOG, endBackground(entered), b, "p2").opened ?? null)).toBe("p2")
+  expect(shownPageId(openPage(CORE_CATALOG, endBackground(entered), b, "p2").opened ?? NOTHING_OPENED)).toBe("p2")
 })
 
 test("背景だけの印刷区画は載らない（auto）。印刷対象が always なら中身が無くても載り、never でも auto と同じに載らない", () => {

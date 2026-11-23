@@ -1,9 +1,12 @@
 // プラグイン API の入口と、テストで組む入口 matomezu/testing が出す名前（値）の一覧と、プラグインに見せるステージ（StageView）とコマンドの run が受け取る文脈と操作（CommandActions）のフィールドの一覧と、base の入口の名前がプラグイン API にもあること。
 // 追加プラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
+
 import { expect, test } from "bun:test"
 import { findPage } from "../web/src/core/book"
+import { NO_CONTROL_CENTER } from "../web/src/core/def/action"
 import type { Book } from "../web/src/core/schema/book"
-import { newStage, shownPageId } from "../web/src/core/stage"
+import { NO_PAPER, NO_PLACING, NOTHING_OPENED, newStage, shownPageId } from "../web/src/core/stage"
+import { NO_TOOL } from "../web/src/core/tools"
 import { screenOf } from "../web/src/core/window"
 import { stageView, toolOf } from "../web/src/core/workspace"
 import * as api from "../web/src/plugin-entry/index"
@@ -13,6 +16,8 @@ import * as pluginUi from "../web/src/plugins/base/ui"
 import { boundActions, windowActionsOf } from "../web/src/store/actions"
 import { commandContext, commandDef } from "../web/src/store/commands"
 import { NO_BOOK, NO_PAGE } from "../web/src/store/commands/def"
+import { NO_CONTEXT_MENU } from "../web/src/store/context-menus"
+import { NO_DIALOG } from "../web/src/store/dialogs"
 import * as testing from "../web/src/testing"
 import { CORE_CATALOG, newStore } from "./support"
 
@@ -39,8 +44,19 @@ test("matomezu が出す名前", () => {
     "MARKDOWN_PANE_MODES",
     "MY_WORKDESK",
     "NEST_PADDING",
+    "NOTHING_OPENED",
+    "NO_BINDER",
     "NO_BOOK",
+    "NO_CONTEXT_MENU",
+    "NO_CONTROL_CENTER",
+    "NO_DIALOG",
+    "NO_OUTSIDE_BINDER",
     "NO_PAGE",
+    "NO_PAGE_TYPE",
+    "NO_PAPER",
+    "NO_PLACING",
+    "NO_STAGE",
+    "NO_TOOL",
     "NO_WORKER_BOOK",
     "PAGE_PAPER_COLOR",
     "PAGE_TEXT_COLORS",
@@ -284,7 +300,12 @@ test("matomezu/ui が出す名前", () => {
     "MarkdownDocumentView",
     "MaxButton",
     "MultiChoices",
+    "NO_AREA",
+    "NO_MENU_COMMAND",
+    "NO_PERMISSION",
+    "NO_SCREEN",
     "Notice",
+    "PAN_NOT_WATCHED",
     "PageProblemsView",
     "PageSettingsDialogView",
     "Panel",
@@ -492,15 +513,23 @@ test("コマンドに見せるステージは、プラグインに見せるス�
   const state = store.state.getState()
   const stage = screenOf(state.window).stages.find(s => s.id === "s1")!
   const tool = toolOf(store.catalog.core, screenOf(state.window), "s1", state)
-  expect(commandContext(store.catalog.core, null, state, "s1", "@matomezu/base:stage-split")?.stage).toEqual(
-    stageView(store.catalog.core, stage, tool),
-  )
+  expect(
+    commandContext(store.catalog.core, NO_CONTROL_CENTER, state, "s1", "@matomezu/base:stage-split")?.stage,
+  ).toEqual(stageView(store.catalog.core, stage, tool))
 })
 
 test("コマンドが受け取る文脈（CommandContext）のフィールド（ステージの並び・表示領域の大きさなどは渡さない）", () => {
   const store = newStore()
   expect(
-    names(commandContext(store.catalog.core, null, store.state.getState(), "s1", "@matomezu/base:stage-split")!),
+    names(
+      commandContext(
+        store.catalog.core,
+        NO_CONTROL_CENTER,
+        store.state.getState(),
+        "s1",
+        "@matomezu/base:stage-split",
+      )!,
+    ),
   ).toEqual([
     "annotations",
     "arrangement",
@@ -526,23 +555,27 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
 
 test("コマンドの文脈の page は、開いているページ（ブックの並びの中のページと同じ物）", () => {
   const state = newStore().state.getState()
-  const ctx = commandContext(CORE_CATALOG, null, state, "s1", "@matomezu/base:stage-split")!
+  const ctx = commandContext(CORE_CATALOG, NO_CONTROL_CENTER, state, "s1", "@matomezu/base:stage-split")!
   const page = shownPageId(ctx.stage.opened)
-  expect(page).not.toBeNull()
+  expect(page).not.toBe(NO_PAGE)
   expect(ctx.book).not.toBe(NO_BOOK)
-  expect(ctx.page).toBe(findPage(ctx.book as Book, page!)!.page)
+  expect(ctx.page).toBe(findPage(ctx.book as Book, page)!.page)
 })
 
-test("何も開いていないステージのコマンドの文脈は、book も page も none", () => {
+test("何も開いていないステージのコマンドの文脈は、開いている物・置こうとしている物・道具・book・page・ダイアログ・右クリックのメニューも none", () => {
   const ctx = commandContext(
     CORE_CATALOG,
-    null,
+    NO_CONTROL_CENTER,
     newStore({ books: [] }).state.getState(),
     "s1",
     "@matomezu/base:stage-split",
   )!
-  expect(ctx.stage.opened).toBeNull()
+  expect(ctx.stage.opened).toBe(NOTHING_OPENED)
+  expect([ctx.stage.placing, ctx.stage.tool]).toEqual([NO_PLACING, NO_TOOL])
   expect([ctx.book, ctx.page]).toEqual([NO_BOOK, NO_PAGE])
+  expect([ctx.dialog, ctx.contextMenu]).toEqual([NO_DIALOG, NO_CONTEXT_MENU])
+  expect(ctx.controlCenter).toBe(NO_CONTROL_CENTER)
+  expect(ctx.toPaper({ x: 0, y: 0 })).toBe(NO_PAPER)
 })
 
 test("コマンドの run が受け取る操作（CommandActions）は、useActions の操作と、自分のプラグイン状態を変える updatePluginState（インスタンスだけが持つ receive・locate・setOffline・setLastWindow・setCanGoBack・setPluginState・setPluginStates は渡さない）", () => {

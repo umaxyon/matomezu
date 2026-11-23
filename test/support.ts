@@ -11,6 +11,7 @@ import {
 import { tablesOf } from "../web/src/core/folders-books"
 import type { AnyPage, BinderEntry, Book } from "../web/src/core/schema/book"
 import { NO_SETTINGS } from "../web/src/core/settings"
+import { NO_PAGE, NO_PAPER, NO_PLACING, openedPage, type Placing, paperOf, placement } from "../web/src/core/stage"
 import { recentBookScreen, recentPlainScreen, stagesDefOf } from "../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../web/src/plugins"
 import { assemble } from "../web/src/store/plugin"
@@ -168,3 +169,28 @@ export function worldTablesOf(books: readonly Book[], others: readonly HomeOrFol
   if (others.length === 0) return tables
   return { pages: tables.pages, folders: { ...tables.folders, ...Object.fromEntries(others.map(f => [f.id, f])) } }
 }
+
+// ステージに出す紙の大きさ（紙が無ければテストを落とす）
+export function sheetOf(stage: Parameters<typeof paperOf>[0]) {
+  const paper = paperOf(stage)
+  if (paper === NO_PAPER) throw new Error("no paper")
+  return paper
+}
+
+// 紙の置き場所（紙が無ければテストを落とす）
+export function placedOf(stage: Parameters<typeof placement>[0]) {
+  const at = placement(stage)
+  if (at === NO_PAPER) throw new Error("no paper")
+  return at
+}
+
+// 開いているページ（ページを開いていなければテストを落とす）
+export function openedPageOf(opened: Parameters<typeof openedPage>[0]) {
+  const page = openedPage(opened)
+  if (page === NO_PAGE) throw new Error("no page")
+  return page
+}
+
+// 置こうとしているアイテムの id（置こうとしていなければ undefined）
+export const placingItemOf = (placing: Placing | typeof NO_PLACING): string | undefined =>
+  placing === NO_PLACING ? undefined : placing.item

@@ -6,7 +6,7 @@ import { stagePlacesOf, withStagePlaces } from "../../../../web/src/core/address
 import { pagesOf } from "../../../../web/src/core/book"
 import { HOME_ID } from "../../../../web/src/core/folders"
 import type { Book } from "../../../../web/src/core/schema/book"
-import { shownPageId } from "../../../../web/src/core/stage"
+import { NO_PAPER, openedEntry, shownPageId } from "../../../../web/src/core/stage"
 import { screenOf } from "../../../../web/src/core/window"
 import { growOf } from "../../../../web/src/plugins/base"
 import { createBookIn } from "../../../../web/src/plugins/base/book-new/create-book"
@@ -38,7 +38,7 @@ const markdownStore = (options: Parameters<typeof newStore>[0] = {}) => {
   const store = newStore(options)
   createBookIn(store, "s1", { into: HOME_ID, title: "メモ" })
   addPageIn(store, "s1", { type: "@matomezu/markdown:markdown", title: "ページ 1" })
-  const id = screenOf(store.state.getState().window).stages[0]!.opened!.outermost.id
+  const id = openedEntry(screenOf(store.state.getState().window).stages[0]!.opened)!.id
   const book = () => store.state.getState().books[id] as Book
   return { store, id, book }
 }
@@ -47,7 +47,7 @@ test("マークダウンのページを開いたステージには紙を置か�
   const { store, book } = markdownStore()
   const page = pagesOf(book())[0]!
   expect(page.paper).toBe("@matomezu/base:a4")
-  expect(screenOf(store.state.getState().window).stages[0]!.opened).toMatchObject({ page: page.id, paper: null })
+  expect(screenOf(store.state.getState().window).stages[0]!.opened).toMatchObject({ page: page.id, paper: NO_PAPER })
 })
 
 test("どのページもいつも下へ増やす可変ページ。page-add・page-update で grows を付けるのは断る（false は何も変えない）", () => {
@@ -296,11 +296,11 @@ test("ページを切り替えても、紙を変えても、ステージに紙�
   const { state, actions } = store
   addPageIn(store, "s1", { type: "@matomezu/markdown:markdown", title: "ページ 2" })
   const [first, second] = pagesOf(book()).map(p => p.id) as [string, string]
-  expect(shownPageId(screenOf(state.getState().window).stages[0]!.opened ?? null)).toBe(second)
+  expect(shownPageId(screenOf(state.getState().window).stages[0]!.opened)).toBe(second)
   actions.openPage("s1", first)
-  expect(screenOf(state.getState().window).stages[0]!.opened).toMatchObject({ page: first, paper: null })
+  expect(screenOf(state.getState().window).stages[0]!.opened).toMatchObject({ page: first, paper: NO_PAPER })
   actions.perform("@matomezu/base:page-update", { paper: "@matomezu/base:a3" }, { page: first })
-  expect(screenOf(state.getState().window).stages[0]!.opened).toMatchObject({ page: first, paper: null })
+  expect(screenOf(state.getState().window).stages[0]!.opened).toMatchObject({ page: first, paper: NO_PAPER })
   for (const c of ["@matomezu/base:zoom-in", "@matomezu/base:tool-picker"] as const)
     expect(isShown(store, state.getState(), "s1", c)).toBe(false)
 })

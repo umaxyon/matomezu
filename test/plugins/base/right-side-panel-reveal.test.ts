@@ -2,13 +2,13 @@
 
 import { expect, test } from "bun:test"
 import type { Rect } from "../../../web/src/core/geom"
-import { newStage, openBook, panBy, placement, resize, type Stage, zoomTo } from "../../../web/src/core/stage"
+import { NOTHING_OPENED, newStage, openBook, panBy, resize, type Stage, zoomTo } from "../../../web/src/core/stage"
 import { paperRectOf, revealView } from "../../../web/src/plugins/base/right-side-panel/reveal"
 import { movedFrom, openedRestore, restoreTo, withRestore } from "../../../web/src/plugins/base/right-side-panel/state"
 import { EDGE_STAND_ROOM } from "../../../web/src/plugins/base/stand/stand-place"
 import { fitView, moveView, ZOOM_MIN } from "../../../web/src/plugins/base/zoom"
 import { drawingPage, testBook } from "../../lineup"
-import { CORE_CATALOG } from "../../support"
+import { CORE_CATALOG, placedOf } from "../../support"
 
 const OPEN = { widget: "p:panel", subject: "c1", anchors: ["a1"], current: "a1", book: "b1", page: "p1" }
 const HOME = { zoom: 1, pan: { x: 0, y: 0 } }
@@ -70,12 +70,12 @@ test("閉じたら、変えていなければ開く前の見え方に戻す。�
   expect(
     restoreTo(restore, { opened: { kind: "page", outermost: { kind: "book", id: "b1" }, page: "p2" } as never }),
   ).toBeNull()
-  expect(restoreTo(restore, { opened: null })).toBeNull()
+  expect(restoreTo(restore, { opened: NOTHING_OPENED })).toBeNull()
 })
 
 // 紙の上の四角 rect が、見え方 view で表示領域のどこに来るか
 const onView = (s: Stage, view: { zoom: number; pan: { x: number; y: number } }, r: { x: number; y: number }) => {
-  const at = placement({ ...s, ...view })!
+  const at = placedOf({ ...s, ...view })
   return { x: at.x + r.x * at.zoom, y: at.y + r.y * at.zoom }
 }
 
@@ -125,6 +125,6 @@ test("見え方へ移すと、倍率もずらす量もその見え方になる�
 
 test("表示領域の上で測った四角を、紙の上の四角に直す", () => {
   const s = zoomTo(stage, 0.5)
-  const at = placement(s)!
+  const at = placedOf(s)
   expect(paperRectOf(s, { x: at.x + 50, y: at.y + 20, w: 30, h: 10 })).toEqual({ x: 100, y: 40, w: 60, h: 20 })
 })

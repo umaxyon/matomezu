@@ -8,6 +8,7 @@ import type { CoreCatalog } from "../../../core/core-catalog"
 import { withStageEntryRow } from "../../../core/entries"
 import { inTrash, NO_OUTERMOST, outermostOf } from "../../../core/folders-tree"
 import type { ItemPage } from "../../../core/placed"
+import { openedEntry } from "../../../core/stage"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
 import { calledStageOf } from "../../../store/commands/def"
 import { withOutermostSettings } from "../book-look"
@@ -120,7 +121,7 @@ const sideOf = (ctx: CommandContext) => fitSide(ctx.catalog, previewedIn(ctx))
 // 印刷区画の境目をまたいだ形を直してもらうタイプで、またいだ形があれば、印刷プレビューは開かず、それを知らせる右サイドパネルを開く
 function openPreview(ctx: CommandContext, a: CommandActions) {
   const previewed = previewedIn(ctx)
-  if (previewed && calledStageOf(ctx)?.opened && hasCrossing(ctx.catalog, previewed)) {
+  if (previewed && openedEntry(calledStageOf(ctx)?.opened) && hasCrossing(ctx.catalog, previewed)) {
     openRightSidePanelIn(ctx, a, printCheckOpen(previewed.id))
     return
   }

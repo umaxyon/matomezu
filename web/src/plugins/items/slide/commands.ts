@@ -1,6 +1,6 @@
 // スライドのコマンド: 画面の操作（置く・動かす・大きさを変える・項目を変える・消す）から、スライドのアクション（slide プラグイン）を呼ぶ。
 // 位置と大きさは、プレゼンテーションが決めた紙の上の px で受け取る。置けたら置くのをやめ、置いたアイテムを選ぶ
-import { type ItemId, type Rect, slideOf } from "../../../plugin-api"
+import { type ItemId, NO_PLACING, NOTHING_OPENED, type Rect, slideOf } from "../../../plugin-api"
 import { hasOpenedPage } from "../../base"
 
 import { SLIDE_MOVE, SLIDE_PLACE, SLIDE_REMOVE, SLIDE_REORDER, SLIDE_RESIZE, SLIDE_UPDATE } from "./actions"
@@ -57,7 +57,7 @@ export const SLIDE_PUT = kit.defineCommand({
     a.stopPlacing()
     a.select([(done.result as { item: string }).item])
   },
-  when: ctx => hasOpenedPage(ctx) && ctx.stage.placing !== null,
+  when: ctx => hasOpenedPage(ctx) && ctx.stage.placing !== NO_PLACING,
 })
 
 // アイテムを、左上が at（紙の上）になるよう動かす（複数のアイテムを一度に。画面の履歴は 1 段）
@@ -142,7 +142,8 @@ export const SLIDE_TEXT_CANCEL = kit.defineCommand({
   run: (ctx, a) => {
     const item = editedOnSlide(ctx)
     if (!hasOpenedPage(ctx) || item === null) return
-    if (ctx.stage.editing === ADDED_EDIT && ctx.stage.opened) a.continueStep(ctx.stage.opened.outermost.id)
+    if (ctx.stage.editing === ADDED_EDIT && ctx.stage.opened !== NOTHING_OPENED)
+      a.continueStep(ctx.stage.opened.outermost.id)
     a.setEditing("none")
     const shape = slideOf(ctx.page).find(s => s.id === item)
     if (shape && (shapeProps(shape).text ?? "") === "" && a.perform(REMOVE, { item }, { page: ctx.page.id }).ok)

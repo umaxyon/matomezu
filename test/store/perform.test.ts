@@ -6,7 +6,7 @@ import { definePageType } from "../../web/src/core/def/page-type"
 import { HOME_ID } from "../../web/src/core/folders"
 import type { ItemPage } from "../../web/src/core/placed"
 import type { StageLineup } from "../../web/src/core/schema/book"
-import { shownPageId } from "../../web/src/core/stage"
+import { NOTHING_OPENED, shownPageId } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
@@ -276,7 +276,10 @@ describe("アクションの入口", () => {
       { book: "made" },
     )
     expect(done).toEqual({ ok: true, result: { page: "first" } })
-    expect(screenOf(state.getState().window).stages.map(s => shownPageId(s.opened ?? null))).toEqual(["first", "first"])
+    expect(screenOf(state.getState().window).stages.map(s => shownPageId(s.opened ?? NOTHING_OPENED))).toEqual([
+      "first",
+      "first",
+    ])
   })
 
   test("宛先のブックが無い・名指したページのタイプが許さない・引数の形が違うときは断り、状態を変えない", () => {

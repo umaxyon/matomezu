@@ -1,5 +1,5 @@
 // 印刷区画の区切りの線を見せる・隠すボタン（ウィジェット print-area-toggle。フッタメニューに置く）。可変ページで印刷区画が 2 つ以上あるときだけ出す
-import { areaOf, paperOf } from "../../../core/stage"
+import { areaOf, NO_PAPER, NO_STAGE, paperOf } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import { useStage } from "../../../ui/view-hooks"
 import { kit } from "../kit"
@@ -12,9 +12,10 @@ export function PrintAreaToggle() {
   const stage = useStage()
   const hidden = usePrintAreasHidden()
   const toggle = useTogglePrintAreas()
-  const paper = stage && paperOf(stage)
-  const area = stage && areaOf(stage)
-  if (!paper || !area || !printAreaLines(paper, area)) return null
+  if (stage === NO_STAGE) return null
+  const paper = paperOf(stage)
+  const area = areaOf(stage)
+  if (paper === NO_PAPER || area === NO_PAPER || !printAreaLines(paper, area)) return null
   return (
     <button
       type="button"

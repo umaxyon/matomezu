@@ -3,7 +3,7 @@
 // （区間・端・札はアクション line-update、ほかの形の上で離した端はコマンド line-drop でつなぎ替え）。項目は edit.ts の純粋な関数で決める。
 // 端を運ぶ間は、つなぎ替えられる形と今の形のほかを薄くし、ポインタの下のつなぎ替えられる形を相手として強調する。Escape で取りやめ
 import { type PointerEvent, useEffect, useRef, useState } from "react"
-import type { CoreCatalog, ItemPage, Point } from "../../../plugin-api"
+import { type CoreCatalog, type ItemPage, NO_PAPER, type Point } from "../../../plugin-api"
 import { useAllowed, useCommand, usePerform, useToPaper } from "../../../plugin-api/ui"
 import { LINE_UPDATE } from "./actions"
 import { LINE_RECONNECT_DROP } from "./commands"
@@ -75,7 +75,8 @@ export function useLineEdit(catalog: CoreCatalog, localOf: (e: PointerEvent<Elem
 
   const paperAt = (e: PointerEvent<Element>): Point | null => {
     const at = localOf(e)
-    return at && toPaperAt(at)
+    const on = at && toPaperAt(at)
+    return on === NO_PAPER ? null : on
   }
   const begin = (e: PointerEvent<Element>, line: string, what: Kind) => {
     if (e.button !== 0 || !editable) return

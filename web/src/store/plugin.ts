@@ -12,6 +12,7 @@ import {
   partsOf,
 } from "../core/catalog"
 import { buildCoreCatalog, type CatalogCheckDef, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
+import { NO_CONTROL_CENTER } from "../core/def/action"
 import type { FollowStepDef } from "../core/def/follow-step"
 import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
 import type { LibraryAppearanceDef } from "../core/def/library-appearance"
@@ -195,14 +196,14 @@ export interface Catalog {
 // 台帳アセンブルしたもの: 機能台帳と、台帳アセンブルで決まる値
 export interface Assembled {
   catalog: Catalog
-  controlCenter: string | null // インスタンスのコントロールセンターの定義の id（無ければ null）
+  controlCenter: string | typeof NO_CONTROL_CENTER // インスタンスのコントロールセンターの定義の id（無ければ NO_CONTROL_CENTER）
   autoSkin: AutoSkin | null // 自動のスキンで使う明と暗のスキン（スキンが無ければ null）
 }
 
 // プラグインを 1 つの表にする。id の頭・同じ id の重なり・表どうしの参照・コントロールセンターが表にあるか・自動のスキンの明暗を確かめ、食い違いがあれば作らない
 export function assemble(
   plugins: readonly Plugin[],
-  controlCenter: string | null = null,
+  controlCenter: string | typeof NO_CONTROL_CENTER = NO_CONTROL_CENTER,
   auto: Partial<Record<Scheme, string>> = {},
 ): Assembled {
   for (const p of plugins) {
@@ -291,7 +292,8 @@ export function assemble(
   ]
   if (untitled.length > 0) throw matomezuError(problem("E016", { count: untitled.length }), untitled)
   const { keys, warnings: unscoped } = defaultKeys(plugins, new Map(commands.map(c => [c.id, c])), scopeCommands)
-  if (controlCenter !== null && !catalog.controlCenters.has(controlCenter)) fail("E110", { id: controlCenter })
+  if (controlCenter !== NO_CONTROL_CENTER && !catalog.controlCenters.has(controlCenter))
+    fail("E110", { id: controlCenter })
   return {
     catalog: {
       core: catalog,

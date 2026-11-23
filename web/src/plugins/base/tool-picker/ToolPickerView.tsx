@@ -10,8 +10,8 @@ import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import { useShallow } from "zustand/react/shallow"
 import type { ToolId } from "../../../core/catalog"
 import type { Point } from "../../../core/geom"
-import { paperOf } from "../../../core/stage"
-import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
+import { NO_PAPER, NO_STAGE, paperOf } from "../../../core/stage"
+import { NO_TOOL, toolDef, toolSetOf, toolsIn } from "../../../core/tools"
 import { bookScreenCurrent, screenOf, workspaceOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { suppressContextMenu } from "../../../ui/context-menu"
@@ -57,7 +57,7 @@ export function ToolPickerView() {
       s.dialog !== null || !bookScreenCurrent(s.window) || allStages(s.window).some(st => st.picker !== null)
         ? []
         : screenOf(s.window)
-            .stages.filter(st => paperOf(st) !== null)
+            .stages.filter(st => paperOf(st) !== NO_PAPER)
             .map(st => st.id),
     ),
   )
@@ -164,7 +164,8 @@ function Picker({ last }: { last: { current: Point | null } }) {
   const opened = useMatomezuState(s => allStages(s.window).find(st => st.picker !== null))
   const catalog = useCatalog().core
   const toolIcons = useUiCatalog().toolIcons
-  const current = useStage()?.tool ?? null
+  const view = useStage()
+  const current = view === NO_STAGE ? NO_TOOL : view.tool
   const set = opened ? toolSetOf(catalog, opened) : null
   const picks: readonly ToolId[] = set ? toolsIn(catalog, set) : []
   // 使えない道具（開いているページで、行うアクションをどれも認可ステップに止められる）。並びを文字で比べて、変わったときだけ描き直す

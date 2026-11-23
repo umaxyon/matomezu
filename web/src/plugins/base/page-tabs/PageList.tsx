@@ -7,10 +7,11 @@
 // ブックの外のバインダのページも並べる（並べ替え・メニューの行・＋は、行えるかの問いとコマンドの when が決める）
 
 import { useRef, useState } from "react"
-import { findBinder, pagesIn } from "../../../core/book"
+import { findBinder, NO_BINDER, pagesIn } from "../../../core/book"
 import type { Size } from "../../../core/geom"
 import type { Page } from "../../../core/schema/book"
-import { binderOf, openedBook, shownPageId } from "../../../core/stage"
+import { binderOf, NOTHING_OPENED, openedBook, shownPageId } from "../../../core/stage"
+import { NO_OUTSIDE_BINDER } from "../../../store/commands/def"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
@@ -73,7 +74,7 @@ function ThumbnailFrame({
 }
 
 export function PageList() {
-  const opened = useStageHere(st => st?.opened)
+  const opened = useStageHere(st => st?.opened ?? NOTHING_OPENED)
   const book = useMatomezuState(s => openedBook(s.books, opened))
   const openPage = useCommand(PAGE_OPEN.id)
   const addAfter = useCommand(PAGE_ADD_AFTER.id)
@@ -82,9 +83,10 @@ export function PageList() {
   const openMenu = useContextMenu(PAGE_LIST_CONTEXT)
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
-  const outside = useOutsideBinder()
-  const binderId = book && opened ? binderOf(book, opened) : null
-  const binder = outside ?? (book && binderId !== null ? findBinder(book, binderId) : undefined)
+  const shownBinder = useOutsideBinder()
+  const outside = shownBinder === NO_OUTSIDE_BINDER ? undefined : shownBinder
+  const binderId = book ? binderOf(book, opened) : NO_BINDER
+  const binder = outside ?? (book && binderId !== NO_BINDER ? findBinder(book, binderId) : undefined)
   const pages = outside ? outside.lineup : book && binder ? pagesIn(book, binder.id) : []
   const drag = useTabDrag(
     list,
@@ -93,7 +95,7 @@ export function PageList() {
   )
   const outermost = (outside ?? book)?.id
   if (outermost === undefined || !binder || !openPage.enabled) return null
-  const shown = shownPageId(opened ?? null)
+  const shown = shownPageId(opened)
   const last = pages.at(-1)
   return (
     <nav className={styles.list} aria-label={t("Page list")} ref={list} data-page-list>

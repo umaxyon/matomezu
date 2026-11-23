@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { PluginStateDef } from "../core/def/plugin-state"
+import { NO_STAGE } from "../core/stage"
 import { stageIn, workspaceOf } from "../core/window"
 import { type StageView, stageView, toolOf } from "../core/workspace"
 import type { PluginKit } from "../store/kit"
@@ -13,12 +14,12 @@ import { useCatalog, useInstance, useMatomezuState, useReadState } from "./store
 // biome-ignore lint/suspicious/noExplicitAny: どのプラグインの kit も受ける（文言の表の型は見ない）
 export type Owner = PluginKit<string, any>
 
-// ステージ stage（読むだけ。null か、無いステージなら null）。紙をずらしただけでは描き直さない
-export function useStageAt(stage: string | null): StageView | null {
+// ステージ stage（読むだけ。NO_STAGE か、無いステージなら NO_STAGE）。紙をずらしただけでは描き直さない
+export function useStageAt(stage: string): StageView | typeof NO_STAGE {
   const catalog = useCatalog().core
   const found = useMatomezuState(
     useShallow(s => {
-      const st = stage === null ? undefined : stageIn(s.window, stage)
+      const st = stage === NO_STAGE ? undefined : stageIn(s.window, stage)
       return st
         ? {
             id: st.id,
@@ -33,8 +34,8 @@ export function useStageAt(stage: string | null): StageView | null {
         : null
     }),
   )
-  const tool = useMatomezuState(s => (stage === null ? null : toolOf(catalog, workspaceOf(s.window, stage), stage, s)))
-  return useMemo(() => (found ? stageView(catalog, found, tool) : null), [catalog, found, tool])
+  const tool = useMatomezuState(s => (found ? toolOf(catalog, workspaceOf(s.window, found.id), found.id, s) : null))
+  return useMemo(() => (found ? stageView(catalog, found, tool) : NO_STAGE), [catalog, found, tool])
 }
 
 // プラグイン状態 def の、場所 at（null なら場所が無い）の今の値。置き直すたびに描き直す

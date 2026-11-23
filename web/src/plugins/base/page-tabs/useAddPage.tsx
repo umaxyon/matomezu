@@ -1,6 +1,7 @@
 // ページを足して開くフック: 描いている場所（ui/scope.tsx）のステージが開いているブックに、アクション page-add でページを足し、そのステージで開いてカレントにする（add-page.ts の addPageIn）。
 // 足せたかを返す
 import type { ArgsOf } from "../../../core/perform"
+import { NO_STAGE } from "../../../core/stage"
 import { useStageId } from "../../../ui/scope"
 import { useInstance } from "../../../ui/store-context"
 import { addPageIn } from "../pages/add-page"
@@ -9,5 +10,5 @@ import type { PAGE_ADD } from "../pages/page-add"
 export function useAddPage(): (args: ArgsOf<typeof PAGE_ADD.id>) => boolean {
   const instance = useInstance()
   const stage = useStageId()
-  return args => stage !== null && addPageIn(instance, stage, args)
+  return args => stage !== NO_STAGE && addPageIn(instance, stage, args)
 }

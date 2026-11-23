@@ -4,6 +4,7 @@
 import { useMemo } from "react"
 import { withSettings } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
+import { NO_PAGE } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import type { SettingControlProps } from "../../../ui/plugin"
 import { useCatalog } from "../../../ui/store-context"
@@ -20,7 +21,7 @@ const PAPER_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#
 export function ThemeSetting({ label, value, page, onChange }: SettingControlProps<string>) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  if (!page) return null
+  if (page === NO_PAGE) return null
   const typeTheme = pageType(catalog, page.type).theme
   return (
     <Field label={label}>
@@ -47,7 +48,7 @@ export function PaperColorSetting({ label, value, page, onChange }: SettingContr
   const dark = useDarkScheme()
   // 「なし」のときの紙の色: 選んでいるテーマの紙の色
   const none = useMemo(() => {
-    if (!page) return "#ffffff"
+    if (page === NO_PAGE) return "#ffffff"
     const paper = pageTokens(catalog, withSettings(page, { [PAGE_PAPER_COLOR.id]: null })).paper
     return paper ? shadeOf(paper, dark) : "#ffffff"
   }, [catalog, page, dark])

@@ -5,8 +5,10 @@
 // 書いている間に付ける先の物がブックから消えたら（AI が消したなど）、閉じずにテキストFormの上に知らせ、書きかけはそのまま残す（付ける先が無い間は付けられない）。
 // 吹き出しを出すか（隠す・表示）・消すは、付けた伝言では押したときに変える。変えられなければ（認可ステップが止めたなど）、どれも始められない。
 // 付けた伝言は、文か付ける先を変えてから、再送するか閉じるまで編集ロックを掛ける（AI が変えも消しもしない。開いて見ているだけなら掛けない）。付けた伝言が無くなったら（利用者がほかの窓で消したなど）、黙って右サイドパネルを閉じる
+
 import { useCallback, useEffect, useRef, useState } from "react"
 import { type Annotation, anchorIds } from "../../../core/annotation"
+import { NO_PAGE } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
@@ -92,7 +94,7 @@ function Lost({ anchors }: { anchors: readonly string[] }) {
   const [lost, setLost] = useState(false)
   const before = useRef(anchors)
   useEffect(() => {
-    const ids = page ? anchorIds(page) : new Set<string>()
+    const ids = page === NO_PAGE ? new Set<string>() : anchorIds(page)
     if (before.current.some(id => !anchors.includes(id) && !ids.has(id))) setLost(true)
     before.current = anchors
   }, [anchors, page])

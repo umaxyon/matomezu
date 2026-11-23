@@ -6,6 +6,9 @@ import {
   connectorsOf,
   findShape,
   type MessageKey,
+  NO_CONTEXT_MENU,
+  NO_PAPER,
+  NO_PLACING,
   type Point,
   type ShapeAddArgs,
   shapeDialogs,
@@ -20,7 +23,7 @@ import type { Came } from "./drag"
 import { nearestMove, nearestReparent, PLACE_OFFSET, placeTarget, placingShape, stretchedBy } from "./items"
 
 // 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所を、toPaperAt で紙の上の点に直す
-export function placeAt(toPaperAt: (p: Point) => Point | null, pointer: Point): Point | null {
+export function placeAt(toPaperAt: (p: Point) => Point | typeof NO_PAPER, pointer: Point): Point | typeof NO_PAPER {
   return toPaperAt({ x: pointer.x - PLACE_OFFSET.x, y: pointer.y - PLACE_OFFSET.y })
 }
 
@@ -38,8 +41,8 @@ export const PAPER_PLACE = kit.defineCommand({
     const at = placeAt(ctx.toPaper, pointer)
     const point = ctx.toPaper(pointer)
     const placing = stage.placing
-    const shape = placing && placingShape(ctx.catalog, placing.item, placing.props)
-    if (!at || !point || !hasOpenedPage(ctx) || !placing || !shape) return
+    const shape = placing === NO_PLACING ? null : placingShape(ctx.catalog, placing.item, placing.props)
+    if (at === NO_PAPER || point === NO_PAPER || !hasOpenedPage(ctx) || placing === NO_PLACING || !shape) return
     const page = ctx.page
     const target = placeTarget(ctx.catalog, page, point, at, shape)
     if (!target) {
@@ -86,13 +89,15 @@ export const PAPER_PLACE = kit.defineCommand({
     }
     a.stopPlacing()
   },
-  when: ctx => hasOpenedPage(ctx) && ctx.stage.placing !== null,
+  when: ctx => hasOpenedPage(ctx) && ctx.stage.placing !== NO_PLACING,
 })
 
 // 右クリックされた形が編集のダイアログを持つか（右クリックのメニューが開いていなければ、呼んだ所が形を選んでいる）。
 // いくつか選んでいて、その中の物を右クリックしたなら、メニューは選んだ物全部に向けるので出さない
 function editable(ctx: CommandContext): boolean {
-  const target = ctx.contextMenu?.target as { item?: string } | undefined
+  const target = (ctx.contextMenu === NO_CONTEXT_MENU ? undefined : ctx.contextMenu.target) as
+    | { item?: string }
+    | undefined
   if (target?.item === undefined) return true
   if (amongSelected(ctx.stage.selection, target.item)) return false
   const placed = hasOpenedPage(ctx) && findShape(ctx.page, target.item)?.shape
@@ -210,7 +215,7 @@ export const PAPER_RESIZE = kit.defineCommand({
   title: "Resize item",
   run: (ctx, a, args: { item: string; edges: Edges; by: Point }) => {
     const paper = areaOf(ctx.stage)
-    if (!hasOpenedPage(ctx) || !paper) return
+    if (!hasOpenedPage(ctx) || paper === NO_PAPER) return
     const page = ctx.page
     const placed = findShape(page, args.item)?.shape
     if (!placed) return

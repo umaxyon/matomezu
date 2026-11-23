@@ -14,9 +14,12 @@ import type { ItemPage } from "./placed"
 import { sameData } from "./same"
 import type { BinderEntry, Book } from "./schema/book"
 import {
+  NO_PAGE,
+  NOTHING_OPENED,
   newStage,
   openBinder,
   openBook,
+  openedEntry,
   openOutsideBinder,
   openOutsidePage,
   openPage,
@@ -97,10 +100,12 @@ function stagesPlaceOf(ws: Workspace, states: (stage: string) => Readonly<Record
   return {
     places: ws.stages.map(s => {
       const view = s.mode.kind === "print-preview" ? s.mode.back : s
+      const entry = openedEntry(s.opened)
+      const page = shownPageId(s.opened)
       return {
-        outermost: s.opened?.outermost.kind === "book" ? s.opened.outermost.id : NO_OUTERMOST,
-        page: shownPageId(s.opened),
-        binder: s.opened?.kind === "binder" ? s.opened.binder : null,
+        outermost: entry?.kind === "book" ? entry.id : NO_OUTERMOST,
+        page: page === NO_PAGE ? null : page,
+        binder: s.opened !== NOTHING_OPENED && s.opened.kind === "binder" ? s.opened.binder : null,
         zoom: view.zoom,
         pan: view.pan,
         states: states(s.id),
@@ -203,7 +208,14 @@ function placed(
   else if (outside) next = openOutsideBinder(catalog, next, outside, place.page ?? undefined)
   // 開いていたページをそのまま開くなら、プレゼンテーションが知らせた広さとずらした量を保つ（同じ値は知らせ直されない）
   const [was, now] = [stage.opened, next.opened]
-  if (was?.kind === "page" && now?.kind === "page" && was.page === now.page && was.outermost.id === now.outermost.id)
+  if (
+    was !== NOTHING_OPENED &&
+    now !== NOTHING_OPENED &&
+    was.kind === "page" &&
+    now.kind === "page" &&
+    was.page === now.page &&
+    was.outermost.id === now.outermost.id
+  )
     next = {
       ...next,
       opened: { ...now, ...(was.area ? { area: was.area } : {}), ...(was.origin ? { origin: was.origin } : {}) },

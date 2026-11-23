@@ -6,7 +6,7 @@ import { pagesOf } from "../../../../web/src/core/book"
 import type { Point } from "../../../../web/src/core/geom"
 import type { PlacedShape } from "../../../../web/src/core/placed"
 import type { Book } from "../../../../web/src/core/schema/book"
-import { placement } from "../../../../web/src/core/stage"
+import { NO_PLACING } from "../../../../web/src/core/stage"
 import { screenOf } from "../../../../web/src/core/window"
 import { type Edges, placedSize, resizedBy } from "../../../../web/src/plugins/base"
 import { floorsOf } from "../../../../web/src/plugins/base/place/size"
@@ -14,13 +14,13 @@ import { SCRAP } from "../../../../web/src/plugins/base/scrap/scrap"
 import { SCRAP_BOX } from "../../../../web/src/plugins/items/scrap"
 import { lineColor } from "../../../../web/src/plugins/items/scrap/ScrapBoxView"
 import { PLACE_OFFSET, placingShape } from "../../../../web/src/plugins/paper/placing/items"
-import { sizedStore } from "../../../support"
+import { placedOf, sizedStore } from "../../../support"
 
 const BOX = SCRAP_BOX.id
 const ONE = { page: "p-other", area: { x: 10, y: 20, w: 400, h: 200 }, scale: 0.5 }
 
 function pointerFor(store: ReturnType<typeof sizedStore>, at: Point): Point {
-  const p = placement(screenOf(store.state.getState().window).stages[0]!)!
+  const p = placedOf(screenOf(store.state.getState().window).stages[0]!)
   return { x: p.x + at.x * p.zoom + PLACE_OFFSET.x, y: p.y + at.y * p.zoom + PLACE_OFFSET.y }
 }
 const items = (store: ReturnType<typeof sizedStore>) => pagesOf(store.state.getState().books.b1 as Book)[0]!.items ?? []
@@ -43,7 +43,7 @@ test("スクラップトレイのスクラップの値で置こうとして紙�
   expect(store.state.getState().dialog).toBeNull()
   expect(items(store)).toHaveLength(1)
   expect(items(store)[0]).toMatchObject({ item: BOX, x: 100, y: 50, props: ONE })
-  expect(screenOf(store.state.getState().window).stages[0]!.placing).toBeNull()
+  expect(screenOf(store.state.getState().window).stages[0]!.placing).toBe(NO_PLACING)
   expect(tray(store)).toEqual(before)
   store.actions.command("s1", "@matomezu/base:undo")
   expect(items(store)).toHaveLength(0)

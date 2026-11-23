@@ -16,7 +16,7 @@
 // 行は台紙の上の 1 枚ずつのカードで、カードの地・角・影・折り返しはテーマが決める（付箋紙のテーマでは付箋）。色はリストの台紙と見出しに塗る（paint.ts）
 
 import { type CSSProperties, type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { type ItemProps, toPaperDelta } from "../../../plugin-api"
+import { type ItemProps, NO_STAGE, toPaperDelta } from "../../../plugin-api"
 import {
   type ItemViewProps,
   themeVars,
@@ -166,17 +166,17 @@ export function ListView({
   })
   const { select } = useActions()
   const at = useStage()
-  const selection = at?.selection ?? []
+  const selection = at === NO_STAGE ? [] : at.selection
   const followed = useFollowsSelection()
   // 紙をずらす道具（ハンドなど）の間は、行を運ぶことも行の高さを変えることも、ダブルクリックで行の編集を開くこともしない（つまみも出さない）
-  const pans = at?.pans === true
+  const pans = at !== NO_STAGE && at.pans
   const stretch = useRef<Stretch | null>(null)
   const [moved, setMoved] = useState(0) // 行の高さを変えているドラッグの、画面の上で動いた量
   const layout = listLayout(rows, size.w, props.checklist)
   // 高さを変えている途中の行は、一番近い行数の高さで描く
   const heightOf = (row: string, height: number) => {
     const st = stretch.current
-    if (!st || st.row !== row || !at) return height
+    if (!st || st.row !== row || at === NO_STAGE) return height
     return rowHeight(linesFor(st.height + toPaperDelta(at, { x: 0, y: moved }).y))
   }
   const grip = (row: string, height: number) => ({

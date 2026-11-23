@@ -4,12 +4,12 @@
 // 項目を変えるとすぐに print-preview-update で変える。ロック中なら先に書き換えてよいかを確かめ、よければロックを外して変え、掛け直す。
 // 右サイドパネルの閉じるボタン（と Esc）で閉じると、印刷プレビューも閉じる（PrintPreviewView）。ステージが印刷プレビューでなくなったら、右サイドパネルを閉じる
 import { useEffect, useState } from "react"
-import { previewing as isPreviewing } from "../../../core/stage"
+import { previewing as isPreviewing, NO_PAGE } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useStageHere } from "../../../ui/scope"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
-import { useActions, useAllowed, useAllowedOn, usePerform } from "../../../ui/view-hooks"
+import { NO_PERMISSION, useActions, useAllowed, useAllowedOn, usePerform } from "../../../ui/view-hooks"
 import { outermostSettingDefs, ownSettings } from "../book-settings"
 import { Confirm } from "../dialog-host/Confirm"
 import { kit } from "../kit"
@@ -51,7 +51,7 @@ function PrintPreviewPanelBody({ previewed }: { previewed: PreviewedEntry }) {
   const [confirming, setConfirming] = useState<Patch | null>(null)
   // 変えられるか（ロックで止められるなら、確かめてから外して変えるので変えられる。ほかの認可ステップに止められるなら変えられない）
   const changing = useAllowedOn(PRINT_PREVIEW_UPDATE.id, { entry: previewed.id, settings: {} })
-  const blocked = !changing.ok && changing.permission !== null && changing.permission !== LOCK.id
+  const blocked = !changing.ok && changing.permission !== NO_PERMISSION && changing.permission !== LOCK.id
   const lock = previewed.lock
   const locked = lock !== NO_LOCK && lock.locked
   const update = (patch: Patch) => performOther(PRINT_PREVIEW_UPDATE.id, { entry: previewed.id, settings: patch })
@@ -81,7 +81,7 @@ function PrintPreviewPanelBody({ previewed }: { previewed: PreviewedEntry }) {
               label={t(def.title)}
               value={own[id]}
               inherited={def.default}
-              page={null}
+              page={NO_PAGE}
               onChange={(v: string | undefined) => change({ [id]: v ?? null })}
             />
           )

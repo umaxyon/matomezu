@@ -10,7 +10,7 @@ import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, isInStageEntry, isOnPage, type PageTarget, type Where } from "../core/def/action"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
-import { deniedBy } from "../core/inspect"
+import { deniedBy, NO_PERMISSION } from "../core/inspect"
 import { type ArgsOf, noPage, type TargetOf } from "../core/perform"
 import { openedAnswer, type Permitted } from "../core/perform-permit"
 import { permittedIn } from "../core/perform-world"
@@ -24,7 +24,18 @@ import {
 } from "../core/placed"
 import type { BinderEntry, Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
-import { askedOutermostOf, openedPageById, shownPageId, stageBlocks, toPaper } from "../core/stage"
+import {
+  askedOutermostOf,
+  NO_PAGE,
+  NO_PAPER,
+  NO_STAGE,
+  NOTHING_OPENED,
+  openedEntry,
+  openedPageById,
+  shownPageId,
+  stageBlocks,
+  toPaper,
+} from "../core/stage"
 import { stageIn } from "../core/window"
 import type { StageView } from "../core/workspace"
 import {
@@ -35,6 +46,7 @@ import {
   type WindowActions,
   windowActionsOf,
 } from "../store/actions"
+import { NO_BOOK, NO_OUTSIDE_BINDER } from "../store/commands/def"
 import { worldOf } from "../store/world"
 import { useStageAt } from "./at-hooks"
 import type { UiCatalog } from "./plugin"
@@ -48,30 +60,30 @@ import {
   useUiCatalog as useUi,
 } from "./store-context"
 
-// 描くページのブック（何も開いていなければ null）
-export function useBook(): Book | null {
+// 描くページのブック（開いている物がブックでなければ NO_BOOK）
+export function useBook(): Book | typeof NO_BOOK {
   const scope = useScope()
-  return useMatomezuState(s => bookOf(s, scope))
+  return useMatomezuState(s => bookOf(s, scope) ?? NO_BOOK)
 }
 
-// 描くページのステージエントリが、ブックの外のバインダなら、そのバインダ（中のページごと。ブックやブックの外のページを開いている・何も開いていなければ null）
-export function useOutsideBinder(): BinderEntry | null {
+// 描くページのステージエントリが、ブックの外のバインダなら、そのバインダ（中のページごと。ブックやブックの外のページを開いている・何も開いていなければ NO_OUTSIDE_BINDER）
+export function useOutsideBinder(): BinderEntry | typeof NO_OUTSIDE_BINDER {
   const scope = useScope()
-  return useMatomezuState(s => outsideBinderOf(s, scope))
+  return useMatomezuState(s => outsideBinderOf(s, scope) ?? NO_OUTSIDE_BINDER)
 }
 
-// 描くページ（ページを持たないブック・ページを開いていなければ null）
-export function usePage(): ItemPage | null {
+// 描くページ（ページを持たないブック・ページを開いていなければ NO_PAGE）
+export function usePage(): ItemPage | typeof NO_PAGE {
   const scope = useScope()
-  return useMatomezuState(s => pageOf(s, scope))
+  return useMatomezuState(s => pageOf(s, scope) ?? NO_PAGE)
 }
 
-// 描くページのステージが開いている物の中の、id のページ（開いている物に無いページ・何も開いていなければ null）
-export function usePageById(id: string): ItemPage | null {
+// 描くページのステージが開いている物の中の、id のページ（開いている物に無いページ・何も開いていなければ NO_PAGE）
+export function usePageById(id: string): ItemPage | typeof NO_PAGE {
   const scope = useScope()
   return useMatomezuState(s => {
     const opened = openedOf(s, scope)
-    return opened ? openedPageById(s, opened, id) : null
+    return (opened && openedPageById(s, opened, id)) ?? NO_PAGE
   })
 }
 
@@ -87,12 +99,18 @@ export function useItem<Id extends ItemId>(page: string, item: string, id?: Id):
   })
 }
 
-// 描くページのブックに、ダイアログの下書き（ブックの設定の項目の、まだ確定していない値）を重ねたブック。プレゼンテーションが描くのに使う
-export function useShownBook(): Book | null {
+// 描くページのブックに、ダイアログの下書き（ブックの設定の項目の、まだ確定していない値）を重ねたブック。プレゼンテーションが描くのに使う（開いている物がブックでなければ NO_BOOK）
+export function useShownBook(): Book | typeof NO_BOOK {
   const book = useBook()
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   return useMemo(() => {
-    if (!book || !preview || preview.outermost !== book.id || preview.item !== undefined || preview.page !== undefined)
+    if (
+      book === NO_BOOK ||
+      !preview ||
+      preview.outermost !== book.id ||
+      preview.item !== undefined ||
+      preview.page !== undefined
+    )
       return book
     return withSettings(book, preview.props)
   }, [book, preview])
@@ -100,14 +118,14 @@ export function useShownBook(): Book | null {
 
 // 描くページに、ダイアログの下書き（選んでいて、まだ確定していない値。アイテムの項目と、ページの設定の項目）を重ねたページ。
 // ページの設定の項目の下書きは、ページを名指した下書きならそのページにだけ、ページを名指さない下書き（ブックのページをまとめて変えるダイアログ）なら、そのブックのどのページにも重ねる。
-// プレゼンテーションが描くのに使う
-export function useShownPage(): ItemPage | null {
+// プレゼンテーションが描くのに使う（ページを開いていなければ NO_PAGE）
+export function useShownPage(): ItemPage | typeof NO_PAGE {
   const page = usePage()
   const scope = useScope()
   const outermost = useMatomezuState(s => openedOf(s, scope)?.outermost)
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   return useMemo(() => {
-    if (!page || !preview || preview.outermost !== outermost) return page
+    if (page === NO_PAGE || !preview || preview.outermost !== outermost) return page
     if (preview.item === undefined)
       return preview.page === undefined || preview.page === page.id ? withSettings(page, preview.props) : page
     // ページのアイテムか、どの深さの子の形も
@@ -124,7 +142,9 @@ export function useShownPage(): ItemPage | null {
 // 向け先が無い所（ステージの外で見るだけに描くページの中）では、行えない。
 // 利用者の設定が対象のアクションは、where に変える項目の id（settings）を渡して問う。
 // 止められたときに、薄くする・消すなどをどうするかは、使う側が決める
-export type Allowed = { ok: true } | { ok: false; permission: string | null }
+// Allowed の permission の、止めたのが認可ステップでない（タイプなどで使えない）ときの値は NO_PERMISSION（core/inspect.ts）
+export { NO_PERMISSION }
+export type Allowed = { ok: true } | { ok: false; permission: string | typeof NO_PERMISSION }
 
 export function useAllowed(action: ActionId, where?: Where | { settings: readonly string[] }): Allowed {
   const at = useAt()
@@ -139,7 +159,8 @@ export function useAllowed(action: ActionId, where?: Where | { settings: readonl
     if (st && stageBlocks(catalog, st.mode.kind, action)) return NOT_ALLOWED
     const o = st?.opened
     const asked = askedOutermostOf(s, o)
-    const page = place?.page ?? shownPageId(o ?? null) ?? undefined
+    const shown = shownPageId(o ?? NOTHING_OPENED)
+    const page = place?.page ?? (shown === NO_PAGE ? undefined : shown)
     const on = { ...(page ? { page } : {}), ...(ids ? { ids: ids.split("\n") } : {}) }
     const changed = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }
     const done = openedAnswer(catalog, action, asked, on, { controlCenter }, changed)
@@ -152,7 +173,7 @@ export function useAllowed(action: ActionId, where?: Where | { settings: readonl
 const OK = ""
 const NOT_ALLOWED = "-"
 const allowedOf = (answer: string): Allowed =>
-  answer === OK ? { ok: true } : { ok: false, permission: answer === NOT_ALLOWED ? null : answer }
+  answer === OK ? { ok: true } : { ok: false, permission: answer === NOT_ALLOWED ? NO_PERMISSION : answer }
 
 // アクション action を引数 args で、行うときと同じ形（ブックかアノテーションが対象なら on のブック、ページが対象なら on のページ）で行えるか（認可ステップも見る。答えは useAllowed と同じ形）。
 // どのブックに問うかは、アクションの許可スコープ（permissionScope）と引数、ブックかページが対象なら on で決まるので、ステージが開いていないブックにも問える。
@@ -171,58 +192,71 @@ export function useAllowedOn<Id extends ActionId>(action: Id, args: ArgsOf<Id>, 
   return allowedOf(answer)
 }
 
-// 向け先のステージ（読むだけ。向け先がステージでなければ null。ステージの外で見るだけに描くページの中でも null）。紙をずらしただけでは描き直さない
-export function useStage(): StageView | null {
+// 向け先のステージ（読むだけ。向け先がステージでなければ NO_STAGE。ステージの外で見るだけに描くページの中でも NO_STAGE）。紙をずらしただけでは描き直さない
+export function useStage(): StageView | typeof NO_STAGE {
   return useStageAt(useStageId())
 }
 
-// プレゼンテーションのビューが、向け先のステージに描く広さ（可変ページで、印刷区画を並べた広さ）を知らせる。null なら紙 1 枚。
+// useStageArea の area の、広さを知らせない（紙 1 枚で描く）ときの値
+export const NO_AREA = "none"
+const ORIGIN: Point = { x: 0, y: 0 }
+
+// プレゼンテーションのビューが、向け先のステージに描く広さ（可変ページで、印刷区画を並べた広さ）を知らせる。NO_AREA なら紙 1 枚。
 // 位置をデータに持たないプレゼンテーションは、描く中身を右・下へずらした量 origin（印刷区画の数）も知らせる（変わったら、ステージがパンを合わせる）。
 // 広さかずらした量が変わったときだけ知らせ、ビューが消えたら紙 1 枚に戻す。ずらす量の範囲・紙の枠・全体を収める倍率・ミニマップは、この広さで決まる。
 // 向け先がステージでない所（ステージの外で見るだけに描くページの中）では、何も知らせない
-export function useStageArea(area: Size | null, origin: Point | null = null): void {
+export function useStageArea(area: Size | typeof NO_AREA, origin: Point = ORIGIN): void {
   const stage = useStageId()
   const { setStageArea } = useStoreActions()
-  const w = area?.w
-  const h = area?.h
-  const ox = origin?.x ?? 0
-  const oy = origin?.y ?? 0
+  const w = area === NO_AREA ? undefined : area.w
+  const h = area === NO_AREA ? undefined : area.h
+  const ox = origin.x
+  const oy = origin.y
   useLayoutEffect(() => {
-    if (stage !== null) setStageArea(stage, w !== undefined && h !== undefined ? { w, h } : null, { x: ox, y: oy })
+    if (stage !== NO_STAGE) setStageArea(stage, w !== undefined && h !== undefined ? { w, h } : null, { x: ox, y: oy })
   }, [setStageArea, stage, w, h, ox, oy])
   useLayoutEffect(
     () => () => {
-      if (stage !== null) setStageArea(stage, null)
+      if (stage !== NO_STAGE) setStageArea(stage, null)
     },
     [setStageArea, stage],
   )
 }
 
-// 向け先のステージの紙をずらす量（向け先がステージでなければ null）。ずらすたびに描き直す（紙を置く所など、ずらす量で描くものが使う）。
-// watch が false の間は null を返し、ずらしても描き直さない（ドラッグの間だけ追うときなど）
-export function useStagePan(watch = true): Point | null {
+// useStagePan の、ずらす量を追っていないときの値
+export const PAN_NOT_WATCHED = "not-watched"
+
+// 向け先のステージの紙をずらす量（向け先がステージでなければ NO_STAGE）。ずらすたびに描き直す（紙を置く所など、ずらす量で描くものが使う）。
+// watch が false の間は PAN_NOT_WATCHED を返し、ずらしても描き直さない（ドラッグの間だけ追うときなど）
+export function useStagePan(watch = true): Point | typeof NO_STAGE | typeof PAN_NOT_WATCHED {
   const stage = useStageId()
-  return useMatomezuState(s => (watch && stage !== null ? (stageIn(s.window, stage)?.pan ?? null) : null))
+  return useMatomezuState(s =>
+    !watch ? PAN_NOT_WATCHED : stage === NO_STAGE ? NO_STAGE : (stageIn(s.window, stage)?.pan ?? NO_STAGE),
+  )
 }
 
-// 表示領域の中の点（左上から）を、向け先のステージの今の紙の上の点に直す関数（描き直さない。押した所を直すときなど、イベントや effect の中で使う）
-export function useToPaper(): (p: Point) => Point | null {
+// 表示領域の中の点（左上から）を、向け先のステージの今の紙の上の点に直す関数（描き直さない。押した所を直すときなど、イベントや effect の中で使う）。
+// 向け先がステージでないか、紙が無ければ NO_PAPER
+export function useToPaper(): (p: Point) => Point | typeof NO_PAPER {
   const stage = useStageId()
   const read = useReadState()
   return useCallback(
     (p: Point) => {
-      const st = stage === null ? undefined : stageIn(read().window, stage)
-      return st ? toPaper(st, p) : null
+      const st = stage === NO_STAGE ? undefined : stageIn(read().window, stage)
+      return st ? toPaper(st, p) : NO_PAPER
     },
     [read, stage],
   )
 }
 
-// 向け先のステージの今の紙をずらす量を読む関数（描き直さない。押した所を紙の上の点に直すときなど、イベントや effect の中で読む）
-export function useLatestPan(): () => Point | null {
+// 向け先のステージの今の紙をずらす量を読む関数（描き直さない。押した所を紙の上の点に直すときなど、イベントや effect の中で読む）。向け先がステージでなければ NO_STAGE
+export function useLatestPan(): () => Point | typeof NO_STAGE {
   const stage = useStageId()
   const read = useReadState()
-  return useCallback(() => (stage === null ? null : (stageIn(read().window, stage)?.pan ?? null)), [read, stage])
+  return useCallback(
+    () => (stage === NO_STAGE ? NO_STAGE : (stageIn(read().window, stage)?.pan ?? NO_STAGE)),
+    [read, stage],
+  )
 }
 
 // 描いている場所（ui/scope.tsx）から呼ぶ画面の操作: 窓に向ける操作はそのまま、場所に向ける操作は、向け先（ステージかスクリーン）に向けた形（第 1 引数が無い）。
@@ -276,8 +310,8 @@ export function usePerform(): <Id extends ActionId>(
   const read = useReadState()
   const { perform } = useStoreActions()
   const catalog = useCatalog().core
-  const entry = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.opened?.outermost.id))
-  const outsidePage = useMatomezuState(s => at !== null && stageIn(s.window, at)?.opened?.outermost.kind === "page")
+  const entry = useMatomezuState(s => (at === null ? undefined : openedEntry(stageIn(s.window, at)?.opened)?.id))
+  const outsidePage = useMatomezuState(s => at !== null && openedEntry(stageIn(s.window, at)?.opened)?.kind === "page")
   const mode = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.mode.kind) ?? "edit")
   return useMemo(
     () =>

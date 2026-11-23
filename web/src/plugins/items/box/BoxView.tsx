@@ -6,7 +6,7 @@
 // 色（color）があれば、塗りと文字のテーマキーをその色で上書きする（paint.ts）
 
 import type { CSSProperties } from "react"
-import { type ItemProps, shownPageId } from "../../../plugin-api"
+import { type ItemProps, NO_PAGE, NO_STAGE, shownPageId } from "../../../plugin-api"
 import { type ItemViewProps, usePerform, useStage } from "../../../plugin-api/ui"
 import { TextBlockView, useBodyGrips, useThemeVars } from "../../base/ui"
 import styles from "./BoxView.module.css"
@@ -20,7 +20,8 @@ export function BoxView({ props, size, hasChildren, id }: ItemViewProps<BoxProps
   const theme = props.theme
   const vars = useThemeVars(theme, BOX_TOKENS)
   const at = useStage()
-  const page = shownPageId(at?.opened ?? null) ?? undefined
+  const shown = at === NO_STAGE ? NO_PAGE : shownPageId(at.opened)
+  const page = shown === NO_PAGE ? undefined : shown
   const perform = usePerform()
   const grips = useBodyGrips(id, "@matomezu/paper:item-update")
   return (

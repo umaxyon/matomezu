@@ -5,7 +5,7 @@
 // 追加は決めた項目の値を、開いた側が渡した置き方（ShapeAddArgs の place）に渡す（置く・選ぶ・断りの文は開いた側が持つ）。編集は形の項目を書き換える（アクション item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
+import { type ItemProps, type MessageKey, NO_PAGE, type ShapeAddArgs } from "../../../plugin-api"
 import {
   type DialogProps,
   useActions,
@@ -47,7 +47,7 @@ export function addShapeDialog(item: string, turnable = false) {
     const pageTheme = usePageTheme()
     const catalog = useCoreCatalog()
     const page = usePageById(args.page)
-    const turned = page ? startTurned(catalog, page, item) : false
+    const turned = page !== NO_PAGE && startTurned(catalog, page, item)
     const add = (props: ShapeProps) => {
       const no = args.place(props)
       if (no === null) onClose()

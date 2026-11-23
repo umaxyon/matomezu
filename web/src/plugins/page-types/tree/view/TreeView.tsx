@@ -11,8 +11,9 @@
 // ドラッグの間は倍率を 100% にし、ポインタが端に近ければ紙をずらす（遠くの節にも落とせる）。終えたら編集の倍率に戻す。
 // 足す・書き換える・付け替えるのが紙に入らないので断られたら、トーストで知らせる
 import { Fragment, memo, type RefObject, useEffect, useMemo, useRef, useState } from "react"
-import { paperOf, placement, type Size, type StageView } from "../../../../plugin-api"
+import { NO_PAGE, NO_PAPER, NO_STAGE, paperOf, placement, type Size, type StageView } from "../../../../plugin-api"
 import {
+  NO_AREA,
   useActions,
   useAllowed,
   useCommand,
@@ -79,7 +80,7 @@ export function TreeView() {
   const ref = useRef<HTMLDivElement>(null)
   const [view, setView] = useState<Size | null>(null)
   useResize(ref, setView)
-  if (!stage) return null
+  if (stage === NO_STAGE) return null
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューはポインタの操作で、キーの操作はメニューとコマンドが受ける
     <div ref={ref} className={styles.tree} onContextMenu={e => openMenu(e, {})}>
@@ -100,8 +101,8 @@ function Content({
   const t = useMessages(kit)
   // 紙の大きさ（変わらなければ同じ物を渡し、紙をずらしただけでは木を描き直さない）
   const size = paperOf(stage)
-  const w = size?.w
-  const h = size?.h
+  const w = size === NO_PAPER ? undefined : size.w
+  const h = size === NO_PAPER ? undefined : size.h
   const paperSize = useMemo(() => (w !== undefined && h !== undefined ? { w, h } : null), [w, h])
   if (!paperSize) return null
   return (
@@ -137,7 +138,8 @@ const Tree = memo(function Tree({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const page = useShownPage()
+  const shownPage = useShownPage()
+  const page = shownPage === NO_PAGE ? undefined : shownPage
   const perform = usePerform()
   const { select, setEditing, panStageBy, zoomStage, showToast, openDialog } = useActions()
   const anchor = useAnchorRef() // 節にアンカーを付ける（そばにスタンドを立てられる）
@@ -184,7 +186,7 @@ const Tree = memo(function Tree({
       ? laidPage(catalog, page, { setting: pageContext(catalog, page).setting, grow: growing }, shown)
       : null
   // 可変ページなら、節の外枠が入るだけ並べた印刷区画に空きを足した広さと、木全体をずらした印刷区画の数を、ステージに知らせる
-  useStageArea(laid && growing ? laidArea(paper, growing, laid, true).size : null, laidOrigin(laid))
+  useStageArea(laid && growing ? laidArea(paper, growing, laid, true).size : NO_AREA, laidOrigin(laid))
   const at = laid?.nodes.find(n => n.id === selected)
   // 節のフォーカス（選んでいる節を中央に置き、そのほかを暗くする）を外している間か。背景編集モードに入ると外し（ページ全体を収める）、
   // 出てもそのまま（見え方は変えない）。節を選ぶか書き換え始めるか、ページを替えると戻る
@@ -436,8 +438,17 @@ function useCentered(
   const centerNow = useRef<() => void>(() => {})
   centerNow.current = () => {
     const pan = latestPan()
-    const at = pan && placement({ ...latest.current, pan })
-    if (x === undefined || y === undefined || w === undefined || h === undefined || !view?.w || !view.h || !at) return
+    const at = pan === NO_STAGE ? NO_PAPER : placement({ ...latest.current, pan })
+    if (
+      x === undefined ||
+      y === undefined ||
+      w === undefined ||
+      h === undefined ||
+      !view?.w ||
+      !view.h ||
+      at === NO_PAPER
+    )
+      return
     const shift = centerShift({ x, y, w, h }, view, at)
     if (shift) panStageBy(shift.dx, shift.dy)
   }

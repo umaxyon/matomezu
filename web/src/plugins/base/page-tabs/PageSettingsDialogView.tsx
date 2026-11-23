@@ -6,12 +6,22 @@
 // 見出しの右の鍵でロックを切り替え、確定で page-lock・page-unlock を行う（外すのは書く前、掛けるのは書いた後）。認可ステップが page-update を止めていれば項目を押せない（ロックなら、鍵を外す方にすれば押せる）。
 // ページを削除するボタンは、ページがブックに入っているときだけ出す（ブックの外のページを捨てるのは、書庫の画面）。認可ステップが page-remove を止めていれば（ページかブックのロックなど）押せない。
 // 上に重ねたモーダルで確かめてから page-remove を行う（中身ごと消え、戻せないため）。断られたらダイアログを開いたままにする
+
 import { type ReactNode, useEffect, useId, useState } from "react"
 import { withSettings } from "../../../core/book"
 import type { Page } from "../../../core/schema/book"
+import { NO_PAGE } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
-import { useActions, useAllowed, useBook, useOutsideBinder, usePageById, usePerform } from "../../../ui/view-hooks"
+import {
+  NO_PERMISSION,
+  useActions,
+  useAllowed,
+  useBook,
+  useOutsideBinder,
+  usePageById,
+  usePerform,
+} from "../../../ui/view-hooks"
 import { useSettingControls } from "../book-settings/SettingControls"
 import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
@@ -42,12 +52,13 @@ export function PageSettingsDialogView({ page: id, onClose, children, fields, dr
   const catalog = useCatalog().core
   const deletes = showsPageDelete(useBook(), useOutsideBinder())
   const outermost = useOutermostOf()
-  const page = usePageById(id)
+  const byId = usePageById(id)
+  const page = byId === NO_PAGE ? null : byId
   const [title, setTitle] = useState(page?.title ?? "")
   const [locked, setLocked] = useState(page?.locked === true)
   // 認可ステップが止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）
   const update = useAllowed(PAGE_UPDATE.id, { page: id })
-  const blocked = !update.ok && update.permission !== null && !(update.permission === LOCK.id && !locked)
+  const blocked = !update.ok && update.permission !== NO_PERMISSION && !(update.permission === LOCK.id && !locked)
   // 削除できるか（ページとブックのロック・ほかの認可ステップも見る）
   const removable = useAllowed(PAGE_REMOVE.id, { page: id }).ok
   const [confirming, setConfirming] = useState(false)

@@ -3,7 +3,7 @@
 // Space で開いた道具のアイコンは、もう一度 Space で閉じる）
 
 import type { ToolId } from "../../../core/catalog"
-import { paperOf } from "../../../core/stage"
+import { NO_PAPER, paperOf } from "../../../core/stage"
 import { toolUsable } from "../../../core/tools"
 import { askedIn, calledStageOf } from "../../../store/commands/def"
 import { kit } from "../kit"
@@ -15,7 +15,7 @@ export const TOOL_SET = kit.defineCommand({
   run: (ctx, a, tool: ToolId) => {
     if (toolUsable(ctx.catalog, tool, askedIn(ctx) ?? null, hasOpenedPage(ctx) ? ctx.page.id : null)) a.setTool(tool)
   },
-  when: ctx => paperOf(ctx.stage) !== null,
+  when: ctx => paperOf(ctx.stage) !== NO_PAPER,
 })
 
 // 開く所は画面が決める（最後のポインタの位置。ステージの外なら真ん中）
@@ -23,7 +23,7 @@ export const TOOL_PICKER = kit.defineCommand({
   id: "tool-picker",
   title: "Tool picker",
   run: (_ctx, a) => a.openPicker(null),
-  when: ctx => paperOf(ctx.stage) !== null,
+  when: ctx => paperOf(ctx.stage) !== NO_PAPER,
 })
 
 // 開いているかは、呼ばれたステージの状態から読む（プラグイン API には出さない）

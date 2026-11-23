@@ -1,7 +1,7 @@
 // ノードの設定のダイアログ（フォルダもファイルも、根も同じ形）: 名前と説明（どちらも上に装飾のボックス）と、アイコン（フォルダは folder・book、ファイルは file とそれ以外）を選ぶ。
 // 確定でアクション node-update を行う。断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に入らない）
 import { useId, useRef, useState } from "react"
-import type { MessageKey } from "../../../plugin-api"
+import { type MessageKey, NO_PAGE } from "../../../plugin-api"
 import { type DialogProps, useCoreCatalog, useMessages, usePageById, usePerform, useT } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -27,7 +27,8 @@ export function NodeSettingsDialog({ args, onClose }: DialogProps<{ page: string
   const t = useMessages(kit)
   const form = useId()
   const iconGroup = useId() // アイコンのラジオの組の名前
-  const page = usePageById(args.page)
+  const found = usePageById(args.page)
+  const page = found === NO_PAGE ? undefined : found
   const root = dirRootOf(page)
   const node = root ? nodeOf(root, args.node) : null
   const perform = usePerform()

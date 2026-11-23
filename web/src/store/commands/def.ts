@@ -4,7 +4,7 @@
 import type { Annotation } from "../../core/annotation"
 import type { ActionId, ActionTable, CommandExtras, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
-import { ANY_PAGE_TYPE, type ArgsOfType, type Where } from "../../core/def/action"
+import { ANY_PAGE_TYPE, type ArgsOfType, type NO_CONTROL_CENTER, type Where } from "../../core/def/action"
 import type { PluginStateDef, PluginStateRead } from "../../core/def/plugin-state"
 import { fail } from "../../core/errors"
 import type { Folders } from "../../core/folders"
@@ -20,12 +20,12 @@ import type { ItemPage } from "../../core/placed"
 import type { RecordReader } from "../../core/record-source"
 import type { BinderEntry, Book } from "../../core/schema/book"
 import type { Settings } from "../../core/settings"
-import { type Stage, shownPageId, toPaper } from "../../core/stage"
+import { NO_PAGE, NO_PAPER, NOTHING_OPENED, type Stage, shownPageId, toPaper } from "../../core/stage"
 import type { StageListed } from "../../core/window"
 import type { StageView, Workspace } from "../../core/workspace"
 import type { Actions, BoundPlaceActions, ProbeActions, WindowActions } from "../actions"
-import type { OpenedContextMenu } from "../context-menus"
-import type { OpenedDialog } from "../dialogs"
+import type { NO_CONTEXT_MENU, OpenedContextMenu } from "../context-menus"
+import type { NO_DIALOG, OpenedDialog } from "../dialogs"
 
 // コマンドの許可スコープ: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
 // { page } には、ページの id が入っている引数の名前を書く（右クリックしたページのように、引数が所を決めるとき）。
@@ -71,8 +71,8 @@ export function commandScopeOf(
     // 引数がまだ無ければ、所は分からない（問う側が、開いているページで問う）
     return typeof page === "string" ? { page } : undefined
   }
-  const page = shownPageId(ctx.stage.opened) ?? undefined
-  const on = page ? { page } : {}
+  const page = shownPageId(ctx.stage.opened)
+  const on = page === NO_PAGE ? {} : { page }
   return scope === "opened-page" ? on : { ...on, ids: ctx.stage.selection }
 }
 
@@ -86,12 +86,12 @@ export interface CalledScreen {
 // スクリーンから呼ぶコマンド（defineScreenCommand）が受け取る、呼ばれた場所の様子。ステージを持たないスクリーンからも呼べるように、ステージ・ブックを持たない
 export interface ScreenCommandContext {
   catalog: CoreCatalog
-  controlCenter: string | null // インスタンスのコントロールセンターの定義の id
+  controlCenter: string | typeof NO_CONTROL_CENTER // インスタンスのコントロールセンターの定義の id（無ければ NO_CONTROL_CENTER）
   screen: CalledScreen // 呼ばれた場所のスクリーン（スクリーンの外から呼ばれたら、カレントスクリーン）
   arrangement: { id: string } // 窓のスクリーンアレンジメントの定義の id（値は並べるスクリーンを名指すので持たない）
   settings: Settings
-  dialog: OpenedDialog | null // 開いているダイアログ
-  contextMenu: OpenedContextMenu | null // 開いている右クリックのメニュー
+  dialog: OpenedDialog | typeof NO_DIALOG // 開いているダイアログ（無ければ NO_DIALOG）
+  contextMenu: OpenedContextMenu | typeof NO_CONTEXT_MENU // 開いている右クリックのメニュー（無ければ NO_CONTEXT_MENU）
   libraryHistory: History // 書庫の履歴
   folders: Folders // 書庫のフォルダの表（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダの行と並び。読むだけ。ページの中身は持たない）
   pageTitle(page: string): string | undefined // ページ page の名前（名前の無いページ・表に無い物は undefined。ページの中身は渡さない）
@@ -106,8 +106,8 @@ export interface ScreenCommandContext {
 export const NO_BOOK = "none"
 // CommandContext の binder の、開いている物がブックの外のバインダでないときの値
 export const NO_OUTSIDE_BINDER = "none"
-// CommandContext の page の、ページを開いていないときの値
-export const NO_PAGE = "none"
+// CommandContext の page の、ページを開いていないときの値は NO_PAGE（core/stage.ts）
+export { NO_PAGE }
 
 // ステージから呼ぶコマンド（defineCommand）が受け取る、呼ばれた場所の様子
 export interface CommandContext extends ScreenCommandContext {
@@ -117,14 +117,14 @@ export interface CommandContext extends ScreenCommandContext {
   page: ItemPage | typeof NO_PAGE // そのステージで開いているページ（ブックの中でも外でも。ページを開いていなければ NO_PAGE）
   history: History // そのステージで開いているステージエントリ（ブックか、ブックの外のページ・バインダ）の、画面の履歴（何も開いていなければ空）
   annotations: readonly Annotation[] // 開いているページのアノテーション（読むだけ。ページを開いていなければ空）
-  toPaper(p: Point): Point | null // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す（紙が無ければ null）
+  toPaper(p: Point): Point | typeof NO_PAPER // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す（紙が無ければ NO_PAPER）
 }
 
 // 開いているスクリーン 1 枚（id 付き。base のコマンドが screensOf で読む）
 export interface OpenScreen extends CalledScreen {
   id: string // 開いた 1 枚ごとの id
   stageList: readonly StageListed[] // ステージの並び（左から。何かを開いているか付き。ステージを並べないスクリーンなら空）
-  currentStage: string | null // カレントのステージの id（ステージを並べないスクリーンなら null）
+  currentStage: string // カレントのステージの id（ステージを並べないスクリーンなら NO_STAGE）
 }
 
 // スクリーンから呼ぶコマンドの文脈ごとの、ほかのスクリーンを名指す物（呼ばれた場所のスクリーンの id・開いているスクリーンをカレントにした順に並べた物（最後がカレントスクリーン）・
@@ -181,7 +181,7 @@ export function withWorkspace(
     ...ctx,
     toPaper: p => {
       const stage = workspace.stages.find(s => s.id === stageId)
-      return stage ? toPaper(stage, p) : null
+      return stage ? toPaper(stage, p) : NO_PAPER
     },
   }
   workspaces.set(full, { workspace, stage: stageId, books })
@@ -195,7 +195,8 @@ export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ct
 // どちらも開いていなければ undefined）
 export function askedIn(ctx: CommandContext): AskedOutermost | undefined {
   if (ctx.book !== NO_BOOK) return { book: ctx.book }
-  if (!ctx.stage.opened || ctx.stage.opened.outermost.kind === "book" || ctx.page === NO_PAGE) return undefined
+  if (ctx.stage.opened === NOTHING_OPENED || ctx.stage.opened.outermost.kind === "book" || ctx.page === NO_PAGE)
+    return undefined
   const asked = outsideAsked(ctx.folders, ctx.page)
   const binder = ctx.outsideBinder
   return binder === NO_OUTSIDE_BINDER ? asked : { ...asked, binder }

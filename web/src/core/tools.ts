@@ -7,7 +7,7 @@ import { type CoreCatalog, pageType } from "./core-catalog"
 import type { ToolDef, ToolSetDef } from "./def/tool"
 import { fail } from "./errors"
 import { type AskedOutermost, actionQuery, deniedBy, inspect } from "./inspect"
-import { openedPage, type Stage } from "./stage"
+import { NO_PAGE, openedPage, type Stage } from "./stage"
 
 // 組ごとの今の道具（替えたことの無い組は持たず、組の初めの道具を使う）。鍵は組の id、値は道具の id
 export type Tools = Readonly<Record<string, string>>
@@ -15,12 +15,15 @@ export type Tools = Readonly<Record<string, string>>
 const setOf = (catalog: CoreCatalog, id: string): ToolSetDef => catalog.toolSets.get(id) ?? fail("E114", { id })
 
 // 道具の定義
+// ステージの見え方の tool の、道具が無い（ページのタイプが道具を使わない・使える道具が無い）ときの値
+export const NO_TOOL = "none"
+
 export const toolDef = (catalog: CoreCatalog, id: string): ToolDef => catalog.tools.get(id) ?? fail("E115", { id })
 
 // ステージで使う道具の組の id（ページを開いていないか、開いているページのタイプが道具を使わなければ null）
 export function toolSetOf(catalog: CoreCatalog, stage: Pick<Stage, "opened">): string | null {
   const page = openedPage(stage.opened)
-  return page ? (pageType(catalog, page.type).tools ?? null) : null
+  return page === NO_PAGE ? null : (pageType(catalog, page.type).tools ?? null)
 }
 
 // 組の道具（回す順。組の道具があることは台帳アセンブルが確かめるので、表の道具の id として返す）

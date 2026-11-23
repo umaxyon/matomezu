@@ -2,7 +2,7 @@
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
-import { openedPage } from "../../web/src/core/stage"
+import { NOTHING_OPENED } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BOOK_LAYERS } from "../../web/src/plugins/base/workspace/slots"
@@ -14,7 +14,7 @@ import { definePluginUi } from "../../web/src/ui/plugin"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { sequence, showFirstBook } from "../support"
+import { openedPageOf, sequence, showFirstBook } from "../support"
 
 afterEach(cleanup)
 
@@ -47,7 +47,7 @@ test("パンしても、book-layers のレイヤーは描き直さない", () =>
     instance.actions.zoomStage("s1", 1.8) // 紙が表示領域からはみ出して、ずらせるように
   })
   const stage = () => screenOf(instance.state.getState().window).stages[0]!
-  expect(openedPage(stage().opened ?? null)?.paper).toBeTruthy()
+  expect(openedPageOf(stage().opened ?? NOTHING_OPENED).paper).toBeTruthy()
   const before = drawn
   expect(before).toBeGreaterThan(0)
   const pan = stage().pan

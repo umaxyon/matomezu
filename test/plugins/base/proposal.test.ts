@@ -4,6 +4,7 @@
 import { expect, test } from "bun:test"
 import { AI, USER } from "../../../web/src/core/actor"
 import { pagesOf } from "../../../web/src/core/book"
+import { NO_CONTROL_CENTER } from "../../../web/src/core/def/action"
 import { performIn } from "../../../web/src/core/perform-world"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { MAIL, mailboxOf } from "../../../web/src/plugins/base/mail"
@@ -126,7 +127,7 @@ test("反映と結果を残すのは利用者だけ。送るのは AI もでき�
   const world = { ...store.state.getState(), books: store.state.getState().books }
   const ctx = {
     catalog: CORE_CATALOG,
-    controlCenter: null,
+    controlCenter: NO_CONTROL_CENTER,
     lang: "ja" as const,
     newId: () => "x",
     now: "t",

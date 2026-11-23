@@ -1,7 +1,9 @@
 // 認可ステップが受ける行う前の問い: ページ・アノテーションが対象のアクションは、宛先のページと、それを入れているフォルダの列（近い順）で問う（kind page）。
 // ブックが対象のアクションと、宛先のページが分からない問いは、ブックで問う（kind folder）
+
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
+import { NO_CONTROL_CENTER } from "../../web/src/core/def/action"
 import type { PermissionDef, PermissionQuery } from "../../web/src/core/def/permission"
 import { actionQuery, inspect } from "../../web/src/core/inspect"
 import { DRAWING, drawingPage, testBinder, testBook } from "../lineup"
@@ -21,7 +23,7 @@ const catalog = {
   ...CORE_CATALOG,
   permissions: new Map<string, unknown>([["test:watch", watch]]),
 } as unknown as typeof CORE_CATALOG
-const ctx = { catalog, controlCenter: null, actor: USER }
+const ctx = { catalog, controlCenter: NO_CONTROL_CENTER, actor: USER }
 const inBinder = drawingPage("s1", { title: "中" })
 const book = testBook("b1", "本", [drawingPage("p1"), testBinder("f1", "束", DRAWING, inBinder)])
 const asked = (action: string, where?: Parameters<typeof actionQuery>[3]) => {

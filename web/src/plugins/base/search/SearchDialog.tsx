@@ -5,8 +5,9 @@
 
 import { type PointerEvent, useEffect, useRef } from "react"
 import type { Point } from "../../../core/geom"
-import { shownPageId } from "../../../core/stage"
+import { NO_PAGE, NO_STAGE, NOTHING_OPENED, shownPageId } from "../../../core/stage"
 import { recentBookScreen } from "../../../core/window"
+import { NO_BOOK } from "../../../store/commands/def"
 import { pluginValueOf } from "../../../store/plugin-state"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
@@ -56,7 +57,9 @@ function SearchDialog({ stage }: { stage: string }) {
   const book = useBook()
   const page = usePage()
   const within = useOpenedPages()
-  const opened = shownPageId(useStage()?.opened ?? null)
+  const view = useStage()
+  const shown = shownPageId(view === NO_STAGE ? NOTHING_OPENED : view.opened)
+  const opened = shown === NO_PAGE ? null : shown
   const search = useSearchHere()
   const at = usePluginState(kit, SEARCH_AT_STATE)
   const readSearch = useReadSearchHere()
@@ -78,8 +81,9 @@ function SearchDialog({ stage }: { stage: string }) {
     el?.focus()
     el?.select()
   }, [openedN, focus])
+  if (page === NO_PAGE) return null
   const s = searchableOf(catalog, page)
-  if (!search || s === "none" || !page) return null
+  if (!search || s === "none") return null
   // 探せるページの全部: 開いている物のページの全部
   const counted = searchCount(catalog, within, search, opened)
   const bad = counted.kind === "bad-pattern"
@@ -183,7 +187,7 @@ function SearchDialog({ stage }: { stage: string }) {
       </div>
       <div className={styles.row} role="radiogroup" aria-label={t("Scope")}>
         <span className={styles.label}>{t("Scope")}</span>
-        {(book ? (["page", "book"] as const) : (["page"] as const)).map(scope => (
+        {(book !== NO_BOOK ? (["page", "book"] as const) : (["page"] as const)).map(scope => (
           <label key={scope} className={styles.check}>
             <input
               type="radio"

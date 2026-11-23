@@ -1,7 +1,7 @@
 // コピー・切り取り・貼り付け・複製のコマンド。写し（clip.ts の Clip）は紙のプラグインのプラグイン状態（CLIP_STATE）に置く（ブック・ページをまたいで貼れる。読み込み直すと消える）。
 // 貼るときは、アクション item-paste に写しを渡す（選んだ物に応じて入れる先を決め、収まらなければ収まる一番近い所へ寄せる）
 
-import { type CommandContext, findShape, type Point, walkShapes } from "../../../plugin-api"
+import { type CommandContext, findShape, NO_PAPER, type Point, walkShapes } from "../../../plugin-api"
 import { hasOpenedPage, placedSize, refusalMessage, shapeDefOf } from "../../base"
 import { kit } from "../kit"
 import { ITEM_PASTE, ITEM_REMOVE } from "./actions"
@@ -134,7 +134,7 @@ export const PAPER_PASTE_AT = kit.defineCommand({
   run: (ctx, a, args: { pointer?: Point }) => {
     const clip = clipIn(ctx)
     const at = args.pointer && ctx.toPaper(args.pointer)
-    if (clip) pasteAt(ctx, a, clip, at ? { parent: null, at } : { parent: null })
+    if (clip) pasteAt(ctx, a, clip, at && at !== NO_PAPER ? { parent: null, at } : { parent: null })
   },
   when: hasOpenedPage,
   enabled: ctx => clipIn(ctx) !== null,

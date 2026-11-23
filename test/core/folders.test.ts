@@ -1,7 +1,9 @@
 // ページとフォルダの表（core/folders.ts・folders-books.ts・folders-changes.ts）: ブックを表に分け、表からブックを組み、変わりを表への書き込みに分ける
+
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import { checkBooks, putBinder, putPage, removePage } from "../../web/src/core/book"
+import { NO_CONTROL_CENTER } from "../../web/src/core/def/action"
 import {
   type BinderFolder,
   HOME_ID,
@@ -132,7 +134,7 @@ test("新しく足すページの id が、世界のほかのブックにもう�
   const world = { ...tablesOf([book, other]), settings: {}, annotations: {}, records: {}, counters: {} }
   const ctx = (ids: string[]) => ({
     catalog: CORE_CATALOG,
-    controlCenter: null,
+    controlCenter: NO_CONTROL_CENTER,
     lang: "en" as const,
     newId: () => ids.shift() ?? sequence()(),
     now: "2026-01-01T00:00:00.000Z",

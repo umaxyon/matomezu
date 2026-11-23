@@ -6,6 +6,7 @@ import { USER } from "../../web/src/core/actor"
 import { pagesOf } from "../../web/src/core/book"
 import { buildCoreCatalog } from "../../web/src/core/core-catalog"
 import { checkCoreCatalog } from "../../web/src/core/core-catalog-check"
+import { NO_CONTROL_CENTER } from "../../web/src/core/def/action"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { ERRORS, problemText } from "../../web/src/core/errors"
 import { HOME_ID } from "../../web/src/core/folders"
@@ -260,7 +261,7 @@ describe("アクションを行う", () => {
   })
 
   test("ブックの一覧と設定を変えるアクションは、コントロールセンターが許すときだけ。コントロールセンターが無ければ断る", () => {
-    const homeless = { ...ctx, controlCenter: null }
+    const homeless = { ...ctx, controlCenter: NO_CONTROL_CENTER }
     expect(perform(tablesOf([book]), "@matomezu/base:book-create", { into: HOME_ID, title: "x" }, homeless)).toEqual({
       ok: false,
       reason: "not-allowed",

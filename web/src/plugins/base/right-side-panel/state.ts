@@ -2,7 +2,16 @@
 // 閉じたときに見え方を戻すための覚えは、right-side-panel-restore に持つ。
 // 窓に 1 つだけで、ブックのデータにも画面の場所にも入れない
 
-import { areaOf, type Stage, shownPageId } from "../../../core/stage"
+import {
+  areaOf,
+  NO_PAGE,
+  NO_PAPER,
+  NOTHING_OPENED,
+  type Opened,
+  openedEntry,
+  type Stage,
+  shownPageId,
+} from "../../../core/stage"
 import { clampPan, contentSize } from "../../../core/viewport"
 import { type CommandActions, type CommandContext, calledStageOf } from "../../../store/commands/def"
 import { kit } from "../kit"
@@ -82,6 +91,12 @@ export const RIGHT_SIDE_PANEL_STATES = [RIGHT_SIDE_PANEL_STATE, RIGHT_SIDE_PANEL
 
 // 右サイドパネルを open で開いたときの、戻すための覚え。開く前の見え方は now で、物はまだ見せていない。
 // 閉じて戻す前に同じブックとページで開き直したときは、最初に開く前の見え方と、それまでに変えたかをそのまま持つ（一度変えたら、開き直しても戻さない）
+// 右サイドパネルの覚えに書く、開いているページの id（ページを開いていなければ null）
+export const panelPageOf = (opened: Opened | typeof NOTHING_OPENED): string | null => {
+  const page = shownPageId(opened)
+  return page === NO_PAGE ? null : page
+}
+
 export function openedRestore(
   kept: RightSidePanelRestore | undefined,
   open: RightSidePanelOpen,
@@ -105,8 +120,8 @@ export function openRightSidePanelIn(
 ): void {
   const now = calledStageOf(ctx)
   const opened = now?.opened
-  if (!now || !opened) return
-  const panel = { ...open, book: opened.outermost.id, page: shownPageId(opened) }
+  if (!now || !opened || opened === NOTHING_OPENED) return
+  const panel = { ...open, book: opened.outermost.id, page: panelPageOf(opened) }
   a.updatePluginState(RIGHT_SIDE_PANEL_STATE, () => panel)
   a.updatePluginState(RIGHT_SIDE_PANEL_RESTORE_STATE, kept => openedRestore(kept, panel, now))
 }
@@ -131,7 +146,7 @@ export function movedFrom(
   const shown = restore.shown ?? (closing ? restore.before : null)
   if (!shown) return false
   const area = areaOf(now)
-  const pan = now.view && area ? clampPan(now.view, contentSize(area, shown.zoom), shown.pan) : shown.pan
+  const pan = now.view && area !== NO_PAPER ? clampPan(now.view, contentSize(area, shown.zoom), shown.pan) : shown.pan
   return !sameView({ zoom: shown.zoom, pan }, now)
 }
 
@@ -144,14 +159,14 @@ export const restoreTo = (
 ): ViewAt | null =>
   elsewhere ||
   restore.moved ||
-  stage.opened?.outermost.id !== restore.before.book ||
-  (shownPageId(stage.opened ?? null) ?? null) !== restore.before.page
+  openedEntry(stage.opened)?.id !== restore.before.book ||
+  panelPageOf(stage.opened) !== restore.before.page
     ? null
     : { zoom: restore.before.zoom, pan: restore.before.pan }
 
 // 開いたときのブックとページが、今ステージで開いているものと同じか（違えば、右サイドパネルは閉じる）
 export const stillOn = (open: RightSidePanelOpen, stage: Pick<Stage, "opened">): boolean =>
-  stage.opened?.outermost.id === open.book && (shownPageId(stage.opened ?? null) ?? null) === open.page
+  openedEntry(stage.opened)?.id === open.book && panelPageOf(stage.opened) === open.page
 
 // 分けたステージの列の伸び（flex-grow）: 右サイドパネルを開いていれば、開いたステージ panel が 1・もう片方が 0。開いていなければ分けた割合 share
 export const columnGrow = (stage: string, i: number, panel: string | null, share: number): number =>

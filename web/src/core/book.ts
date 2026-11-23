@@ -425,11 +425,17 @@ export const pagesOf = (book: StageLineup): readonly ItemPage[] =>
 export const bindersOf = (book: StageLineup): readonly BinderEntry[] =>
   book.lineup.flatMap(e => (e.kind === "binder" ? [e] : []))
 
-// id のページと、それが入っているバインダ（並びに直に入っているページは binder が null。無ければ undefined）
-export function findPage(book: StageLineup, id: string): { page: ItemPage; binder: BinderEntry | null } | undefined {
+// ページがバインダに入っていないときの値（findPage の binder・binderOf）
+export const NO_BINDER = "none"
+
+// id のページと、それが入っているバインダ（並びに直に入っているページは binder が NO_BINDER。無ければ undefined）
+export function findPage(
+  book: StageLineup,
+  id: string,
+): { page: ItemPage; binder: BinderEntry | typeof NO_BINDER } | undefined {
   for (const e of book.lineup) {
     if (e.kind === "page") {
-      if (e.id === id) return { page: e, binder: null }
+      if (e.id === id) return { page: e, binder: NO_BINDER }
     } else if (e.kind === "binder") {
       const found = e.lineup.find(p => p.id === id)
       if (found) return { page: found, binder: e }
@@ -739,8 +745,8 @@ export function keepsTypesIn(was: Library, next: Library): boolean {
 export function pageById(
   books: Readonly<Record<string, Book>>,
   id: string,
-): { book: Book; page: ItemPage; binder: BinderEntry | null } | undefined {
-  let found: { book: Book; page: ItemPage; binder: BinderEntry | null } | undefined
+): { book: Book; page: ItemPage; binder: BinderEntry | typeof NO_BINDER } | undefined {
+  let found: { book: Book; page: ItemPage; binder: BinderEntry | typeof NO_BINDER } | undefined
   for (const book of Object.values(books)) {
     const at = findPage(book, id)
     if (!at) continue

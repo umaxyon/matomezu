@@ -1,6 +1,6 @@
 // 線のコマンド: 形の〇から引いて離したときに線を引く（ラインビューから呼ぶ）、線の編集のダイアログを開く（線のダブルクリックと右クリックのメニュー）、線の端をほかの形の上で離したときにつなぎ替える
 
-import type { Point } from "../../../plugin-api"
+import { NO_CONTEXT_MENU, NO_PAPER, type Point } from "../../../plugin-api"
 import { amongSelected, hasOpenedPage, portAreasOf } from "../../base"
 import { LINE_CONNECT, LINE_RECONNECT, LINE_UPDATE } from "./actions"
 import { drawnLineProps, loopEndsNear, nearestEnd } from "./connect"
@@ -18,7 +18,7 @@ export const LINE_DRAW = kit.defineCommand({
   title: "Connect items",
   run: (ctx, a, args: { from: string; side: Side; to: string; at: Point }) => {
     const drop = ctx.toPaper(args.at)
-    if (!hasOpenedPage(ctx) || !drop) return
+    if (!hasOpenedPage(ctx) || drop === NO_PAPER) return
     const page = ctx.page
     const rects = portAreasOf(ctx.catalog, page)
     const props = drawnLineProps(page, rects, elbowAt(ctx.catalog, page), args.from, args.side, args.to, drop)
@@ -37,7 +37,9 @@ export const LINE_EDIT = kit.defineCommand({
     if (hasOpenedPage(ctx)) a.openDialog(LINE_EDIT_DIALOG.id, { page: ctx.page.id, item })
   },
   when: ctx => {
-    const target = ctx.contextMenu?.target as { item?: string } | undefined
+    const target = (ctx.contextMenu === NO_CONTEXT_MENU ? undefined : ctx.contextMenu.target) as
+      | { item?: string }
+      | undefined
     return hasOpenedPage(ctx) && !(target?.item !== undefined && amongSelected(ctx.stage.selection, target.item))
   },
 })
@@ -54,7 +56,7 @@ export const LINE_RECONNECT_DROP = kit.defineCommand({
     const page = ctx.page
     const line = linesOf(page).find(l => l.id === args.line)
     const drop = ctx.toPaper(args.at)
-    if (!line || !drop) return
+    if (!line || drop === NO_PAPER) return
     const rects = portAreasOf(ctx.catalog, page)
     const to = rects.get(args.item)
     const other = args.end === "from" ? line.to : line.from

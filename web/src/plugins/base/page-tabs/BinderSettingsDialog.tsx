@@ -3,10 +3,12 @@
 // 空のバインダ（ページ 0 枚）は、紙をそろえる相手が無いので、紙と向きを押せない（タイプの既定を出す）。
 // ブックの外のバインダ（そのバインダを開いたステージ）では、名前は書庫のアクション entry-rename で、紙と向きは binder-update で変え、削除は出さない（消すのは書庫で）。
 // 左下の赤い削除のボタンは、上に重ねたモーダルで確かめてから binder-remove を行う（中のページごと消える）。認可ステップが止めていれば押せない
+
 import { useId, useState } from "react"
 import { findBinder, pagesIn } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import { ORIENTATIONS, type Orientation } from "../../../core/def/paper"
+import { NO_BOOK } from "../../../store/commands/def"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useCatalog } from "../../../ui/store-context"
@@ -40,7 +42,7 @@ export function BinderSettingsDialog({ args, onClose }: DialogProps<BinderSettin
   const updatable = useAllowedOn(BINDER_UPDATE.id, { binder: args.binder }, on).ok
   // ブックの外のバインダの名前は、書庫の entry-rename で変える
   const renamable =
-    useAllowedOn(ENTRY_RENAME.id, { entry: args.binder, title: binder?.title ?? "" }).ok || book !== null
+    useAllowedOn(ENTRY_RENAME.id, { entry: args.binder, title: binder?.title ?? "" }).ok || book !== NO_BOOK
   const removable = useAllowedOn(BINDER_REMOVE.id, { binder: args.binder }, on).ok
   const [confirming, setConfirming] = useState(false)
   const perform = usePerform()
@@ -54,7 +56,7 @@ export function BinderSettingsDialog({ args, onClose }: DialogProps<BinderSettin
   }
   const ready = title.trim() !== ""
   const submit = () => {
-    const steps = binderSettingsSteps(binder.id, patch, book === null)
+    const steps = binderSettingsSteps(binder.id, patch, book === NO_BOOK)
     if (steps.every(s => (perform as (id: string, args: unknown) => { ok: boolean })(s.action, s.args).ok)) onClose()
   }
   const remove = () => {
@@ -95,7 +97,7 @@ export function BinderSettingsDialog({ args, onClose }: DialogProps<BinderSettin
           onPaper={setPaper}
           onOrientation={setOrientation}
         />
-        {book && (
+        {book !== NO_BOOK && (
           <div className={rowClass}>
             <ActionButton danger disabled={!removable} onClick={() => setConfirming(true)}>
               {t("Delete")}

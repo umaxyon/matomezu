@@ -3,7 +3,7 @@ import { expect, test } from "bun:test"
 import { z } from "zod"
 import { AI, AI_NOT_JOINED, AI_VISITOR, USER } from "../../web/src/core/actor"
 import { bindersOf, findPage, pagesOf } from "../../web/src/core/book"
-import { defineAction } from "../../web/src/core/def/action"
+import { defineAction, NO_CONTROL_CENTER } from "../../web/src/core/def/action"
 import { NO_CHANGES, TRASH_ID } from "../../web/src/core/folders"
 import { bookOf, tablesOf } from "../../web/src/core/folders-books"
 import { withChanges } from "../../web/src/core/folders-changes"
@@ -97,7 +97,7 @@ const book = testBook("b1", "ブック", [
 ])
 const ctxOf = (newId: () => string = sequence()) => ({
   catalog,
-  controlCenter: null,
+  controlCenter: NO_CONTROL_CENTER,
   lang: "en" as const,
   newId,
   now: "2026-01-01T00:00:00.000Z",

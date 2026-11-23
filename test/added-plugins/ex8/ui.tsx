@@ -1,5 +1,6 @@
 // ex8 の見た目を結ぶ: カードのプレゼンテーションのビュー（開いたページのカードを並べ、自分でスクロールする。並べ替えるボタンと、押したカードを選ぶ）と、
 // 印刷区画 1 つのビュー（ページのカードを紙に並べる）
+import { NO_PAGE } from "matomezu"
 import {
   definePluginUi,
   type PrintSheetProps,
@@ -14,8 +15,8 @@ import { kit } from "./kit"
 import styles from "./views.module.css"
 
 // ページのフィールド cards（ページの型にはタイプのフィールドが無いので、在るかを確かめて読む）
-const cardsOf = (page: object | null): readonly string[] =>
-  page && "cards" in page && Array.isArray(page.cards) ? page.cards : []
+const cardsOf = (page: object | typeof NO_PAGE): readonly string[] =>
+  page !== NO_PAGE && "cards" in page && Array.isArray(page.cards) ? page.cards : []
 
 function Cards({
   cards,

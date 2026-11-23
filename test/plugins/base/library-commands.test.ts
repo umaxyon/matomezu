@@ -1,8 +1,10 @@
 // 書庫の画面のコマンド（base/library/commands.ts）: 扱う物の決め方・ツリーと右の枠の矢印・落とした物を動かす
+
 import { expect, test } from "bun:test"
 import type { CommandId } from "../../../web/src/core/catalog"
 import { entriesIn } from "../../../web/src/core/entries"
 import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../web/src/core/folders"
+import { NOTHING_OPENED } from "../../../web/src/core/stage"
 import { holderForNewPage, pageFolderFor } from "../../../web/src/plugins/base/library/entries"
 import {
   LIBRARY_COLUMNS,
@@ -311,7 +313,8 @@ test("落とした物を動かす: スライドをフォルダへ落とすと、
 test("開く: 2 回押す・Enter・メニューの「開く」の 1 つの道。名指さなければ選んでいる行、{at: tree} ならツリーで今いる行。フォルダは中へ入る", () => {
   const { store, center, folder, run, at, set } = setup()
   const opened = () => store.state.getState().window.screens.flatMap(s => s.stages?.stages.map(st => st.opened) ?? [])
-  const shows = (book: string) => opened().some(o => o !== null && "outermost" in o && o.outermost.id === book)
+  const shows = (book: string) =>
+    opened().some(o => o !== NOTHING_OPENED && "outermost" in o && o.outermost.id === book)
   const a = folder("あ")
   // 何も選んでいなければ、何もしない
   run("library-entry-open")

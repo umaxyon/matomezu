@@ -1,7 +1,9 @@
 // 左サイドパネルを開け閉めするフック（持ち方は state.ts。窓のプラグイン状態）。窓に 1 つ。
 // 開くのは、開く側が渡したタブの組（どのタブに何を渡すか）で置き換える。カレントスクリーンは替えない。
 // ステージの物を見せるタブ（タブの定義の scope が "stage"）が組にあれば、開いた所のステージを一緒に持つ（タブの中身は、そのステージの中として描かれる）
+
 import { useCallback } from "react"
+import { NO_STAGE } from "../../../core/stage"
 import { usePluginState, useSetPluginState, useUpdatePluginState } from "../../../ui/plugin-state-hooks"
 import { useStageId } from "../../../ui/scope"
 import { useUiCatalog } from "../../../ui/view-hooks"
@@ -18,18 +20,19 @@ import {
 // 開いている左サイドパネル（渡されたタブの組と開いているタブ。閉じていれば null）
 export const useLeftSidePanel = (): LeftSidePanelOpen | null => usePluginState(kit, LEFT_SIDE_PANEL_STATE) ?? null
 
-// タブの組 entries が見せるステージを決める関数: ステージの物を見せるタブが組にあれば stage、無ければ null
-function useShownStage(): (entries: readonly LeftSidePanelEntry[], stage: string | null) => string | null {
+// タブの組 entries が見せるステージを決める関数: ステージの物を見せるタブが組にあれば stage、無ければ（stage が NO_STAGE でも）null
+function useShownStage(): (entries: readonly LeftSidePanelEntry[], stage: string) => string | null {
   const widgets = useUiCatalog().widgets
   return useCallback(
-    (entries, stage) => (entries.some(e => widgets.get(e.tab)?.leftSidePanel?.scope === "stage") ? stage : null),
+    (entries, stage) =>
+      stage !== NO_STAGE && entries.some(e => widgets.get(e.tab)?.leftSidePanel?.scope === "stage") ? stage : null,
     [widgets],
   )
 }
 
 // ステージ stage の物を見せて、タブの組 entries で左サイドパネルを開く関数（開くタブは tab。無ければ今のタブが組にあればそのまま、無ければ最初）
 export function useOpenLeftSidePanelAt(): (
-  stage: string | null,
+  stage: string,
   entries: readonly LeftSidePanelEntry[],
   tab?: string,
 ) => void {
@@ -42,7 +45,7 @@ export function useOpenLeftSidePanelAt(): (
 }
 
 // 開くボタンを押したときの関数（ステージ stage の物を見せる）: 今と同じタブの組で同じステージなら閉じ、違えばそのタブの組に置き換える
-export function useToggleLeftSidePanelAt(): (stage: string | null, entries: readonly LeftSidePanelEntry[]) => void {
+export function useToggleLeftSidePanelAt(): (stage: string, entries: readonly LeftSidePanelEntry[]) => void {
   const update = useUpdatePluginState(kit, LEFT_SIDE_PANEL_STATE)
   const shown = useShownStage()
   return useCallback(
@@ -52,7 +55,7 @@ export function useToggleLeftSidePanelAt(): (stage: string | null, entries: read
 }
 
 // 今、タブの組 entries を、ステージ stage の物を見せて開いているか
-export function useLeftSidePanelShowsAt(stage: string | null, entries: readonly LeftSidePanelEntry[]): boolean {
+export function useLeftSidePanelShowsAt(stage: string, entries: readonly LeftSidePanelEntry[]): boolean {
   const now = usePluginState(kit, LEFT_SIDE_PANEL_STATE)
   return showsLeftSidePanel(now, entries, useShownStage()(entries, stage))
 }

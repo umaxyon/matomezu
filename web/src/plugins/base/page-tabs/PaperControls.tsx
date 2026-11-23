@@ -6,6 +6,7 @@ import { useState } from "react"
 import { pageType } from "../../../core/core-catalog"
 import type { GrowChoice, Orientation } from "../../../core/def/paper"
 import type { Page, StageLineup } from "../../../core/schema/book"
+import { NO_BOOK } from "../../../store/commands/def"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
 import { useBook } from "../../../ui/view-hooks"
@@ -154,7 +155,7 @@ export function usePagePaperControls(page: Page | null) {
         grows: page.grows === true && first ? first : page.grows,
       }
     },
-    page ? (book ? paperChoicesFor(catalog, book, page) : typePaperChoices(catalog, page.type)) : null,
+    page ? (book !== NO_BOOK ? paperChoicesFor(catalog, book, page) : typePaperChoices(catalog, page.type)) : null,
     page ? pageType(catalog, page.type).grouping === "binder" : false,
   )
 }

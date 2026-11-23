@@ -9,21 +9,21 @@ import { BINDER_UPDATE } from "../pages/binders"
 export const NO_LINEUP = "none"
 
 // 開いているブック book か、開いているブックの外のバインダ binder（その id と、そのバインダ 1 つだけの並び）
-export function openedLineup(book: Book | null, binder: BinderEntry | null): StageLineup | typeof NO_LINEUP {
-  if (book) return book
-  return binder ? { id: binder.id, lineup: [binder] } : NO_LINEUP
+export function openedLineup(
+  book: Book | typeof NO_BOOK,
+  binder: BinderEntry | typeof NO_OUTSIDE_BINDER,
+): StageLineup | typeof NO_LINEUP {
+  if (book !== NO_BOOK) return book
+  return binder === NO_OUTSIDE_BINDER ? NO_LINEUP : { id: binder.id, lineup: [binder] }
 }
 
 // コマンドの文脈 ctx のステージで開いている物の並び
 export const lineupIn = (ctx: CommandContext): StageLineup | typeof NO_LINEUP =>
-  openedLineup(
-    ctx.book === NO_BOOK ? null : ctx.book,
-    ctx.outsideBinder === NO_OUTSIDE_BINDER ? null : ctx.outsideBinder,
-  )
+  openedLineup(ctx.book, ctx.outsideBinder)
 
 // ページの削除を出すか: ブックのページか、ブックの外のバインダの最後の 1 枚でないページ（ブックの外のバインダは空にならない。ブックの外のページ 1 枚は、書庫で消す）
-export const showsPageDelete = (book: Book | null, binder: BinderEntry | null): boolean =>
-  book !== null || (binder !== null && binder.lineup.length > 1)
+export const showsPageDelete = (book: Book | typeof NO_BOOK, binder: BinderEntry | typeof NO_OUTSIDE_BINDER): boolean =>
+  book !== NO_BOOK || (binder !== NO_OUTSIDE_BINDER && binder.lineup.length > 1)
 
 // バインダの設定で変えた項目（変えていない項目は無い）
 export interface BinderSettingsPatch {

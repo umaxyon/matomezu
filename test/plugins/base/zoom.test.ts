@@ -2,7 +2,6 @@
 
 import { expect, test } from "bun:test"
 import { findPage } from "../../../web/src/core/book"
-import { paperOf } from "../../../web/src/core/stage"
 import { MARGIN } from "../../../web/src/core/viewport"
 import { screenOf } from "../../../web/src/core/window"
 import { roomOf } from "../../../web/src/plugins/base/place/grow"
@@ -11,7 +10,7 @@ import { stepZoom, wheelZoom, ZOOM_MAX, ZOOM_MIN } from "../../../web/src/plugin
 import type { CommandId } from "../../../web/src/store/commands"
 import { isEnabled } from "../../../web/src/store/commands"
 import { drawingPage, TREE, testPage } from "../../lineup"
-import { newStore } from "../../support"
+import { newStore, sheetOf } from "../../support"
 
 test("倍率は 30～180% の無段階。ボタンは 10% の倍数へ 1 つずつ動き（間なら近い向きの倍数へ）、ホイールは回した量に合わせて滑らかに変える", () => {
   expect(stepZoom(1, 1)).toBe(1.1)
@@ -52,7 +51,7 @@ test("ページ全体を収めると、紙が表示領域に入る倍率にし�
   const stage = () => screenOf(state.getState().window).stages[0]!
   const enabled = () => isEnabled(store, state.getState(), "s1", "@matomezu/base:zoom-fit")
   actions.resizeStage("s1", { w: 800, h: 600 })
-  const paper = paperOf(stage())!
+  const paper = sheetOf(stage())
   expect(enabled()).toBe(true)
   actions.command("s1", "@matomezu/base:zoom-fit")
   const z = stage().zoom
@@ -102,7 +101,7 @@ test("左と上へ増やす可変ページは、開くと、空きの印刷区�
   actions.resizeStage("s1", { w: 800, h: 600 })
   const book = state.getState().books.b1!
   const page = findPage(book, "p1")!.page
-  const sheet = paperOf(stage())!
+  const sheet = sheetOf(stage())
   const start = startOf(catalog.core, page)
   expect(start).toEqual({ x: sheet.w, y: sheet.h })
   actions.setStageArea("s1", roomOf(catalog.core, page))

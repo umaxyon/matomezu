@@ -5,6 +5,7 @@ import { act, cleanup, render } from "@testing-library/react"
 import type { Book } from "../../web/src/core/schema/book"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
+import { NO_BOOK } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
 import { StageScope } from "../../web/src/ui/scope"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
@@ -26,12 +27,13 @@ test("ブックを指す下書きは重なり、アイテムやページを指�
   })
   showFirstBook(instance)
   instance.actions.openDialog("s1", "@matomezu/base:book-settings" as never, undefined as never)
-  let shown: Book | null = null
+  let shown: Book | typeof NO_BOOK = NO_BOOK
   function Probe() {
     shown = useShownBook()
     return null
   }
-  const settingsOf = (book: Book | null) => (book as { settings?: Record<string, unknown> } | null)?.settings ?? {}
+  const settingsOf = (book: Book | typeof NO_BOOK) =>
+    book === NO_BOOK ? {} : ((book as { settings?: Record<string, unknown> }).settings ?? {})
   const paper = () => settingsOf(shown)[PAPER]
   render(
     <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>

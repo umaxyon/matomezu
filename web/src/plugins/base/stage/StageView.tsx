@@ -6,8 +6,10 @@
 // 中の物が端に着いたら、手を止めて次に回したときから紙をずらす（wheel-chain.ts）。
 // Ctrl+ホイール（Mac は Cmd も。ピンチも）は、回した量とポインタの位置をそのままコマンド zoom-wheel に渡す（倍率はコマンドが決める。
 // コマンドが出ているステージならブラウザの拡大は止める）
+
 import { memo, type PointerEvent, useEffect, useRef, useState, type WheelEvent } from "react"
-import { paperOf } from "../../../core/stage"
+import { NO_PAPER, NO_STAGE, NOTHING_OPENED, paperOf } from "../../../core/stage"
+import { NO_TOOL } from "../../../core/tools"
 import { workspaceOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
@@ -39,16 +41,16 @@ interface Drag {
 // 描いている場所のステージがあるときだけ描く（無ければ何も描かない）
 export const StageView = memo(function StageView() {
   const id = useStageId()
-  return id === null ? null : <StageBody id={id} />
+  return id === NO_STAGE ? null : <StageBody id={id} />
 })
 
 function StageBody({ id }: { id: string }) {
   const stage = useStage() // パンの量を読まない（パンのたびに描き直さない）
   const isCurrent = useMatomezuState(s => workspaceOf(s.window, id).current === id)
   const catalog = useCatalog().core
-  const tool = stage?.tool ?? null
-  const pans = stage?.pans ?? false // ドラッグで紙をずらすか（紙をずらす道具の間と、印刷プレビューの間）
-  const inPreview = stage?.mode === "print-preview"
+  const tool = stage === NO_STAGE ? NO_TOOL : stage.tool
+  const pans = stage !== NO_STAGE && stage.pans // ドラッグで紙をずらすか（紙をずらす道具の間と、印刷プレビューの間）
+  const inPreview = stage !== NO_STAGE && stage.mode === "print-preview"
   const keeps = !inPreview && keepsPan(catalog, tool) // 紙をずらさない道具か
   const { focusStage, resizeStage, panStageBy } = useStoreActions()
   const wheelZoom = useCommand(ZOOM_WHEEL.id)
@@ -86,8 +88,8 @@ function StageBody({ id }: { id: string }) {
     el.addEventListener("wheel", onWheel, { passive: false })
     return () => el.removeEventListener("wheel", onWheel)
   }, [])
-  if (!stage) return null
-  const hasPaper = inPreview || paperOf(stage) !== null
+  if (stage === NO_STAGE) return null
+  const hasPaper = inPreview || paperOf(stage) !== NO_PAPER
 
   const onPointerDown = (e: PointerEvent<HTMLElement>) => {
     focusStage(id)
@@ -132,7 +134,7 @@ function StageBody({ id }: { id: string }) {
       onPointerCancel={endDrag}
       onWheel={onWheel}
     >
-      {stage.opened ? <BookContent stage={id} previewing={inPreview} /> : <EmptyStage stage={id} />}
+      {stage.opened !== NOTHING_OPENED ? <BookContent stage={id} previewing={inPreview} /> : <EmptyStage stage={id} />}
     </section>
   )
 }

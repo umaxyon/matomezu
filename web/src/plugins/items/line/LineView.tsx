@@ -4,6 +4,7 @@
 // 1 本だけ選んだ線は、端・途中の区間・キャプションの札をドラッグしてじかに直せる（useLineEdit.ts）。
 // 形にポインタを乗せると四辺に〇を出し（PortOverlay）、〇から引くドラッグ（useLinkDrag.ts）の間は、引ける相手と引き始めた形のほかを薄くする
 import { createContext, type ReactNode, useContext, useLayoutEffect, useRef } from "react"
+import { NO_PLACING, NO_STAGE } from "../../../plugin-api"
 import {
   ShapeMarksProvider,
   type ShapeScene,
@@ -44,8 +45,8 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
   const catalog = useCoreCatalog()
   // 選んでいる物と、置こうとしている物は、向け先のステージから読む（ステージの外で描くときは、どちらも無い）
   const stage = useStage()
-  const selection = stage?.selection ?? NO_SELECTION
-  const placing = stage?.placing ?? null
+  const selection = stage === NO_STAGE ? NO_SELECTION : stage.selection
+  const placing = stage === NO_STAGE ? NO_PLACING : stage.placing
   // 線は形のつながる範囲（つなぎ口で縮めた四角）につなぐ
   const rects = portAreasOf(catalog, page, scene.rects)
   // ページの線の既定が折れ線か（ページ → 設定の既定）
@@ -137,7 +138,7 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
             lineEdit.run({ item: id })
           }}
           onContextMenu={(e, id) => {
-            if (placing !== null) return
+            if (placing !== NO_PLACING) return
             if (!selection.includes(id)) select([id])
             openLineMenu(e, { item: id })
           }}

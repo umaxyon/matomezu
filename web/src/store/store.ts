@@ -8,7 +8,7 @@ import { restoreAllAnnotations, withAnnotations } from "../core/annotation"
 import { readLibrary } from "../core/book"
 import { bulkActionOf, entersLibraryHistory, laterThan, localDateOf, performBulk } from "../core/bulk"
 import type { CoreCatalog } from "../core/core-catalog"
-import type { ActionContext, ActionOn } from "../core/def/action"
+import { type ActionContext, type ActionOn, NO_CONTROL_CENTER } from "../core/def/action"
 import type { PluginStateDef } from "../core/def/plugin-state"
 import { fail, matomezuError, type Problem, problem } from "../core/errors"
 import { type Folder, homeOver, type Library, type PageRow, type TableChanges } from "../core/folders"
@@ -39,8 +39,11 @@ import {
   closePicker,
   closePrintPreview,
   endBackground,
+  NO_PAGE,
+  NOTHING_OPENED,
   openBook,
   openedBook,
+  openedEntry,
   openedPage,
   openOutsideBinder,
   openOutsidePage,
@@ -172,7 +175,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   options: StoreOptions<Ps>,
 ): MatomezuInstance<Ps> {
   const { plugins } = options
-  let defs = assemble(plugins, options.controlCenter ?? null, options.autoSkin)
+  let defs = assemble(plugins, options.controlCenter ?? NO_CONTROL_CENTER, options.autoSkin)
   let { controlCenter } = defs
   let catalog = defs.catalog.core
   // 設定の言語の項目が選んでいないときの言語
@@ -660,7 +663,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const stage =
         (contextMenu ? openedAt(contextMenu) : undefined) ?? picker ?? opener ?? current.stages?.current ?? current.id
       // プレゼンテーションのキーの範囲は、ページを開いているときだけ（空のバインダでは、プレゼンテーションのビューを描かない）
-      const type = openedPage(stageIn(window, stage)?.opened ?? null)?.type
+      const shownPage = openedPage(stageIn(window, stage)?.opened ?? NOTHING_OPENED)
+      const type = shownPage === NO_PAGE ? undefined : shownPage.type
       const presentation = type && catalog.pageTypes.get(type)?.presentation
       const shown = presentation ? catalog.presentations.get(presentation)?.keyScope : undefined
       const openNow = {
@@ -834,19 +838,20 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     openPage: (stage, page) => {
       const { books, window, pages, folders } = getState()
-      const at = stageIn(window, stage)?.opened
+      const opened = stageIn(window, stage)?.opened
+      const at = openedEntry(opened)
       // ブックの外のバインダを開いたステージでは、そのバインダの中のページへ替える
-      if (at?.outermost.kind === "binder") {
-        const binder = outsideBinderIn({ pages, folders }, at.outermost.id)
+      if (at?.kind === "binder") {
+        const binder = outsideBinderIn({ pages, folders }, at.id)
         if (binder?.lineup.some(p => p.id === page)) actions.openOutsideBinder(stage, binder.id, page)
         return
       }
       // ブックの外のページ 1 枚を開いたステージでは、そのページを名指せば印刷プレビューを閉じる
-      if (at?.outermost.kind === "page") {
-        if (at.outermost.id === page) actions.closePrintPreview(stage)
+      if (at?.kind === "page") {
+        if (at.id === page) actions.closePrintPreview(stage)
         return
       }
-      const book = openedBook(books, at)
+      const book = openedBook(books, opened)
       // ページを開くと、そのブックスクリーンをカレントスクリーンにする
       if (book && inWindow(stage))
         withWindow(win =>
@@ -872,7 +877,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const at = openablePage(getState(), page)
       if (!at) return
       const { kind, id } = at.outermost
-      if (stageIn(getState().window, stage)?.opened?.outermost.id === id) actions.openPage(stage, page)
+      if (openedEntry(stageIn(getState().window, stage)?.opened)?.id === id) actions.openPage(stage, page)
       else
         actions.openToStage(
           kind === "book"
@@ -1157,11 +1162,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     use: (added, check) => {
       const failed: Problem[] = []
       let used: Plugin[] = []
-      let next = assemble(plugins, options.controlCenter ?? null, options.autoSkin)
+      let next = assemble(plugins, options.controlCenter ?? NO_CONTROL_CENTER, options.autoSkin)
       for (const p of added) {
         try {
           const all = [...plugins, ...used, p]
-          const tried = assemble(all, options.controlCenter ?? null, options.autoSkin)
+          const tried = assemble(all, options.controlCenter ?? NO_CONTROL_CENTER, options.autoSkin)
           check?.(all)
           used = [...used, p]
           next = tried
@@ -1193,7 +1198,9 @@ export const openedIn = (
   stage = "s1",
 ): { book: string; page: string | null } | null => {
   const opened = stageIn(instance.state.getState().window, stage)?.opened
-  return opened ? { book: opened.outermost.id, page: shownPageId(opened) } : null
+  if (opened === undefined || opened === NOTHING_OPENED) return null
+  const page = shownPageId(opened)
+  return { book: opened.outermost.id, page: page === NO_PAGE ? null : page }
 }
 
 // 作ったときに読む行: 残した行 saved と、books を分けた行（core/folders-books.ts の recordsOf）。

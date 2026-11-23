@@ -14,6 +14,7 @@ import {
   usableAnnotations,
 } from "../../web/src/core/annotation"
 import { findPage } from "../../web/src/core/book"
+import { NO_CONTROL_CENTER } from "../../web/src/core/def/action"
 import { tablesOf } from "../../web/src/core/folders-books"
 import { performIn } from "../../web/src/core/perform-world"
 import { warningText } from "../../web/src/core/warnings"
@@ -63,7 +64,7 @@ test("効かないアノテーションがあっても、ほかのアノテー�
     { page: "p" },
     {
       catalog: CORE_CATALOG,
-      controlCenter: null,
+      controlCenter: NO_CONTROL_CENTER,
       lang: "en",
       newId: () => "n",
       now: "2026-11-01T00:00:00.000Z",

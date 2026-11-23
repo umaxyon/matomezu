@@ -14,8 +14,9 @@
 // 鉛筆の間は、根でない行を押して動かすとドラッグになり、落とした所で中身ごと付け替える（落とす先は drag.ts が決める。行の写しがポインタに付き、元の行と中身は薄く、
 // 中へ入るフォルダの行には点線の枠、行の間に入る所には線を出す）。ポインタが端に近ければ紙をずらす。付け替えが紙に入らず断られたら、トーストで知らせる
 import { type MouseEvent, memo, type PointerEvent, type RefObject, useMemo, useRef } from "react"
-import { paperOf, type StageView } from "../../../../plugin-api"
+import { NO_PAGE, NO_PAPER, NO_STAGE, paperOf, type StageView } from "../../../../plugin-api"
 import {
+  NO_AREA,
   useActions,
   useAllowed,
   useCommand,
@@ -68,7 +69,7 @@ export function DirView() {
   const stage = useStage()
   const openMenu = useContextMenu(DIR_CONTEXT)
   const ref = useRef<HTMLDivElement>(null)
-  if (!stage) return null
+  if (stage === NO_STAGE) return null
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューはポインタの操作で、キーの操作はメニューとコマンドが受ける
     <div ref={ref} className={styles.dir} onContextMenu={e => openMenu(e, {})}>
@@ -82,8 +83,8 @@ function Content({ stage, area }: { stage: StageView; area: RefObject<HTMLDivEle
   const t = useMessages(kit)
   // 紙の大きさ（変わらなければ同じ物を渡し、紙をずらしただけでは行を描き直さない）
   const size = paperOf(stage)
-  const w = size?.w
-  const h = size?.h
+  const w = size === NO_PAPER ? undefined : size.w
+  const h = size === NO_PAPER ? undefined : size.h
   const paperSize = useMemo(() => (w !== undefined && h !== undefined ? { w, h } : null), [w, h])
   if (!paperSize) return null
   return (
@@ -105,7 +106,8 @@ const Rows = memo(function Rows({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const page = useShownPage()
+  const shownPage = useShownPage()
+  const page = shownPage === NO_PAGE ? undefined : shownPage
   const perform = usePerform()
   const { select, setEditing, showToast } = useActions()
   const toggle = useCommand(FOLDER_TOGGLE.id)
@@ -138,7 +140,7 @@ const Rows = memo(function Rows({
       ? laidPage(catalog, page, { setting: pageContext(catalog, page).setting, grow: growing }, shown)
       : null
   // 可変ページなら、行と説明が入るだけ右と下へ並べた印刷区画に空きを足した広さを、ステージに知らせる
-  useStageArea(growing && laid ? laidArea(paper, growing, laid, true).size : null)
+  useStageArea(growing && laid ? laidArea(paper, growing, laid, true).size : NO_AREA)
   if (!page || !root || !shown || !laid || selected === undefined) return null
   const dir = root
   const { rows, lines, notes, divider } = laid

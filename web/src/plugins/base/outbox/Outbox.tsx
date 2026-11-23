@@ -6,7 +6,7 @@
 import { type ReactNode, useMemo } from "react"
 import type { AiAnnotation, Annotation } from "../../../core/annotation"
 import type { ActionId } from "../../../core/catalog"
-import { shownPageId } from "../../../core/stage"
+import { NO_STAGE, NOTHING_OPENED, shownPageId } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import { useLayout } from "../../../ui/store-context"
 import { useActions, useAllowed, useCoreCatalog, useStage, useUiCatalog } from "../../../ui/view-hooks"
@@ -110,12 +110,13 @@ function Icon({ annotation: a }: { annotation: Annotation }) {
 // 行を押したときの動き: ほかのページならそのページを開いてから、種類が右サイドパネルの中身 panel を答えていればそこで開き、
 // 無ければ付けた物を倍率そのままで見せる
 function useGo(): (a: AiAnnotation, panel: string | undefined) => void {
-  const opened = useStage()?.opened
+  const stage = useStage()
+  const opened = stage === NO_STAGE ? NOTHING_OPENED : stage.opened
   const { openPage } = useActions()
   const openPanel = useOpenRightSidePanel()
   const reveal = useRevealHere()
   return (a, panel) => {
-    if (a.page && shownPageId(opened ?? null) !== a.page) openPage(a.page)
+    if (a.page && shownPageId(opened) !== a.page) openPage(a.page)
     if (panel) {
       openPanel({ widget: panel, subject: a.id, anchors: a.anchors, current: lastAnchor(a.anchors) })
       return

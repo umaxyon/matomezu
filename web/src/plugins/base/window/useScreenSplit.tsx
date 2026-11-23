@@ -8,7 +8,7 @@ import { type Actions, SCREEN_REFUSED } from "../../../store/actions"
 import { NO_STAGE } from "../../../store/dialogs"
 import type { MatomezuState } from "../../../store/state"
 import { useUpdatePluginState } from "../../../ui/plugin-state-hooks"
-import { useScreenContext } from "../../../ui/screen-context"
+import { NO_SCREEN, useScreenContext } from "../../../ui/screen-context"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { applySplitFrom } from "./apply-split"
@@ -98,7 +98,7 @@ export function useScreenSplit(): ScreenSplit {
   const tall = useTallEnough()
   const actions = useStoreActions()
   const flash = useUpdatePluginState(kit, SCREEN_FLASH)
-  const here = inside ? { id: inside.id, def: inside.def } : { id: currentId, def: currentDef }
+  const here = inside !== NO_SCREEN ? { id: inside.id, def: inside.def } : { id: currentId, def: currentDef }
   const shownHere = useMemo(() => ({ def: here.def }), [here.def])
   const apply = useCallback((plan: SplitPlan) => applySplit(actions, read, plan), [actions, read])
   const find = useCallback(

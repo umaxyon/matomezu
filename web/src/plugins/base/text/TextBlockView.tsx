@@ -3,7 +3,7 @@
 // grips なら、本文の列の動かせる端（bodySides）につまみを出す。つまみを横にドラッグすると本文の列の幅を描き直し、離したら onBodyWidth に本文の幅を渡す
 // （中いっぱいになれば null。変わっていなければ呼ばない）。区切り線の色は lineColor（CSS の値）
 import { type CSSProperties, type PointerEvent, useRef, useState } from "react"
-import { toPaperDelta } from "../../../core/stage"
+import { NO_STAGE, toPaperDelta } from "../../../core/stage"
 import { useStage } from "../../../ui/view-hooks"
 import { type BlockProps, bodySides, bodyWidthAfter, textBlock } from "./block"
 import { RichText } from "./RichText"
@@ -34,7 +34,7 @@ export function TextBlockView({
   const { body, rule, column } = textBlock(shown, inner, least, maxH)
   const hasBody = body.length > 0
   const widthAt = (side: "left" | "right", clientX: number, start: number) =>
-    at ? bodyWidthAfter(props, inner, least, side, toPaperDelta(at, { x: clientX - start, y: 0 }).x) : null
+    at !== NO_STAGE ? bodyWidthAfter(props, inner, least, side, toPaperDelta(at, { x: clientX - start, y: 0 }).x) : null
   const grip = (side: "left" | "right") => ({
     onPointerDown: (e: PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0) return

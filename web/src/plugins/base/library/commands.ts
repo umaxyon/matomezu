@@ -19,6 +19,7 @@ import {
   tryPerformOf,
   unreadableItemsIn,
 } from "../../../store/commands/def"
+import { NO_CONTEXT_MENU } from "../../../store/context-menus"
 import { BOOK_CREATE } from "../book-new/book-create"
 import { dropClashing, notRestored } from "../history"
 import { isRevertUnchanged } from "../history/restore"
@@ -117,7 +118,7 @@ type Named = ({ entry: string } | { folder: string } | { at: "tree" }) & { press
 function given(ctx: ScreenCommandContext, named: Named | undefined): Named | undefined {
   if (named) return named
   const menu = ctx.contextMenu
-  return menu && NAMING_MENUS.includes(menu.id) ? (menu.target as Named) : undefined
+  return menu !== NO_CONTEXT_MENU && NAMING_MENUS.includes(menu.id) ? (menu.target as Named) : undefined
 }
 
 // 作業机（コマンドは readsSubjects に workdesksReadsOf を書き、その種類を読む）

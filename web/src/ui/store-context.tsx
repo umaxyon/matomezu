@@ -1,6 +1,8 @@
 // インスタンス（store・プラグインの見た目・UI マッピング）を画面の木に配る入れ物と、読む口・操作・表を取り出すフック
+
 import { createContext, type ReactNode, useContext, useMemo } from "react"
 import { useStore } from "zustand"
+import type { NO_CONTROL_CENTER } from "../core/def/action"
 import { fail, matomezuError, problem } from "../core/errors"
 import type { Warning } from "../core/warnings"
 import type { Actions } from "../store/actions"
@@ -66,8 +68,8 @@ export function useMatomezuState<T>(selector: (s: MatomezuState) => T): T {
   return useStore(useMatomezuContext().store.state, selector)
 }
 
-// インスタンスのコントロールセンターの定義の id（一覧と設定のアクションを使えるかを決める）
-export function useControlCenter(): string | null {
+// インスタンスのコントロールセンターの定義の id（一覧と設定のアクションを使えるかを決める。無ければ NO_CONTROL_CENTER）
+export function useControlCenter(): string | typeof NO_CONTROL_CENTER {
   return useMatomezuContext().store.controlCenter
 }
 

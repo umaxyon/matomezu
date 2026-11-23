@@ -19,6 +19,7 @@ import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
 import { isOwnedBy } from "../core/names"
 import type { Page } from "../core/schema/book"
+import type { NO_PAGE } from "../core/stage"
 import type { DialogArgsOf, DialogDef } from "../store/dialogs"
 import { type IdsOf, type Plugin, withoutParts } from "../store/plugin"
 import type { ConnectorUi } from "./connector"
@@ -68,11 +69,11 @@ export interface UserSettingControlProps<V = unknown> {
 }
 // 設定の項目（core/def/setting.ts）を変えるコンポーネントに渡す値。of は項目を持つ所（ステージエントリかページか。定義の holder と同じ言葉）、value はその所の値（無ければ undefined）、
 // inherited は値が無いときに効く値（定義の既定。既定の無い項目なら undefined のことがある）。onChange の undefined は値を消す（既定に戻す）。
-// page は、ページの項目なら変えている項目を重ねたそのページ（ステージエントリの項目なら null）。ほかの項目の値やページのタイプで見せ方が変わるコンポーネントが読む
+// page は、ページの項目なら変えている項目を重ねたそのページ（ステージエントリの項目なら NO_PAGE）。ほかの項目の値やページのタイプで見せ方が変わるコンポーネントが読む
 export interface SettingControlProps<V = unknown> extends UserSettingControlProps<V> {
   of: SettingHolder
   inherited: V | undefined
-  page: Page | null
+  page: Page | typeof NO_PAGE
 }
 // 設定の項目のビュー: 設定のダイアログに並べるコンポーネント
 export interface SettingUi {

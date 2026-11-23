@@ -6,6 +6,7 @@
 // （囲む物の中のスクロールと、紙をずらしてアンカーを真ん中へ）関数を受け取る。
 // 線のように形を持つ物は、形の要素（SVG の polyline）を useAnchorShapeRef で同じ id に知らせる。スタンドの中の物は useStandShape で、形の点（スタンドの左上から）を受け取る。
 // アンカーの表（id → 要素）はステージごとに 1 つで、ステージのビューが渡す。ブックのデータにも画面の状態にも入れず、描いている間だけ持つ
+
 import {
   createContext,
   type ReactNode,
@@ -20,6 +21,7 @@ import {
 } from "react"
 import { createPortal } from "react-dom"
 import type { Point, Rect, Size } from "../../../core/geom"
+import { NO_STAGE } from "../../../core/stage"
 import { useActions, useStage, useStagePan } from "../../../ui/view-hooks"
 import { glidePan } from "../utils/glide-pan"
 import { KEEP_INSIDE } from "../utils/keep-inside"
@@ -361,6 +363,7 @@ export function revealedRect(base: Element, view: Element, found: readonly { el:
 // パン・倍率・大きさ・スクロールと、レイヤーの大きさ（ステージの幅が動くなど）が変われば測り直す
 function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped: boolean): Measured | null {
   const stage = useStage()
+  const zoom = stage === NO_STAGE ? undefined : stage.zoom
   const pan = useStagePan()
   const version = useSyncExternalStore(ctx?.anchors.subscribe ?? noSubscribe, ctx?.anchors.snapshot ?? zero)
   const [tick, setTick] = useState(0)
@@ -387,7 +390,7 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
     }
     step()
     return () => cancelAnimationFrame(frame)
-  }, [measure, pan, stage?.zoom, version, tick, pages])
+  }, [measure, pan, zoom, version, tick, pages])
   // 中のスクロール（リストなど）と、表示領域の大きさの変化
   useEffect(() => {
     const again = () => setTick(n => n + 1)

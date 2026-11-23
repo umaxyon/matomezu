@@ -2,7 +2,7 @@
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { type MenuCommandId, type MenuItem, menuCommands } from "../../../ui/layout"
-import { useMenu, useMenuCommand } from "../../../ui/menu"
+import { NO_MENU_COMMAND, useMenu, useMenuCommand } from "../../../ui/menu"
 import { useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import styles from "../utils/FooterButtons.module.css"
@@ -23,7 +23,7 @@ export function StageMenuButtons() {
 // 項目 1 つ。切り替えなら出ているコマンドを出し、どれも出ていなければ描かない
 function MenuEntry({ item }: { item: MenuItem }) {
   const id = useMenuCommand(item)
-  return id ? <MenuButton id={id} /> : null
+  return id === NO_MENU_COMMAND ? null : <MenuButton id={id} />
 }
 
 // コマンドのボタン。アイコンが無ければ名前を出し、押されている状態はコマンドの active、押せるかは enabled

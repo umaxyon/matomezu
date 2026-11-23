@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react"
 import { openablePage } from "../../../core/library"
 import { sameData } from "../../../core/same"
-import { shownType } from "../../../core/stage"
+import { NO_PAGE, NO_PAGE_TYPE, NO_PLACING, NO_STAGE, shownType } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import { useRecords } from "../../../ui/record-hooks"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
@@ -26,8 +26,9 @@ import { SCRAP_TRAY_TAB_ID } from "./tab-id"
 export function useScrapFrame() {
   const catalog = useCatalog().core
   const view = useStage()
-  const type = shownType(view?.opened ?? null)
-  return view && type ? scrapFrameIn(catalog, type, view.edits) : null
+  if (view === NO_STAGE) return null
+  const type = shownType(view.opened)
+  return type !== NO_PAGE_TYPE ? scrapFrameIn(catalog, type, view.edits) : null
 }
 
 // スクラップトレイを開く側が、左サイドパネルに渡すタブの組（スクラップトレイだけ）
@@ -61,12 +62,12 @@ function Row({ id, scrap }: { id: string; scrap: Scrap }) {
   const { perform, togglePlacing, showToast } = useActions()
   const view = useStage()
   const frame = useScrapFrame()
-  const placing = view?.placing
+  const placing = view === NO_STAGE ? NO_PLACING : view.placing
   // 置くときの値: 開いているページの紙の半分に収める
   const opened = usePage()
-  const paper = opened ? paperSize(catalog, opened) : null
+  const paper = opened === NO_PAGE ? null : paperSize(catalog, opened)
   const toPlace = paper ? scrapToPlace(scrap, paper) : scrap
-  const pressed = frame !== null && placing?.item === frame && sameData(placing.props, toPlace)
+  const pressed = frame !== null && placing !== NO_PLACING && placing.item === frame && sameData(placing.props, toPlace)
   const removable = useAllowedOn(SCRAP_REMOVE.id, {}, { record: id }).ok
   const label = useMatomezuState(s => {
     const at = openablePage(s, scrap.page)

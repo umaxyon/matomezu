@@ -12,7 +12,7 @@ import { pagesOf } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
 import type { Page } from "../../../core/schema/book"
-import { extentOf as previewArea } from "../../../core/stage"
+import { NO_STAGE, NOTHING_OPENED, extentOf as previewArea } from "../../../core/stage"
 import { paperOrigin } from "../../../core/viewport"
 import { stageIn } from "../../../core/window"
 import type { MatomezuState } from "../../../store/state"
@@ -20,7 +20,7 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { PageScope, useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useReadState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
-import { useStage, useStagePan } from "../../../ui/view-hooks"
+import { PAN_NOT_WATCHED, useStage, useStagePan } from "../../../ui/view-hooks"
 import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 import { paperSize } from "../place/grow"
@@ -91,7 +91,7 @@ function useExtent(id: string): { known: boolean; size: string | null } {
 // 描いている場所のステージがあるときだけ描く（無ければ何も描かない）
 export function PrintPreviewView() {
   const id = useStageId()
-  return id === null ? null : <PrintPreviewBody id={id} />
+  return id === NO_STAGE ? null : <PrintPreviewBody id={id} />
 }
 
 function PrintPreviewBody({ id }: { id: string }) {
@@ -142,7 +142,7 @@ function PrintPreviewBody({ id }: { id: string }) {
     () => (previewed ? entrySheets(catalog, previewed, measured) : null),
     [catalog, previewed, measured],
   )
-  const zoom = stage?.zoom ?? 1
+  const zoom = stage === NO_STAGE ? 1 : stage.zoom
   const motion = useZoomMotion(zoom, "")
   // 並べた広さを知らせる（測っている途中と、並べる物が無い間は知らせない。途中の広さで、初めの幅に合わせるのを済ませないように）
   const pending = [...measured.values()].includes("pending")
@@ -171,7 +171,7 @@ function PrintPreviewBody({ id }: { id: string }) {
   }, [known, size, shown, sliding, id, read])
   const openPanel = useOpenRightSidePanelAt()
   const seen = useRef(false) // 右サイドパネルに中身を出したか
-  const opened = stage?.opened ?? null
+  const opened = stage === NO_STAGE || stage.opened === NOTHING_OPENED ? null : stage.opened
   // 印刷区画の境目をまたいだ形を直してもらうタイプで、またいだ形があれば（AI が印刷プレビューで開いた・開いている間に AI が動かした）、
   // 印刷プレビューを閉じて、それを知らせる右サイドパネルを開く（フッタメニューのボタンと同じ）
   const crossing = useMemo(() => !!previewed && hasCrossing(catalog, previewed), [catalog, previewed])
@@ -208,7 +208,7 @@ function PrintPreviewBody({ id }: { id: string }) {
     el.addEventListener("dblclick", onDoubleClick)
     return () => el.removeEventListener("dblclick", onDoubleClick)
   }, [id, openPage])
-  if (!layout || !pan || !previewed) return null
+  if (!layout || pan === NO_STAGE || pan === PAN_NOT_WATCHED || !previewed) return null
   const pageOf = (pageId: string) => pages.find(p => p.id === pageId)
   // ブック名（バインダ名）・ページ名と印刷区画の番号（設定で入れるときだけ。番号は並べた印刷区画全体の通し）
   const shows = {

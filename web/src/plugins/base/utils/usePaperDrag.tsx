@@ -4,9 +4,9 @@
 // 動かし始めたときと、動かしたあと終えたとき（落としても、やめても。落とす前）にすることは、begin・end で渡せる（begin にはポインタの所を、area から見た点で渡す）
 import { type RefObject, useEffect, useEffectEvent, useRef, useState } from "react"
 import type { Point } from "../../../core/geom"
-import { toPaper } from "../../../core/stage"
+import { NO_PAPER, NO_STAGE, toPaper } from "../../../core/stage"
 import type { StageView } from "../../../core/workspace"
-import { useActions, useStagePan, useToPaper } from "../../../ui/view-hooks"
+import { PAN_NOT_WATCHED, useActions, useStagePan, useToPaper } from "../../../ui/view-hooks"
 import { DRAG_START } from "./drag"
 import { edgePanner } from "./edge-pan"
 
@@ -36,7 +36,8 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
   const toPaperOf = useToPaper()
   const toPaperAt = (cx: number, cy: number): Point | null => {
     const p = local(cx, cy)
-    return p ? toPaperOf(p) : null
+    const at = p ? toPaperOf(p) : NO_PAPER
+    return at === NO_PAPER ? null : at
   }
   const localAt = useEffectEvent(local)
   const paperAt = useEffectEvent(toPaperAt)
@@ -52,9 +53,9 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
     const d = latest.current
     const c = pointer.current
     const p = c && localAt(c.x, c.y)
-    if (!d?.moved || !p || !pan) return
+    if (!d?.moved || !p || pan === NO_STAGE || pan === PAN_NOT_WATCHED) return
     const at = toPaper({ opened, pan, zoom }, p)
-    if (at && (at.x !== d.at.x || at.y !== d.at.y)) setPress({ ...d, at })
+    if (at !== NO_PAPER && (at.x !== d.at.x || at.y !== d.at.y)) setPress({ ...d, at })
   }, [opened, pan, zoom])
   useEffect(() => {
     if (!pressed) return

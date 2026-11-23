@@ -8,6 +8,7 @@ import {
   keepsPageTypes,
   lineupOf,
   moveEntry,
+  NO_BINDER,
   pagesOf,
 } from "../../web/src/core/book"
 import { resolvePaper } from "../../web/src/core/paper"
@@ -48,8 +49,8 @@ describe("並び", () => {
 
   test("バインダの中のページも並びの順に読め、どのバインダに入っているかも引ける", () => {
     expect(pagesOf(mixed).map(p => p.id)).toEqual(["p1", "s1", "s2", "t1"])
-    expect(findPage(mixed, "s2")?.binder?.id).toBe("f1")
-    expect(findPage(mixed, "p1")?.binder).toBeNull()
+    expect(findPage(mixed, "s2")?.binder).toMatchObject({ id: "f1" })
+    expect(findPage(mixed, "p1")?.binder).toBe(NO_BINDER)
     expect(findPage(mixed, "nope")).toBeUndefined()
   })
 
@@ -78,7 +79,7 @@ describe("並び", () => {
     )
     expect(added).toMatchObject({ page: "n1", binder: "n2" })
     expect(added && lineupOf(added.book).map(e => e.id)).toEqual(["n2", "p1", "f1", "t1"])
-    expect(added && findPage(added.book, "n1")?.binder?.id).toBe("n2")
+    expect(added && findPage(added.book, "n1")?.binder).toMatchObject({ id: "n2" })
     const empty = addBinder(mixed, { title: "空", pageType: SLIDE }, undefined, sequence("n"))
     expect(empty.binder).toBe("n1")
     expect(lineupOf(empty.book).at(-1)).toEqual({ kind: "binder", id: "n1", title: "空", pageType: SLIDE, lineup: [] })

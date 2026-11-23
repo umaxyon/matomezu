@@ -2,7 +2,6 @@
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
-import { paperOf } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { PrintAreaLayer } from "../../../web/src/plugins/base/stage/layers"
@@ -11,7 +10,7 @@ import { createMatomezu } from "../../../web/src/store/create"
 import { StageScope } from "../../../web/src/ui/scope"
 import { MatomezuProvider } from "../../../web/src/ui/store-context"
 import { SAMPLE_BOOKS } from "../../sample-books"
-import { showFirstBook } from "../../support"
+import { sheetOf, showFirstBook } from "../../support"
 
 afterEach(cleanup)
 
@@ -33,7 +32,7 @@ test("紙 1 枚で描くページには線を引かず、広さが右に 2 枚�
   )
   expect(container.querySelector("[data-print-areas]")).toBeNull()
   const stage = screenOf(instance.state.getState().window).stages.find(s => s.id === "s1")!
-  const paper = paperOf(stage)!
+  const paper = sheetOf(stage)
   act(() => instance.actions.setStageArea("s1", { w: paper.w * 2, h: paper.h * 3 }))
   const areas = container.querySelector("[data-print-areas]")
   expect(areas?.getAttribute("data-print-areas")).toBe("2x3")

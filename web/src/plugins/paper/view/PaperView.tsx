@@ -21,6 +21,10 @@ import {
   areaOf,
   findShape,
   type ItemPage,
+  NO_PAGE,
+  NO_PAPER,
+  NO_PLACING,
+  NO_STAGE,
   type PlacedShape,
   type Point,
   type Rect,
@@ -29,6 +33,7 @@ import {
   toPaperDelta,
 } from "../../../plugin-api"
 import {
+  NO_AREA,
   type ShapeScene,
   TokenScope,
   useActions,
@@ -97,11 +102,12 @@ export function PaperView() {
   const { select } = useActions()
   const ref = useRef<HTMLDivElement>(null)
   const [pointer, setPointer] = useState<Point | null>(null)
-  const placing = stage?.placing != null
-  const pans = stage?.pans === true
+  const placing = stage !== NO_STAGE && stage.placing !== NO_PLACING
+  const pans = stage !== NO_STAGE && stage.pans
   const localOf = useCallback((e: PointerEvent<Element>) => ref.current && local(e, ref.current), [])
   const catalog = useCoreCatalog()
-  const page = usePage()
+  const shownPage = usePage()
+  const page = shownPage === NO_PAGE ? undefined : shownPage
   const toPaperAt = useToPaper()
   const sweep = useRef<Sweep | null>(null)
   const followed = useFollowsSelection()
@@ -123,7 +129,7 @@ export function PaperView() {
     if (!box) e.currentTarget.setPointerCapture(e.pointerId)
     const a = toPaperAt(sw.start)
     const b = toPaperAt(at)
-    if (!a || !b) return
+    if (a === NO_PAPER || b === NO_PAPER) return
     const r = sweptBox(a, b)
     setBox(r)
     select(sweptSelection(sw.base, sweptItems(catalog, page, r), sw.mod))
@@ -144,7 +150,7 @@ export function PaperView() {
     // 何も無い所を押すと選択を外す（Mod なら選択はそのまま）。選択の道具なら、そこから範囲のドラッグを始める
     const mod = modPressed(e)
     if (!mod) select([])
-    if (stage?.tool !== "@matomezu/base:select") return
+    if (stage === NO_STAGE || stage.tool !== "@matomezu/base:select") return
     sweep.current = {
       pointer: e.pointerId,
       start: local(e, ref.current),
@@ -152,7 +158,7 @@ export function PaperView() {
       mod,
     }
   }
-  if (!stage) return null
+  if (stage === NO_STAGE) return null
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: 押した所に置く・選択を外すのはポインタの操作で、キーの操作はメニューとコマンドが受ける
@@ -244,8 +250,11 @@ const Items = memo(function Items({
   const catalog = useCoreCatalog()
   const page = usePage()
   const draft = useShownPage()
-  const shownPage = useMemo(() => (page && draft ? settledDraft(catalog, page, draft) : null), [catalog, page, draft])
-  return page && shownPage ? (
+  const shownPage = useMemo(
+    () => (page !== NO_PAGE && draft !== NO_PAGE ? settledDraft(catalog, page, draft) : null),
+    [catalog, page, draft],
+  )
+  return page !== NO_PAGE && shownPage ? (
     <PageItems stage={stage} page={page} shownPage={shownPage} into={into} localOf={localOf} />
   ) : null
 })
@@ -267,10 +276,13 @@ function PageItems({
   const catalog = useCoreCatalog()
   const ui = useUiCatalog()
   // 描くページが、開いている物の中のページか（何も開いていなければ false）
-  const opened = usePageById(page.id) !== null
+  const opened = usePageById(page.id) !== NO_PAGE
   const followed = useFollowsSelection()
   // 可変ページなら、形を置ける広さ（空きの印刷区画を含む。base の roomOf）をステージの広さとして知らせる
-  const room = useMemo(() => (opened && growOf(catalog, page) ? roomOf(catalog, page) : null), [catalog, opened, page])
+  const room = useMemo(
+    () => (opened && growOf(catalog, page) ? roomOf(catalog, page) : NO_AREA),
+    [catalog, opened, page],
+  )
   useStageArea(room)
   // ページに置けるつなぐもののビュー
   const connectors = allowedItems(catalog, page).flatMap(id => {
@@ -299,7 +311,7 @@ function PageItems({
   })
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>, id: string) => {
-    if (e.button !== 0 || pans || stage.placing !== null) return
+    if (e.button !== 0 || pans || stage.placing !== NO_PLACING) return
     const reparenting = stage.tool === REPARENT_TOOL.id
     // 付け替えは押した形 1 つだけを動かす。選択の道具は Mod で足す・外す（placing/selection.ts の pressSelection）
     const press = reparenting
@@ -335,7 +347,7 @@ function PageItems({
     if (d.reparent) {
       const at = localOf(e)
       const point = at && toPaperAt(at)
-      setTarget(point ? dropTarget(catalog, page, d.items[0] as string, point) : null)
+      setTarget(point && point !== NO_PAPER ? dropTarget(catalog, page, d.items[0] as string, point) : null)
     } else if (d.items.length === 1 && opened) {
       const id = d.items[0] as string
       d.came = trackDrag(catalog, page, id, d.prev, by, d.came)
@@ -389,7 +401,8 @@ function PageItems({
     setStretched({ x: 0, y: 0 })
     if (drop && (stretched.x !== 0 || stretched.y !== 0)) resize.run({ item: st.item, edges: st.edges, by: stretched })
   }
-  const paper = areaOf(stage)
+  const area = areaOf(stage)
+  const paper = area === NO_PAPER ? null : area
   // 大きさを変えている途中のアイテムは、変えたあとの左上と大きさで描く。ダイアログの下書きは、下書きを重ねたページ（useShownPage）のアイテムで描く（子の形も）
   const stretching = stretch.current && {
     item: stretch.current.item,
@@ -398,7 +411,7 @@ function PageItems({
   }
   const shown = (placed: PlacedShape): PlacedShape => shownShape(catalog, shownPage, placed, stretching, paper)
   const resizing = stretch.current && (stretched.x !== 0 || stretched.y !== 0) ? stretch.current.item : null
-  const selectable = !pans && stage.placing === null
+  const selectable = !pans && stage.placing === NO_PLACING
   // 描く形（下書き・大きさを変えている途中・ドラッグでずらした所を重ねたもの）
   const shapes = shapesOf(page).map(item => ({ item: shown(item), shift: shiftOf(item) }))
   // ドラッグでずらした形の両端が同じだけ動くつなぐものは、手直しの点も一緒にずらして描く（離したときのデータと同じ形。followConnectors）
@@ -460,12 +473,12 @@ function PageItems({
       onPointerUp={e => endDrag(e, true)}
       onPointerCancel={e => endDrag(e, false)}
       onDoubleClick={() => {
-        if (pans || stage.placing !== null) return
+        if (pans || stage.placing !== NO_PLACING) return
         select([item.id])
         edit.run({ item: item.id })
       }}
       onContextMenu={e => {
-        if (stage.placing !== null) return
+        if (stage.placing !== NO_PLACING) return
         if (!stage.selection.includes(item.id)) select([item.id])
         openMenu(e, { item: item.id })
       }}

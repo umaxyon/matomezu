@@ -3,7 +3,7 @@
 
 import type { z } from "zod"
 import type { CoreCatalog } from "../core/core-catalog"
-import type { Stage } from "../core/stage"
+import { NOTHING_OPENED, type Stage } from "../core/stage"
 import { currentKindOf, recentBookScreen, screenOfStage, shownScreens } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
 import type { OpenTo } from "../store/actions"
@@ -14,9 +14,10 @@ import type { ShowSchema } from "./server-schemas"
 // ステージ stage が開いている物: entry はステージエントリ（ブックか、ブックの外のページ・バインダ。何も開いていなければ無い）、page はページの id（ブックの外のページなら、そのページ）
 const openedOf = (stage: Stage) => {
   const opened = stage.opened
+  if (opened === NOTHING_OPENED) return { page: null, mode: stage.mode.kind }
   return {
-    ...(opened ? { entry: { kind: opened.outermost.kind, id: opened.outermost.id } } : {}),
-    page: opened && "page" in opened ? (opened.page ?? null) : null,
+    entry: { kind: opened.outermost.kind, id: opened.outermost.id },
+    page: "page" in opened ? opened.page : null,
     mode: stage.mode.kind,
   }
 }

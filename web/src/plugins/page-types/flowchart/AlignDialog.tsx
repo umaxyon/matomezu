@@ -3,7 +3,7 @@
 // （最初はオフ。置いたときのままを保つ）。
 // 断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に収まらない）
 import { useId, useState } from "react"
-import type { MessageKey } from "../../../plugin-api"
+import { type MessageKey, NO_PAGE } from "../../../plugin-api"
 import { type DialogProps, useCoreCatalog, useMessages, usePageById, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import { ActionButton, Dialog, Form, Problem, rowClass, Switch } from "../../base/ui"
@@ -14,7 +14,8 @@ export function AlignDialog({ args, onClose }: DialogProps<{ page: string }>) {
   const t = useMessages(kit)
   const form = useId()
   const catalog = useCoreCatalog()
-  const page = usePageById(args.page)
+  const found = usePageById(args.page)
+  const page = found === NO_PAGE ? undefined : found
   const perform = usePerform()
   const [adapt, setAdapt] = useState(false)
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言

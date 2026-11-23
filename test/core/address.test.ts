@@ -2,10 +2,10 @@
 import { expect, test } from "bun:test"
 import { type Address, addressOf, moved, placeAt, type StagePlace } from "../../web/src/core/address"
 import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
-import { paperOf, setArea, setStart } from "../../web/src/core/stage"
+import { openedEntry, setArea, setStart } from "../../web/src/core/stage"
 import { ZOOM_MAX, ZOOM_MIN } from "../../web/src/core/viewport"
 import { recentBookScreen, screenOf } from "../../web/src/core/window"
-import { newStore } from "../support"
+import { newStore, sheetOf } from "../support"
 
 const CENTER = "@matomezu/control-center:screen"
 const BOOKS = "@matomezu/base:book-screen"
@@ -46,7 +46,7 @@ test("場所を当てはめると、そのとおりにステージを開いて�
     ),
   )
   const ws = screenOf(win)
-  expect(ws.stages.map(s => s.opened?.outermost.id ?? null)).toEqual(["b3", null])
+  expect(ws.stages.map(s => openedEntry(s.opened)?.id ?? null)).toEqual(["b3", null])
   expect(ws.current).toBe(ws.stages[1]!.id)
   expect(ws.arrangement.share).toBe(0.85)
   // ステージの番号は使い回さず、足したステージには新しい番号
@@ -67,7 +67,7 @@ test("無いブックを名指すステージは開かない。全部がそう�
   const on = (address: Address) =>
     placeAt(catalog.core, state.getState().books, state.getState(), state.getState().window, address)
   const one = on(at([place("gone"), place("b3")], 0))
-  expect(screenOf(one).stages.map(s => s.opened?.outermost.id)).toEqual(["b3"])
+  expect(screenOf(one).stages.map(s => openedEntry(s.opened)?.id)).toEqual(["b3"])
   expect(recentBookScreen(on(at([place("gone")])))).toBeUndefined()
 })
 
@@ -147,7 +147,7 @@ test("場所を当てはめたステージは、ずらす量が 0 でも、あ�
     ),
   )
   const stage = { ...ws.stages[0]!, view: { w: 400, h: 300 } }
-  const sheet = paperOf(stage)!
+  const sheet = sheetOf(stage)
   const arrived = setStart(setArea(stage, { w: sheet.w * 2, h: sheet.h }), { x: sheet.w, y: 0 })
   expect(arrived.pan).toEqual({ x: 0, y: 0 })
 })
@@ -160,7 +160,7 @@ test("今と同じ場所を当てはめる（読み直しで URL が開いた直
   store.locate(addressOf(state.getState().window))
   const stage = screenOf(state.getState().window).stages[0]!
   expect(stage.starting).toBe(false)
-  const sheet = paperOf(stage)!
+  const sheet = sheetOf(stage)
   actions.setStageArea("s1", { w: sheet.w * 2, h: sheet.h })
   actions.setStageStart("s1", { x: sheet.w, y: 0 })
   expect(screenOf(state.getState().window).stages[0]!.pan).toEqual({ x: 0, y: 0 })
@@ -190,7 +190,7 @@ test("場所はスクリーンアレンジメントの値を持つ。当ては�
 test("場所を当てはめても、開いていたページをそのまま開くステージは、プレゼンテーションが知らせた広さとずらした量を保つ。ほかのページを開くステージは持たない", () => {
   const store = newStore()
   const { catalog, state, actions } = store
-  const sheet = paperOf(screenOf(state.getState().window).stages[0]!)!
+  const sheet = sheetOf(screenOf(state.getState().window).stages[0]!)
   const area = { w: sheet.w * 3, h: sheet.h * 3 }
   actions.setStageArea("s1", area, { x: 1, y: 1 })
   const placedAt = (page: string) =>

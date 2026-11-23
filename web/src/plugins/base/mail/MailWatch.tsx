@@ -3,7 +3,7 @@
 // - 行き先のある、まだ行き先を見ていない郵便の行き先が、どれかのステージに出たら（そのブックのそのページを開き、物があればその物が表示領域に入ったら）、行き先を見たことにする
 
 import { useEffect } from "react"
-import { shownPageId } from "../../../core/stage"
+import { NO_PAGE, NOTHING_OPENED, shownPageId } from "../../../core/stage"
 import { shownBookScreens } from "../../../core/window"
 import { useT } from "../../../ui/i18n"
 import { useReadState, useStoreActions } from "../../../ui/store-context"
@@ -48,7 +48,11 @@ function useVisited() {
         if (!m.to || m.visitedAt) continue
         const stages = shown
           .flatMap(x => x.stages.stages)
-          .flatMap(st => (st.opened ? [{ id: st.id, book: st.opened.outermost.id, page: shownPageId(st.opened) }] : []))
+          .flatMap(st => {
+            if (st.opened === NOTHING_OPENED) return []
+            const page = shownPageId(st.opened)
+            return [{ id: st.id, book: st.opened.outermost.id, page: page === NO_PAGE ? null : page }]
+          })
         if (placeShown(m, stages, onScreen)) perform(MAIL_VISITED.id, {}, { record: m.id })
       }
     }

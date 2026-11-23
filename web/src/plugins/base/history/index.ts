@@ -9,7 +9,7 @@ import { foldersOver } from "../../../core/folders-tree"
 import type { HistoryStep } from "../../../core/history"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import type { Books } from "../../../core/library"
-import { shownPageId } from "../../../core/stage"
+import { NOTHING_OPENED, shownPageId } from "../../../core/stage"
 import {
   booksOf,
   type CommandActions,
@@ -147,7 +147,7 @@ export function dropClashing(
 // 認可ステップが止めた物は動かさない。ぶつかって断られたら、続けてぶつかる画面の履歴の段もまとめて捨てる（dropClashing。トーストは 1 つ）
 function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"): void {
   const opened = ctx.stage.opened
-  if (!opened) return
+  if (opened === NOTHING_OPENED) return
   const to = from === "undo" ? "before" : "after"
   const argsOf = (step: HistoryStep) => ({
     outermosts: step.outermosts.map(id => ({ kind: kindOf(ctx.folders, id), id })),
@@ -196,7 +196,7 @@ export const UNDO = kit.defineCommand({
   performs: [HISTORY_RESTORE.id],
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "undo"),
-  when: ctx => ctx.stage.opened !== null,
+  when: ctx => ctx.stage.opened !== NOTHING_OPENED,
   enabled: ctx => hasSteps(ctx, "undo"),
 })
 
@@ -206,7 +206,7 @@ export const REDO = kit.defineCommand({
   performs: [HISTORY_RESTORE.id],
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "redo"),
-  when: ctx => ctx.stage.opened !== null,
+  when: ctx => ctx.stage.opened !== NOTHING_OPENED,
   enabled: ctx => hasSteps(ctx, "redo"),
 })
 

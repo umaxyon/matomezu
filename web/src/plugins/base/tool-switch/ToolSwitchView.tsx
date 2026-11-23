@@ -1,9 +1,11 @@
 // 道具の切り替えのボタン（ウィジェット tool-switch）: ステージの道具の組の道具を輪に並べ、今の道具を手前に大きく、残りを奥に小さく薄く、少し下げて控えさせる
 // （3 つなら左右の奥に）。
 // 右が次（押すと来る）、左が前。道具が変わると、輪を近い向きへ 1 つ分回して入れ替える。押すとコマンド tool-next を呼ぶ
+
 import { useEffect, useRef } from "react"
 import type { ToolId } from "../../../core/catalog"
-import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
+import { NO_STAGE } from "../../../core/stage"
+import { NO_TOOL, toolDef, toolSetOf, toolsIn } from "../../../core/tools"
 import { workspaceOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
@@ -42,7 +44,9 @@ export function ToolSwitchView() {
   const toolIcons = useUiCatalog().toolIcons
   const set = useStageHere(st => (st ? toolSetOf(catalog, st) : null))
   const order: readonly ToolId[] = set ? toolsIn(catalog, set) : []
-  const tool = useStage()?.tool ?? order[0] ?? null
+  const stage = useStage()
+  const now = stage === NO_STAGE ? NO_TOOL : stage.tool
+  const tool = now !== NO_TOOL ? now : (order[0] ?? null)
   // 使えない道具（斜めの線を引く）。並びを文字で比べて、変わったときだけ描き直す
   const unusable = useStageHere((st, s) =>
     st ? unusableTools(catalog, workspaceOf(s.window, st.id), st.id, s).join("\n") : "",

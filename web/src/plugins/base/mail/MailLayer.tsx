@@ -3,7 +3,7 @@
 // ステージが行き先（ブック・ページ）から離れたら、そこで終える。動きを減らす設定では、枠は光らせずに出すだけにする
 
 import { useEffect, useState } from "react"
-import { shownPageId } from "../../../core/stage"
+import { NOTHING_OPENED, openedEntry, shownPageId } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import { useStageHere } from "../../../ui/scope"
 import { BIRD_IDS, type Bird } from "../birds"
@@ -17,9 +17,9 @@ import styles from "./MailLayer.module.css"
 export function MailLayer() {
   const visit = useBirdVisit()
   const clear = useClearBirdVisit()
-  const opened = useStageHere(st => st?.opened ?? null)
+  const opened = useStageHere(st => st?.opened ?? NOTHING_OPENED)
   const here =
-    !!visit && opened?.outermost.id === visit.book && (visit.page === null || shownPageId(opened) === visit.page)
+    !!visit && openedEntry(opened)?.id === visit.book && (visit.page === null || shownPageId(opened) === visit.page)
   useEffect(() => {
     if (visit && !here) clear()
   }, [visit, here, clear])

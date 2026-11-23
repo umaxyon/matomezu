@@ -10,7 +10,10 @@ export interface ScreenHere {
   current: boolean // カレントスクリーンか（キーが効く先）
 }
 
-const ScreenContext = createContext<ScreenHere | null>(null)
+// 描いている場所がスクリーンの外のときの値
+export const NO_SCREEN = "none"
+
+const ScreenContext = createContext<ScreenHere | typeof NO_SCREEN>(NO_SCREEN)
 
 // 渡す値は、中身が同じ間は同じ参照に保つ（描いている場所を読む物を、スクリーンの中の何かが変わるたびに描き直さないため）
 export function ScreenProvider({ screen, children }: { screen: ScreenHere; children: ReactNode }) {
@@ -19,5 +22,11 @@ export function ScreenProvider({ screen, children }: { screen: ScreenHere; child
   return <ScreenContext.Provider value={value}>{children}</ScreenContext.Provider>
 }
 
-// 描いている場所のスクリーン（スクリーンの外で描いているなら null）
-export const useScreenContext = (): ScreenHere | null => useContext(ScreenContext)
+// 描いている場所のスクリーン（スクリーンの外で描いているなら NO_SCREEN）
+export const useScreenContext = (): ScreenHere | typeof NO_SCREEN => useContext(ScreenContext)
+
+// 描いている場所のスクリーンの、開いた 1 枚ごとの id（スクリーンの外で描いているなら undefined）
+export function useScreenIdHere(): string | undefined {
+  const here = useScreenContext()
+  return here === NO_SCREEN ? undefined : here.id
+}

@@ -1,7 +1,9 @@
 // 検索の当たりを、ビューが光らせて見せる部品（見た目）: 開いているページの当たりと今の当たりを読むフック、
 // 光らせる Range を名前ごとに窓 1 つの表（CSS Custom Highlight API）へ足し・外すフック、閉じたときに今の当たりを受け取るフック。
 // どこを光らせるか（原文の位置から描いた要素の Range を作る）は、描いたビューが決める（ほかのプラグインのビューの中には手を入れない）
+
 import { useEffect, useMemo, useRef } from "react"
+import { NO_PAGE } from "../../../core/stage"
 import { usePluginState } from "../../../ui/plugin-state-hooks"
 import { useCoreCatalog, usePageById } from "../../../ui/view-hooks"
 import { kit } from "../kit"
@@ -20,7 +22,7 @@ export function useSearchHits(page: string): { hits: readonly SearchHit[]; curre
   // 読むのは探す字と今の当たりだけで、範囲 scope は読まない（開いているページだけを光らせる）ので、useSearchHere を通さない
   const search = usePluginState(kit, SEARCH_STATE)
   return useMemo(() => {
-    if (!search || !shown || searchableOf(catalog, shown) === "none") return { hits: [], current: "none" }
+    if (!search || shown === NO_PAGE || searchableOf(catalog, shown) === "none") return { hits: [], current: "none" }
     const found = hitsIn(catalog, [shown], search.query, "page", page)
     if (found === "bad-pattern") return { hits: [], current: "none" }
     const hits = found[0]?.hits ?? []

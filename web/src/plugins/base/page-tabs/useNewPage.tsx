@@ -2,12 +2,14 @@
 // 紙を選ぶ並び（lineup）と所（place）・初めに入れておく名前（titles）・作る関数（add）を返す。
 // 作る先は、args.folder を書いていれば書庫のそのフォルダ（書庫ホーム・フォルダ・ブック・ブックの外のバインダ。アクション page-create で作り、書庫の画面でそれを選ぶ）、
 // 書いていなければ、描いている場所のステージが開いているブック（アクション page-add で足し、そのステージで開く）
+
 import { useMemo } from "react"
 import { lineupOf, pagesIn } from "../../../core/book"
 import { freeTitle, titlesIn } from "../../../core/entries"
 import { outsideBinderIn } from "../../../core/folders-tree"
 import type { ArgsOf } from "../../../core/perform"
 import type { StageLineup } from "../../../core/schema/book"
+import { NO_BOOK } from "../../../store/commands/def"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useBook } from "../../../ui/view-hooks"
@@ -31,7 +33,8 @@ export function useNewPage(args: NewPageDialogArgs): NewPage {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const { folder } = args
-  const staged = useBook()
+  const shownBook = useBook()
+  const staged = shownBook === NO_BOOK ? null : shownBook
   const book = useMatomezuState(s => (folder === undefined ? null : (s.books[folder] ?? null)))
   const binder = useMatomezuState(s => (folder === undefined ? null : (outsideBinderIn(s, folder) ?? null)))
   const held = useMatomezuState(s => (folder === undefined ? null : (s.folders[folder] ?? null)))

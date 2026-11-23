@@ -3,6 +3,7 @@
 
 import type { ItemPage } from "../../../core/placed"
 import type { AnyPage, BinderEntry, Book, LineupEntry } from "../../../core/schema/book"
+import { openedEntry } from "../../../core/stage"
 import { type CommandContext, NO_BOOK, NO_OUTSIDE_BINDER, NO_PAGE } from "../../../store/commands/def"
 
 // 紙に入れる名前が無いときの値（ブックの外のページ 1 枚。どの名前とも重ならないよう、文字列にしない）
@@ -53,7 +54,7 @@ export function previewedOf(
 
 // コマンドの文脈 ctx のステージの、印刷プレビューで開いているステージエントリ（何も開いていなければ null）
 export function previewedIn(ctx: CommandContext): PreviewedEntry | null {
-  const entry = ctx.stage.opened?.outermost
+  const entry = openedEntry(ctx.stage.opened)
   const page = entry?.kind === "page" && ctx.page !== NO_PAGE && ctx.page.id === entry.id ? ctx.page : null
   return previewedOf(
     ctx.book === NO_BOOK ? null : ctx.book,

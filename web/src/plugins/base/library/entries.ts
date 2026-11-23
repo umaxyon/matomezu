@@ -29,7 +29,7 @@ import {
   type PlainFolder,
 } from "../../../core/folders"
 import { atOutsideBinderPlace, foldersOver, inTrash, isKeptSystemFolder } from "../../../core/folders-tree"
-import { typeAllows } from "../../../core/inspect"
+import { type NO_PERMISSION, typeAllows } from "../../../core/inspect"
 
 // フォルダ into の直下に在る（か、そこへ入れる）エントリ entry（種類 kind）の、そのフォルダのほかの物と重ならない名前（重なっていれば「名前 2」から番号を付ける。重ならなければ今の名前）。
 // 名前を持たない物・フォルダが無いときは undefined
@@ -171,13 +171,15 @@ export function restorePlanOf(library: Library, entry: string, naming: Naming): 
   }
 }
 
-// 上書きを選べない訳: 上書きの決まりが断る（NotOverwritten）か、認可ステップ permission が止める（ロック中など。null は、認可ステップでない訳）
-export type ReplaceBlocked = { by: "rule"; why: NotOverwritten } | { by: "permission"; permission: string | null }
+// 上書きを選べない訳: 上書きの決まりが断る（NotOverwritten）か、認可ステップ permission が止める（ロック中など。NO_PERMISSION は、認可ステップでない訳）
+export type ReplaceBlocked =
+  | { by: "rule"; why: NotOverwritten }
+  | { by: "permission"; permission: string | typeof NO_PERMISSION }
 
 // 確かめた plan の上書きを選べない訳（選べれば null）。allowed は、上書きのアクションを行えるかの答え
 export const replaceBlockedOf = (
   plan: Pick<RestorePlan, "overwrite">,
-  allowed: { ok: true } | { ok: false; permission: string | null },
+  allowed: { ok: true } | { ok: false; permission: string | typeof NO_PERMISSION },
 ): ReplaceBlocked | null =>
   plan.overwrite !== "ok"
     ? { by: "rule", why: plan.overwrite }

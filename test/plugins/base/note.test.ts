@@ -6,7 +6,7 @@ import { z } from "zod"
 import { AI } from "../../../web/src/core/actor"
 import type { Annotation } from "../../../web/src/core/annotation"
 import { pagesOf } from "../../../web/src/core/book"
-import { defineAction } from "../../../web/src/core/def/action"
+import { defineAction, NO_CONTROL_CENTER } from "../../../web/src/core/def/action"
 import { performIn } from "../../../web/src/core/perform-world"
 import type { Book } from "../../../web/src/core/schema/book"
 import { noteSendOf } from "../../../web/src/plugins/base/note"
@@ -192,7 +192,7 @@ test("AI は伝言を付け・変え・消せない（利用者だけ）が、�
   }
   const ctx = {
     catalog: CORE_CATALOG,
-    controlCenter: null,
+    controlCenter: NO_CONTROL_CENTER,
     lang: "en" as const,
     newId: () => "n",
     now: "t",

@@ -1,5 +1,5 @@
 // 判断のひし形のビュー・追加と編集のダイアログ・流れの向きのコンポーネント
-import type { MessageKey, ShapeAddArgs, z } from "matomezu"
+import { type MessageKey, NO_PAGE, type ShapeAddArgs, type z } from "matomezu"
 import {
   Dialog,
   type DialogProps,
@@ -72,7 +72,7 @@ export function EditDiamondDialog({ args, onClose }: DialogProps<{ page: string;
   }
   return (
     <Dialog title={t("editDecision")} onClose={onClose}>
-      <p data-ex2-page>{page?.title}</p>
+      <p data-ex2-page>{page === NO_PAGE ? undefined : page.title}</p>
       <p>{diamond?.props.caption}</p>
       <button type="button" aria-pressed={diamond?.props.answer === "yes"} onClick={() => answer("yes")}>
         {t("yes")}

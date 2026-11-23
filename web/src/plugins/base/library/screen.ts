@@ -134,8 +134,8 @@ export function stageBeside(
   const vacant = vacantStageBeside(screens, value, library)
   if (vacant !== NO_STAGE) return vacant
   for (const id of rows) {
-    const stage = id === library ? null : screens.find(s => s.id === id)?.currentStage
-    if (stage) return stage
+    const stage = id === library ? NO_STAGE : (screens.find(s => s.id === id)?.currentStage ?? NO_STAGE)
+    if (stage !== NO_STAGE) return stage
   }
   return NO_STAGE
 }
