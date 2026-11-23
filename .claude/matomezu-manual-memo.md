@@ -72,7 +72,7 @@ npm で入れた matomezu のフォルダの下にあります。場所は `mato
 - 開いている画面には、「matomezu が更新されました」が出ます（下の「画面に出る知らせ」）
 
 注: 入れ方を見分けられないときは、`matomezu could not tell how it was installed. ...` と、打つコマンドの例（`npm install -g matomezu@latest`）が出て止まります。下の「手で更新する」で更新します。
-注: プラグインの更新か、matomezu の起動し直しに失敗したときは、最後に失敗した物が出ます。本体の更新は済んでいます。失敗した物は、下の「手で更新する」の 3 で更新します。
+注: プラグインの更新か、matomezu の起動し直しに失敗したときも、3 の文は出ます。本体の更新は済んでいます。そのあとに `error:` と、失敗した物が 1 行ずつ出ます（`the plugin for claude: ...`・`the plugin for codex: ...`・`the plugin for opencode: ...`・`the server: ...`）。失敗したプラグインは、下の「手で更新する」の 3 で更新します。`the server` のときは、`matomezu stop` と `matomezu start` で起動し直します。
 注: 開発用のリポジトリから作った matomezu では、`this matomezu is a development build: update it from its repository` と出て止まります。
 
 #### 新しい版があると知らせる
@@ -98,7 +98,8 @@ matomezu は、起動したときと 1 日に 1 回、新しい版が出てい�
 | 更新する | 新しい版があるときだけ出る（下の表） |
 
 - 「更新を確認」を押すと、すぐに確かめます。確かめている間は「確かめています…」と出ます
-- 確かめられなかったときは、ボタンの横に「確かめられませんでした」と出ます
+- 確かめられなかったときは、ボタンの横に「確かめられませんでした」と出ます。「新しい版」と「確かめた時刻」の行は、前に確かめた結果のままです
+- 起動したときと 1 日に 1 回の確かめで確かめられなかったときは、何も出ません。行も前の結果のままです
 - スイッチを切っても、「更新を確認」では確かめられます
 
 「更新する」の行に出る物:
@@ -108,7 +109,7 @@ matomezu は、起動したときと 1 日に 1 回、新しい版が出てい�
 | 管理者のワークルームに、動いている AI がいる | 「管理者（ワークルームの名前）に更新を頼む」のボタン |
 | いない | 「端末で次を打つと更新します」と、`matomezu update`（Windows で npm から入れたときは `matomezu.cmd update`）と、「コピー」のボタン |
 
-- 「管理者（ワークルームの名前）に更新を頼む」を押すと、管理者の AI が `matomezu update` を打ち、結果を伝えます。押したあとは「頼みました （時刻）」と出ます。頼めなかったときは「頼めませんでした」と出ます
+- 「管理者（ワークルームの名前）に更新を頼む」を押すと、管理者の AI が `matomezu update` を打ち、結果を伝えます。【未確認】AI の側でコマンドの許可を聞かれるか。AI が更新できずに終わったとき、画面に何が出るか。押したあとは「頼みました （時刻）」と出ます。頼めなかったときは「頼めませんでした」と出ます
 - 「コピー」を押すと、コマンドがクリップボードに入ります。しばらく字が「コピーしました」に替わります。コピーできなかったときは「コピーできません」に替わります
 
 注: 管理者は 16 章「参加者区分」にあります。
@@ -139,7 +140,7 @@ matomezu が新しい版で起動し直すと、開いていた画面に「matom
 | opencode | matomezu-opencode を、本体と同じ版にそろえる |
 
 注: 開発用のリポジトリからプラグインを入れている場合は、その登録元で更新します（16 章「Claude Code のプラグイン」「Codex のプラグイン」）。
-注: Windows で、`matomezu update` か 2 が `Could not remove directory`（volta なら `Volta error: Could not remove directory`）で失敗したときは、動いている matomezu を上書きできていません。そのときは、AI（Claude Code・Codex・opencode）を終え、PowerShell で `Get-Process matomezu | Stop-Process` を打って、残っている matomezu を止めます。そのあと、失敗したコマンドをもう一度打ちます。
+注: 【未確認】M-0175 のあとも、この失敗が起きる場面が残るか。Windows で、`matomezu update` か 2 が `Could not remove directory`（volta なら `Volta error: Could not remove directory`）で失敗したときは、動いている matomezu を上書きできていません。そのときは、AI（Claude Code・Codex・opencode）を終え、PowerShell で `Get-Process matomezu | Stop-Process` を打って、残っている matomezu を止めます。そのあと、失敗したコマンドをもう一度打ちます。
 
 ### プラグインの利用を一時的に止める
 
