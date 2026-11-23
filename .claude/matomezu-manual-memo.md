@@ -109,7 +109,8 @@ matomezu は、起動したときと 1 日に 1 回、新しい版が出てい�
 | 管理者のワークルームに、動いている AI がいる | 「管理者（ワークルームの名前）に更新を頼む」のボタン |
 | いない | 「端末で次を打つと更新します」と、`matomezu update`（Windows で npm から入れたときは `matomezu.cmd update`）と、「コピー」のボタン |
 
-- 「管理者（ワークルームの名前）に更新を頼む」を押すと、管理者の AI が `matomezu update` を打ち、結果を伝えます。【未確認】AI の側でコマンドの許可を聞かれるか。AI が更新できずに終わったとき、画面に何が出るか。押したあとは「頼みました （時刻）」と出ます。頼めなかったときは「頼めませんでした」と出ます
+- 「管理者（ワークルームの名前）に更新を頼む」を押すと、管理者の AI が `matomezu update` を打ち、結果を伝えます。【未確認】auto mode でない Claude Code で、コマンドの許可を聞かれるか。AI が更新できずに終わったとき、画面に何が出るか。押したあとは「頼みました （時刻）」と出ます。頼めなかったときは「頼めませんでした」と出ます
+- Claude Code の管理者は、頼まれてもすぐには打たず、その会話で「実行してよいか」と聞いてくることがあります。管理者の会話で「実行して」と答えると打ちます。画面には「頼みました」のまま、何も出ません
 - 「コピー」を押すと、コマンドがクリップボードに入ります。しばらく字が「コピーしました」に替わります。コピーできなかったときは「コピーできません」に替わります
 
 注: 管理者は 16 章「参加者区分」にあります。
@@ -140,7 +141,7 @@ matomezu が新しい版で起動し直すと、開いていた画面に「matom
 | opencode | matomezu-opencode を、本体と同じ版にそろえる |
 
 注: 開発用のリポジトリからプラグインを入れている場合は、その登録元で更新します（16 章「Claude Code のプラグイン」「Codex のプラグイン」）。
-注: 【未確認】M-0175 のあとも、この失敗が起きる場面が残るか。Windows で、`matomezu update` か 2 が `Could not remove directory`（volta なら `Volta error: Could not remove directory`）で失敗したときは、動いている matomezu を上書きできていません。そのときは、AI（Claude Code・Codex・opencode）を終え、PowerShell で `Get-Process matomezu | Stop-Process` を打って、残っている matomezu を止めます。そのあと、失敗したコマンドをもう一度打ちます。
+注: Volta で入れた Windows では、AI を開いたままでも `matomezu update` が通ります。【未確認】Volta を使わずに入れたときも同じか。Windows で、`matomezu update` か 2 が `Could not remove directory`（volta なら `Volta error: Could not remove directory`）で失敗したときは、動いている matomezu を上書きできていません。そのときは、AI（Claude Code・Codex・opencode）を終え、PowerShell で `Get-Process matomezu | Stop-Process` を打って、残っている matomezu を止めます。そのあと、失敗したコマンドをもう一度打ちます。
 
 ### プラグインの利用を一時的に止める
 
