@@ -1,7 +1,7 @@
 // ホストどうしの入口の見た目の部品: 入口の様子・ほかのホストの様子のフックと、ほかのホストについてホストに頼むフック
 import { useMemo } from "react"
 import type {
-  FoundHost,
+  FoundHost as GivenFound,
   HostPairing as GivenPairing,
   HostPeers as GivenPeers,
   HostRequest,
@@ -9,7 +9,7 @@ import type {
 } from "../../../store/state"
 import { useInstance, useMatomezuState } from "../../../ui/store-context"
 
-export type { FoundHost, HostRequest } from "../../../store/state"
+export type { HostRequest } from "../../../store/state"
 
 // ホストどうしの入口の様子がまだ届いていないときの値（useHostStatus）
 export const NO_HOST_STATUS = "none"
@@ -78,6 +78,14 @@ export interface HostPairing {
   reason: string | typeof NOT_TOLD // refused のわけ（self・busy・protocol など）
 }
 
+// プラグインに渡す、同じネットワークで見つけたホスト 1 つ（相手が名乗っていない名前は NOT_TOLD）
+export interface FoundHost {
+  hostId: string
+  name: string | typeof NOT_TOLD
+  userName: string | typeof NOT_TOLD
+  addr: string
+}
+
 // プラグインに渡す、ほかのホストの様子
 export interface HostPeers {
   paired: readonly PeerLive[]
@@ -98,7 +106,7 @@ const peersOf = (p: GivenPeers): HostPeers => ({
     name: told(l.name),
     userName: told(l.userName),
   })),
-  found: p.found,
+  found: p.found.map((f: GivenFound) => ({ ...f, name: told(f.name), userName: told(f.userName) })),
   pairing: p.pairing
     ? {
         phase: p.pairing.phase,

@@ -4,7 +4,7 @@ import { kit } from "./kit"
 
 // 左の列の、利用者パネルと参加者の一覧の間に並べるウィジェットを置くスロット（プロジェクトの一覧など）。何も受け取らない
 export const SIDE = kit.name("side")
-// 左の列の、参加者の一覧の下に並べるウィジェットを置くスロット（ほかのホストなど）。選んでいる物（PICKED。無ければ undefined）を受け取る
+// 左の列の、参加者の一覧の下に並べるウィジェットを置くスロット（ほかのホストなど）。選んでいる物（PICKED。無ければ NO_STATE）を受け取る
 export const BELOW_PARTICIPANTS = kit.name("below-participants")
 // 右の下の枠に、選んでいる物を描くウィジェットを置くスロット。ワークルームとビジターのほかの種類のうち、選んだ物の種類を名乗る（forKind）1 つだけを描く。そのレコードの id を受け取る
 export const PICKED_DETAIL = kit.name("picked-detail")

@@ -109,8 +109,10 @@ function FoundRow({ host, checked, onPick }: { host: FoundHost; checked: boolean
     <li>
       <label className={styles.foundRow}>
         <input type="radio" name="host" checked={checked} onChange={onPick} />
-        <span className={styles.name}>{host.name}</span>
-        {host.userName ? <span className={styles.muted}>{t("({name})", { name: host.userName })}</span> : null}
+        <span className={styles.name}>{host.name === NOT_TOLD ? ip : host.name}</span>
+        {host.userName === NOT_TOLD ? null : (
+          <span className={styles.muted}>{t("({name})", { name: host.userName })}</span>
+        )}
         <span className={styles.ip}>{ip}</span>
       </label>
     </li>
