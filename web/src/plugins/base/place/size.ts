@@ -5,28 +5,35 @@ import type { Point, Size } from "../../../core/geom"
 import { type ItemPage, type PlacedShape, shapesOf } from "../../../core/placed"
 import { settingsAt } from "../book-settings"
 import { roomOf } from "./grow"
-import { childrenSize, placedSize, shapeDefOf } from "./placed"
+import { childrenSize, NO_SHAPE_DEF, NO_SIZE, placedSize, shapeDefOf } from "./placed"
 import type { Floors } from "./push"
 
-// 置く前のアイテムの大きさ（定義の大きさ。表に無いアイテムと、大きさを持たないアイテムは null）
-export function itemSize(catalog: CoreCatalog, item: string): Size | null {
-  return shapeDefOf(catalog, item)?.size ?? null
+// 置く前のアイテムの大きさ（定義の大きさ。表に無いアイテムと、大きさを持たないアイテムは NO_SIZE）
+export function itemSize(catalog: CoreCatalog, item: string): Size | typeof NO_SIZE {
+  const def = shapeDefOf(catalog, item)
+  return def === NO_SHAPE_DEF ? NO_SIZE : def.size
 }
 
-// 大きさを変えられるアイテムの、一番小さい大きさ（変えられないアイテムは null）
-export function minSize(catalog: CoreCatalog, item: PlacedShape): Size | null {
-  return shapeDefOf(catalog, item.item)?.min ?? null
+// 大きさを変えられるアイテムの、一番小さい大きさ（変えられないアイテムは NO_SIZE）
+export function minSize(catalog: CoreCatalog, item: PlacedShape): Size | typeof NO_SIZE {
+  const def = shapeDefOf(catalog, item.item)
+  return def === NO_SHAPE_DEF ? NO_SIZE : (def.min ?? NO_SIZE)
 }
+
+// 一番小さい大きさ min（無ければ今の大きさ size）
+const settledMin = (min: Size | typeof NO_SIZE, size: Size): Size => (min === NO_SIZE ? size : min)
 
 // キャプションが切れずに見える幅（編集で縮めてよい横の下限と、キャプションで広げる幅。表に無いアイテムは 0）
 const captionWidth = (catalog: CoreCatalog, item: PlacedShape): number => {
   const def = shapeDefOf(catalog, item.item)
-  return def ? (def.captionWidth?.(item) ?? def.size.w) : 0
+  return def !== NO_SHAPE_DEF ? (def.captionWidth?.(item) ?? def.size.w) : 0
 }
 
 // キャプションが切れずに見える高さ（定義の captionHeight。無ければ null で、縦にはキャプションで広げない）
-const captionHeight = (catalog: CoreCatalog, item: PlacedShape): number | null =>
-  shapeDefOf(catalog, item.item)?.captionHeight?.(item) ?? null
+const captionHeight = (catalog: CoreCatalog, item: PlacedShape): number | null => {
+  const def = shapeDefOf(catalog, item.item)
+  return def !== NO_SHAPE_DEF ? (def.captionHeight?.(item) ?? null) : null
+}
 
 // つかんだ辺（x は左か右、y は上か下。角なら両方）
 export interface Edges {
@@ -51,7 +58,13 @@ export function resizedBy(
 ): { x: number; y: number; w: number; h: number } | typeof CANNOT_RESIZE {
   const own = minSize(catalog, item)
   const size = placedSize(catalog, item)
-  if (!own || !size) return CANNOT_RESIZE
+  const def = shapeDefOf(catalog, item.item)
+  if (own === NO_SIZE || size === NO_SIZE) return CANNOT_RESIZE
+  // 大きさを項目に写す形（定義の resizedTo）の、大きさ wanted に写した項目から決まる大きさ（写さない形は NO_SIZE）
+  const written = (wanted: Size) =>
+    def !== NO_SHAPE_DEF && def.resizedTo
+      ? placedSize(catalog, def.resizedTo(item as ShapeData, wanted) as PlacedShape)
+      : NO_SIZE
   const children = childrenSize(catalog, item)
   const min = children ? { w: Math.max(own.w, children.w), h: Math.max(own.h, children.h) } : own
   if (ratio) {
@@ -66,9 +79,9 @@ export function resizedBy(
     const grown = Math.abs(fw - 1) >= Math.abs(fh - 1) ? fw : fh
     const f = Math.min(Math.max(grown, min.w / size.w, min.h / size.h), room.w / size.w, room.h / size.h)
     const wanted = { w: size.w * f, h: size.h * f }
-    const to = shapeDefOf(catalog, item.item)?.resizedTo
-    const next = to ? placedSize(catalog, to(item as ShapeData, wanted) as PlacedShape) : wanted
-    if (!next) return CANNOT_RESIZE
+    const writes = def !== NO_SHAPE_DEF && !!def.resizedTo
+    const next = writes ? written(wanted) : wanted
+    if (next === NO_SIZE) return CANNOT_RESIZE
     return {
       x: right ? item.x : item.x + size.w - next.w,
       y: bottom ? item.y : item.y + size.h - next.h,
@@ -87,9 +100,8 @@ export function resizedBy(
   const v = span(item.y, size.h, by.y, edges.y && (edges.y === "top" ? "start" : "end"), min.h, paper.h)
   const rect = { x: h.at, y: v.at, w: h.len, h: v.len }
   // 大きさを項目に写す形は、写した項目から決まる大きさにし、つかんでいない側の辺を止める
-  const to = shapeDefOf(catalog, item.item)?.resizedTo
-  const next = to ? placedSize(catalog, to(item as ShapeData, rect) as PlacedShape) : null
-  if (!next) return rect
+  const next = written(rect)
+  if (next === NO_SIZE) return rect
   return {
     x: edges.x === "left" ? item.x + size.w - next.w : rect.x,
     y: edges.y === "top" ? item.y + size.h - next.h : rect.y,
@@ -108,13 +120,14 @@ export function widenForCaption(
   before: PlacedShape,
   next: PlacedShape,
 ): PlacedShape {
-  const prop = shapeDefOf(catalog, next.item)?.captionProp
+  const def = shapeDefOf(catalog, next.item)
+  const prop = def !== NO_SHAPE_DEF ? def.captionProp : undefined
   if (prop === undefined) return next
   const caption = (p: PlacedShape) => (p.props as Record<string, unknown>)[prop]
   if (caption(next) === caption(before)) return next
   const size = placedSize(catalog, next)
   const paper = roomOf(catalog, page)
-  if (!size) return next
+  if (size === NO_SIZE) return next
   const from = catalog.pageTypes.get(page.type)?.growFrom?.(settingsAt(catalog, page))
   // 1 つの向きに、want まで広げた位置と長さ（at は左か上、len は今の長さ、room は紙の長さ）
   const grow = (at: number, len: number, want: number, room: number, center: boolean) => {
@@ -136,16 +149,17 @@ export function floorsOf(catalog: CoreCatalog, page: ItemPage): Floors {
   const floors = new Map<string, Size>()
   for (const i of shapesOf(page)) {
     const size = placedSize(catalog, i)
-    if (!size) continue
+    if (size === NO_SIZE) continue
     // 大きさを項目に写す形（定義の resizedTo）は、押されても縮まない（w・h を書いても、大きさは項目から決まるため）
-    if (shapeDefOf(catalog, i.item)?.resizedTo) {
+    const def = shapeDefOf(catalog, i.item)
+    if (def !== NO_SHAPE_DEF && def.resizedTo) {
       floors.set(i.id, size)
       continue
     }
     const children = childrenSize(catalog, i) ?? { w: 0, h: 0 }
     floors.set(i.id, {
       w: Math.min(size.w, Math.max(children.w, captionWidth(catalog, i))),
-      h: Math.min(size.h, Math.max(children.h, captionHeight(catalog, i) ?? (minSize(catalog, i) ?? size).h)),
+      h: Math.min(size.h, Math.max(children.h, captionHeight(catalog, i) ?? settledMin(minSize(catalog, i), size).h)),
     })
   }
   return floors

@@ -9,7 +9,7 @@ import {
   replaceShape,
   walkShapes,
 } from "../../../plugin-api"
-import { shapeDefOf } from "../../base"
+import { NO_SHAPE_DEF, shapeDefOf } from "../../base"
 import { kit } from "../kit"
 
 export function settledDraft(catalog: CoreCatalog, page: ItemPage, draft: ItemPage): ItemPage {
@@ -18,7 +18,8 @@ export function settledDraft(catalog: CoreCatalog, page: ItemPage, draft: ItemPa
   for (const { shape } of walkShapes(draft)) {
     const before = findShape(page, shape.id)
     if (before === NO_ITEM || !ownChanged(shape, before.shape)) continue
-    const settle = shapeDefOf(catalog, shape.item)?.[kit.name("settle")]
+    const def = shapeDefOf(catalog, shape.item)
+    const settle = def !== NO_SHAPE_DEF ? def[kit.name("settle")] : undefined
     if (!settle) continue
     const next = replaceShape(settled, shape.id, s => settle(s as never, before as never) as PlacedShape)
     if (next !== NO_ITEM) settled = next

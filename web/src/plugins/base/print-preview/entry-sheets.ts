@@ -6,7 +6,7 @@ import { type ItemPage, slideOf } from "../../../core/placed"
 import type { StageLineup } from "../../../core/schema/book"
 import { settingsAt, settingValue } from "../book-settings"
 import { growOf, NO_GROW, pageArea, paperSize, slideOffsetOf } from "../place/grow"
-import { placedSize } from "../place/placed"
+import { NO_SIZE, placedSize } from "../place/placed"
 import type { PrintSheets, SheetPurpose } from "."
 import { crossingShapes, filledSheets, sheetKey } from "./filled"
 import type { PreviewedEntry } from "./previewed"
@@ -44,7 +44,7 @@ function backgroundCovered<S extends Omit<PrintSheets, "filled">>(catalog: CoreC
   let rows = sheets.rows
   for (const s of slideOf(page)) {
     const size = placedSize(catalog, s)
-    if (!size) continue
+    if (size === NO_SIZE) continue
     columns = Math.max(columns, Math.ceil((s.x + offset.x + size.w) / paper.w - 1e-9))
     rows = Math.max(rows, Math.ceil((s.y + offset.y + size.h) / paper.h - 1e-9))
   }

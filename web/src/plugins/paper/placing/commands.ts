@@ -17,7 +17,15 @@ import {
   shapesOf,
   toPaperDelta,
 } from "../../../plugin-api"
-import { amongSelected, CANNOT_RESIZE, type Edges, hasOpenedPage, refusalMessage, shapeDefOf } from "../../base"
+import {
+  amongSelected,
+  CANNOT_RESIZE,
+  type Edges,
+  hasOpenedPage,
+  NO_SHAPE_DEF,
+  refusalMessage,
+  shapeDefOf,
+} from "../../base"
 import { kit } from "../kit"
 import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
 import { NO_FREE_SPOT } from "./crowd"
@@ -77,7 +85,7 @@ export const PAPER_PLACE = kit.defineCommand({
     }
     // 形の定義が名指す追加のダイアログ（無ければそのまま置く。置こうとしている物が項目の値を持っていれば、聞かずにその値で置く）
     const def = shapeDefOf(ctx.catalog, placing.item)
-    const dialog = def && shapeDialogs(def).add
+    const dialog = def !== NO_SHAPE_DEF ? shapeDialogs(def).add : undefined
     if (dialog && placing.props === NO_PROPS) {
       a.stopPlacing()
       const args: ShapeAddArgs = { page: page.id, place }
@@ -103,8 +111,8 @@ function editable(ctx: CommandContext): boolean {
   if (target?.item === undefined) return true
   if (amongSelected(ctx.stage.selection, target.item)) return false
   const placed = hasOpenedPage(ctx) ? findShape(ctx.page, target.item) : NO_ITEM
-  const def = placed !== NO_ITEM && shapeDefOf(ctx.catalog, placed.shape.item)
-  return def ? shapeDialogs(def).edit !== undefined : false
+  const def = placed !== NO_ITEM ? shapeDefOf(ctx.catalog, placed.shape.item) : NO_SHAPE_DEF
+  return def !== NO_SHAPE_DEF && shapeDialogs(def).edit !== undefined
 }
 
 // アイテムの中身を変えるダイアログを開く（アイテムの定義の dialogs.edit。どの深さの子の形も）。開いているページに無いアイテムなら何もしない。
@@ -117,8 +125,8 @@ export const PAPER_EDIT = kit.defineCommand({
   run: (ctx, a, { item }: { item: string }) => {
     if (!hasOpenedPage(ctx)) return
     const placed = findShape(ctx.page, item)
-    const def = placed !== NO_ITEM && shapeDefOf(ctx.catalog, placed.shape.item)
-    const dialog = def && shapeDialogs(def).edit
+    const def = placed !== NO_ITEM ? shapeDefOf(ctx.catalog, placed.shape.item) : NO_SHAPE_DEF
+    const dialog = def !== NO_SHAPE_DEF ? shapeDialogs(def).edit : undefined
     if (!dialog) return
     a.openDialog(dialog, { page: ctx.page.id, item })
   },

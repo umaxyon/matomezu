@@ -51,7 +51,16 @@ export {
   unpinPage,
 } from "./items"
 export type { PortArea, Ports } from "./placed"
-export { allRectsOf, NEST_PADDING, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./placed"
+export {
+  allRectsOf,
+  NEST_PADDING,
+  NO_SHAPE_DEF,
+  NO_SIZE,
+  placedSize,
+  portAreasOf,
+  rectsOf,
+  shapeDefOf,
+} from "./placed"
 export type { Axis, Gap } from "./push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./push"
 export { CANNOT_RESIZE, type Edges, itemSize, minSize, resizedBy, widenForCaption } from "./size"

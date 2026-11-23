@@ -297,7 +297,9 @@ test("縦の位置が下の内包ボックスは、子の領域が上から始�
   expect(at(store, b)!.shape.y).toBe(top - (CAPTIONED.y - NEST_PADDING))
   // 親の大きさは、子の下にキャプションの高さ（何も書いていない箱の子の領域の上と同じ）を空ける
   const child = at(store, b)!.shape
-  expect(placedSize(CORE_CATALOG, at(store, a)!.shape as never)!.h).toBeGreaterThanOrEqual(child.y + 40 + CAPTIONED.y)
+  expect((placedSize(CORE_CATALOG, at(store, a)!.shape as never) as Rect).h).toBeGreaterThanOrEqual(
+    child.y + 40 + CAPTIONED.y,
+  )
   expect(run(store, "@matomezu/paper:item-update", { item: a, props: { vAlign: null } }).ok).toBe(true)
   expect(at(store, b)!.shape.y).toBe(top)
 })
@@ -340,7 +342,7 @@ const allInPaper = (store: ReturnType<typeof newStore>, paper: { w: number; h: n
     r => r.x >= 0 && r.y >= 0 && r.x + r.w <= paper.w && r.y + r.h <= paper.h,
   )
 const width = (store: ReturnType<typeof newStore>, id: string) =>
-  placedSize(CORE_CATALOG, at(store, id)!.shape as never)!.w
+  (placedSize(CORE_CATALOG, at(store, id)!.shape as never) as Rect).w
 
 test("押した列を縮めて収めるとき、内包ボックスは子が入る大きさより小さくしない。入らなければ断り、紙の外へ押し出さない", () => {
   // 置いて押す（右へも下へも押せず、縮めても子が入らない）
@@ -375,7 +377,7 @@ test("内包ボックスの辺をつまんで縮めると、子がみな入る�
   expect(resizedBy(CORE_CATALOG, shape, { x: "right" }, { x: -400, y: 0 }, paper)).toMatchObject({ x: 360, w: 648 })
   expect(resizedBy(CORE_CATALOG, shape, { x: "left" }, { x: 400, y: 0 }, paper)).toMatchObject({ x: 460, w: 648 })
   const tall = resizedBy(CORE_CATALOG, shape, { y: "bottom" }, { x: 0, y: -400 }, paper) as Rect
-  expect(tall.h).toBe(placedSize(CORE_CATALOG, shape as never)!.h)
+  expect(tall.h).toBe((placedSize(CORE_CATALOG, shape as never) as Rect).h)
 })
 
 test("置く先: 点の下に形が無ければページのその所、子を持てる形の上ならその中（親の左上から）、子を持てない形の上ならその親の中の空き", () => {

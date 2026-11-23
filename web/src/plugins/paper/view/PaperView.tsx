@@ -50,7 +50,17 @@ import {
   useToPaper,
   useUiCatalog,
 } from "../../../plugin-api/ui"
-import { type Edges, followConnectors, growOf, minSize, NO_GROW, onlySelected, roomOf, shownRects } from "../../base"
+import {
+  type Edges,
+  followConnectors,
+  growOf,
+  minSize,
+  NO_GROW,
+  NO_SIZE,
+  onlySelected,
+  roomOf,
+  shownRects,
+} from "../../base"
 import { modPressed, PaperFrame, useFollowsSelection } from "../../base/ui"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
@@ -456,7 +466,7 @@ function PageItems({
         return render(shape, shiftOf(shape))
       })}
       stretchable={
-        selectable && onlySelected(stage.selection, item.id) && minSize(catalog, item) !== null && resize.enabled
+        selectable && onlySelected(stage.selection, item.id) && minSize(catalog, item) !== NO_SIZE && resize.enabled
       }
       onStretch={{
         down: (e, edges) => startStretch(e, item.id, edges),

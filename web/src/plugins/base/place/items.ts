@@ -23,7 +23,7 @@ import { themeFits } from "../book-look/theme-types"
 import { type PageContext, type SettingReader, tidyPage } from "../book-settings"
 import { contentIdMaker } from "../utils/ids"
 import { roomOf, shiftedConnectors } from "./grow"
-import { connectorGaps, type PortArea, placedSize, rectsOf, shapeDefOf } from "./placed"
+import { connectorGaps, NO_SHAPE_DEF, NO_SIZE, type PortArea, placedSize, rectsOf, shapeDefOf } from "./placed"
 import { apartWay, evenGap, type Gap, inPaper, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
 import { floorsOf } from "./size"
 
@@ -109,7 +109,8 @@ export function nextItemId(page: ItemPage, newId: () => string): string {
 
 // 形の個別のテーマ（定義の themeProp が名指す項目）を、タイプ type のページで使えるか（book-look/theme-types.ts。themeProp の無い形と、値が無いときは true）
 export function shapeThemeFits(catalog: CoreCatalog, type: string, item: { item: string; props: object }): boolean {
-  const prop = shapeDefOf(catalog, item.item)?.themeProp
+  const def = shapeDefOf(catalog, item.item)
+  const prop = def !== NO_SHAPE_DEF ? def.themeProp : undefined
   if (prop === undefined) return true
   const theme = (item.props as Record<string, unknown>)[prop]
   return theme === undefined || (typeof theme === "string" && themeFits(catalog, type, theme))
@@ -118,7 +119,7 @@ export function shapeThemeFits(catalog: CoreCatalog, type: string, item: { item:
 // 置く・置き換える・消す・どけるができない（無いアイテム・はみ出す・押した相手が収まらない）
 export const CANNOT_PLACE = "cannot"
 
-// 押したあとのページ next を、線を整えて返す（tidyPage）。ただし、紙 paper の中にあった形と新しく置いた形が、描く大きさ（placedSize）で紙からはみ出すなら null。
+// 押したあとのページ next を、線を整えて返す（tidyPage）。ただし、紙 paper の中にあった形と新しく置いた形が、描く大きさ（placedSize）で紙からはみ出すなら CANNOT_PLACE。
 // 押す計画の四角と描く大きさがずれても（子を持つ形は子より小さく描けないなど）、紙の外へは書かない。前から紙の外にある形は問わない
 function pushedPage(catalog: CoreCatalog, page: ItemPage, next: ItemPage, paper: Size): ItemPage | typeof CANNOT_PLACE {
   const was = rectsOf(catalog, page)
@@ -137,7 +138,8 @@ export function adaptPage<P extends ItemPage>(catalog: CoreCatalog, page: P, con
   const items = pageItemsOf(page).map(i => {
     if (!isShape(i)) return i
     const def = shapeDefOf(catalog, i.item)
-    const next = def?.adapt ? (def.adapt(i, options?.[i.item], context.setting) as PlacedShape) : i
+    const next =
+      def !== NO_SHAPE_DEF && def.adapt ? (def.adapt(i, options?.[i.item], context.setting) as PlacedShape) : i
     if (next !== i) changed = true
     return next
   })
@@ -185,7 +187,7 @@ export function unpinPage<P extends ItemPage>(catalog: CoreCatalog, page: P): P 
 export function placeItem(catalog: CoreCatalog, page: ItemPage, item: PlacedShape): ItemPage | typeof CANNOT_PLACE {
   const paper = roomOf(catalog, page)
   const size = placedSize(catalog, item)
-  if (!size) return CANNOT_PLACE
+  if (size === NO_SIZE) return CANNOT_PLACE
   const after = planPlace(
     rectsOf(catalog, page),
     item.id,
@@ -211,7 +213,7 @@ export function shownRects(
       const moved = { x: carried.x + (shift?.x ?? 0), y: carried.y + (shift?.y ?? 0) }
       const at = { x: origin.x + item.x, y: origin.y + item.y }
       const size = placedSize(catalog, item)
-      if (size) rects.set(item.id, { x: at.x + moved.x, y: at.y + moved.y, ...size })
+      if (size !== NO_SIZE) rects.set(item.id, { x: at.x + moved.x, y: at.y + moved.y, ...size })
       walk(((item.shapes ?? []) as PlacedShape[]).map(child), at, moved)
     }
   }
@@ -229,7 +231,7 @@ export function replacePushing(
 ): ItemPage | typeof CANNOT_PLACE {
   const paper = roomOf(catalog, page)
   const size = placedSize(catalog, next)
-  if (!size || !shapesOf(page).some(i => i.id === next.id)) return CANNOT_PLACE
+  if (size === NO_SIZE || !shapesOf(page).some(i => i.id === next.id)) return CANNOT_PLACE
   const before = rectsOf(catalog, page)
   const gap = gapOf(catalog, page)
   const after = pushFrom(
@@ -251,7 +253,7 @@ export function placedAt(catalog: CoreCatalog, page: ItemPage, rects: ReadonlyMa
     if (!isShape(i)) return i
     const r = rects.get(i.id)
     const size = placedSize(catalog, i)
-    if (!r || !size) return i
+    if (!r || size === NO_SIZE) return i
     const at = r.x !== i.x || r.y !== i.y ? { x: r.x, y: r.y } : {}
     const sized = r.w !== size.w || r.h !== size.h ? { w: r.w, h: r.h } : {}
     return Object.keys(at).length + Object.keys(sized).length > 0 ? { ...i, ...at, ...sized } : i

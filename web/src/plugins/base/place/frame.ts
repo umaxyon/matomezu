@@ -6,7 +6,7 @@ import type { Point, Rect, Size } from "../../../core/geom"
 import { findShape, type ItemPage, NO_ITEM, type PlacedShape } from "../../../core/placed"
 import { roomOf } from "./grow"
 import { CANNOT_PLACE, gapOf, replaceShapePushing } from "./items"
-import { NEST_PADDING, placedSize, rectsOf, shapeDefOf } from "./placed"
+import { NEST_PADDING, NO_SHAPE_DEF, NO_SIZE, placedSize, rectsOf, shapeDefOf } from "./placed"
 import { GAP, inPaper, newClash, planPlace, pushFrom, tooClose } from "./push"
 
 // 子の領域の大きさ（右と下へ限りが無い）
@@ -21,7 +21,8 @@ export interface Frame {
 
 // 子の形を持つ形の、子の領域の左上（形の左上から）
 export function childOrigin(catalog: CoreCatalog, shape: PlacedShape): Point {
-  return shapeDefOf(catalog, shape.item)?.childOrigin?.(shape as ShapeData) ?? { x: NEST_PADDING, y: NEST_PADDING }
+  const def = shapeDefOf(catalog, shape.item)
+  return (def !== NO_SHAPE_DEF && def.childOrigin?.(shape as ShapeData)) || { x: NEST_PADDING, y: NEST_PADDING }
 }
 
 // 親の子の四角（子の領域の左上から）
@@ -29,7 +30,7 @@ function childRects(catalog: CoreCatalog, parent: PlacedShape, origin: Point): M
   const rects = new Map<string, Rect>()
   for (const c of (parent.shapes ?? []) as PlacedShape[]) {
     const size = placedSize(catalog, c)
-    if (size) rects.set(c.id, { x: c.x - origin.x, y: c.y - origin.y, ...size })
+    if (size !== NO_SIZE) rects.set(c.id, { x: c.x - origin.x, y: c.y - origin.y, ...size })
   }
   return rects
 }
@@ -103,7 +104,7 @@ export function placeChild(
 ): ItemPage | typeof CANNOT_PLACE {
   const frame = frameOf(catalog, page, parent)
   const size = placedSize(catalog, shape)
-  if (frame === NO_FRAME || !size) return CANNOT_PLACE
+  if (frame === NO_FRAME || size === NO_SIZE) return CANNOT_PLACE
   const rect = { x: Math.max(0, at.x - frame.origin.x), y: Math.max(0, at.y - frame.origin.y), ...size }
   const after = planPlace(frame.rects, shape.id, rect, frame.paper, undefined, gapOf(catalog, page))
   if (!after) return CANNOT_PLACE
@@ -114,7 +115,7 @@ export function placeChild(
 export function replaceChild(catalog: CoreCatalog, page: ItemPage, next: PlacedShape): ItemPage | typeof CANNOT_PLACE {
   const frame = frameAround(catalog, page, next.id)
   const size = placedSize(catalog, next)
-  if (frame === NO_FRAME || frame.parent === null || !size) return CANNOT_PLACE
+  if (frame === NO_FRAME || frame.parent === null || size === NO_SIZE) return CANNOT_PLACE
   const rect = { x: next.x - frame.origin.x, y: next.y - frame.origin.y, ...size }
   if (!inPaper(rect, frame.paper)) return CANNOT_PLACE
   const gap = gapOf(catalog, page)

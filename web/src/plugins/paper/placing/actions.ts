@@ -15,6 +15,8 @@ import {
 import {
   allRectsOf,
   CANNOT_PLACE,
+  NO_SHAPE_DEF,
+  NO_SIZE,
   nextItemId,
   placeChild,
   placedSize,
@@ -89,15 +91,16 @@ export const ITEM_PLACE = kit.defineAction({
     if (!props?.success) return null
     const base = { id: nextItemId(page, ctx.newId), item: args.item, x: 0, y: 0, props: props.data }
     // 大きさを w・h に持つ形か（大きさを項目に写す形〈定義の resizedTo〉は、w・h を書かない。大きさは項目から決まる）
-    const resizable =
-      ctx.catalog.items.get(args.item)?.capabilities.includes("resizable") &&
-      !shapeDefOf(ctx.catalog, args.item)?.resizedTo
+    const def = shapeDefOf(ctx.catalog, args.item)
+    const resizable = def !== NO_SHAPE_DEF && def.capabilities.includes("resizable") && !def.resizedTo
     const draft = parsePlaced(ctx.catalog, resizable && args.w !== undefined ? { ...base, w: args.w } : base)
     if (!draft) return null
     const size = placedSize(ctx.catalog, draft)
-    const item = resizable && size ? parsePlaced(ctx.catalog, { ...draft, w: size.w, h: args.h ?? size.h }) : draft
-    const sized = item && placedSize(ctx.catalog, item)
-    if (!item || !sized || !shapeThemeFits(ctx.catalog, page.type, item)) return null
+    const item =
+      resizable && size !== NO_SIZE ? parsePlaced(ctx.catalog, { ...draft, w: size.w, h: args.h ?? size.h }) : draft
+    if (!item) return null
+    const sized = placedSize(ctx.catalog, item)
+    if (sized === NO_SIZE || !shapeThemeFits(ctx.catalog, page.type, item)) return null
     const parent = args.parent ?? null
     const push = args.crowd === "push"
     const grows = new Set(parent === null ? [] : [parent, ...ancestorsOf(page, parent)])
@@ -241,7 +244,7 @@ export const ITEM_REPARENT = kit.defineAction({
     // 添える空き（入れる先の中の、ほかの形を動かさない所。紙の上の位置）
     const size = placedSize(ctx.catalog, shape)
     const calm = (at: Point) => tryAt({ x: at.x + origin.x, y: at.y + origin.y })?.moved.length === 0
-    const spot = size && freeAt(ctx.catalog, out, args.parent, size, calm)
+    const spot = size !== NO_SIZE && freeAt(ctx.catalog, out, args.parent, size, calm)
     return crowded(ctx.catalog, page, tried.moved, spot ? { x: spot.x + origin.x, y: spot.y + origin.y } : null)
   },
 })
@@ -273,8 +276,9 @@ export const ITEM_UPDATE = kit.defineAction({
       props: Object.fromEntries(Object.entries(args.props).filter(([, v]) => v !== null)),
     }
     if (!parsed || !shapeThemeFits(ctx.catalog, page.type, given)) return null
-    const item =
-      (shapeDefOf(ctx.catalog, parsed.item)?.[kit.name("settle")]?.(parsed, now) as PlacedShape | undefined) ?? parsed
+    const def = shapeDefOf(ctx.catalog, parsed.item)
+    const settle = def !== NO_SHAPE_DEF ? def[kit.name("settle")] : undefined
+    const item = (settle?.(parsed, now) as PlacedShape | undefined) ?? parsed
     const wide = widenForCaption(ctx.catalog, page, now, item)
     // 広げて置けなければ、広げずに置く
     const widened = replaceAnywhere(ctx.catalog, page, wide, false)
@@ -308,19 +312,19 @@ export const ITEM_RESIZE = kit.defineAction({
     const now = found.shape
     if (!ctx.catalog.items.get(now.item)?.capabilities.includes("resizable")) return null
     const size = placedSize(ctx.catalog, now)
-    if (!size) return null
+    if (size === NO_SIZE) return null
     const def = shapeDefOf(ctx.catalog, now.item)
-    const stretch = def?.[kit.name("stretch")]
+    const stretch = def !== NO_SHAPE_DEF ? def[kit.name("stretch")] : undefined
     const widthOnly = stretch === "width"
     const moved = { ...now, x: args.x ?? now.x, y: widthOnly ? now.y : (args.y ?? now.y) }
     const wanted = { w: args.w ?? size.w, h: widthOnly || stretch === "ratio" ? size.h : (args.h ?? size.h) }
     const resized = parsePlaced(ctx.catalog, sizedTo(ctx.catalog, moved, wanted))
     // 項目に写した形は、求めた幅になったか（切り上げの 1px は許す）
-    const got = resized && def?.resizedTo ? placedSize(ctx.catalog, resized) : null
-    if (got && Math.abs(got.w - wanted.w) > 1) return null
+    const got = resized && def !== NO_SHAPE_DEF && def.resizedTo ? placedSize(ctx.catalog, resized) : NO_SIZE
+    if (got !== NO_SIZE && Math.abs(got.w - wanted.w) > 1) return null
     // 幅だけの形は、新しい幅で決まる高さにする
-    const fitted = resized && widthOnly ? placedSize(ctx.catalog, resized) : null
-    const item = resized && fitted ? { ...resized, h: fitted.h } : resized
+    const fitted = resized && widthOnly ? placedSize(ctx.catalog, resized) : NO_SIZE
+    const item = resized && fitted !== NO_SIZE ? { ...resized, h: fitted.h } : resized
     if (!item) return null
     const next = replaceAnywhere(ctx.catalog, page, item, true)
     return next !== CANNOT_PLACE ? { next, result: {} } : null

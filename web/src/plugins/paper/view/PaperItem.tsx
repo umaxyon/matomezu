@@ -3,14 +3,15 @@
 import type { MouseEvent, PointerEvent, ReactNode } from "react"
 import type { CoreCatalog, PlacedShape, Point } from "../../../plugin-api"
 import { type ItemViewProps, useCoreCatalog, useShapeMarks, useTokenScope, useUiCatalog } from "../../../plugin-api/ui"
-import { type Edges, placedSize, shapeDefOf } from "../../base"
+import { type Edges, NO_SHAPE_DEF, NO_SIZE, placedSize, shapeDefOf } from "../../base"
 import { useAnchorRef } from "../../base/ui"
 import { kit } from "../kit"
 import styles from "./PaperView.module.css"
 
 // 形のビューに渡す中身: 形の定義の content に宣言したフィールドの名前 → その値
 function contentOf(catalog: CoreCatalog, item: PlacedShape): Readonly<Record<string, unknown>> {
-  const fields = Object.keys(shapeDefOf(catalog, item.item)?.content ?? {})
+  const def = shapeDefOf(catalog, item.item)
+  const fields = Object.keys((def !== NO_SHAPE_DEF && def.content) || {})
   return Object.fromEntries(fields.map(k => [k, (item as Record<string, unknown>)[k]]))
 }
 
@@ -107,7 +108,8 @@ export function Item({
   const View = ui?.view as ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode) | undefined
   const tokens = useTokenScope(item.item) // そのアイテムのプラグインのテーマキー（--<名前>）
   // 幅だけを変えられる形（@matomezu/paper:stretch）は左右の辺だけ、比を保つ形は角だけをつかめる
-  const stretch = shapeDefOf(catalog, item.item)?.[kit.name("stretch")]
+  const def = shapeDefOf(catalog, item.item)
+  const stretch = def !== NO_SHAPE_DEF ? def[kit.name("stretch")] : undefined
   const grips =
     stretch === "width"
       ? GRIPS.filter(g => !g.edges.y)
@@ -129,14 +131,14 @@ export function Item({
       style={{
         left: item.x,
         top: item.y,
-        width: size?.w,
-        height: size?.h,
+        width: size !== NO_SIZE ? size.w : undefined,
+        height: size !== NO_SIZE ? size.h : undefined,
         transform: shift ? `translate(${shift.x}px, ${shift.y}px)` : undefined,
         ...tokens,
       }}
       {...ownHandlers(handlers)}
     >
-      {View && size ? (
+      {View && size !== NO_SIZE ? (
         <View
           props={item.props}
           size={size}

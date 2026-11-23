@@ -27,6 +27,8 @@ import {
   freeSpotIn,
   gapOf,
   NO_FRAME,
+  NO_SHAPE_DEF,
+  NO_SIZE,
   NO_SPOT,
   placeChild,
   placedAt,
@@ -54,13 +56,15 @@ export function stretchedBy(
   by: Point,
   paper: Size,
 ): { x: number; y: number; w: number; h: number } | typeof CANNOT_RESIZE {
-  const ratio = shapeDefOf(catalog, item.item)?.[kit.name("stretch")] === "ratio"
+  const def = shapeDefOf(catalog, item.item)
+  const ratio = def !== NO_SHAPE_DEF && def[kit.name("stretch")] === "ratio"
   return resizedBy(catalog, item, edges, by, paper, ratio)
 }
 
 // アイテム item を大きさ size にした物（大きさを項目に写す形〈定義の resizedTo〉は写した項目にし、w・h を書かない）
 export function sizedTo(catalog: CoreCatalog, item: PlacedShape, size: Size): PlacedShape {
-  const write = shapeDefOf(catalog, item.item)?.resizedTo
+  const def = shapeDefOf(catalog, item.item)
+  const write = def !== NO_SHAPE_DEF ? def.resizedTo : undefined
   return write ? (write(item as never, size) as PlacedShape) : { ...item, w: size.w, h: size.h }
 }
 
@@ -203,8 +207,9 @@ function innermostAt(
 ): ShapeOnPage | null {
   let found: ShapeOnPage | null = null
   for (const s of walkShapes(page)) {
-    const size = accept(s) ? placedSize(catalog, s.shape) : null
-    if (size && at.x >= s.at.x && at.y >= s.at.y && at.x < s.at.x + size.w && at.y < s.at.y + size.h) found = s
+    const size = accept(s) ? placedSize(catalog, s.shape) : NO_SIZE
+    if (size !== NO_SIZE && at.x >= s.at.x && at.y >= s.at.y && at.x < s.at.x + size.w && at.y < s.at.y + size.h)
+      found = s
   }
   return found
 }
@@ -239,7 +244,7 @@ export function parsePlaced(
   value: { item: string; [field: string]: unknown },
 ): PlacedShape | null {
   const def = shapeDefOf(catalog, value.item)
-  const parsed = def && shapeSchema(def).safeParse(value)
+  const parsed = def !== NO_SHAPE_DEF ? shapeSchema(def).safeParse(value) : undefined
   return parsed?.success ? (parsed.data as PlacedShape) : null
 }
 
@@ -276,7 +281,7 @@ export function placeTarget(
   shape: PlacedShape,
 ): PlaceTarget | null {
   const size = placedSize(catalog, shape)
-  if (!size) return null
+  if (size === NO_SIZE) return null
   const under = innermostAt(catalog, page, pointer)
   if (!under) {
     const fits = placeItem(catalog, page, { ...shape, ...at }) !== CANNOT_PLACE

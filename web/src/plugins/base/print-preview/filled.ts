@@ -10,7 +10,7 @@ import type { Rect, Size } from "../../../core/geom"
 import { byConnector, type ItemPage, type PlacedShape, shapesOf, slideOf } from "../../../core/placed"
 import { settingsAt } from "../book-settings"
 import { type GrowSides, grownArea, NO_GROW, paperSize } from "../place/grow"
-import { placedSize, portAreasOf, rectsOf } from "../place/placed"
+import { NO_SIZE, placedSize, portAreasOf, rectsOf } from "../place/placed"
 import { placeableIn } from "../toolbox/toolbox"
 import type { PrintSheets } from "."
 
@@ -41,7 +41,7 @@ export function crossingShapes(
   if (!paper) return { crossing, oversized }
   for (const item of shapesOf(page)) {
     const size = placedSize(catalog, item)
-    if (!size || sheetsOfShape({ x: item.x, y: item.y, ...size }, paper).length < 2) continue
+    if (size === NO_SIZE || sheetsOfShape({ x: item.x, y: item.y, ...size }, paper).length < 2) continue
     if (size.w > paper.w || size.h > paper.h) oversized.push(item.id)
     else crossing.push(item.id)
   }
@@ -75,7 +75,8 @@ export function sheetShapes(
   const on = (item: PlacedShape) => {
     const size = placedSize(catalog, item)
     return (
-      !!size && sheetsOfShape({ x: item.x, y: item.y, ...size }, paper).some(c => c.column === column && c.row === row)
+      size !== NO_SIZE &&
+      sheetsOfShape({ x: item.x, y: item.y, ...size }, paper).some(c => c.column === column && c.row === row)
     )
   }
   return { shapes, here: shapes.filter(on) }
@@ -92,7 +93,8 @@ export function filledSheets(catalog: CoreCatalog, page: ItemPage): ReadonlySet<
   // ページの slide の形は、ページの本体のタイプでだけ、掛かっている印刷区画に載る（背景は、中身の載った印刷区画に敷くだけ。背景だけの印刷区画は載らない）
   for (const s of slideIsBackground(type) ? [] : slideOf(page)) {
     const size = placedSize(catalog, s)
-    if (size) for (const c of sheetsOfShape({ x: s.x, y: s.y, ...size }, paper)) filled.add(sheetKey(c.column, c.row))
+    if (size !== NO_SIZE)
+      for (const c of sheetsOfShape({ x: s.x, y: s.y, ...size }, paper)) filled.add(sheetKey(c.column, c.row))
   }
   const areas = portAreasOf(catalog, page, rects)
   const setting = settingsAt(catalog, page)

@@ -117,6 +117,8 @@ export {
   NO_EXTENT,
   NO_FRAME,
   NO_GROW,
+  NO_SHAPE_DEF,
+  NO_SIZE,
   NO_SPOT,
   NO_WORKER_BOOK,
   newClash,

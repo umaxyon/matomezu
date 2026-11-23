@@ -9,7 +9,7 @@ import type { Point, Rect } from "../../../core/geom"
 import { byConnector, type ItemPage, shapesOf, slideOf } from "../../../core/placed"
 import { type SettingReader, settingsAt } from "../book-settings"
 import { type GrowSides, growOf, type NO_GROW } from "../place/grow"
-import { type PortArea, placedSize, portAreasOf, rectsOf, shapeDefOf } from "../place/placed"
+import { NO_SHAPE_DEF, NO_SIZE, type PortArea, placedSize, portAreasOf, rectsOf, shapeDefOf } from "../place/placed"
 
 // ミニマップに描く簡単な絵 1 つ（紙の座標）。色と線の太さはミニマップが決める。
 // 四角（rx は角の丸み）・楕円・多角形は塗り、折れ線は線で描く
@@ -76,15 +76,15 @@ export function itemMinimapMarks(catalog: CoreCatalog, page: ItemPage, { setting
     const r = rects.get(s.id)
     if (!r) continue
     const def = shapeDefOf(catalog, s.item)
-    marks.push(...(def?.minimap ? def.minimap(s as ShapeData, r) : [rectMark(r)]))
+    marks.push(...(def !== NO_SHAPE_DEF && def.minimap ? def.minimap(s as ShapeData, r) : [rectMark(r)]))
   }
   // ページの slide の形（重ねの順に、items の上へ）
   for (const s of slideOf(page)) {
     const size = placedSize(catalog, s)
-    if (!size) continue
+    if (size === NO_SIZE) continue
     const r = { x: s.x, y: s.y, ...size }
     const def = shapeDefOf(catalog, s.item)
-    marks.push(...(def?.minimap ? def.minimap(s as ShapeData, r) : [rectMark(r)]))
+    marks.push(...(def !== NO_SHAPE_DEF && def.minimap ? def.minimap(s as ShapeData, r) : [rectMark(r)]))
   }
   return marks
 }

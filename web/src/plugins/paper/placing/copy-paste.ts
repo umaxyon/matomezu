@@ -10,7 +10,7 @@ import {
   type Point,
   walkShapes,
 } from "../../../plugin-api"
-import { hasOpenedPage, placedSize, refusalMessage, shapeDefOf } from "../../base"
+import { hasOpenedPage, NO_SHAPE_DEF, NO_SIZE, placedSize, refusalMessage, shapeDefOf } from "../../base"
 import { kit } from "../kit"
 import { ITEM_PASTE, ITEM_REMOVE } from "./actions"
 import { type Clip, clipOf, nearestPaste } from "./clip"
@@ -35,10 +35,12 @@ function targetOf(ctx: CommandContext, clip: Clip): { parent: string | null; at?
   if (only === NO_ITEM) return { parent: null }
   // 写した形そのものを選んでいるときは、その中でなく隣に貼る（自分の中には入れない）
   const copied = clip.shapes.some(c => c.id === only.shape.id)
-  if (!copied && shapeDefOf(ctx.catalog, only.shape.item)?.capabilities.includes("nests"))
-    return { parent: only.shape.id }
+  const def = shapeDefOf(ctx.catalog, only.shape.item)
+  if (!copied && def !== NO_SHAPE_DEF && def.capabilities.includes("nests")) return { parent: only.shape.id }
   const size = placedSize(ctx.catalog, only.shape)
-  return size ? { parent: only.parent, at: { x: only.shape.x + size.w + 8, y: only.shape.y } } : { parent: only.parent }
+  return size !== NO_SIZE
+    ? { parent: only.parent, at: { x: only.shape.x + size.w + 8, y: only.shape.y } }
+    : { parent: only.parent }
 }
 
 // 写し clip を where に貼って、貼った形を選ぶ。at に収まらなければ収まる一番近い所へ寄せる（どこにも収まらなければ最初の空き）。貼れなければトーストで知らせる

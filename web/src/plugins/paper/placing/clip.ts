@@ -21,6 +21,8 @@ import {
 } from "../../../plugin-api"
 import {
   CANNOT_PLACE,
+  NO_SHAPE_DEF,
+  NO_SIZE,
   placeChild,
   placedSize,
   placeItem,
@@ -73,7 +75,10 @@ function parsedTree(catalog: CoreCatalog, page: Pick<ItemPage, "type">, raw: unk
   if (
     !shape ||
     !shapeThemeFits(catalog, page.type, shape) ||
-    shapeDefOf(catalog, shape.item)?.survivesRenewedIds === false
+    (() => {
+      const def = shapeDefOf(catalog, shape.item)
+      return def !== NO_SHAPE_DEF && def.survivesRenewedIds === false
+    })()
   )
     return null
   const children = Array.isArray(value.shapes) ? value.shapes : []
@@ -83,11 +88,12 @@ function parsedTree(catalog: CoreCatalog, page: Pick<ItemPage, "type">, raw: unk
 // 写しの根の形が占める範囲（紙の上の左上と大きさ）
 function boxOf(catalog: CoreCatalog, shapes: readonly PlacedShape[]): { origin: Point; size: Size } | null {
   const sizes = shapes.map(s => placedSize(catalog, s))
-  if (sizes.length === 0 || sizes.some(s => s === null)) return null
+  if (sizes.length === 0 || sizes.some(s => s === NO_SIZE)) return null
+  const known = sizes as Size[]
   const origin = { x: Math.min(...shapes.map(s => s.x)), y: Math.min(...shapes.map(s => s.y)) }
   const far = {
-    x: Math.max(...shapes.map((s, i) => s.x + (sizes[i]?.w ?? 0))),
-    y: Math.max(...shapes.map((s, i) => s.y + (sizes[i]?.h ?? 0))),
+    x: Math.max(...shapes.map((s, i) => s.x + (known[i]?.w ?? 0))),
+    y: Math.max(...shapes.map((s, i) => s.y + (known[i]?.h ?? 0))),
   }
   return { origin, size: { w: far.x - origin.x, h: far.y - origin.y } }
 }
@@ -114,7 +120,8 @@ export interface Pasted {
 // ページ page の形 id が、子を入れられる形か（無い形なら、入れられない）
 function nests(catalog: CoreCatalog, page: ItemPage, id: string): boolean {
   const found = findShape(page, id)
-  return found !== NO_ITEM && !!shapeDefOf(catalog, found.shape.item)?.capabilities.includes("nests")
+  const def = found !== NO_ITEM ? shapeDefOf(catalog, found.shape.item) : NO_SHAPE_DEF
+  return def !== NO_SHAPE_DEF && def.capabilities.includes("nests")
 }
 
 export function pasted(
