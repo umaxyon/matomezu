@@ -2,8 +2,6 @@
 
 import { useMemo } from "react"
 import type { Page } from "../../../core/schema/book"
-import { NO_PAGE } from "../../../core/stage"
-import { NO_BOOK, NO_OUTSIDE_BINDER } from "../../../store/commands/def"
 import { useBook, useOutsideBinder, usePage } from "../../../ui/view-hooks"
 import { openedPagesFrom } from "./opened-page"
 
@@ -11,13 +9,5 @@ export function useOpenedPages(): readonly Page[] {
   const book = useBook()
   const binder = useOutsideBinder()
   const page = usePage()
-  return useMemo(
-    () =>
-      openedPagesFrom(
-        book === NO_BOOK ? null : book,
-        binder === NO_OUTSIDE_BINDER ? null : binder,
-        page === NO_PAGE ? null : page,
-      ),
-    [book, binder, page],
-  )
+  return useMemo(() => openedPagesFrom(book, binder, page), [book, binder, page])
 }

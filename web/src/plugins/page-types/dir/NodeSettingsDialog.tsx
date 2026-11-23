@@ -27,8 +27,7 @@ export function NodeSettingsDialog({ args, onClose }: DialogProps<{ page: string
   const t = useMessages(kit)
   const form = useId()
   const iconGroup = useId() // アイコンのラジオの組の名前
-  const found = usePageById(args.page)
-  const page = found === NO_PAGE ? undefined : found
+  const page = usePageById(args.page)
   const root = dirRootOf(page)
   const node = root ? nodeOf(root, args.node) : null
   const perform = usePerform()
@@ -38,7 +37,7 @@ export function NodeSettingsDialog({ args, onClose }: DialogProps<{ page: string
   const catalog = useCoreCatalog()
   const tr = useT() // ほかのプラグインが足したアイコンの名前も引く
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
-  if (!page || !node) return null
+  if (page === NO_PAGE || !node) return null
   const submit = () => {
     const done = perform(
       NODE_UPDATE.id,

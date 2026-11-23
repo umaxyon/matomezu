@@ -209,6 +209,7 @@ test("matomezu が出す名前", () => {
     "slideOffsetOf",
     "softBreakOf",
     "splitWords",
+    "stagePageId",
     "survivesRenewedIds",
     "textBlock",
     "textBlockHeight",

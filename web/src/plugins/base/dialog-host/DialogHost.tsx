@@ -4,13 +4,13 @@
 
 import { fail } from "../../../core/errors"
 import { outsideBinderIn } from "../../../core/folders-tree"
-import { NO_PAGE, NOTHING_OPENED, openedBook, shownPageId } from "../../../core/stage"
+import { NOTHING_OPENED, openedBook, shownPageId } from "../../../core/stage"
 import { stageIn } from "../../../core/window"
 import { NO_BOOK, NO_OUTSIDE_BINDER } from "../../../store/commands/def"
 import { openedAt } from "../../../store/dialogs"
 import { ActsOnScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
-import { NO_LINEUP, openedLineup } from "../page-tabs/opened-lineup"
+import { openedLineup } from "../page-tabs/opened-lineup"
 import { useEditLock } from "../utils/useEditLock"
 import { locksOf } from "./locks"
 
@@ -30,12 +30,7 @@ export function DialogHost() {
   if (!dialog) return null
   const View = ui.dialogViews.get(dialog.id) ?? fail("E109", { kind: "dialog", id: dialog.id })
   const lineup = openedLineup(book ?? NO_BOOK, binder)
-  const page = shownPageId(opened)
-  const locks = locksOf(
-    lineup === NO_LINEUP ? null : lineup,
-    page === NO_PAGE ? null : page,
-    def?.edits?.(dialog.args) ?? [],
-  )
+  const locks = locksOf(lineup, shownPageId(opened), def?.edits?.(dialog.args) ?? [])
   return (
     <ActsOnScope at={openedAt(dialog)}>
       {locks.map(l => (

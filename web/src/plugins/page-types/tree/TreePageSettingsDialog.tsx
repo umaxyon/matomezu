@@ -2,7 +2,7 @@
 // 根のキャプション・本文・本文を紙に描くか（ページのフィールド root）を足す。確定で、根はアクション page-update の fields に書かれる。
 // 書いている根を重ねたページで、ページの問題（木が紙に入らないなど）を確かめる
 import { useState } from "react"
-import { NO_PAGE, type PageSettingsArgs } from "../../../plugin-api"
+import type { PageSettingsArgs } from "../../../plugin-api"
 import { type DialogProps, useMessages, usePageById } from "../../../plugin-api/ui"
 import { BODY_MAX } from "../../base"
 import { controlClass, Field, PageSettingsDialogView, RichBody, rowClass, Switch } from "../../base/ui"
@@ -12,7 +12,7 @@ import { treeRootOf } from "./node"
 export function TreePageSettingsDialog({ args, onClose }: DialogProps<PageSettingsArgs>) {
   const t = useMessages(kit)
   const page = usePageById(args.page)
-  const root = treeRootOf(page === NO_PAGE ? undefined : page)
+  const root = treeRootOf(page)
   const [caption, setCaption] = useState(root ? root.caption : "")
   const [body, setBody] = useState(root ? (root.body ?? "") : "")
   const [showBody, setShowBody] = useState(root?.showBody === true)

@@ -1,4 +1,4 @@
-import { type CommandActions, type CommandContext, NO_BOOK } from "../../../store/commands/def"
+import { type CommandActions, type CommandContext, NO_BOOK, NO_PAGE } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { PAGE_UPDATE } from "../pages/page-update"
 import { hasOpenedPage, openedPagesOf } from "../utils/opened-page"
@@ -13,8 +13,8 @@ import {
   searchOf,
 } from "./state"
 
-// 開いているページの id（ページを開いていなければ null）
-const hereId = (ctx: CommandContext): string | null => (hasOpenedPage(ctx) ? ctx.page.id : null)
+// 開いているページの id（ページを開いていなければ NO_PAGE）
+const hereId = (ctx: CommandContext): string => (hasOpenedPage(ctx) ? ctx.page.id : NO_PAGE)
 // 開いているページが探せるか
 const searchable = (ctx: CommandContext) =>
   searchableOf(ctx.catalog, hasOpenedPage(ctx) ? ctx.page : undefined) !== "none"

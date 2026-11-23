@@ -2,31 +2,29 @@
 // 書いている・色や種類を選んでいる）、そのステージで開いているページの、選んでいる物に編集ロックを掛ける（その場の編集で何を直しているかは選択で決まる）
 
 import { useShallow } from "zustand/react/shallow"
-import { NO_PAGE, type NOTHING_OPENED, type Opened, shownPageId } from "../../../core/stage"
+import { NO_PAGE, shownPageId } from "../../../core/stage"
 import { defineWidget } from "../../../ui/layout"
 import { useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { allStages } from "../utils/stages"
 import { useEditLock } from "../utils/useEditLock"
 
-// 開いているページの id（ページを開いていなければ null）
-const editedPageOf = (opened: Opened | typeof NOTHING_OPENED): string | null => {
-  const page = shownPageId(opened)
-  return page === NO_PAGE ? null : page
-}
-
 function EditLock() {
   const stages = useMatomezuState(useShallow(s => allStages(s.window)))
   return (
     <>
-      {stages.map(s => (
-        <StageEditLock key={s.id} page={editedPageOf(s.opened)} ids={s.editing === "none" ? NONE : s.selection} />
-      ))}
+      {stages.map(s => {
+        const page = shownPageId(s.opened)
+        // ページを開いていないステージには掛けない
+        return page === NO_PAGE ? null : (
+          <StageEditLock key={s.id} page={page} ids={s.editing === "none" ? NONE : s.selection} />
+        )
+      })}
     </>
   )
 }
 
-function StageEditLock({ page, ids }: { page: string | null; ids: readonly string[] }) {
+function StageEditLock({ page, ids }: { page: string; ids: readonly string[] }) {
   useEditLock(page, ids)
   return null
 }

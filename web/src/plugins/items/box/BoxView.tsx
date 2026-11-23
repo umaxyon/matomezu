@@ -6,8 +6,9 @@
 // 色（color）があれば、塗りと文字のテーマキーをその色で上書きする（paint.ts）
 
 import type { CSSProperties } from "react"
-import { type ItemProps, NO_PAGE, NO_STAGE, shownPageId } from "../../../plugin-api"
+import { type ItemProps, NO_PAGE } from "../../../plugin-api"
 import { type ItemViewProps, usePerform, useStage } from "../../../plugin-api/ui"
+import { stagePageId } from "../../base"
 import { TextBlockView, useBodyGrips, useThemeVars } from "../../base/ui"
 import styles from "./BoxView.module.css"
 import { type BOX, BOX_TOKENS } from "./box"
@@ -20,8 +21,7 @@ export function BoxView({ props, size, hasChildren, id }: ItemViewProps<BoxProps
   const theme = props.theme
   const vars = useThemeVars(theme, BOX_TOKENS)
   const at = useStage()
-  const shown = at === NO_STAGE ? NO_PAGE : shownPageId(at.opened)
-  const page = shown === NO_PAGE ? undefined : shown
+  const page = stagePageId(at)
   const perform = usePerform()
   const grips = useBodyGrips(id, "@matomezu/paper:item-update")
   return (
@@ -38,7 +38,7 @@ export function BoxView({ props, size, hasChildren, id }: ItemViewProps<BoxProps
           grips={grips}
           lineColor="var(--box-line)"
           onBodyWidth={bodyWidth => {
-            if (page) perform("@matomezu/paper:item-update", { item: id, props: { bodyWidth } }, { page })
+            if (page !== NO_PAGE) perform("@matomezu/paper:item-update", { item: id, props: { bodyWidth } }, { page })
           }}
         />
       </div>

@@ -16,14 +16,13 @@ export function NodeSizeDialog({ args, onClose }: DialogProps<{ page: string; no
   const t = useMessages(kit)
   const form = useId()
   const catalog = useCoreCatalog()
-  const found = usePageById(args.page)
-  const page = found === NO_PAGE ? undefined : found
+  const page = usePageById(args.page)
   const root = treeRootOf(page)
   const node = root ? nodeOf(root, args.node) : null
   const perform = usePerform()
   const [size, setSize] = useState<NodeSize | undefined>(node?.size)
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
-  if (!page || !node) return null
+  if (page === NO_PAGE || !node) return null
   const inherited = settingValue(catalog, page, NODE_SIZE)
   const submit = () => {
     const done = perform(NODE_UPDATE.id, { node: node.id, size: size ?? null }, { page: page.id })

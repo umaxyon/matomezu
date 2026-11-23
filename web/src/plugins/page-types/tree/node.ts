@@ -4,6 +4,7 @@
 // 根の直系の子は、中央の木でどの向きへ伸びるか（side。無ければ右）を持てる。ほかの向きの木と、孫より下では使わない。
 // 子は大きさの選び方（size。無ければページで効いている選び方）を持てる。どの節も色（color。代表色の名前か #rrggbb。無ければテーマの塗り）を持てる
 import { z } from "zod"
+import { NO_PAGE } from "../../../plugin-api"
 import { bodyText, ColorSchema } from "../../base"
 import { NODE_SIZES, type NodeSize } from "./size"
 
@@ -51,9 +52,9 @@ export const TreeRootSchema = z.strictObject({
 })
 export type TreeRoot = z.infer<typeof TreeRootSchema>
 
-// ページ page の根の節（無いか形が合わなければ undefined）
-export const treeRootOf = (page: object | null | undefined): TreeRoot | undefined =>
-  TreeRootSchema.safeParse(page && "root" in page ? page.root : undefined).data
+// ページ page の根の節（ページが無い〈NO_PAGE〉か、根が無いか形が合わなければ undefined）
+export const treeRootOf = (page: object | typeof NO_PAGE | null | undefined): TreeRoot | undefined =>
+  TreeRootSchema.safeParse(page !== NO_PAGE && page && "root" in page ? page.root : undefined).data
 
 // 足すときに受ける節（id は書かない）
 export interface NewNode {

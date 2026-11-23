@@ -5,7 +5,7 @@
 
 import { type PointerEvent, useEffect, useRef } from "react"
 import type { Point } from "../../../core/geom"
-import { NO_PAGE, NO_STAGE, NOTHING_OPENED, shownPageId } from "../../../core/stage"
+import { NO_PAGE } from "../../../core/stage"
 import { recentBookScreen } from "../../../core/window"
 import { NO_BOOK } from "../../../store/commands/def"
 import { pluginValueOf } from "../../../store/plugin-state"
@@ -18,6 +18,7 @@ import { useBook, useCoreCatalog, usePage, useStage } from "../../../ui/view-hoo
 import { controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { DRAG_START } from "../utils/drag"
+import { stagePageId } from "../utils/opened-page"
 import { useOpenedPages } from "../utils/useOpenedPages"
 import {
   SEARCH_CLOSE,
@@ -58,8 +59,7 @@ function SearchDialog({ stage }: { stage: string }) {
   const page = usePage()
   const within = useOpenedPages()
   const view = useStage()
-  const shown = shownPageId(view === NO_STAGE ? NOTHING_OPENED : view.opened)
-  const opened = shown === NO_PAGE ? null : shown
+  const opened = stagePageId(view)
   const search = useSearchHere()
   const at = usePluginState(kit, SEARCH_AT_STATE)
   const readSearch = useReadSearchHere()

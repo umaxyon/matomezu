@@ -6,8 +6,9 @@
 // 表やグラフの動き（motion.ts）のきっかけは、ここで前の様子と比べて決める（表からグラフに変えたのも、見た目を変えたきっかけにする）。
 // データにテーマ（theme）を当てていれば、そのテーマのデータのテーマキーで描く。ページのタイプが使えないテーマならページのテーマのまま
 import { type ReactNode, useState } from "react"
-import { type ItemProps, NO_PAGE, NO_STAGE, shownPageId } from "../../../plugin-api"
+import { type ItemProps, NO_PAGE } from "../../../plugin-api"
 import { type ItemViewProps, useMessages, usePerform, useStage } from "../../../plugin-api/ui"
+import { stagePageId } from "../../base"
 import { TextBlockView, useBodyGrips, useThemeVars } from "../../base/ui"
 import { areasOf } from "./areas"
 import { ChartView } from "./ChartView"
@@ -24,8 +25,7 @@ export function DataItemView({ props, content, size, id }: ItemViewProps<DataPro
   const t = useMessages(kit)
   const vars = useThemeVars(props.theme, DATA_TOKENS)
   const at = useStage()
-  const shown = at === NO_STAGE ? NO_PAGE : shownPageId(at.opened)
-  const page = shown === NO_PAGE ? undefined : shown
+  const page = stagePageId(at)
   const perform = usePerform()
   const grips = useBodyGrips(id, "@matomezu/paper:item-update")
   const table = content.table
@@ -41,7 +41,7 @@ export function DataItemView({ props, content, size, id }: ItemViewProps<DataPro
         grips={grips}
         lineColor="var(--data-line)"
         onBodyWidth={bodyWidth => {
-          if (page) perform("@matomezu/paper:item-update", { item: id, props: { bodyWidth } }, { page })
+          if (page !== NO_PAGE) perform("@matomezu/paper:item-update", { item: id, props: { bodyWidth } }, { page })
         }}
       />
     </div>

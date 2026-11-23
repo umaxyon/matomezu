@@ -2,9 +2,9 @@
 // 縦の棒なら上下に、横の棒なら左右にドラッグして領域の大きさを変え、ドラッグの間は onDrag でその大きさを渡して描き直させる。
 // 離したらアクション item-update で labelSize を書く。書き換えが止められていれば出さない
 import { type PointerEvent, useRef } from "react"
-import { NO_PAGE, NO_STAGE, type Size, shownPageId, toPaperDelta } from "../../../plugin-api"
+import { NO_PAGE, NO_STAGE, type Size, toPaperDelta } from "../../../plugin-api"
 import { useAllowed, useMessages, usePerform, useStage } from "../../../plugin-api/ui"
-import { onlySelected } from "../../base"
+import { onlySelected, stagePageId } from "../../base"
 import styles from "./ChartView.module.css"
 import { type CartesianLayout, CHART_LOOK, labelAreaOf, labelSizeAfter } from "./cartesian"
 import { kit } from "./kit"
@@ -22,10 +22,9 @@ export function LabelGrip({
 }) {
   const t = useMessages(kit)
   const at = useStage()
-  const shown = at === NO_STAGE ? NO_PAGE : shownPageId(at.opened)
-  const page = shown === NO_PAGE ? undefined : shown
+  const page = stagePageId(at)
   const perform = usePerform()
-  const allowed = useAllowed("@matomezu/paper:item-update", { page, ids: [id] }).ok
+  const allowed = useAllowed("@matomezu/paper:item-update", { ids: [id] }).ok
   // つかんだポインタと、つかんだ所と、つかんだときの領域の大きさ
   const grab = useRef<{ pointer: number; x: number; y: number; start: number } | null>(null)
   if (!allowed || at === NO_STAGE || at.pans || !onlySelected(at.selection, id)) return null
@@ -56,7 +55,7 @@ export function LabelGrip({
       grab.current = null
       onDrag(undefined)
       const next = sizeAt(e, g)
-      if (page && next !== g.start)
+      if (page !== NO_PAGE && next !== g.start)
         perform("@matomezu/paper:item-update", { item: id, props: { labelSize: next } }, { page })
     },
     onPointerCancel: () => {
