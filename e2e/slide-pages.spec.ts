@@ -81,13 +81,13 @@ test.describe("ロック中のページ", () => {
     ],
   })
 
-  test("ロック中のページには鍵の印が付き、右クリックの複製と削除は灰色になる", async ({ page }) => {
+  test("ロック中のページには鍵の印が付き、右クリックの削除は灰色になる（複製は押せる）", async ({ page }) => {
     await page.goto(BOOK_SCREEN_URL)
     const pages = page.locator("[data-page-list] [data-page]")
     await expect(pages.nth(1).getByRole("img", { name: "ロック中" })).toBeVisible()
     await expect(pages.nth(0).getByRole("img", { name: "ロック中" })).toHaveCount(0)
     await pages.nth(1).locator("button").click({ button: "right" })
-    await expect(page.getByRole("menuitem", { name: "複製" })).toBeDisabled()
+    await expect(page.getByRole("menuitem", { name: "複製" })).toBeEnabled()
     await expect(page.getByRole("menuitem", { name: "削除…" })).toBeDisabled()
     await page.keyboard.press("Escape")
     await pages.nth(0).locator("button").click({ button: "right" })

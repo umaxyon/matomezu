@@ -186,3 +186,33 @@ test("場所はスクリーンアレンジメントの値を持つ。当ては�
   expect(moved(split, { ...split, arrangementValue: { screens: ["c2", "c1"], behind: [] } })).toBe(true)
   expect(moved(split, { ...split, arrangementValue: { screens: ["c1", "c2"], behind: [] } })).toBe(false)
 })
+
+test("場所を当てはめても、開いていたページをそのまま開くステージは、プレゼンテーションが知らせた広さとずらした量を保つ。ほかのページを開くステージは持たない", () => {
+  const store = newStore()
+  const { catalog, state, actions } = store
+  const sheet = paperOf(screenOf(state.getState().window).stages[0]!)!
+  const area = { w: sheet.w * 3, h: sheet.h * 3 }
+  actions.setStageArea("s1", area, { x: 1, y: 1 })
+  const placedAt = (page: string) =>
+    screenOf(
+      placeAt(
+        catalog.core,
+        state.getState().books,
+        state.getState(),
+        state.getState().window,
+        at([{ outermost: "b1", page, binder: null, zoom: 0.5, pan: { x: 0, y: 0 }, states: {} }]),
+      ),
+    ).stages[0]!.opened
+  expect(placedAt("p1")).toMatchObject({ page: "p1", area, origin: { x: 1, y: 1 } })
+  const other = actions.perform(
+    "@matomezu/base:page-add",
+    { type: "@matomezu/drawing:drawing", title: "次" },
+    { book: "b1" },
+  )
+  const next = other.ok ? other.result.page : ""
+  expect(next).not.toBe("")
+  const opened = placedAt(next)
+  expect(opened).toMatchObject({ page: next })
+  expect(opened).not.toHaveProperty("area")
+  expect(opened).not.toHaveProperty("origin")
+})

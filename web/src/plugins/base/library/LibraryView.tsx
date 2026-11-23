@@ -19,6 +19,7 @@ import { SplitHandle } from "../utils/SplitHandle"
 import {
   LIBRARY_ADD_PAGE_MENU,
   LIBRARY_BOOK_NEW,
+  LIBRARY_CONTENTS_AROUND_SCOPE,
   LIBRARY_CONTENTS_SCOPE,
   LIBRARY_ENTRY_CONTEXT,
   LIBRARY_ENTRY_OPEN,
@@ -27,6 +28,7 @@ import {
   LIBRARY_FOUND_SCOPE,
   LIBRARY_PAGE_NEW,
   LIBRARY_SCOPE,
+  LIBRARY_TREE_AROUND_SCOPE,
   LIBRARY_TREE_SCOPE,
 } from "./commands"
 import { holderForNewPage } from "./entries"
@@ -141,7 +143,6 @@ export function LibraryView({ className }: { className?: string } = {}) {
     setPicked(next.picked)
     if (next.unfolded !== unfolded) setUnfolded([...next.unfolded])
   }
-  const enter = (folder: string) => arrive({ id: folder, holder: folder, holds: true })
   // 検索: 入力Formに打っている途中の言葉 typed と、「検索」を押して探している言葉 query
   const query = usePluginState(kit, LIBRARY_QUERY)
   const treeWidth = usePluginState(kit, LIBRARY_TREE_WIDTH) ?? DEFAULT_TREE_WIDTH
@@ -149,12 +150,17 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const setQuery = useSetPluginState(kit, LIBRARY_QUERY)
   const [typed, setTyped] = useState(query ?? "")
   const searchForm = useId()
-  // 読めない物のフォルダを開く（ツリーの下の ⚠ の行）: 検索していればやめ、選んでいる行も外す
-  const openUnreadable = () => {
-    setQuery(undefined)
-    setTyped("")
-    enter(UNREADABLE_ID)
+  // 検索をやめたら（フォルダの中へ入った・コマンドがやめた）、入力Formも空にする
+  useEffect(() => {
+    if (query === undefined) setTyped("")
+  }, [query])
+  // フォルダの中へ入る（ツリーのフォルダの行・パンくず）: 検索していればやめ、右の枠にその中身を出す
+  const enter = (folder: string) => {
+    if (query !== undefined) setQuery(undefined)
+    arrive({ id: folder, holder: folder, holds: true })
   }
+  // 読めない物のフォルダを開く（ツリーの下の ⚠ の行）: 選んでいる行も外す
+  const openUnreadable = () => enter(UNREADABLE_ID)
   // 検索の結果を押した回数: 同じ行を押し直しても、ツリーをその行まで送り直す
   const [reveals, setReveals] = useState(0)
   const reveal = (row: FoundRow) => {
@@ -190,11 +196,17 @@ export function LibraryView({ className }: { className?: string } = {}) {
     open: row => openEntry({ entry: row.id }),
     tabbable: treeStop,
   }
-  // キーで選ぶ行が変わったら、焦点もその行へ移す（ツリー・検索の結果の中に焦点があればツリーの今いる行へ、右の枠の中身の中に在れば選んでいる行へ）。
-  // 行のボタンは、入っている所の範囲を自分で名乗る
+  // キーで選ぶ行が変わったら、焦点もその行へ移す（ツリー・検索の結果の中に焦点があればツリーの今いる行へ、右の枠の中身の中に在れば選んでいる行へ。
+  // 行の外（余白）に焦点が在っても、その側の行へ移す）。行のボタンは、入っている所の範囲を自分で名乗る
   useEffect(() => {
     const at = document.activeElement
-    const scope = at instanceof HTMLElement ? at.closest<HTMLElement>("[data-key-scope]")?.dataset.keyScope : undefined
+    const named = at instanceof HTMLElement ? at.closest<HTMLElement>("[data-key-scope]")?.dataset.keyScope : undefined
+    const scope =
+      named === LIBRARY_TREE_AROUND_SCOPE
+        ? LIBRARY_TREE_SCOPE
+        : named === LIBRARY_CONTENTS_AROUND_SCOPE
+          ? LIBRARY_CONTENTS_SCOPE
+          : named
     const id =
       scope === LIBRARY_TREE_SCOPE || scope === LIBRARY_FOUND_SCOPE
         ? current
@@ -257,7 +269,8 @@ export function LibraryView({ className }: { className?: string } = {}) {
             </ActionButton>
           </form>
         </search>
-        <nav className={styles.tree} aria-label={t("Folders")} data-key-scope={LIBRARY_TREE_SCOPE}>
+        {/* 行の外（余白）を押したら、ここが焦点を受ける（矢印だけが効く） */}
+        <nav className={styles.tree} aria-label={t("Folders")} data-key-scope={LIBRARY_TREE_AROUND_SCOPE} tabIndex={-1}>
           <ul className={styles.rows}>
             {(unreadableShown ? TOPS_WITH_UNREADABLE : TOPS).map(top => (
               <TreeNode key={top.id} row={top} holder={top.id} depth={0} handlers={handlers} />

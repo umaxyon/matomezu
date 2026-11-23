@@ -714,6 +714,22 @@ test("書庫の検索は、名前に言葉を含む物を右の枠に並べる�
     "検索の試しの所",
     "検索の試しの帳面",
   ])
+  // 結果のフォルダを 2 回押すと、検索をやめて、右の枠にそのフォルダの中身を出す（入力Formも空になる）
+  await field.fill("検索の試し")
+  await page.keyboard.press("Enter")
+  await found.getByRole("button", { name: /^検索の試しの所/ }).dblclick()
+  await expect(found).toHaveCount(0)
+  await expect(field).toHaveValue("")
+  await expect(page.getByRole("list", { name: "検索の試しの所 の中身" }).getByRole("button")).toHaveText([
+    /検索の試しの帳面/,
+  ])
+  // 検索し直して、ツリーのフォルダの行を押しても、検索をやめてその中身を出す
+  await field.fill("検索の試し")
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("status")).toHaveText("「検索の試し」を含む名前: 2 件")
+  await tree.getByRole("button", { name: "書庫", exact: true }).click()
+  await expect(found).toHaveCount(0)
+  await expect(field).toHaveValue("")
   // 選んだ行の Enter で開く（2 回押すのと同じ）
   await field.fill("検索の試しの帳面")
   await page.keyboard.press("Enter")
@@ -800,4 +816,41 @@ test.describe("読めないページ", () => {
     await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
     await expect(page.getByRole("tab")).toHaveCount(1)
   })
+})
+
+test("書庫のツリー・右の枠の行の外（余白）を押したあとも矢印は効き、移った行に焦点が戻る。余白を押した直後の Delete は何もしない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const tree = page.getByRole("navigation", { name: "フォルダ" })
+  const home = page.getByRole("list", { name: "書庫 の中身" })
+  const treeRows = tree.locator("[data-library-row]")
+  const names = await treeRows.allTextContents()
+  // ツリー: 右の枠に中身を出しているフォルダは、枠で囲う
+  await treeRows.nth(1).click()
+  await expect(tree.locator("[aria-current=true]")).toHaveText(names[1] as string)
+  await expect(tree.locator("[aria-current=true]")).toHaveCSS("outline-style", "solid")
+  const box = (await tree.boundingBox())!
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height - 10)
+  await expect(tree).toBeFocused()
+  await page.keyboard.press("Delete")
+  await expect(treeRows).toHaveCount(names.length)
+  await page.keyboard.press("ArrowUp")
+  await expect(tree.locator("[aria-current=true]")).toHaveText(names[0] as string)
+  await expect(treeRows.first()).toBeFocused()
+  // 右の枠: 余白を押すと選びが外れ、矢印で最初の行を選ぶ
+  const rows = home.locator("[data-library-row]")
+  const count = await rows.count()
+  await rows.nth(1).click()
+  const pane = (await home.boundingBox())!
+  await page.mouse.click(pane.x + pane.width - 30, pane.y + pane.height - 10)
+  await expect(home.locator("[aria-pressed=true]")).toHaveCount(0)
+  await expect(home).toBeFocused()
+  await page.keyboard.press("Delete")
+  await expect(rows).toHaveCount(count)
+  await page.keyboard.press("ArrowRight")
+  await expect(rows.first()).toHaveAttribute("aria-pressed", "true")
+  await expect(rows.first()).toBeFocused()
 })

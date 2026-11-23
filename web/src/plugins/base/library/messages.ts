@@ -37,6 +37,8 @@ export const LIBRARY_MESSAGES = defineMessages({
   'No name has "{word}"': { en: 'No name has "{word}"', ja: "「{word}」を含む名前はありません" },
   "Library tree": { en: "Library tree", ja: "書庫のツリー" },
   "Library contents": { en: "Library contents", ja: "書庫の中身" },
+  "Library tree (outside the rows)": { en: "Library tree (outside the rows)", ja: "書庫のツリー（行の外）" },
+  "Library contents (outside the rows)": { en: "Library contents (outside the rows)", ja: "書庫の中身（行の外）" },
   "Library search results": { en: "Library search results", ja: "書庫の検索の結果" },
   "Move in the tree": { en: "Move in the tree", ja: "ツリーの行を移る" },
   "Row above": { en: "Row above", ja: "上の行へ" },
