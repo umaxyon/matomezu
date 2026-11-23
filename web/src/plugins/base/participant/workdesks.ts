@@ -1,7 +1,7 @@
 // 作業机: 書庫の画面が、ワークルームのフォルダの下に映す、今参加者がいるワークルームごとの行。その下にワーカーブック（workerBookOf が引く、tickets-history の中の実のブック）を映す。
 // データには書かない（書庫の画面が、ワークルームと参加者のレコードと書庫の表から出す）
 import type { CoreCatalog } from "../../../core/core-catalog"
-import { backyardBookOf } from "../../../core/entries"
+import { backyardBookOf, rowsWithin } from "../../../core/entries"
 import type { Folders } from "../../../core/folders"
 import type { RecordReader } from "../../../core/record-source"
 import type { Bird } from "../birds"
@@ -55,4 +55,11 @@ export function workdesksOf(catalog: CoreCatalog, read: RecordReader, folders: F
       book: backyardBookOf({ folders }, TICKETS_HISTORY.id, workKey),
     }
   })
+}
+
+// ワークルーム room 自身のワーカーブック（tickets-history の中の、workKey がそのワークルームのブック）のページの数（ブックが無ければ 0）。
+// 部屋を消す・引き継がずに入り直すと、このブックは完全に消える
+export function ownBookPagesOf(folders: Folders, room: string): number {
+  const book = backyardBookOf({ folders }, TICKETS_HISTORY.id, { subject: WORKROOM.id, id: room })
+  return book === undefined ? 0 : rowsWithin(folders, book).pages.length
 }

@@ -19,6 +19,7 @@ import {
 } from "."
 import { workroomActivityOf } from "./activity"
 import { adminRoomOf, type VisitorRow, visitorRows, type WorkroomRow, workroomRows } from "./rows"
+import { ownBookPagesOf } from "./workdesks"
 
 // 参加者のレコード（種類 PARTICIPANT。要求が届いた順）と、ワークルームのレコード（作った順）
 const sorted = <T extends { id: string }>(records: Readonly<Record<string, unknown>> | undefined, key: keyof T) =>
@@ -121,4 +122,9 @@ export function useWorkroomActions(): WorkroomActions {
       makeAdmin: room => settle(doing(ADMIN_SET.id, { workroom: room }, ...(marked ? [{ record: "admin" }] : []))),
     }
   }, [perform, showToast, catalog, marked])
+}
+
+// ワークルーム room 自身のワーカーブックのページの数（部屋を消す・引き継がずに入り直すと消える。ブックが無ければ 0）
+export function useOwnBookPages(room: string): number {
+  return useMatomezuState(s => ownBookPagesOf(s.folders, room))
 }

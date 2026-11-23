@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import type { DialogProps } from "../../plugin-api/ui"
 import { useMessages } from "../../plugin-api/ui"
-import { ActionButton, Dialog, useWorkroomActions, useWorkroomRows } from "../base/ui"
+import { ActionButton, Dialog, useOwnBookPages, useWorkroomActions, useWorkroomRows } from "../base/ui"
 import { Bird } from "./Bird"
 import { kit } from "./kit"
 import styles from "./WorkroomLeaveDialog.module.css"
@@ -13,6 +13,8 @@ export function WorkroomLeaveDialog({ args, onClose }: DialogProps<{ workroom: s
   const row = useWorkroomRows().find(r => r.room.id === args.workroom)
   const rooms = useWorkroomActions()
   const occupant = row?.participant?.id
+  // 部屋を削除すると、ワークルーム自身のワーカーブックが完全に消える
+  const pages = useOwnBookPages(args.workroom)
   const gone = !row
   useEffect(() => {
     if (gone) onClose()
@@ -36,6 +38,7 @@ export function WorkroomLeaveDialog({ args, onClose }: DialogProps<{ workroom: s
           <p>{t("No AI can continue")}</p>
         </div>
       ) : null}
+      {pages > 0 ? <p className={styles.text}>{t("Pages to be removed: {n}", { n: pages })}</p> : null}
       <div className={styles.buttons}>
         <ActionButton onClick={onClose}>{t("Cancel")}</ActionButton>
         {occupant === undefined ? null : (
