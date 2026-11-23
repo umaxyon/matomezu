@@ -309,6 +309,7 @@ export {
 export { createBookIn } from "./book-new"
 export type { PageContext, SettingReader } from "./book-settings"
 export { pageContext, settingValue } from "./book-settings"
+export { MY_WORKDESK } from "./library"
 export { PAPER_IDS } from "./looks"
 // Markdown の原文を読む・描いた文書が使う物（ほかのプラグインが使う。追加プラグインには matomezu から出す）
 export {
@@ -345,6 +346,8 @@ export {
   adminWorkroom,
   isAdminActor,
   JOINED_MESSAGE,
+  type MyWorkdesk,
+  myWorkdeskIn,
   participantCategory,
   READS_ADMIN,
   READS_WORKROOM_KEYS,

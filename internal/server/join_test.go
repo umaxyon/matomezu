@@ -231,7 +231,8 @@ func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 		t.Fatalf("a notice without the participant's id = %q", h.Get(aiwire.NoticeHeader))
 	}
 	_, h := call(t, "GET", s.URL+"/api/ai/books", "", id)
-	if text, _ := url.QueryUnescape(h.Get(aiwire.NoticeHeader)); text != "You joined matomezu. Workroom name: ひよこ\n"+joinedAllowText {
+	if text, _ := url.QueryUnescape(h.Get(aiwire.NoticeHeader)); text != "You joined matomezu. Workroom name: ひよこ\n"+joinedAllowText+"\n"+
+		`Your worker book has no pages yet: add one with @matomezu/base:worker-page-add. It changes when your current work changes, so write down the ids of pages, not of the book. read_folder with folder "my-workdesk" shows it.` {
 		t.Fatalf("notice = %q", text)
 	}
 	hub.mu.Lock()
@@ -390,7 +391,7 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 		t.Fatalf("ready while preparing = %v", ready)
 	}
 	r := talk(`{"sessionId":"S9"}`)
-	if len(r.Welcomes) != 1 || r.Welcomes[0].Workroom != "ひよこ" || r.Welcomes[0].ForAI != "You joined matomezu. Workroom name: ひよこ\n"+joinedAllowText ||
+	if len(r.Welcomes) != 1 || r.Welcomes[0].Workroom != "ひよこ" || !strings.HasPrefix(r.Welcomes[0].ForAI, "You joined matomezu. Workroom name: ひよこ\n"+joinedAllowText+"\nYour worker book ") ||
 		!strings.Contains(r.Welcomes[0].Message, "ひよこ") {
 		t.Fatalf("welcome = %+v", r)
 	}

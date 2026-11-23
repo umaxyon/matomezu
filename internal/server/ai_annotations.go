@@ -300,11 +300,12 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"entry": entry, "folder": folder, "page": shown, "version": o.Hub.PageVersion(want), "annotations": onPage, "placed": placed})
 }
 
-// aiAwaiting は、AI の応えを待っているアノテーションの全部（{"awaiting": [{"entry", "title", "annotation", "brief"}]}。entry はステージエントリ（ブックか、ブックの外のページ・バインダ）、title はその名前。ブックを置いた順、続けてブックの外のステージエントリ。
+// aiAwaiting は、AI の応えを待っているアノテーションの全部（{"awaiting": [{"entry", "title", "annotation", "brief"}]}。entry はステージエントリ（ブックか、ブックの外のページ・バインダ）、title はその名前。ブックを置いた順、続けてブックの外のステージエントリ、
+// 続けて、?session= の会話のセッションに結んだ参加者のワーカーブック（フックが聞く。参加者が呼んだことにはしない）。
 // brief は種類の aiBrief が答える、見分けに要る 1 行で、種類が答えなければ無い。UserPromptSubmit のフックはこれを短い行にして貼る）と、
 // 見られる前に利用者が戻した AI の変更の全部（"undone"。ai_edit_tickets.go の TellUndone）と、失敗にした AI 編集チケットの全部（"failed"。TellFailed）と、
 // 郵便が消えたと記した AI 編集チケットの全部（"removed"。TellRemoved）
-func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
+func (o Options) aiAwaiting(w http.ResponseWriter, r *http.Request) {
 	all, err := o.Hub.AIAnnotations(nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -335,6 +336,10 @@ func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 	for _, b := range o.Hub.AIBooks() {
 		title, _, _ := rowHead(b.Body)
 		add(stageEntry{Kind: storage.KindBook, ID: b.ID}, title)
+	}
+	// 聞いた会話のセッション（session。フックが渡す）の AI のワーカーブック（バックヤードの中なので AIBooks に無い）も
+	if id, title := o.Hub.MyWorkerBook(o.Hub.joinedOfSession(r.URL.Query().Get("session"))); id != "" {
+		add(stageEntry{Kind: storage.KindBook, ID: id}, title)
 	}
 	entries, titles := o.Hub.StageEntriesNotInBooks()
 	for i, e := range entries {
@@ -401,4 +406,28 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 		done.ForAI = wokenText
 	}
 	writeJSON(w, done)
+}
+
+// joinedOfSession は、会話のセッション session に結んだ、参加が確定した参加者の id（無いか、2 人以上なら空）。呼んだことにはしない
+func (h *Hub) joinedOfSession(session string) string {
+	if session == "" {
+		return ""
+	}
+	records, err := h.records()
+	if err != nil {
+		return ""
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	found := ""
+	for _, s := range records {
+		if n := h.participantNotes[s.ID]; n.SessionID != session || !s.accepted() || !n.ready() {
+			continue
+		}
+		if found != "" {
+			return ""
+		}
+		found = s.ID
+	}
+	return found
 }

@@ -78,11 +78,11 @@ func TestSystemFoldersAreAddedAtStartAndWhenPluginsChange(t *testing.T) {
 	if b := hub.Book("b9"); b == nil || !strings.Contains(string(b.Body), `"title":"Documents 2"`) {
 		t.Fatalf("the book with the same title = %+v", b)
 	}
-	got := hub.AIFolder("")
+	got := hub.AIFolder("", "")
 	if got == nil || got.Lineup[0].Title != "Documents" || got.Lineup[0].SystemFolder != "@matomezu/base:documents" {
 		t.Fatalf("read_folder = %+v", got)
 	}
-	if inner := hub.AIFolder(docs[0]); inner == nil || inner.Title != "Documents" || inner.SystemFolder != "@matomezu/base:documents" {
+	if inner := hub.AIFolder(docs[0], ""); inner == nil || inner.Title != "Documents" || inner.SystemFolder != "@matomezu/base:documents" {
 		t.Fatalf("read_folder of the documents = %+v", inner)
 	}
 	// 起動し直しても足さない
@@ -100,8 +100,8 @@ func TestSystemFoldersAreAddedAtStartAndWhenPluginsChange(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := documentsOf(t, again)
-	if len(now) != baseSystemFolders+1 || !slices.Equal(now[:baseSystemFolders], docs) || again.AIFolder("").Lineup[baseSystemFolders].Title != "Extra" {
-		t.Fatalf("after linking a plugin = %v %+v", now, again.AIFolder("").Lineup)
+	if len(now) != baseSystemFolders+1 || !slices.Equal(now[:baseSystemFolders], docs) || again.AIFolder("", "").Lineup[baseSystemFolders].Title != "Extra" {
+		t.Fatalf("after linking a plugin = %v %+v", now, again.AIFolder("", "").Lineup)
 	}
 	// 利用者の設定で無効にした間は、その行をゴミ箱に入れられる。有効に戻すと、ゴミ箱の外に無いので新しい行を足す（設定のアクションのあと、h.mu を放してから行う）
 	set := func(enabled string) {
@@ -124,8 +124,8 @@ func TestSystemFoldersAreAddedAtStartAndWhenPluginsChange(t *testing.T) {
 	if err := again.UnlinkPlugin("a"); err != nil {
 		t.Fatal(err)
 	}
-	if left := documentsOf(t, again); !slices.Equal(left, now) || again.AIFolder("").Lineup[baseSystemFolders].Title != "" {
-		t.Fatalf("after unlinking = %v %+v", left, again.AIFolder("").Lineup)
+	if left := documentsOf(t, again); !slices.Equal(left, now) || again.AIFolder("", "").Lineup[baseSystemFolders].Title != "" {
+		t.Fatalf("after unlinking = %v %+v", left, again.AIFolder("", "").Lineup)
 	}
 }
 

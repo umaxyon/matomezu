@@ -141,7 +141,7 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 				h.participantNotes[id] = n
 				return strings.Join(notices, "\n")
 			}
-			notices = append([]string{s.joinedText(rooms)}, notices...)
+			notices = append([]string{h.joinedTextHeld(s, rooms)}, notices...)
 		}
 		h.participantNotes[id] = n
 		return strings.Join(notices, "\n")

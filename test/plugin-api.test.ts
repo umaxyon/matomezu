@@ -37,6 +37,7 @@ test("matomezu が出す名前", () => {
     "LEN",
     "MARKDOWN_DOCUMENT_TOKENS",
     "MARKDOWN_PANE_MODES",
+    "MY_WORKDESK",
     "NEST_PADDING",
     "NO_BOOK",
     "NO_PAGE",
@@ -624,6 +625,14 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
 test("base の入口が出す名前は、どれもプラグイン API からも出る（ビルトインと追加プラグインが同じ名前を使えるように。base のプラグインそのものは除く）", () => {
   const shown = new Set([...names(api), ...names(ui)])
   // base のプラグインそのものと、ホストのエンジンだけが読む名前（プラグイン API には出さない）
-  const own = ["BASE", "BASE_UI", "JOINED_MESSAGE", "VISITOR_JOINED_MESSAGE", "workTitleIn"]
+  const own = [
+    "BASE",
+    "BASE_UI",
+    "JOINED_MESSAGE",
+    "VISITOR_JOINED_MESSAGE",
+    "workTitleIn",
+    "myWorkdeskIn",
+    "MyWorkdesk",
+  ]
   expect([...names(plugin), ...names(pluginUi)].filter(n => !own.includes(n) && !shown.has(n))).toEqual([])
 })
