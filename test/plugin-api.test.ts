@@ -55,6 +55,7 @@ test("matomezu が出す名前", () => {
     "NO_CONTEXT_MENU",
     "NO_CONTROL_CENTER",
     "NO_DIALOG",
+    "NO_EXTENT",
     "NO_FRAME",
     "NO_GROW",
     "NO_ITEM",

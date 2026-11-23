@@ -393,6 +393,7 @@ export {
   minSize,
   NEST_PADDING,
   NO_AI_PLACED,
+  NO_EXTENT,
   NO_FRAME,
   NO_GROW,
   NO_SPOT,

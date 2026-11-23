@@ -16,6 +16,7 @@ import {
   extentOf,
   growOf,
   hasOpenedPage,
+  NO_EXTENT,
   NO_GROW,
   pageContext,
   paperSize,
@@ -110,7 +111,7 @@ export function alignedRects(
         items: placedAt(catalog, page, real).filter(i => members.has(i.id) || connectors.some(c => c.id === i.id)),
       })
       const ext = extentOf(catalog, alone, setting)
-      return { placed, ext: turn(ext ?? { x: 0, y: 0, w: 0, h: 0 }, dir) }
+      return { placed, ext: turn(ext === NO_EXTENT ? { x: 0, y: 0, w: 0, h: 0 } : ext, dir) }
     })
     if (!grows && laid.some(c => c.ext.w > width)) continue
     // 段に分ける（隣に置くと紙の幅を超えるなら折り返す）

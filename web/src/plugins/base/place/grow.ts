@@ -167,7 +167,8 @@ export function pageArea(
   const paper = paperSize(catalog, page)
   const grow = growOf(catalog, page)
   if (grow === NO_GROW) return { columns: 1, rows: 1, size: paper }
-  return grownArea(paper, grow, extentOf(catalog, page, settingsAt(catalog, page)), spare)
+  const extent = extentOf(catalog, page, settingsAt(catalog, page))
+  return grownArea(paper, grow, extent === NO_EXTENT ? null : extent, spare)
 }
 
 // ページの形を置ける広さ（ページの Frame の大きさ）: 可変ページでなければ紙 1 枚。可変ページは、形の外枠が入るだけ並べた印刷区画に、
@@ -188,9 +189,12 @@ export function roomOf(catalog: CoreCatalog, page: ItemPage): Size {
   return grownArea(paper, grow, extent, true).size
 }
 
-// ページの形とつなぐものを、今の位置で描いたときの外枠（つなぐものは定義の bounds で測る）。何も描かなければ null。
+// ページに何も描かない（外枠が無い）
+export const NO_EXTENT = "none"
+
+// ページの形とつなぐものを、今の位置で描いたときの外枠（つなぐものは定義の bounds で測る）。何も描かなければ NO_EXTENT。
 // setting はそのページで効いている設定の値
-export function extentOf(catalog: CoreCatalog, page: ItemPage, setting: SettingReader): Rect | null {
+export function extentOf(catalog: CoreCatalog, page: ItemPage, setting: SettingReader): Rect | typeof NO_EXTENT {
   const rects = rectsOf(catalog, page)
   const boxes: Rect[] = [...rects.values()]
   const areas = portAreasOf(catalog, page, rects)
@@ -198,7 +202,7 @@ export function extentOf(catalog: CoreCatalog, page: ItemPage, setting: SettingR
     const b = def.bounds?.(list as ConnectorData[], areas, setting)
     if (b) boxes.push(b)
   }
-  if (boxes.length === 0) return null
+  if (boxes.length === 0) return NO_EXTENT
   const x = Math.min(...boxes.map(b => b.x))
   const y = Math.min(...boxes.map(b => b.y))
   return { x, y, w: Math.max(...boxes.map(b => b.x + b.w)) - x, h: Math.max(...boxes.map(b => b.y + b.h)) - y }

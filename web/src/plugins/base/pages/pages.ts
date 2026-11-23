@@ -9,7 +9,7 @@ import type { ItemPage } from "../../../core/placed"
 import type { Page, StageLineup } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
 import { kit } from "../kit"
-import { extentOf, growOf, NO_GROW, paddedFor, pageArea } from "../place/grow"
+import { extentOf, growOf, NO_EXTENT, NO_GROW, paddedFor, pageArea } from "../place/grow"
 
 // タイプ type のページの、紙の規定
 const paperRule = (catalog: CoreCatalog, type: string): PaperRule => pageType(catalog, type).paper
@@ -126,5 +126,8 @@ export const nextPageTitle = (
 export function shapesFit(catalog: CoreCatalog, page: ItemPage): boolean {
   const area = pageArea(catalog, page).size
   const extent = extentOf(catalog, page, settingsAt(catalog, page))
-  return !extent || (extent.x >= 0 && extent.y >= 0 && extent.x + extent.w <= area.w && extent.y + extent.h <= area.h)
+  return (
+    extent === NO_EXTENT ||
+    (extent.x >= 0 && extent.y >= 0 && extent.x + extent.w <= area.w && extent.y + extent.h <= area.h)
+  )
 }

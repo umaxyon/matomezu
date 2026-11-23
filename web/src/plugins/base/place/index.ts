@@ -24,6 +24,7 @@ export {
   growKindOf,
   grownArea,
   growOf,
+  NO_EXTENT,
   NO_GROW,
   paperSize,
   roomOf,
