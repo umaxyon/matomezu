@@ -454,3 +454,33 @@ test("entry-duplicate・page-create は、ページのタイプが page-duplicat
     reason: "refused",
   })
 })
+
+test("ページ一覧の複製のコマンドは、ロックしたページでも押せる。タイプが page-duplicate を外したページと、ロックしたブックのページでは押せない", async () => {
+  const store = createMatomezuInstance({
+    plugins: [...BUILTIN, NOTES],
+    controlCenter: BUILTIN_CONTROL_CENTER,
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+  })
+  const stage = store.actions.showBookStage("b1")
+  const duplicate = (page: string) => store.actions.command(stage, "@matomezu/base:page-duplicate", { page })
+  const count = () => store.state.getState().books.b1?.lineup.length
+  const made = store.actions.perform(PAGE_CREATE.id, { folder: "b1", type: "notes:kept", title: "残す" } as never)
+  await Promise.resolve()
+  const kept = made.ok ? made.result.page : ""
+  expect(kept).not.toBe("")
+  const before = count()
+  expect(duplicate(kept)).toBe(false)
+  expect(count()).toBe(before)
+
+  expect(store.actions.perform("@matomezu/base:page-lock", {}, { page: "p1" }).ok).toBe(true)
+  await Promise.resolve()
+  expect(duplicate("p1")).toBe(true)
+  await Promise.resolve()
+  expect(count()).toBe((before ?? 0) + 1)
+
+  expect(store.actions.perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)
+  await Promise.resolve()
+  expect(duplicate("p1")).toBe(false)
+  expect(count()).toBe((before ?? 0) + 1)
+})

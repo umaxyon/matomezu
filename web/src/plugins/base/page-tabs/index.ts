@@ -196,8 +196,8 @@ export const PAGE_DUPLICATE_COMMAND = kit.defineCommand({
     if (done.ok) a.openPage(done.result.page)
     else a.showToast({ kind: "warn", message: duplicateRefusal(ctx.catalog, done) })
   },
-  // 画面では、ロックしたページの複製を押せなくする（アクションは、エントリとして複製する）
-  permissionScope: { page: "page" },
+  // エントリとして複製する（ロックしたページも押せる。書庫の行の複製と同じ）
+  permissionScope: { entry: "page" },
   when: ctx => lineupIn(ctx) !== NO_LINEUP,
 })
 

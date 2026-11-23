@@ -145,13 +145,17 @@ test("ブックの外のバインダを開いたステージで、ページ一�
   expect(lineup()).toEqual(["s1", "s2", added])
 })
 
-test("ブックの外のバインダの中のロックしたページは、複製と削除を押せない。最後の 1 枚には削除を出さない", async () => {
+test("ブックの外のバインダの中のロックしたページは、削除を押せない（複製は押せる）。最後の 1 枚には削除を出さない", async () => {
   const store = withBinder()
   const stage = store.actions.showOutsideBinderStage("n1", "s1")
   expect(store.actions.perform("@matomezu/base:page-lock", {}, { page: "s1" }).ok).toBe(true)
   await Promise.resolve()
-  expect(store.actions.command(stage, "@matomezu/base:page-duplicate", { page: "s1" })).toBe(false)
   expect(store.actions.command(stage, "@matomezu/base:page-delete", { page: "s1" })).toBe(false)
+  expect(store.actions.command(stage, "@matomezu/base:page-duplicate", { page: "s1" })).toBe(true)
+  await Promise.resolve()
+  const copy = store.state.getState().folders.n1?.lineup[1]?.id as string
+  expect(store.actions.perform("@matomezu/base:page-remove", { page: copy }, { book: "n1" }).ok).toBe(true)
+  await Promise.resolve()
   expect(store.actions.perform("@matomezu/base:page-remove", { page: "s2" }, { book: "n1" }).ok).toBe(true)
   await Promise.resolve()
   expect(store.actions.perform("@matomezu/base:page-unlock", {}, { page: "s1" }).ok).toBe(true)
