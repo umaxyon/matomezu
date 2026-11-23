@@ -3,7 +3,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
-import { ColorPicker } from "../../../web/src/plugins/base/dialog-host/ColorPicker"
+import { ColorPicker, NO_COLOR } from "../../../web/src/plugins/base/dialog-host/ColorPicker"
 import { Tip } from "../../../web/src/plugins/base/utils/Tip"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
@@ -47,16 +47,16 @@ test("Tip は吹き出しを出す側を data-side に持つ（既定は下）",
   ])
 })
 
-test("ColorPicker は none を渡したときだけ「なし」を出し、押すと undefined を渡す", () => {
-  const picked: (string | undefined)[] = []
+test("ColorPicker は none を渡したときだけ「なし」を出し、押すと NO_COLOR を渡す", () => {
+  const picked: (string | typeof NO_COLOR)[] = []
   inContext(<ColorPicker label="色" value="primary" palette={palette} none="#cccccc" onChange={v => picked.push(v)} />)
   fireEvent.click(screen.getByRole("button", { name: "色" }))
   fireEvent.click(screen.getByRole("button", { name: "None" }))
-  expect(picked).toEqual([undefined])
+  expect(picked).toEqual([NO_COLOR])
 })
 
 test("ColorPicker は none を渡さなければ「なし」を出さず、値が無いときのボタンは見本の最初の色になる", () => {
-  inContext(<ColorPicker label="色" value={undefined} palette={palette} onChange={() => {}} />)
+  inContext(<ColorPicker label="色" value={NO_COLOR} palette={palette} onChange={() => {}} />)
   const button = screen.getByRole("button", { name: "色" })
   expect(button.style.getPropertyValue("--color")).toBe("#3b82f6")
   expect(button.dataset.none).toBe("false") // 「なし」を選べないので、テーマに任せている印（点線の縁）は付けない
@@ -66,7 +66,7 @@ test("ColorPicker は none を渡さなければ「なし」を出さず、値�
 })
 
 test("ColorPicker は swatchesOnly なら見本だけを出し（四角・スライダー・値のテキストFormは無い）、見本の色に CSS の変数を使える", () => {
-  const picked: (string | undefined)[] = []
+  const picked: (string | typeof NO_COLOR)[] = []
   const vars = [
     { name: "primary", hex: "var(--skin-palette-primary)", label: "Primary" },
     { name: "danger", hex: "var(--skin-palette-danger)", label: "Danger" },

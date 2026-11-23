@@ -1,17 +1,15 @@
 // 書庫の画面の検索の結果（右の枠）: 名前に言葉を含む物の一覧（種類のアイコン・名前・置き場所）と、その後に見出し「作業履歴」で分けたワーカーブックの物。
-// 書庫の物の行を押すと、その行を選び、ツリーのその行へ移る。2 回押す・Enter で開く。
-// 作業履歴の行はツリーへ移らず、クリックで選んで「開く／分割で開く」、ダブルクリック・Enter で全画面で開く。右クリックのメニューは出さない。
+// 書庫の物の行を押すと、その行を選び、ツリーのその行へ移る。2 回押す・Enter で開く（ツリーで今いる行を開く）。
+// 作業履歴の行はツリーへ移らず、クリックで選んで「開く／分割で開く」、ダブルクリック・Enter で全画面で開く。Enter・Mod+Enter が開くのは、焦点のある
+// 作業履歴の行の開く物（LIBRARY_FOUND_PICKED。書庫の物の行に焦点が移ると外す）。右クリックのメニューは出さない。
 // 選んでいる行は結果の枠だけの物で、ツリーで移っても変わらない。結果の枠の何も無い所を押すと外れる。言葉を変えると、置く側が作り直して外す
-import { type MouseEvent, useEffect, useRef } from "react"
-import { namingOf } from "../../../core/entries"
+import { type MouseEvent, useEffect, useState } from "react"
 import { readerOf, sourceOf } from "../../../core/record-source"
-import { sameData } from "../../../core/same"
 import { useMessages } from "../../../ui/i18n"
-import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
-import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useResetPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
+import { useCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { workNameReadsOf, workTitleOf } from "../participant/activity"
-import { type WorkHistoryRow, workHistoryFoundOf } from "../participant/work-history-search"
 import { LIBRARY_FOUND_SCOPE } from "./commands"
 import { outsideRow, useLibraryRows, useNameOf } from "./hooks"
 import { RowIcon } from "./icons"
@@ -20,6 +18,7 @@ import { type LibraryRow, tabStopOf } from "./outline"
 import { RowPressOf } from "./RowPress"
 import { type FoundRow, foundRowsOf, searchWord } from "./search"
 import { LIBRARY_FOUND_PICKED } from "./state"
+import { type WorkHistoryRow, workHistoryFoundOf } from "./work-history-search"
 
 export function FoundView({
   query,
@@ -36,13 +35,23 @@ export function FoundView({
 }) {
   const t = useMessages(kit)
   const nameOf = useNameOf()
-  const picked = usePluginState(kit, LIBRARY_FOUND_PICKED)
-  const setPicked = useSetPluginState(kit, LIBRARY_FOUND_PICKED)
+  const catalog = useCatalog().core
+  const [picked, setPicked] = useState<string>()
+  const setOpens = useSetPluginState(kit, LIBRARY_FOUND_PICKED)
+  const resetOpens = useResetPluginState(kit, LIBRARY_FOUND_PICKED)
   // 言葉を変えた（作り直した）・検索をやめたら外す
   // biome-ignore lint/correctness/useExhaustiveDependencies: 外すのは作り直したときと閉じたときだけ
-  useEffect(() => () => setPicked(undefined), [])
+  useEffect(() => () => resetOpens(), [])
   const rows = useLibraryRows(`found:${query}`, (s, naming) => foundRowsOf(s, query, naming))
-  const workRows = useWorkHistoryFound(query)
+  const workRows = useLibraryRows(`history:${query}`, (s, naming) =>
+    workHistoryFoundOf(
+      catalog,
+      readerOf(catalog, sourceOf(s.records), workNameReadsOf(catalog)),
+      s,
+      searchWord(query),
+      naming,
+    ),
+  )
   const count = rows.length + workRows.length
   // Tab で止まる行（ツリーで今いる行。一覧に無ければ最初の行）
   const tabbable = tabStopOf([...rows.map(r => r.id), ...workRows.map(h => h.row.id)], current)
@@ -52,7 +61,9 @@ export function FoundView({
     <div
       className={styles.found}
       onClick={e => {
-        if (outsideRow(e.target)) setPicked(undefined)
+        if (!outsideRow(e.target)) return
+        setPicked(undefined)
+        resetOpens()
       }}
     >
       <p className={styles.foundHead} role="status">
@@ -71,6 +82,7 @@ export function FoundView({
                 data-key-scope={LIBRARY_FOUND_SCOPE}
                 tabIndex={row.id === tabbable ? 0 : -1}
                 aria-pressed={row.id === picked}
+                onFocus={() => resetOpens()}
                 onClick={() => {
                   setPicked(row.id)
                   onPick(row)
@@ -101,7 +113,11 @@ export function FoundView({
                 found={found}
                 tabbable={found.row.id === tabbable}
                 picked={found.row.id === picked}
-                onPick={() => setPicked(found.row.id)}
+                onPick={() => {
+                  setPicked(found.row.id)
+                  setOpens(found.opens.id)
+                }}
+                onFocus={() => setOpens(found.opens.id)}
                 onOpen={onOpen}
               />
             ))}
@@ -113,26 +129,27 @@ export function FoundView({
 }
 
 // 作業履歴の行 1 つ: ブックの行は 作業のレコードの短く呼ぶ名前（チケットの番号）と名前、中の物の行は その名前と、作業のレコードの題名。
-// 開くのは、ページの行はそのページ、バインダの行は中の最初のページ（found.opens）
+// 押したとき・ダブルクリックで開くのは found.opens
 function WorkHistoryEntry({
   found,
   tabbable,
   picked,
   onPick,
+  onFocus,
   onOpen,
 }: {
   found: WorkHistoryRow
   tabbable: boolean
   picked: boolean
   onPick(): void
+  onFocus(): void
   onOpen(row: Pick<LibraryRow, "id">): void
 }) {
   const nameOf = useNameOf()
   const { row, work, opens } = found
-  const target: LibraryRow = opens === undefined ? row : { ...row, kind: "page", id: opens }
   const isBook = row.kind === "book"
   return (
-    <RowPressOf row={target} click={onPick} open={() => onOpen(target)}>
+    <RowPressOf row={opens} click={onPick} open={() => onOpen(opens)}>
       {press => (
         <li>
           {press.bubble}
@@ -143,7 +160,7 @@ function WorkHistoryEntry({
             data-key-scope={LIBRARY_FOUND_SCOPE}
             tabIndex={tabbable ? 0 : -1}
             aria-pressed={picked}
-            onFocus={onPick}
+            onFocus={onFocus}
             onClick={press.onClick}
             onDoubleClick={press.onDoubleClick}
             onContextMenu={e => e.preventDefault()}
@@ -156,22 +173,4 @@ function WorkHistoryEntry({
       )}
     </RowPressOf>
   )
-}
-
-const NO_HISTORY: readonly WorkHistoryRow[] = []
-
-// 言葉 query で探した作業履歴の行（書庫の表・レコード・設定が変わっても、中身が同じなら同じ値のまま）
-function useWorkHistoryFound(query: string): readonly WorkHistoryRow[] {
-  const catalog = useCatalog().core
-  const kept = useRef<{ from: readonly unknown[]; rows: readonly WorkHistoryRow[] } | null>(null)
-  return useMatomezuState(s => {
-    const from = [s.folders, s.pages, s.records, s.settings]
-    const was = kept.current
-    if (was && from.every((v, i) => v === was.from[i])) return was.rows
-    const read = readerOf(catalog, sourceOf(s.records), workNameReadsOf(catalog))
-    const next = workHistoryFoundOf(catalog, read, s, searchWord(query), namingOf(catalog, s.settings))
-    const rows = was && sameData(was.rows, next) ? was.rows : next.length === 0 ? NO_HISTORY : next
-    kept.current = { from, rows }
-    return rows
-  })
 }

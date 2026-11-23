@@ -1,6 +1,6 @@
 // ブックを id ごとに持つ値（書庫から組んだブック）
 
-import { findPage } from "./book"
+import { findPage, foundPage } from "./book"
 import type { Library } from "./folders"
 import { libraryOf } from "./folders-books"
 import { inTrash, NO_OUTERMOST, outermostOf, outsideBinderIn, outsidePageIn, type StageEntry } from "./folders-tree"
@@ -22,7 +22,7 @@ export function openablePage(from: LibraryAndBooks, id: string): { outermost: St
   const book = outermost.kind === "book" ? from.books[outermost.id] : undefined
   const page =
     outermost.kind === "book"
-      ? book && findPage(book, id)?.page
+      ? book && foundPage(findPage(book, id))
       : outermost.kind === "page"
         ? outsidePageIn(from, id)
         : outsideBinderIn(from, outermost.id)?.lineup.find(p => p.id === id)

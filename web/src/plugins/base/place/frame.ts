@@ -3,17 +3,24 @@
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { ShapeData } from "../../../core/def/item"
 import type { Point, Rect, Size } from "../../../core/geom"
-import { findShape, type ItemPage, type PlacedShape } from "../../../core/placed"
+import {
+  findShape,
+  type ItemPage,
+  NO_ITEM,
+  PAGE_ITSELF,
+  type PlacedShape,
+  type ShapeParent,
+} from "../../../core/placed"
 import { roomOf } from "./grow"
-import { gapOf, replaceShapePushing } from "./items"
-import { NEST_PADDING, placedSize, rectsOf, shapeDefOf } from "./placed"
+import { CANNOT_PLACE, gapOf, replaceShapePushing } from "./items"
+import { NEST_PADDING, NO_SHAPE_DEF, NO_SIZE, placedSize, rectsOf, shapeDefOf } from "./placed"
 import { GAP, inPaper, newClash, planPlace, pushFrom, tooClose } from "./push"
 
 // 子の領域の大きさ（右と下へ限りが無い）
 export const CHILD_AREA: Size = { w: Number.POSITIVE_INFINITY, h: Number.POSITIVE_INFINITY }
 
 export interface Frame {
-  parent: string | null // 子の領域の持ち主の形の id（ページなら null）
+  parent: ShapeParent // 子の領域の持ち主の形の id（ページなら PAGE_ITSELF）
   origin: Point // Frame の左上（データの位置 = Frame の中の位置 + origin。ページは紙の左上）
   paper: Size // Frame の大きさ
   rects: Map<string, Rect> // Frame の中の形の四角（Frame の左上から。大きさの分からない形は入れない）
@@ -21,7 +28,8 @@ export interface Frame {
 
 // 子の形を持つ形の、子の領域の左上（形の左上から）
 export function childOrigin(catalog: CoreCatalog, shape: PlacedShape): Point {
-  return shapeDefOf(catalog, shape.item)?.childOrigin?.(shape as ShapeData) ?? { x: NEST_PADDING, y: NEST_PADDING }
+  const def = shapeDefOf(catalog, shape.item)
+  return (def !== NO_SHAPE_DEF && def.childOrigin?.(shape as ShapeData)) || { x: NEST_PADDING, y: NEST_PADDING }
 }
 
 // 親の子の四角（子の領域の左上から）
@@ -29,27 +37,31 @@ function childRects(catalog: CoreCatalog, parent: PlacedShape, origin: Point): M
   const rects = new Map<string, Rect>()
   for (const c of (parent.shapes ?? []) as PlacedShape[]) {
     const size = placedSize(catalog, c)
-    if (size) rects.set(c.id, { x: c.x - origin.x, y: c.y - origin.y, ...size })
+    if (size !== NO_SIZE) rects.set(c.id, { x: c.x - origin.x, y: c.y - origin.y, ...size })
   }
   return rects
 }
 
-// ページ page の、形 parent の子の領域の Frame（null ならページの紙。可変ページは、空きの印刷区画を含めた広さ。roomOf）。無い形なら null
-export function frameOf(catalog: CoreCatalog, page: ItemPage, parent: string | null): Frame | null {
-  if (parent === null) {
+// Frame が無い（無い形）
+export const NO_FRAME = "none"
+
+// ページ page の、親 parent の子の領域の Frame（PAGE_ITSELF ならページの紙。可変ページは、空きの印刷区画を含めた広さ。roomOf）。無い形なら NO_FRAME
+export function frameOf(catalog: CoreCatalog, page: ItemPage, parent: ShapeParent): Frame | typeof NO_FRAME {
+  if (parent === PAGE_ITSELF) {
     const paper = roomOf(catalog, page)
     return { parent, origin: { x: 0, y: 0 }, paper, rects: rectsOf(catalog, page) }
   }
-  const shape = findShape(page, parent)?.shape
-  if (!shape) return null
+  const found = findShape(page, parent)
+  if (found === NO_ITEM) return NO_FRAME
+  const shape = found.shape
   const origin = childOrigin(catalog, shape)
   return { parent, origin, paper: CHILD_AREA, rects: childRects(catalog, shape, origin) }
 }
 
-// ページ page で、形 id が並ぶ Frame（ページの形なら紙、子の形なら親の子の領域）。無い形なら null
-export function frameAround(catalog: CoreCatalog, page: ItemPage, id: string): Frame | null {
+// ページ page で、形 id が並ぶ Frame（ページの形なら紙、子の形なら親の子の領域）。無い形なら NO_FRAME
+export function frameAround(catalog: CoreCatalog, page: ItemPage, id: string): Frame | typeof NO_FRAME {
   const found = findShape(page, id)
-  return found ? frameOf(catalog, page, found.parent) : null
+  return found !== NO_ITEM ? frameOf(catalog, page, found.parent) : NO_FRAME
 }
 
 // Frame の中の四角を、データの位置にしたもの（Frame の左上を足す）
@@ -57,14 +69,14 @@ export const toData = (frame: Frame, rects: ReadonlyMap<string, Rect>): Map<stri
   new Map([...rects].map(([id, r]) => [id, { ...r, x: r.x + frame.origin.x, y: r.y + frame.origin.y }]))
 
 // 子の領域の Frame の四角 after を、親の子の位置にしたページ。put の形は、同じ id の子と置き換えるか、末尾に足す（位置は after から）。
-// 親は子に合わせて育ち、一番上の祖先でページの形を押す（replaceShapePushing）。無い親・紙に収まらないなら null
+// 親は子に合わせて育ち、一番上の祖先でページの形を押す（replaceShapePushing）。無い親・紙に収まらないなら CANNOT_PLACE
 export function commitChildren(
   catalog: CoreCatalog,
   page: ItemPage,
   frame: Frame & { parent: string },
   after: ReadonlyMap<string, Rect>,
   put: readonly PlacedShape[] = [],
-): ItemPage | null {
+): ItemPage | typeof CANNOT_PLACE {
   const at = (s: PlacedShape): PlacedShape => {
     const r = after.get(s.id)
     return r ? { ...s, x: r.x + frame.origin.x, y: r.y + frame.origin.y } : s
@@ -89,39 +101,47 @@ export function settleChildren(catalog: CoreCatalog, shape: PlacedShape): Placed
 }
 
 // 形 shape を、形 parent の子の領域に置いたページ（at は親の左上から。子の領域より左や上なら、子の領域の左上へ寄せる）。
-// 重なった子は右へ、駄目なら下へ押す（紙に置くときと同じ。縮めない）。無い親・紙に収まらないなら null
+// 重なった子は右へ、駄目なら下へ押す（紙に置くときと同じ。縮めない）。無い親・紙に収まらないなら CANNOT_PLACE
 export function placeChild(
   catalog: CoreCatalog,
   page: ItemPage,
   parent: string,
   shape: PlacedShape,
   at: Point,
-): ItemPage | null {
+): ItemPage | typeof CANNOT_PLACE {
   const frame = frameOf(catalog, page, parent)
   const size = placedSize(catalog, shape)
-  if (!frame || !size) return null
+  if (frame === NO_FRAME || size === NO_SIZE) return CANNOT_PLACE
   const rect = { x: Math.max(0, at.x - frame.origin.x), y: Math.max(0, at.y - frame.origin.y), ...size }
   const after = planPlace(frame.rects, shape.id, rect, frame.paper, undefined, gapOf(catalog, page))
-  return after && commitChildren(catalog, page, { ...frame, parent }, after, [shape])
+  if (!after) return CANNOT_PLACE
+  return commitChildren(catalog, page, { ...frame, parent }, after, [shape])
 }
 
-// 子の形を next に置き換え、近づきすぎた兄弟を親の中で押してどけたページ（縮めない）。子の領域より左や上・押せない・紙に収まらないなら null
-export function replaceChild(catalog: CoreCatalog, page: ItemPage, next: PlacedShape): ItemPage | null {
+// 子の形を next に置き換え、近づきすぎた兄弟を親の中で押してどけたページ（縮めない）。子の領域より左や上・押せない・紙に収まらないなら CANNOT_PLACE
+export function replaceChild(catalog: CoreCatalog, page: ItemPage, next: PlacedShape): ItemPage | typeof CANNOT_PLACE {
   const frame = frameAround(catalog, page, next.id)
   const size = placedSize(catalog, next)
-  if (!frame || frame.parent === null || !size) return null
+  if (frame === NO_FRAME || frame.parent === PAGE_ITSELF || size === NO_SIZE) return CANNOT_PLACE
   const rect = { x: next.x - frame.origin.x, y: next.y - frame.origin.y, ...size }
-  if (!inPaper(rect, frame.paper)) return null
+  if (!inPaper(rect, frame.paper)) return CANNOT_PLACE
   const gap = gapOf(catalog, page)
   const after = pushFrom(frame.rects, next.id, rect, frame.paper, undefined, gap)
-  if (!after || newClash(frame.rects, after, gap)) return null
+  if (!after || newClash(frame.rects, after, gap)) return CANNOT_PLACE
   return commitChildren(catalog, page, { ...frame, parent: frame.parent }, after, [next])
 }
 
+// Frame の中に置ける空きが無い
+export const NO_SPOT = "none"
+
 // Frame の中で、大きさ size の形を置ける空き（Frame の左上から）。格子で探す: 目の大きさは、兄弟と置く形の一番大きい幅・高さに間隔（GAP）を足したもの、
 // 列の数は兄弟と置く形の数の平方根（切り上げ。限りのある Frame は入る数まで）。子の領域の左上から左→右・上→下に目を当て、兄弟に近づきすぎず、
-// fits が通す最初の目（fits は呼ぶ側の確かめ。置いてもほかの形を動かさないかなど）。子の領域は右と下へ限りが無い（親が育つ）。入る目が無ければ null
-export function freeSpotIn(frame: Frame, size: Size, fits: (at: Point) => boolean = () => true): Point | null {
+// fits が通す最初の目（fits は呼ぶ側の確かめ。置いてもほかの形を動かさないかなど）。子の領域は右と下へ限りが無い（親が育つ）。入る目が無ければ NO_SPOT
+export function freeSpotIn(
+  frame: Frame,
+  size: Size,
+  fits: (at: Point) => boolean = () => true,
+): Point | typeof NO_SPOT {
   const sibs = [...frame.rects.values()]
   const cw = Math.max(size.w, ...sibs.map(r => r.w)) + GAP
   const ch = Math.max(size.h, ...sibs.map(r => r.h)) + GAP
@@ -133,10 +153,10 @@ export function freeSpotIn(frame: Frame, size: Size, fits: (at: Point) => boolea
     const at = { x: (i % cols) * cw, y: Math.floor(i / cols) * ch }
     const rect = { ...at, ...size }
     if (!inPaper(rect, frame.paper)) {
-      if (at.y + size.h > frame.paper.h) return null
+      if (at.y + size.h > frame.paper.h) return NO_SPOT
       continue
     }
     if (!sibs.some(r => tooClose(rect, r, GAP)) && fits(at)) return at
   }
-  return null
+  return NO_SPOT
 }

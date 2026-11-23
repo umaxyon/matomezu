@@ -9,16 +9,17 @@ import {
   annotationBriefs,
   annotationsForAi,
   checkAnnotations,
+  NO_ANCHORS,
   prune,
   unexpired,
   usableAnnotations,
 } from "../../web/src/core/annotation"
-import { findPage } from "../../web/src/core/book"
+import { NO_CONTROL_CENTER } from "../../web/src/core/def/action"
 import { tablesOf } from "../../web/src/core/folders-books"
 import { performIn } from "../../web/src/core/perform-world"
 import { warningText } from "../../web/src/core/warnings"
 import { drawingPage, FLOWCHART, testBook, testPage } from "../lineup"
-import { CORE_CATALOG } from "../support"
+import { CORE_CATALOG, pageOf } from "../support"
 
 const book = testBook("d", "D", [
   drawingPage("p", {
@@ -28,7 +29,7 @@ const book = testBook("d", "D", [
   }),
 ])
 
-const page = findPage(book, "p")!.page
+const page = pageOf(book, "p")
 
 const note = (id: string, props: unknown): Annotation => ({
   id,
@@ -63,7 +64,7 @@ test("効かないアノテーションがあっても、ほかのアノテー�
     { page: "p" },
     {
       catalog: CORE_CATALOG,
-      controlCenter: null,
+      controlCenter: NO_CONTROL_CENTER,
       lang: "en",
       newId: () => "n",
       now: "2026-11-01T00:00:00.000Z",
@@ -83,7 +84,7 @@ test("効くアノテーションは、決まりを守る物だけ（W018・W019
 
 test("並びを、結び付く物の id の並び（1 つ以上）にする", () => {
   expect(anchorsOf(["a", "b"])).toEqual(["a", "b"])
-  expect(anchorsOf([])).toBeNull()
+  expect(anchorsOf([])).toBe(NO_ANCHORS)
 })
 
 test("prune は無くなった物を結び付く物から外し、全部無くなった物を消す。変わらなければ同じ並び", () => {
@@ -166,8 +167,7 @@ test("タイプの混ざるブックでは、付いているページのタイ�
     testPage(FLOWCHART, "p2", { title: "流れ", items: [box("b")] }),
   ])
   const on = (id: string, anchors: Anchors): Annotation => ({ ...GOOD, id, anchors })
-  const codes = (at: string, a: Annotation) =>
-    checkAnnotations(catalog, findPage(mixed, at)!.page, [a]).map(w => w.code)
+  const codes = (at: string, a: Annotation) => checkAnnotations(catalog, pageOf(mixed, at), [a]).map(w => w.code)
   expect(codes("p1", on("n1", ["a"]))).toEqual([])
   expect(codes("p2", on("n2", ["b"]))).toEqual(["W019"])
   expect(codes("p1", on("n3", ["a", "b"]))).toEqual(["W019"])

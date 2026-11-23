@@ -15,7 +15,7 @@ export function SideTabs({
   children,
 }: {
   tabs: readonly SideTab[]
-  selected: string | undefined
+  selected: string
   onSelect: (id: string) => void
   children: ReactNode // 選んだタブの中身
 }) {

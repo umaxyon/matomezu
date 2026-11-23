@@ -4,6 +4,7 @@
 // 名前と説明は、base の本文の装飾（**太字**・{色:文字}）で書ける。同じフォルダに同じ名前があってもよい（id で見分ける）。
 // id は呼び出す側が書かず、アクションが振る（足すときに受ける形は NewNodeSchema）
 import { z } from "zod"
+import { NO_PAGE } from "../../../plugin-api"
 
 export const KINDS = ["folder", "file"] as const
 export type Kind = (typeof KINDS)[number]
@@ -69,9 +70,9 @@ export const DirFolderSchema: z.ZodType<DirFolder> = z.strictObject({
   },
 })
 
-// ページ page の根のフォルダ（無いか形が合わなければ undefined）
-export const dirRootOf = (page: object | null | undefined): DirFolder | undefined =>
-  DirFolderSchema.safeParse(page && "root" in page ? page.root : undefined).data
+// ページ page の根のフォルダ（ページが無い〈NO_PAGE〉か、根が無いか形が合わなければ undefined）
+export const dirRootOf = (page: object | typeof NO_PAGE | null | undefined): DirFolder | undefined =>
+  DirFolderSchema.safeParse(page !== NO_PAGE && page && "root" in page ? page.root : undefined).data
 
 // 足すときに受ける中身（id は書かない。閉じているかと中身はフォルダだけ）
 export type NewNode =

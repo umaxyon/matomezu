@@ -9,6 +9,11 @@
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import {
   type ItemId,
+  NO_PAGE,
+  NO_PAPER,
+  NO_PLACING,
+  NO_STAGE,
+  NOTHING_OPENED,
   openedPage,
   type Point,
   pageType,
@@ -104,9 +109,9 @@ type Drag =
 export function SlideLayer() {
   const stage = useStage()
   const catalog = useCoreCatalog()
-  const opened = openedPage(stage?.opened ?? null)
-  const slide = opened ? pageType(catalog, opened.type).slide : undefined
-  if (!stage || !opened || !slide) return null
+  const opened = openedPage(stage === NO_STAGE ? NOTHING_OPENED : stage.opened)
+  const slide = opened === NO_PAGE ? undefined : pageType(catalog, opened.type).slide
+  if (stage === NO_STAGE || opened === NO_PAGE || !slide) return null
   // slide がページの本体のタイプは、紙の何も無い所の押しも受ける（選びを外す）。背景のタイプは、背景編集モードの間だけ操作を受ける（ふだんは描くだけ）
   const body = !slideIsBackground(pageType(catalog, opened.type))
   return <SlidePageView stage={stage} operable={body || stage.edits === "slide"} placeable={slide.allowed} />
@@ -139,13 +144,13 @@ function SlidePageView({
   const [shift, setShift] = useState<{ ids: ReadonlySet<string>; by: Point } | null>(null) // 動かしている途中の、動かす物と動いた量
   const [dragFrame, setDragFrame] = useState<Rect | null>(null) // ドラッグ枠の途中の四角（紙の上）
   const typeNext = useRef(false) // 置いた文字枠で、そのまま文字を打つ
-  const shapes = page ? slideOf(page) : []
+  const shapes = page === NO_PAGE ? [] : slideOf(page)
   // 位置をデータに持たないプレゼンテーション（ツリー）が、可変ページで中身をずらした量。slide の形は、データの座標のまま、この分ずらして描く
-  const offset = page ? slideOffsetOf(catalog, page) : { x: 0, y: 0 }
+  const offset = page === NO_PAGE ? { x: 0, y: 0 } : slideOffsetOf(catalog, page)
   const chosen = shapes.filter(s => stage.selection.includes(s.id)) // 選んでいるアイテム（重ねの順）
   const selected = chosen.length === 1 && stage.selection.length === 1 ? chosen[0] : undefined
   const placing =
-    operable && stage.placing !== null && placeable.includes(stage.placing.item) ? stage.placing.item : null
+    operable && stage.placing !== NO_PLACING && placeable.includes(stage.placing.item) ? stage.placing.item : null
   const editing = stage.editing === TEXT_EDIT || stage.editing === ADDED_EDIT ? (selected?.id ?? null) : null // 文字を書き換えているアイテム（選んでいる 1 つ）
   const minOf = (item: string): number => minSizeOf(catalog, item)
 
@@ -162,7 +167,7 @@ function SlidePageView({
     if (!el) return null
     const r = el.getBoundingClientRect()
     const at = toPaperAt({ x: e.clientX - r.left, y: e.clientY - r.top })
-    return at && { x: at.x - offset.x, y: at.y - offset.y }
+    return at === NO_PAPER ? null : { x: at.x - offset.x, y: at.y - offset.y }
   }
   const finish = () => {
     drag.current = null
@@ -401,7 +406,8 @@ function SlidePageView({
                 edit={{
                   editing: editing === shape.id,
                   onCommit: (text, grown) => {
-                    if (stage.editing === ADDED_EDIT && stage.opened) continueStep(stage.opened.outermost.id)
+                    if (stage.editing === ADDED_EDIT && stage.opened !== NOTHING_OPENED)
+                      continueStep(stage.opened.outermost.id)
                     setEditing("none")
                     // 何も書かずに終えた文字枠は、何も言わずに消す（置いた直後なら、置いたことごと無かったことになる）
                     if (text === "") {

@@ -1,7 +1,15 @@
 import { describe, expect, test } from "bun:test"
 import { HOME_ID } from "../../web/src/core/folders"
 import type { LibraryAndBooks } from "../../web/src/core/library"
-import { openedPage, openOutsidePage, panBy, select, setEditing, shownPageId } from "../../web/src/core/stage"
+import {
+  NO_PAGE,
+  NOTHING_OPENED,
+  openOutsidePage,
+  panBy,
+  select,
+  setEditing,
+  shownPageId,
+} from "../../web/src/core/stage"
 import {
   close,
   currentStage,
@@ -23,7 +31,7 @@ import {
   unsplit,
 } from "../../web/src/core/workspace"
 import { drawingPage, testBook } from "../lineup"
-import { CORE_CATALOG } from "../support"
+import { CORE_CATALOG, openedPageOf } from "../support"
 
 // ページもフォルダも無い表
 const EMPTY = { pages: {}, folders: {} }
@@ -37,7 +45,7 @@ describe("workspace", () => {
   test("分けると、カレントの右に何も開いていないステージが増え、カレントは変わらない", () => {
     const two = split(ws, "s2")
     expect(two.stages.map(s => s.id)).toEqual(["s1", "s2"])
-    expect(two.stages[1]!.opened).toBeNull()
+    expect(two.stages[1]!.opened).toBe(NOTHING_OPENED)
     expect(two.current).toBe("s1")
   })
 
@@ -91,9 +99,12 @@ describe("workspace", () => {
     const two = showPage(CORE_CATALOG, split(ws, "s2"), "s1", book, "p2")
     const both = mapStage(two, "s2", s => ({ ...s, opened: two.stages[0]!.opened }))
     const removed = { ...book, lineup: [p1] }
-    expect(followBook(CORE_CATALOG, both, removed).stages.map(s => shownPageId(s.opened ?? null))).toEqual(["p1", "p1"])
+    expect(followBook(CORE_CATALOG, both, removed).stages.map(s => shownPageId(s.opened ?? NOTHING_OPENED))).toEqual([
+      "p1",
+      "p1",
+    ])
     const a3 = { ...book, lineup: [p1, { ...p2, paper: "@matomezu/base:a3" }] }
-    expect(openedPage(followBook(CORE_CATALOG, both, a3).stages[0]!.opened ?? null)?.paper).toMatchObject({
+    expect(openedPageOf(followBook(CORE_CATALOG, both, a3).stages[0]!.opened).paper).toMatchObject({
       status: "known",
       size: { w: 1587, h: 1123 },
     })
@@ -105,17 +116,17 @@ describe("workspace", () => {
     const three = { ...book, lineup: [page("p1"), page("p2"), page("p3")] }
     const at = (id: string) => showPage(CORE_CATALOG, ws, "s1", three, id)
     const without = (id: string) => ({ ...three, lineup: three.lineup.filter(p => p.id !== id) })
-    expect(shownPageId(followBook(CORE_CATALOG, at("p2"), without("p2"), three).stages[0]!.opened ?? null)).toBe("p3")
-    expect(shownPageId(followBook(CORE_CATALOG, at("p3"), without("p3"), three).stages[0]!.opened ?? null)).toBe("p2")
-    expect(
-      shownPageId(followBook(CORE_CATALOG, at("p1"), { ...three, lineup: [] }, three).stages[0]!.opened ?? null),
-    ).toBeNull()
+    expect(shownPageId(followBook(CORE_CATALOG, at("p2"), without("p2"), three).stages[0]!.opened)).toBe("p3")
+    expect(shownPageId(followBook(CORE_CATALOG, at("p3"), without("p3"), three).stages[0]!.opened)).toBe("p2")
+    expect(shownPageId(followBook(CORE_CATALOG, at("p1"), { ...three, lineup: [] }, three).stages[0]!.opened)).toBe(
+      NO_PAGE,
+    )
   })
 
   test("ブックの一覧が変わると、無くなったブックを開いていたステージは閉じる。1 つも残らなければ NO_STAGES_LEFT", () => {
     const two = split(ws, "s2")
     const left = followLibrary(CORE_CATALOG, two, { books: {}, ...EMPTY })
-    expect(left === NO_STAGES_LEFT ? left : left.stages.map(s => s.opened)).toEqual([null])
+    expect(left === NO_STAGES_LEFT ? left : left.stages.map(s => s.opened)).toEqual([NOTHING_OPENED])
     expect(followLibrary(CORE_CATALOG, ws, { books: {}, ...EMPTY })).toBe(NO_STAGES_LEFT)
     expect(followLibrary(CORE_CATALOG, two, { books: { b1: book }, ...EMPTY })).toBe(two)
   })

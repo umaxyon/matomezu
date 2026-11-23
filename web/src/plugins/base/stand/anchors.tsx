@@ -6,6 +6,7 @@
 // （囲む物の中のスクロールと、紙をずらしてアンカーを真ん中へ）関数を受け取る。
 // 線のように形を持つ物は、形の要素（SVG の polyline）を useAnchorShapeRef で同じ id に知らせる。スタンドの中の物は useStandShape で、形の点（スタンドの左上から）を受け取る。
 // アンカーの表（id → 要素）はステージごとに 1 つで、ステージのビューが渡す。ブックのデータにも画面の状態にも入れず、描いている間だけ持つ
+
 import {
   createContext,
   type ReactNode,
@@ -20,6 +21,7 @@ import {
 } from "react"
 import { createPortal } from "react-dom"
 import type { Point, Rect, Size } from "../../../core/geom"
+import { NO_STAGE } from "../../../core/stage"
 import { useActions, useStage, useStagePan } from "../../../ui/view-hooks"
 import { glidePan } from "../utils/glide-pan"
 import { KEEP_INSIDE } from "../utils/keep-inside"
@@ -191,7 +193,9 @@ export interface StandAway {
   // 見せたあと、スタンドに戻るか（stand）、真ん中へ動かしても StandAt の minRoom の余地が無く、縁に寄せたままか（pointer。物が範囲より広いとき）
   afterShow: "stand" | "pointer"
 }
-const AwayContext = createContext<StandAway | null>(null)
+// アンカーの上の辺が見える所の外に出ていない（か、edgePinned のスタンドの中でない）ときの値（useStandAway）
+export const NOT_AWAY = "none"
+const AwayContext = createContext<StandAway | typeof NOT_AWAY>(NOT_AWAY)
 
 // スタンドを置いた所から見たアンカーの四角（スタンドの左上から）と、スタンドの大きさと、side のいつもの立ち位置から置ける範囲の端までの余地 room（roomBeside）。
 // 中の物が、アンカーの方を指したり（吹き出しの尾など）、幅を合わせたりするのに使う（測り終えるまで null）
@@ -207,8 +211,8 @@ export const useStandFacing = (): StandFacing | null => useContext(FacingContext
 const ShapeContext = createContext<readonly Point[] | null>(null)
 export const useStandShape = (): readonly Point[] | null => useContext(ShapeContext)
 
-// スタンドの中で、アンカーの上の辺が見える所の外に出ていれば StandAway（edgePinned でないか、外に出ていなければ null）
-export const useStandAway = (): StandAway | null => useContext(AwayContext)
+// スタンドの中で、アンカーの上の辺が見える所の外に出ていれば StandAway（edgePinned でないか、外に出ていなければ NOT_AWAY）
+export const useStandAway = (): StandAway | typeof NOT_AWAY => useContext(AwayContext)
 
 // アンカー anchor（いくつも指せば、まとめた範囲）の side に立つスタンド。アンカーが描かれていなければ出さない。
 // span なら、幅をアンカーの幅（画面の上の幅）にそろえる。edgePinned なら、アンカーの上の辺が見える所の外に出たとき、範囲の中へ寄せずに付いて行く。
@@ -276,7 +280,7 @@ export function StandAt({
         room,
       }
     : null
-  const away: StandAway | null = out
+  const away: StandAway | typeof NOT_AWAY = out
     ? {
         pin: (p, pad = STAND_MARGIN) => {
           const inStand = { x: at.x + p.x, y: at.y + p.y }
@@ -288,7 +292,7 @@ export function StandAt({
         },
         afterShow: roomBeside(centered, area, side) < minRoom ? "pointer" : "stand",
       }
-    : null
+    : NOT_AWAY
   return createPortal(
     // biome-ignore lint/a11y/useSemanticElements: スタンドは中身を束ねる箱で、入力Formのまとまり（fieldset）ではない
     <div
@@ -361,6 +365,7 @@ export function revealedRect(base: Element, view: Element, found: readonly { el:
 // パン・倍率・大きさ・スクロールと、レイヤーの大きさ（ステージの幅が動くなど）が変われば測り直す
 function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped: boolean): Measured | null {
   const stage = useStage()
+  const zoom = stage === NO_STAGE ? undefined : stage.zoom
   const pan = useStagePan()
   const version = useSyncExternalStore(ctx?.anchors.subscribe ?? noSubscribe, ctx?.anchors.snapshot ?? zero)
   const [tick, setTick] = useState(0)
@@ -387,7 +392,7 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
     }
     step()
     return () => cancelAnimationFrame(frame)
-  }, [measure, pan, stage?.zoom, version, tick, pages])
+  }, [measure, pan, zoom, version, tick, pages])
   // 中のスクロール（リストなど）と、表示領域の大きさの変化
   useEffect(() => {
     const again = () => setTick(n => n + 1)

@@ -3,7 +3,7 @@
 
 import { actorOfWire, type WireActor } from "../core/actor"
 import { type Annotations, restoreAnnotations } from "../core/annotation"
-import { findPage, pageById, pagesOf, readLibrary } from "../core/book"
+import { findPage, foundPage, pageById, pagesOf, readLibrary } from "../core/book"
 import { bulkActionOf, type LibraryRows, performBulk } from "../core/bulk"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, type AIMessage, stopsOnEditLock } from "../core/def/action"
@@ -245,7 +245,7 @@ function touchedIn(
     const page = holder === undefined ? pageIn(before.pages, id) : at?.page
     if (!page) return []
     const book = at ? bookOf(after, at.book.id) : undefined
-    const pageNow = at ? book && findPage(book, id)?.page : pageIn(after.pages, id)
+    const pageNow = at ? book && foundPage(findPage(book, id)) : pageIn(after.pages, id)
     const annotationsNow =
       changedAnnotations && id in changedAnnotations ? changedAnnotations[id] : before.annotations[id]
     return changedIn(
@@ -265,7 +265,8 @@ function shiftNotice(
   now: Library,
 ): string | null {
   const NO_SHIFT = { x: 0, y: 0 }
-  const shiftOf = (b: Book | undefined, page: string) => (b ? findPage(b, page)?.page.shift : undefined) ?? NO_SHIFT
+  const shiftOf = (b: Book | undefined, page: string) =>
+    (b ? foundPage(findPage(b, page))?.shift : undefined) ?? NO_SHIFT
   const line = (from: { x: number; y: number }, to: { x: number; y: number }, at: string) => {
     const dx = to.x - from.x
     const dy = to.y - from.y

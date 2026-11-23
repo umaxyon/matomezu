@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test"
 import {
   closePrintPreview,
   extentOf,
+  NOTHING_OPENED,
   newStage,
   openBook,
   openPage,
@@ -67,7 +68,7 @@ describe("ステージの印刷プレビュー", () => {
     expect({ zoom: closed.zoom, pan: closed.pan }).toEqual({ zoom: editing.zoom, pan: editing.pan })
     const other = openPage(CORE_CATALOG, shown, book, "p2")
     expect(other.mode.kind).toBe("edit")
-    expect(shownPageId(other.opened ?? null)).toBe("p2")
+    expect(shownPageId(other.opened ?? NOTHING_OPENED)).toBe("p2")
     expect(other.zoom).toBe(editing.zoom)
     expect(openPage(CORE_CATALOG, shown, book, "p1").mode.kind).toBe("edit")
   })

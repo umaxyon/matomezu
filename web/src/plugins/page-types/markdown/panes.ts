@@ -6,7 +6,9 @@
 // 利用者が並べ方を選んでいなければ（画面の場所にも無ければ）、ページを開いたときに 1 回、本文が空白だけでなければ描いた文書だけ、空なら
 // ソースを左・描いた文書を右に半分ずつ並べる。開いたときに決めた並べ方は PANE_OPENING_STATE に持ち（画面の場所には入れない）、本文を打っても変えない。
 // 並べ方を読む所は paneLayoutOf（ビューとコマンドで同じ）
+
 import { z } from "zod"
+import { NO_STATE } from "../../../plugin-api"
 import { MARKDOWN_PANE_MODES, type MarkdownPaneMode } from "../../base"
 import { kit } from "./kit"
 import { SCROLL_STATE } from "./scroll-memory"
@@ -63,28 +65,30 @@ export const openingModeOf = (text: string): PaneMode => (text.trim() === "" ? D
 
 // 今の並べ方: 利用者が選んだ並べ方 chosen、なければ（今のページを開いたときに決めた並べ方 opening、それも無ければ本文から決める）既定
 export function paneLayoutOf(
-  chosen: ChosenLayout | undefined,
-  opening: PaneOpening | undefined,
+  chosen: ChosenLayout | typeof NO_STATE,
+  opening: PaneOpening | typeof NO_STATE,
   page: { id: string; text: string } | null,
 ): PaneLayout {
-  if (chosen) return { ...chosen, first: chosen.first ?? defaultFirstOf(chosen.mode) }
-  const mode = page && opening?.page === page.id ? opening.mode : openingModeOf(page?.text ?? "")
+  if (chosen !== NO_STATE) return { ...chosen, first: chosen.first ?? defaultFirstOf(chosen.mode) }
+  const mode = page && opening !== NO_STATE && opening.page === page.id ? opening.mode : openingModeOf(page?.text ?? "")
   return { ...DEFAULT, mode, first: defaultFirstOf(mode) }
 }
 
 // 今の並べ方 layout のうち patch を書き換えた、選んだ並べ方（入れ替えていなければ first は書かない）
 export const chosenWith = (
-  chosen: ChosenLayout | undefined,
+  chosen: ChosenLayout | typeof NO_STATE,
   layout: PaneLayout,
   patch: Partial<ChosenLayout>,
-): ChosenLayout => ({ ...(chosen ?? { mode: layout.mode, share: layout.share }), ...patch })
+): ChosenLayout => ({ ...(chosen === NO_STATE ? { mode: layout.mode, share: layout.share } : chosen), ...patch })
 
 // ページ page を開いたときに決めた並べ方（もう決めていれば undefined）
 export function openingFor(
-  opening: PaneOpening | undefined,
+  opening: PaneOpening | typeof NO_STATE,
   page: { id: string; text: string },
 ): PaneOpening | undefined {
-  return opening?.page === page.id ? undefined : { page: page.id, mode: openingModeOf(page.text) }
+  return opening !== NO_STATE && opening.page === page.id
+    ? undefined
+    : { page: page.id, mode: openingModeOf(page.text) }
 }
 
 // 並べる向き（1 つだけ見せている間は "none"）

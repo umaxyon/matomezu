@@ -1,5 +1,6 @@
 // 参加者の一覧の行の名前の下（見た目でない所で決める）: 準備中は（準備中）、空室と参加済みは スロット workroom-row-line に置かれたウィジェットが出す（空室かを渡す）
-import type { WorkroomRow } from "../base"
+import type { NO_STATE } from "../../plugin-api"
+import { NO_OCCUPANT, NOT_CALLED, NOT_REQUESTED, type WorkroomRow } from "../base"
 
 export type RowDetail = "empty" | "preparing" | "slot"
 
@@ -9,7 +10,7 @@ export function rowDetail(row: WorkroomRow): RowDetail {
 }
 
 // 選んでいるワークルームの行（選んだワークルームが無くなっていれば、選んでいないのと同じ）
-export const pickedRow = (rows: readonly WorkroomRow[], picked: string | undefined): WorkroomRow | undefined =>
+export const pickedRow = (rows: readonly WorkroomRow[], picked: string | typeof NO_STATE): WorkroomRow | undefined =>
   rows.find(r => r.room.id === picked)
 
 // 列の並び: 組の順に、1 管理者 2 作業中 3 空き（準備中も）4 空室。作業の様子を答える種類が無ければ、作業中と空きを分けない（2 に入れる）。
@@ -19,7 +20,11 @@ export const pickedRow = (rows: readonly WorkroomRow[], picked: string | undefin
 // 準備中の行も、受け入れた時刻で並べる（引き継いで入った行が、準備中の間だけ組の下へ寄らないように）。
 // 同じ時刻の行も受け取った順のまま。並べるだけで、画面の状態は持たない
 const changedAtOf = (row: WorkroomRow): number | undefined => {
-  const times = [row.calledAt, row.participant?.joinedAt, row.state === "empty" ? row.requestedAt : undefined]
+  const times = [
+    row.calledAt !== NOT_CALLED ? row.calledAt : undefined,
+    row.participant !== NO_OCCUPANT ? row.participant.joinedAt : undefined,
+    row.state === "empty" && row.requestedAt !== NOT_REQUESTED ? row.requestedAt : undefined,
+  ]
     .flatMap(t => (t ? [Date.parse(t)] : []))
     .filter(Number.isFinite)
   return times.length === 0 ? undefined : Math.max(...times)
@@ -27,7 +32,7 @@ const changedAtOf = (row: WorkroomRow): number | undefined => {
 
 const groupOf = (row: WorkroomRow): number => {
   if (row.admin) return 1
-  if (row.state === "empty") return row.requestedAt ? 3 : 4
+  if (row.state === "empty") return row.requestedAt !== NOT_REQUESTED ? 3 : 4
   if (row.state === "preparing") return 3
   return row.activity === "idle" ? 3 : 2
 }
@@ -49,7 +54,7 @@ export function orderRows(rows: readonly WorkroomRow[]): WorkroomRow[] {
 export const PASSING_WAIT_MS = 3000
 
 export const passingRow = (row: WorkroomRow): boolean =>
-  row.state === "preparing" || (row.state === "empty" && row.requestedAt !== undefined)
+  row.state === "preparing" || (row.state === "empty" && row.requestedAt !== NOT_REQUESTED)
 
 // 待つための覚え: 行が途中の様子に入った時刻（ワークルームの id → ミリ秒）と、止めていない間の最後の並び（id の列）
 export interface Settling {
@@ -89,7 +94,7 @@ export function orderHeld(rows: readonly WorkroomRow[], held: readonly string[])
 export type LastAccess = "called" | "preparing" | "none"
 
 export const lastAccessOf = (row: Pick<WorkroomRow, "calledAt" | "state">): LastAccess =>
-  row.calledAt ? "called" : row.state === "preparing" ? "preparing" : "none"
+  row.calledAt !== NOT_CALLED ? "called" : row.state === "preparing" ? "preparing" : "none"
 
 // 枠（左の列・ワークルームの枠）が画面の外へ退くか。コンテンツエリアに出している画面の最大化と、中身が名乗った最大化（useControlCenterMaximized）から決める。
 // 書庫をコンテンツエリアに出して書庫を最大化している間は左の列だけ、プロジェクトの画面をコンテンツエリアに出して中身が最大化している間は左の列とワークルームの枠が退く。

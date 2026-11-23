@@ -1,6 +1,7 @@
 // 背景編集モードの画面の部品: 上の帯（編集中の表示と、終了・中身を隠すボタン。ウィジェット background-band。ステージのレイヤー）、
 // フッタの「背景を編集」ボタン（background-button）、フッタの「背景の印刷」の 3 つのボタン（background-print-control。中身があれば・必ず・出さない。背景編集モードの間だけ）
 
+import { NO_PAGE } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
@@ -57,7 +58,7 @@ export function BackgroundPrintControl() {
   const set = useCommand(BACKGROUND_PRINT_SET.id)
   const catalog = useCatalog().core
   const page = usePage()
-  if (!set.shown || !page) return null
+  if (!set.shown || page === NO_PAGE) return null
   const now = settingValue(catalog, page, BACKGROUND_PRINT)
   const choices: { value: BackgroundPrint; label: string }[] = [
     { value: "auto", label: t("Background if filled") },

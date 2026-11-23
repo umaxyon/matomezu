@@ -7,7 +7,7 @@
 import { memo, useLayoutEffect, useMemo, useRef } from "react"
 import { useUserSetting } from "../../../../plugin-api/ui"
 import { type MarkdownDocument, parseMarkdown, SOFT_BREAK, softBreakOf } from "../../../base"
-import { MarkdownDocumentView, type PrintMeasureProps, type PrintSheetProps } from "../../../base/ui"
+import { MarkdownDocumentView, NOT_MEASURED, type PrintMeasureProps, type PrintSheetProps } from "../../../base/ui"
 import { cutSheets, isImageBlock, lineBreaks, type MeasuredBlock, pageText, type SheetCut } from "../print"
 import styles from "./MarkdownView.module.css"
 
@@ -162,7 +162,7 @@ export function MarkdownSheet({ page, row, paper, measured }: PrintSheetProps) {
   const text = pageText(page)
   const document = useMemo(() => documentOf(page.id, text), [page.id, text])
   const softBreak = softBreakOf(useUserSetting(SOFT_BREAK.id)) // 測ったときと同じ設定で描く
-  const data = measured as MarkdownMeasured | undefined
+  const data = measured === NOT_MEASURED ? undefined : (measured as MarkdownMeasured)
   const cut = data?.cuts[row]
   // この印刷区画に掛かるブロックだけ（脚注は文書の最後のブロックの次に数える）
   const shown = useMemo(() => {

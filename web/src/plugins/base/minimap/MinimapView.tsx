@@ -5,8 +5,8 @@
 // 紙の色と絵の色はページのテーマの値で描く。className は枠の見た目を替える（無ければ浮かぶ枠）
 import { memo, type PointerEvent, useMemo, useRef } from "react"
 import type { Point } from "../../../core/geom"
-import { areaOf } from "../../../core/stage"
-import { toolSetOf } from "../../../core/tools"
+import { areaOf, NO_PAGE, NO_PAPER, NO_STAGE } from "../../../core/stage"
+import { NO_TOOL, toolSetOf } from "../../../core/tools"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useStageHere } from "../../../ui/scope"
@@ -27,7 +27,8 @@ export function MinimapView({ width, height, className }: { width: number; heigh
   const catalog = useCatalog().core
   const stage = useStageHere(st => st)
   const page = useShownPage() // 紙と同じく、ダイアログの下書きを重ねたページで描く
-  const held = keepsPan(catalog, useStage()?.tool ?? null)
+  const view = useStage()
+  const held = keepsPan(catalog, view === NO_STAGE ? NO_TOOL : view.tool)
   const { panStageBy, focusStage } = useActions()
   const toolSet = useCommand(TOOL_SET.id)
   const latest = useRef(stage)
@@ -36,12 +37,12 @@ export function MinimapView({ width, height, className }: { width: number; heigh
   const vars = usePageThemeVars()
   const drawn = useDrawnTable()
   const marks = useMemo(
-    () => (page ? minimapMarks(catalog, page, item => drawnOn(drawn, item, page.id)) : []),
+    () => (page === NO_PAGE ? [] : minimapMarks(catalog, page, item => drawnOn(drawn, item, page.id))),
     [catalog, page, drawn],
   )
   const attachWheel = useZoomWheel()
-  const paper = stage ? areaOf(stage) : null
-  if (!stage || !page || !paper) return null
+  const paper = stage ? areaOf(stage) : NO_PAPER
+  if (!stage || page === NO_PAGE || paper === NO_PAPER) return null
   const scale = fitScale(paper, width, height)
   const seen = stage.view ? seenRect(paper, stage.view, stage.pan, stage.zoom) : null
 

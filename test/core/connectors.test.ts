@@ -1,6 +1,7 @@
 // つなぐもの（線など）を種類ごとに分ける byConnector（core/placed.ts）と、それを使う base の外枠 extentOf（place/grow.ts）
 import { expect, test } from "bun:test"
 import type { ConnectorData } from "../../web/src/core/def/item"
+import type { Rect } from "../../web/src/core/geom"
 import { byConnector, type ItemPage } from "../../web/src/core/placed"
 import { extentOf } from "../../web/src/plugins/base/place/grow"
 import { portAreasOf, rectsOf } from "../../web/src/plugins/base/place/placed"
@@ -45,7 +46,7 @@ test("extentOf は、形の四角に、つなぐものの定義の bounds（線�
   const def = CORE_CATALOG.items.get(LINE)
   const bounds = def?.kind === "connector" ? def.bounds?.(lines, portAreasOf(CORE_CATALOG, p), setting) : null
   if (!bounds) throw new Error("線の bounds が無い")
-  const extent = extentOf(CORE_CATALOG, p, setting)!
+  const extent = extentOf(CORE_CATALOG, p, setting) as Rect
   // 線のキャプションは、形の四角の外まで出る
   expect(bounds.y + bounds.h).toBeGreaterThan(160)
   const boxes = [...rectsOf(CORE_CATALOG, p).values(), bounds]

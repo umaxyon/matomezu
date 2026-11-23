@@ -3,7 +3,7 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
 import type { Book } from "../../../web/src/core/schema/book"
-import { shownPageId } from "../../../web/src/core/stage"
+import { NO_PAGE, shownPageId } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
 import { addPageIn } from "../../../web/src/plugins/base/pages/add-page"
 import { newStore } from "../../support"
@@ -18,9 +18,9 @@ test("@matomezu/base:page-remove はページを消し、開いていたステ�
   actions.openPage("s1", second)
   expect(actions.perform("@matomezu/base:page-remove", { page: second }, { book: "b1" }).ok).toBe(true)
   expect(pagesOf(book()).map(p => p.id)).toEqual([first, third])
-  expect(shownPageId(screenOf(state.getState().window).stages[0]!.opened ?? null)).toBe(third)
+  expect(shownPageId(screenOf(state.getState().window).stages[0]!.opened)).toBe(third)
   expect(actions.perform("@matomezu/base:page-remove", { page: "nope" }, { book: "b1" }).ok).toBe(false)
   for (const p of [first, third]) actions.perform("@matomezu/base:page-remove", { page: p }, { book: "b1" })
   expect(pagesOf(book())).toEqual([])
-  expect(shownPageId(screenOf(state.getState().window).stages[0]!.opened ?? null)).toBeNull()
+  expect(shownPageId(screenOf(state.getState().window).stages[0]!.opened)).toBe(NO_PAGE)
 })

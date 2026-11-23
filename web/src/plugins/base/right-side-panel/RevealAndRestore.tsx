@@ -2,13 +2,20 @@
 // 開いて幅を動かし終えたら（同じステージで開き直したときは、すぐ）、付いた先を真ん中へ見せる（1 つなら倍率 100%、いくつかなら全部が入る倍率。reveal.ts）。付いた先かカレントが替わるたびに見せ直す。物を囲むビューが Revealable を名乗り出ていれば、先にそれに見えるようにと頼む（リストの中のスクロールなど。これは戻さない）。
 // 開いている間と、閉じて幅を動かしている間に倍率かずらす量を変えたかを覚えておき、閉じて幅を動かし終えたら、変えていなければ開く前の見え方に戻す（覚え方は state.ts）。
 // 別のステージで開き直したときは、前のステージは戻さない。表示領域の大きさが変わってずらす量が収め直されただけなら、変えたことにはしない
+
 import { useCallback, useEffect } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import type { Rect } from "../../../core/geom"
 import type { Stage } from "../../../core/stage"
 import { screenOf, stageIn } from "../../../core/window"
 import { pluginValueOf } from "../../../store/plugin-state"
-import { usePluginStateAt, useReadPluginStateAt, useUpdatePluginStateAt } from "../../../ui/at-hooks"
+import {
+  usePluginStateAt,
+  useReadPluginStateAt,
+  useResetPluginStateAt,
+  useUpdatePluginStateAt,
+} from "../../../ui/at-hooks"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { anchorElementIn, revealedRect } from "../stand/anchors"
@@ -40,11 +47,12 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
   const read = useReadState()
   const readRestore = useReadPluginStateAt(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
   const update = useUpdatePluginStateAt(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
+  const reset = useResetPluginStateAt(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
   const actions = useStoreActions()
   const stageOf = useCallback((id: string) => stageIn(read().window, id), [read])
   // 見せる: 付いた先が替われば全部を囲む四角を収め（1 つなら 100%）、カレントだけが替われば倍率はそのままでカレントを真ん中へ（state.ts の revealFor）
   useEffect(() => {
-    if (sliding || !stage || anchors === null || current === null || !restore) return
+    if (sliding || !stage || anchors === null || current === null || restore === NO_STATE) return
     const how = revealFor(restore.seen, { anchors, current })
     if (how === "none") return
     const before = stageOf(stage)
@@ -59,7 +67,7 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
   useEffect(() => {
     for (const now of watched) {
       const record = readRestore(now.id)
-      if (record && !record.moved && movedFrom(record, now, now.id !== stage))
+      if (record !== NO_STATE && !record.moved && movedFrom(record, now, now.id !== stage))
         update(now.id, r => withRestore(r, { moved: true }))
     }
   }, [watched, stage, readRestore, update])
@@ -70,11 +78,11 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
       if (id === stage) continue
       const now = stageOf(id)
       const record = readRestore(id)
-      const to = now && record ? restoreTo(record, now, stage !== null) : null
+      const to = now && record !== NO_STATE ? restoreTo(record, now, stage !== null) : null
       if (now && to) moveView(actions, now, to)
-      update(id, () => undefined)
+      reset(id)
     }
-  }, [sliding, kept, stage, stageOf, readRestore, actions, update])
+  }, [sliding, kept, stage, stageOf, readRestore, actions, reset])
   return null
 }
 

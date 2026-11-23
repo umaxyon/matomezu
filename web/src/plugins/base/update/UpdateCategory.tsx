@@ -10,7 +10,15 @@ import { SettingRow } from "../settings/SettingRow"
 import { UserSettings } from "../settings/UserSettings"
 import { shownTime } from "../utils/shown-time"
 import { useCopyText, useMatomezuCommand } from "../window-io/hooks"
-import { useAskUpdate, useCheckUpdate, useUpdateStatus } from "./hooks"
+import {
+  NO_LATEST,
+  NO_UPDATE_STATUS,
+  NOT_ASKED,
+  NOT_CHECKED,
+  useAskUpdate,
+  useCheckUpdate,
+  useUpdateStatus,
+} from "./hooks"
 import { UPDATE_CHECK } from "./setting"
 import styles from "./UpdateCategory.module.css"
 
@@ -39,11 +47,13 @@ export function UpdateCategory() {
     const timer = setTimeout(() => setCopied("none"), COPIED_MS)
     return () => clearTimeout(timer)
   }, [copied])
-  if (!status) return null
+  if (status === NO_UPDATE_STATUS) return null
   const dev = status.state === "dev"
   const latest =
     status.state === "newer"
-      ? (status.latest ?? "")
+      ? status.latest === NO_LATEST
+        ? ""
+        : status.latest
       : status.state === "current"
         ? t("Up to date")
         : dev
@@ -67,7 +77,9 @@ export function UpdateCategory() {
         </span>
       </SettingRow>
       <SettingRow label={t("Checked")}>
-        <span className={styles.value}>{status.checkedAt ? shownTime(status.checkedAt, new Date()) : "—"}</span>
+        <span className={styles.value}>
+          {status.checkedAt !== NOT_CHECKED ? shownTime(status.checkedAt, new Date()) : "—"}
+        </span>
         <ActionButton disabled={dev || checking === "checking"} onClick={onCheck}>
           {checking === "checking" ? t("Checking…") : t("Check for updates")}
         </ActionButton>
@@ -91,7 +103,9 @@ export function UpdateCategory() {
               >
                 {t("Ask {name} (the administrator) to update", { name: admin.room.name })}
               </ActionButton>
-              {status.askedAt && <span>{t("Asked {time}", { time: shownTime(status.askedAt, new Date()) })}</span>}
+              {status.askedAt !== NOT_ASKED && (
+                <span>{t("Asked {time}", { time: shownTime(status.askedAt, new Date()) })}</span>
+              )}
             </span>
             {asking === "failed" && <span>{t("Could not ask")}</span>}
           </div>

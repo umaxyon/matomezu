@@ -6,7 +6,7 @@
 // 動きを減らす設定（prefers-reduced-motion）では、鳥は降りた所で正面を向いたまま動かず、飛び去るときはすぐ消える（立ち寄るなら、立ち寄る間だけ出す）
 import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { Point } from "../../../core/geom"
-import { useStandAway, useStandShape } from "../stand/anchors"
+import { NOT_AWAY, useStandAway, useStandShape } from "../stand/anchors"
 import { STAND_MARGIN } from "../stand/stand-place"
 import type { Bird } from "."
 import styles from "./BirdWalk.module.css"
@@ -173,7 +173,7 @@ function Walker({
   const lined: Footing | null = path && motion ? footing(path, motion, leave ? leave.start : pose, range, still) : null
   footRef.current = lined
   const left = lined ? lined.x : (width - range) / 2 + pose.x
-  if (away && !leave) {
+  if (away !== NOT_AWAY && !leave) {
     const at = away.pin({ x: left, y: BIRD_SIZE }, POINTER / 2 + STAND_MARGIN)
     return (
       <div ref={area} className={styles.walk} data-bird-walk>

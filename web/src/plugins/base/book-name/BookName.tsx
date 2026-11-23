@@ -5,8 +5,11 @@
 // 下の行から離れると下がる（フッタメニューは下の行の中に描くので、フッタメニューに乗っている間も下の行に乗っている）。
 // フッタメニューには、左から地図・履歴・基本・ブックの道具の 4 つのスロット（footer-menu.ts の FOOTER_MENU_SLOTS）を、仕切りの線で分けて並べる（何も描かれないスロットは詰める）。
 // 中のウィジェットは、項目を選んだらフッタメニューを下げられる（footer-menu-context.tsx）
+
 import { useEffect, useRef, useState } from "react"
+import { NO_PAGE } from "../../../core/stage"
 import { workspaceOf } from "../../../core/window"
+import { NO_BOOK, NO_OUTSIDE_BINDER } from "../../../store/commands/def"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useStageHere } from "../../../ui/scope"
@@ -22,9 +25,12 @@ import styles from "./BookName.module.css"
 const LEAVE_MS = 250
 
 export function BookName() {
-  const book = useBook() ?? undefined
-  const binder = useOutsideBinder() // ブックの外のバインダを開いていれば、名前はそのバインダの名前
-  const page = usePage() // ブックの外のページを開いていれば、名前はそのページの名前
+  const shownBook = useBook()
+  const book = shownBook === NO_BOOK ? undefined : shownBook
+  const shownBinder = useOutsideBinder()
+  const binder = shownBinder === NO_OUTSIDE_BINDER ? undefined : shownBinder // ブックの外のバインダを開いていれば、名前はそのバインダの名前
+  const shownPage = usePage()
+  const page = shownPage === NO_PAGE ? undefined : shownPage // ブックの外のページを開いていれば、名前はそのページの名前
   const current = useStageHere((st, s) => st !== null && workspaceOf(s.window, st.id).current === st.id)
   const t = useMessages(kit)
   const [open, setOpen] = useState(false)

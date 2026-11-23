@@ -1,5 +1,6 @@
 // チケットスクリーンの定義と、その画面の状態（開いたスクリーン 1 枚ごとの状態。閉じると消える。画面の場所には入れない）: どのチケットの物か（ticket。開いているチケットが替われば初めに戻す）・本文の見せ方・右に出しているナレッジ（本文か作業履歴か、出していないか）・
 // 本文を最大化しているか・右に開いている質問（チケット履歴の行の id）
+import { NO_STATE } from "../../../plugin-api"
 import type { MarkdownPaneMode } from "../../base"
 import { kit } from "../kit"
 import { TICKET_SCREEN_PROPS } from "./props"
@@ -30,5 +31,5 @@ export const TICKET_SCREEN_STATE = kit.definePluginStateOf<TicketScreenState>()(
 })
 
 // チケット ticket の画面の状態: 今の値がそのチケットの物でなければ、初めの形（本文はプレビューだけで出している）
-export const viewOf = (now: TicketScreenState | undefined, ticket: string): TicketScreenState =>
-  now?.ticket === ticket ? now : { ticket, mode: "rendered-only", side: "body", maximized: false }
+export const viewOf = (now: TicketScreenState | typeof NO_STATE, ticket: string): TicketScreenState =>
+  now !== NO_STATE && now.ticket === ticket ? now : { ticket, mode: "rendered-only", side: "body", maximized: false }

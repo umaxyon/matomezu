@@ -6,7 +6,7 @@ import { pagesOf } from "../../web/src/core/book"
 import { HOME_ID } from "../../web/src/core/folders"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import type { Book } from "../../web/src/core/schema/book"
-import { shownPageId } from "../../web/src/core/stage"
+import { NO_PAGE, NOTHING_OPENED, shownPageId } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { isEnabled } from "../../web/src/store/commands"
@@ -126,7 +126,9 @@ test("ページを消した画面の履歴の段を元に戻すと、同じ id �
   await settled()
   store.actions.command("s1", "@matomezu/base:undo")
   expect(pagesOf(bookOf(store)).map(p => p.id)).toEqual([...pages, added])
-  expect(shownPageId(screenOf(store.state.getState().window).stages[0]?.opened ?? null)).toBe(pages[0] ?? null)
+  expect(shownPageId(screenOf(store.state.getState().window).stages[0]?.opened ?? NOTHING_OPENED)).toBe(
+    pages[0] ?? NO_PAGE,
+  )
 })
 
 test("ページを動かした画面の履歴の段を元に戻すと元の並びに、やり直すと動かした並びになる", async () => {

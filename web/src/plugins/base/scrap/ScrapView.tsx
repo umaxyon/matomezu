@@ -14,7 +14,7 @@ import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-co
 import { usePageLookStyle } from "../book-look/use-page-look-style"
 import { kit } from "../kit"
 import { pageArea, paperSize } from "../place/grow"
-import type { PrintMeasured } from "../print-preview/measures-state"
+import { NOT_MEASURED, type PrintMeasured } from "../print-preview/measures-state"
 import { Printing } from "../print-preview/printing"
 import { SheetLayers } from "../print-preview/SheetLayers"
 import styles from "./ScrapView.module.css"
@@ -124,7 +124,7 @@ export function DrawnSheet({
             />
           ))
         ) : (
-          <SheetLayers page={page} column={0} row={0} paper={size} />
+          <SheetLayers page={page} column={0} row={0} paper={size} measured={NOT_MEASURED} />
         )}
       </Printing>
       {children}

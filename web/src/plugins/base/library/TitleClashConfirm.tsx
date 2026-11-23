@@ -1,8 +1,10 @@
 // 名前が重なったときの確かめ: フォルダ folder に、入れようとした物と同じ名前 name の物が在るとき、番号を付けるか・上書きするか・やめるかを受ける
 // （ゴミ箱から戻すときと、動かすときに使う）。上書きは、前から在った方が中身ごと消える（ゴミ箱に入らない）ので、その注意を出す。
 // 上書きできないとき（blocked がその訳）は、上書きを選べない形で出し、訳を出す
+
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
+import { NO_PERMISSION } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { kit } from "../kit"
 import type { ReplaceBlocked } from "./entries"
@@ -30,7 +32,7 @@ export function TitleClashConfirm({
   const catalog = useCatalog().core
   const why = (b: ReplaceBlocked): string => {
     if (b.by === "permission") {
-      const step = b.permission === null ? undefined : catalog.permissions.get(b.permission)
+      const step = b.permission === NO_PERMISSION ? undefined : catalog.permissions.get(b.permission)
       return step ? t(step.title) : t("It cannot be done")
     }
     return b.why === "kind"

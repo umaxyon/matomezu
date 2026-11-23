@@ -8,7 +8,8 @@
 
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
-import { namingOf, placeOf, rowTitle } from "../../../core/entries"
+import { NO_STATE } from "../../../core/def/plugin-state"
+import { NO_NAME, namingOf, placeOf, rowTitle } from "../../../core/entries"
 import type { Folders } from "../../../core/folders"
 import { isKeptSystemFolder, systemFolderOf } from "../../../core/folders-tree"
 import type { Point } from "../../../core/geom"
@@ -19,6 +20,7 @@ import {
   tryPerformOf,
   unreadableItemsIn,
 } from "../../../store/commands/def"
+import { NO_CONTEXT_MENU } from "../../../store/context-menus"
 import { BOOK_CREATE } from "../book-new/book-create"
 import { dropClashing, notRestored } from "../history"
 import { isRevertUnchanged } from "../history/restore"
@@ -51,7 +53,6 @@ import {
   type TreeRow,
   treeCurrentOf,
   treeRowsOf,
-  unfoldedOf,
 } from "./outline"
 import { PAGE_CREATE } from "./page-create"
 import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
@@ -126,7 +127,7 @@ type Named = ({ entry: string } | { folder: string } | { at: "tree" } | { at: "f
 function given(ctx: ScreenCommandContext, named: Named | undefined): Named | undefined {
   if (named) return named
   const menu = ctx.contextMenu
-  return menu && NAMING_MENUS.includes(menu.id) ? (menu.target as Named) : undefined
+  return menu !== NO_CONTEXT_MENU && NAMING_MENUS.includes(menu.id) ? (menu.target as Named) : undefined
 }
 
 // 作業机（コマンドは readsSubjects に workdesksReadsOf を書き、その種類を読む）
@@ -135,15 +136,21 @@ const desksIn = (ctx: ScreenCommandContext): readonly Workdesk[] => workdesksOf(
 const openedIn = (ctx: ScreenCommandContext): string =>
   openedFolderOf(ctx.folders, ctx.pluginState(LIBRARY_FOLDER), desksIn(ctx))
 
+// 呼ばれた場所の書庫の画面で選んでいる行の id（選んでいなければ undefined）
+function pickedIn(ctx: ScreenCommandContext): string | undefined {
+  const picked = ctx.pluginState(LIBRARY_PICKED)
+  return picked === NO_STATE ? undefined : picked
+}
+
 // コマンドが扱うエントリ: 受け取ったエントリ・フォルダ。ツリーからなら、ツリーで今いる行。検索の結果からなら、そこで選んでいる行（無ければツリーで今いる行）。何も受け取らなければ、呼ばれた場所の書庫の画面で選んでいる行（無ければ、扱う物は無い）
 function entryOf(ctx: ScreenCommandContext, named?: Named): string | undefined {
   const to = given(ctx, named)
-  const picked = ctx.pluginState(LIBRARY_PICKED)
+  const picked = pickedIn(ctx)
   if (!to) return picked
   if ("entry" in to) return to.entry
   if ("folder" in to) return to.folder
-  const found = to.at === "found" ? ctx.pluginState(LIBRARY_FOUND_PICKED) : undefined
-  return found ?? treeCurrentOf(ctx.folders, openedIn(ctx), picked, desksIn(ctx))
+  const found = to.at === "found" ? ctx.pluginState(LIBRARY_FOUND_PICKED) : NO_STATE
+  return found !== NO_STATE ? found : treeCurrentOf(ctx.folders, openedIn(ctx), picked, desksIn(ctx))
 }
 
 // コマンドが扱う、受け取ったエントリ（フォルダを受け取ったとき（何も無い所のメニュー）は、扱わない。そのフォルダは、右クリックした物でない）のうち、
@@ -319,11 +326,11 @@ export const LIBRARY_ENTRY_RENAME = kit.defineScreenCommand({
     const kind = placeOf(ctx.folders, entry)?.ref.kind
     const title =
       kind === undefined
-        ? undefined
+        ? NO_NAME
         : kind === "page"
           ? ctx.pageTitle(entry)
-          : rowTitle(ctx.folders[entry], kind, namingOf(ctx.catalog, ctx.settings))
-    return title === undefined ? "unknown" : [{ action: ENTRY_RENAME.id, args: { entry, title } }]
+          : (rowTitle(ctx.folders[entry], kind, namingOf(ctx.catalog, ctx.settings)) ?? NO_NAME)
+    return title === NO_NAME ? "unknown" : [{ action: ENTRY_RENAME.id, args: { entry, title } }]
   },
   when: inMenuHandled(renames),
 })
@@ -357,7 +364,7 @@ export const LIBRARY_ENTRY_DUPLICATE = kit.defineScreenCommand({
 // エントリ entry をゴミ箱に入れる。断られたらトーストで知らせる。行えたら、それを選んでいれば外す
 function trash(ctx: ScreenCommandContext, a: CommandActions, entry: string): void {
   const done = a.perform(ENTRY_TRASH.id, { entry })
-  if (done.ok) a.updatePluginState(LIBRARY_PICKED, now => (now === entry ? undefined : now))
+  if (done.ok) a.updatePluginState(LIBRARY_PICKED, now => (now === entry ? NO_STATE : now))
   else a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Could not move to trash")) })
 }
 
@@ -394,7 +401,7 @@ export const LIBRARY_ENTRY_MOVE = kit.defineScreenCommand({
         : a.perform(ENTRY_MOVE.id, { entry, into, index, onConflict: how ?? "refuse" })
     if (!done.ok)
       return a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Could not move")) })
-    if (into !== openedIn(ctx)) a.updatePluginState(LIBRARY_PICKED, now => (now === entry ? undefined : now))
+    if (into !== openedIn(ctx)) a.updatePluginState(LIBRARY_PICKED, now => (now === entry ? NO_STATE : now))
   },
   // 引数を受け取らずに問われたら（押す前のボタンなど）、分からない
   performsWith: (_ctx, moving?: Moving) => {
@@ -416,20 +423,20 @@ function goTo(
   row: Pick<TreeRow, "id" | "holder" | "holds"> | undefined,
 ): void {
   if (!row) return
-  const now = unfoldedOf(ctx.pluginState(LIBRARY_UNFOLDED))
+  const now = ctx.pluginState(LIBRARY_UNFOLDED)
   const next = arrivedAt(ctx.folders, row, now, desksIn(ctx))
   if (next.folder !== openedIn(ctx)) a.updatePluginState(LIBRARY_FOLDER, () => next.folder)
-  a.updatePluginState(LIBRARY_PICKED, () => next.picked)
+  a.updatePluginState(LIBRARY_PICKED, () => (next.picked === undefined ? NO_STATE : next.picked))
   if (next.unfolded !== now) a.updatePluginState(LIBRARY_UNFOLDED, () => next.unfolded)
-  if (row.holds && ctx.pluginState(LIBRARY_QUERY) !== undefined) a.updatePluginState(LIBRARY_QUERY, () => undefined)
+  if (row.holds && ctx.pluginState(LIBRARY_QUERY) !== NO_STATE) a.resetPluginState(LIBRARY_QUERY)
 }
 
 // 呼ばれた場所の書庫の画面のツリー: 出ている行 rows と、今いる行の位置 i（出ていなければ -1）と、中を出しているフォルダ unfolded
 function treeAt(ctx: ScreenCommandContext) {
-  const unfolded = unfoldedOf(ctx.pluginState(LIBRARY_UNFOLDED))
+  const unfolded = ctx.pluginState(LIBRARY_UNFOLDED)
   const desks = desksIn(ctx)
   const rows = treeRowsOf(ctx.folders, unfolded, unreadableShownIn(ctx.catalog, ctx.settings), desks)
-  const at = treeCurrentOf(ctx.folders, openedIn(ctx), ctx.pluginState(LIBRARY_PICKED), desks)
+  const at = treeCurrentOf(ctx.folders, openedIn(ctx), pickedIn(ctx), desks)
   return { rows, unfolded, i: rows.findIndex(r => r.id === at) }
 }
 
@@ -487,8 +494,9 @@ export const LIBRARY_PICK_MOVE = kit.defineScreenCommand({
   title: "Pick the neighbour",
   run: (ctx, a, { to }: { to: PickTo }) => {
     const ids = paneIdsOf(ctx.folders, unreadableItemsIn(ctx), openedIn(ctx), desksIn(ctx))
-    const i = ids.indexOf(ctx.pluginState(LIBRARY_PICKED) ?? "")
-    const next = i < 0 ? ids[0] : ids[pickedAfter(to, i, ids.length, ctx.pluginState(LIBRARY_COLUMNS) ?? 1)]
+    const picked = pickedIn(ctx)
+    const i = picked === undefined ? -1 : ids.indexOf(picked)
+    const next = i < 0 ? ids[0] : ids[pickedAfter(to, i, ids.length, ctx.pluginState(LIBRARY_COLUMNS))]
     if (next !== undefined) a.updatePluginState(LIBRARY_PICKED, () => next)
   },
   when: () => true,

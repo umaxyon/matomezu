@@ -2,11 +2,19 @@
 
 import { describe, expect, test } from "bun:test"
 import { checkBooks, pagesOf, restoreBooks } from "../../web/src/core/book"
-import { findShape, type ItemPage, type PlacedShape, replaceShape, walkShapes } from "../../web/src/core/placed"
+import {
+  findShape,
+  type ItemPage,
+  NO_ITEM,
+  PAGE_ITSELF,
+  type PlacedShape,
+  replaceShape,
+  walkShapes,
+} from "../../web/src/core/placed"
 import { shownRects } from "../../web/src/plugins/base/place/items"
 import { NEST_PADDING, placedSize } from "../../web/src/plugins/base/place/placed"
 import { drawingPage, testBook } from "../lineup"
-import { CORE_CATALOG } from "../support"
+import { CORE_CATALOG, shapeOf } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
 const LIST = "@matomezu/list:shape-list"
@@ -68,34 +76,34 @@ describe("子までたどる・探す・置き換える", () => {
 
   test("親の次にその子孫の順で、親の id と紙の上の左上を付ける", () => {
     expect(walkShapes(page).map(s => [s.shape.id, s.parent, s.at.x, s.at.y])).toEqual([
-      ["a", null, 100, 50],
+      ["a", PAGE_ITSELF, 100, 50],
       ["b", "a", 110, 70],
       ["c", "b", 111, 72],
       ["d", "a", 140, 50],
-      ["e", null, 300, 0],
+      ["e", PAGE_ITSELF, 300, 0],
     ])
   })
 
   test("どの深さの形も id で探せる。線や無い id は見つからない", () => {
     expect(findShape(page, "c")).toMatchObject({ parent: "b", at: { x: 111, y: 72 } })
-    expect(findShape(page, "l1")).toBeUndefined()
-    expect(findShape(page, "z")).toBeUndefined()
+    expect(findShape(page, "l1")).toBe(NO_ITEM)
+    expect(findShape(page, "z")).toBe(NO_ITEM)
   })
 
   test("深い形を置き換えると、その親たちだけを作り直す（ほかの形と線はそのまま）", () => {
-    const next = replaceShape(page, "c", s => ({ ...s, x: 9 }))!
-    expect(findShape(next, "c")?.at).toEqual({ x: 119, y: 72 })
+    const next = replaceShape(page, "c", s => ({ ...s, x: 9 })) as ItemPage
+    expect(shapeOf(next, "c").at).toEqual({ x: 119, y: 72 })
     expect(next.items?.[1]).toBe(page.items?.[1])
     expect(next.items?.[2]).toBe(page.items?.[2])
   })
 
   test("null を返すと子孫ごと除く。子が無くなった親は shapes を持たない。無い id なら null", () => {
-    const next = replaceShape(page, "b", () => null)!
+    const next = replaceShape(page, "b", () => NO_ITEM) as ItemPage
     expect(walkShapes(next).map(s => s.shape.id)).toEqual(["a", "d", "e"])
-    const empty = replaceShape(next, "d", () => null)!
+    const empty = replaceShape(next, "d", () => NO_ITEM) as ItemPage
     expect(empty.items?.[0]).not.toHaveProperty("shapes")
-    expect(replaceShape(page, "z", s => s)).toBeNull()
-    expect(replaceShape(page, "l1", s => s)).toBeNull()
+    expect(replaceShape(page, "z", s => s)).toBe(NO_ITEM)
+    expect(replaceShape(page, "l1", s => s)).toBe(NO_ITEM)
   })
 })
 

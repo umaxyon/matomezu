@@ -3,13 +3,27 @@
 // active はその場の編集をしている間、target は書いている物の id。変換中の字（確定する前）は、入力Formの幅を決めるのにだけ使うので、ここで持つ。
 // 書いている途中で確定のコマンドを押せなくなった（認可ステップが止めた）ら、字を捨ててその場の編集を終え、トーストで 1 回知らせる（useEndWhenBlocked）。
 // その場の編集が確定・取り消しのほかで終わった（選びや道具が替わったなど）ら、残った字を捨てる（土台はプラグイン状態を読まないので、ここで捨てる）
+
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import type { CommandId } from "../../../core/catalog"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { useCommand } from "../../../ui/commands"
-import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
+import { usePluginState, useResetPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { useActions } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import type { InPlaceDraftState } from "../utils/in-place"
+import { type InPlaceDraftState, NO_DRAFT } from "../utils/in-place"
+import { NOT_COMPOSING } from "./RichInput"
+
+export { NOT_COMPOSING } from "./RichInput"
+
+// その場の編集の入力Formで、書いている字と変換中の字
+export interface InPlaceWritten {
+  text: string | typeof NO_DRAFT
+  composing: string | typeof NOT_COMPOSING
+}
+
+// 書いている物が無いときの値（useInPlaceInput の target。物の id はどんな文字列にもなり得るので、文字列でない値）
+export const NO_WRITING: unique symbol = Symbol("no writing")
 
 export function useInPlaceInput(
   owner: Parameters<typeof usePluginState>[0],
@@ -19,32 +33,36 @@ export function useInPlaceInput(
     active,
     keyScope,
     commit,
-  }: { target: string | undefined; active: boolean; keyScope: string; commit: CommandId },
+  }: { target: string | typeof NO_WRITING; active: boolean; keyScope: string; commit: CommandId },
 ) {
   const draft = usePluginState(owner, state)
   const setDraft = useSetPluginState(owner, state)
-  const [composing, setComposing] = useState<string | null>(null)
-  const finish = useEndWhenBlocked(active, commit, () => setDraft(undefined))
-  const left = !active && draft !== undefined
+  const resetDraft = useResetPluginState(owner, state)
+  const [composing, setComposing] = useState<string | typeof NOT_COMPOSING>(NOT_COMPOSING)
+  const finish = useEndWhenBlocked(active, commit, resetDraft)
+  const left = !active && draft !== NO_STATE
   useEffect(() => {
-    if (left) setDraft(undefined)
-  }, [left, setDraft])
-  const text = active && target !== undefined && draft?.target === target ? draft.text : null
+    if (left) resetDraft()
+  }, [left, resetDraft])
+  const text = active && target !== NO_WRITING && draft !== NO_STATE && draft.target === target ? draft.text : NO_DRAFT
+  const written: InPlaceWritten = {
+    text, // 書いている字（書いていない・まだ変えていなければ NO_DRAFT）
+    composing: active ? composing : NOT_COMPOSING, // 変換中の字（変換していなければ NOT_COMPOSING）
+  }
   return {
-    text, // 書いている字（書いていない・まだ変えていなければ null）
-    composing: active ? composing : null, // 変換中の字
+    ...written,
     // RichInput に渡す物（value・label・見た目は呼び手が渡す）
     input: {
       autoFocus: true,
       multiline: false,
       data: { "data-key-scope": keyScope },
       onChange: (next: string) => {
-        if (target !== undefined) setDraft({ target, text: next })
+        if (target !== NO_WRITING) setDraft({ target, text: next })
       },
       onCompose: setComposing,
       onPointerDown: (e: PointerEvent) => e.stopPropagation(),
       onBlur: () => {
-        setComposing(null)
+        setComposing(NOT_COMPOSING)
         if (active) finish.run()
       },
     },

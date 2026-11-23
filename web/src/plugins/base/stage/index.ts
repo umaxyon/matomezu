@@ -1,5 +1,6 @@
 // ステージのコマンド: 分割する・分割をやめる・閉じる
 
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { SCREEN_REFUSED } from "../../../store/actions"
 import {
   arrangementValueIn,
@@ -43,7 +44,7 @@ export const STAGE_UNSPLIT = kit.defineCommand({
   title: "Unsplit",
   run: (_ctx, a) => {
     a.unsplit()
-    a.updatePluginState(WIDE_STAGE, () => undefined)
+    a.resetPluginState(WIDE_STAGE)
   },
   when: isSplit,
   active: isSplit, // 分割の切り替えのボタンで、分割していることを押されている見た目で示す
@@ -59,7 +60,7 @@ export const STAGE_WIDEN = kit.defineCommand({
     if (!here || !other) return
     const stages = workspaceOf(ctx).stages.map(st => st.id)
     const widened = shownWideStage(stages, ctx.pluginState(WIDE_STAGE)) === here.id
-    a.updatePluginState(WIDE_STAGE, () => (widened ? undefined : { wide: here.id, hidden: other.id }))
+    a.updatePluginState(WIDE_STAGE, () => (widened ? NO_STATE : { wide: here.id, hidden: other.id }))
     // 広げたステージをカレントにする（隠れた側にキーが効かないように）
     if (!widened) storeActionsOf(a).focusStage(here.id)
   },
@@ -76,7 +77,7 @@ export const STAGE_CLOSE = kit.defineCommand({
   title: "Close stage",
   run: (_ctx, a) => {
     a.closeStage()
-    a.updatePluginState(WIDE_STAGE, () => undefined)
+    a.resetPluginState(WIDE_STAGE)
   },
   when: isSplit,
 })

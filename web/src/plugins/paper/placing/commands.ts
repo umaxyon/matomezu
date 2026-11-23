@@ -6,13 +6,29 @@ import {
   connectorsOf,
   findShape,
   type MessageKey,
+  NO_CONTEXT_MENU,
+  NO_DIALOG,
+  NO_ITEM,
+  NO_PAPER,
+  NO_PLACING,
+  NO_PROPS,
+  PAGE_ITSELF,
   type Point,
   type ShapeAddArgs,
+  type ShapeParent,
   shapeDialogs,
   shapesOf,
   toPaperDelta,
 } from "../../../plugin-api"
-import { amongSelected, type Edges, hasOpenedPage, refusalMessage, shapeDefOf } from "../../base"
+import {
+  amongSelected,
+  CANNOT_RESIZE,
+  type Edges,
+  hasOpenedPage,
+  NO_SHAPE_DEF,
+  refusalMessage,
+  shapeDefOf,
+} from "../../base"
 import { kit } from "../kit"
 import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
 import { NO_FREE_SPOT } from "./crowd"
@@ -20,7 +36,7 @@ import type { Came } from "./drag"
 import { nearestMove, nearestReparent, PLACE_OFFSET, placeTarget, placingShape, stretchedBy } from "./items"
 
 // 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所を、toPaperAt で紙の上の点に直す
-export function placeAt(toPaperAt: (p: Point) => Point | null, pointer: Point): Point | null {
+export function placeAt(toPaperAt: (p: Point) => Point | typeof NO_PAPER, pointer: Point): Point | typeof NO_PAPER {
   return toPaperAt({ x: pointer.x - PLACE_OFFSET.x, y: pointer.y - PLACE_OFFSET.y })
 }
 
@@ -38,8 +54,8 @@ export const PAPER_PLACE = kit.defineCommand({
     const at = placeAt(ctx.toPaper, pointer)
     const point = ctx.toPaper(pointer)
     const placing = stage.placing
-    const shape = placing && placingShape(ctx.catalog, placing.item, placing.props)
-    if (!at || !point || !hasOpenedPage(ctx) || !placing || !shape) return
+    const shape = placing === NO_PLACING ? null : placingShape(ctx.catalog, placing.item, placing.props)
+    if (at === NO_PAPER || point === NO_PAPER || !hasOpenedPage(ctx) || placing === NO_PLACING || !shape) return
     const page = ctx.page
     const target = placeTarget(ctx.catalog, page, point, at, shape)
     if (!target) {
@@ -53,11 +69,11 @@ export const PAPER_PLACE = kit.defineCommand({
     // 空きに置くなら座標を渡さず、中身を決めた大きさで item-place が空きを選ぶ
     const where = {
       ...(target.free ? {} : { at: target.at }),
-      ...(target.parent === null ? {} : { parent: target.parent }),
+      ...(target.parent === PAGE_ITSELF ? {} : { parent: target.parent }),
     }
     // 項目の値 props で置いて選ぶ。断られたら断りの文
-    const place = (props: Readonly<Record<string, unknown>> | undefined): MessageKey | null => {
-      const given = props ? { props } : {}
+    const place = (props: Readonly<Record<string, unknown>> | typeof NO_PROPS): MessageKey | null => {
+      const given = props === NO_PROPS ? {} : { props }
       const done = a.perform(
         ITEM_PLACE.id,
         { ...where, item: placing.item, ...given, crowd: "push" },
@@ -72,8 +88,8 @@ export const PAPER_PLACE = kit.defineCommand({
     }
     // 形の定義が名指す追加のダイアログ（無ければそのまま置く。置こうとしている物が項目の値を持っていれば、聞かずにその値で置く）
     const def = shapeDefOf(ctx.catalog, placing.item)
-    const dialog = def && shapeDialogs(def).add
-    if (dialog && !placing.props) {
+    const dialog = def !== NO_SHAPE_DEF ? shapeDialogs(def).add : NO_DIALOG
+    if (dialog !== NO_DIALOG && placing.props === NO_PROPS) {
       a.stopPlacing()
       const args: ShapeAddArgs = { page: page.id, place }
       a.openDialog(dialog, args)
@@ -86,18 +102,20 @@ export const PAPER_PLACE = kit.defineCommand({
     }
     a.stopPlacing()
   },
-  when: ctx => hasOpenedPage(ctx) && ctx.stage.placing !== null,
+  when: ctx => hasOpenedPage(ctx) && ctx.stage.placing !== NO_PLACING,
 })
 
 // 右クリックされた形が編集のダイアログを持つか（右クリックのメニューが開いていなければ、呼んだ所が形を選んでいる）。
 // いくつか選んでいて、その中の物を右クリックしたなら、メニューは選んだ物全部に向けるので出さない
 function editable(ctx: CommandContext): boolean {
-  const target = ctx.contextMenu?.target as { item?: string } | undefined
+  const target = (ctx.contextMenu === NO_CONTEXT_MENU ? undefined : ctx.contextMenu.target) as
+    | { item?: string }
+    | undefined
   if (target?.item === undefined) return true
   if (amongSelected(ctx.stage.selection, target.item)) return false
-  const placed = hasOpenedPage(ctx) && findShape(ctx.page, target.item)?.shape
-  const def = placed && shapeDefOf(ctx.catalog, placed.item)
-  return def ? shapeDialogs(def).edit !== undefined : false
+  const placed = hasOpenedPage(ctx) ? findShape(ctx.page, target.item) : NO_ITEM
+  const def = placed !== NO_ITEM ? shapeDefOf(ctx.catalog, placed.shape.item) : NO_SHAPE_DEF
+  return def !== NO_SHAPE_DEF && shapeDialogs(def).edit !== NO_DIALOG
 }
 
 // アイテムの中身を変えるダイアログを開く（アイテムの定義の dialogs.edit。どの深さの子の形も）。開いているページに無いアイテムなら何もしない。
@@ -109,10 +127,10 @@ export const PAPER_EDIT = kit.defineCommand({
   title: "Settings",
   run: (ctx, a, { item }: { item: string }) => {
     if (!hasOpenedPage(ctx)) return
-    const placed = findShape(ctx.page, item)?.shape
-    const def = placed && shapeDefOf(ctx.catalog, placed.item)
-    const dialog = def && shapeDialogs(def).edit
-    if (!dialog) return
+    const placed = findShape(ctx.page, item)
+    const def = placed !== NO_ITEM ? shapeDefOf(ctx.catalog, placed.shape.item) : NO_SHAPE_DEF
+    const dialog = def !== NO_SHAPE_DEF ? shapeDialogs(def).edit : NO_DIALOG
+    if (dialog === NO_DIALOG) return
     a.openDialog(dialog, { page: ctx.page.id, item })
   },
   // 右クリックのメニューでは、編集のダイアログを持つ形のときだけ出す
@@ -125,7 +143,7 @@ export function itemsSelected(ctx: CommandContext): boolean {
   if (!hasOpenedPage(ctx) || selection.length === 0) return false
   const page = ctx.page
   const connectors = new Set(connectorsOf(page).map(c => c.id))
-  return selection.every(id => connectors.has(id) || findShape(page, id) !== undefined)
+  return selection.every(id => connectors.has(id) || findShape(page, id) !== NO_ITEM)
 }
 
 // 選んでいるアイテムを全部消し、選択を外す（アイテムだけを選んでいるときに出す）
@@ -183,11 +201,11 @@ export const PAPER_REPARENT = kit.defineCommand({
   performs: [ITEM_REPARENT.id, ITEM_MOVE.id],
   permissionScope: "opened-page",
   title: "Reparent item",
-  run: (ctx, a, args: { item: string; parent: string | null; by: Point }) => {
+  run: (ctx, a, args: { item: string; parent: ShapeParent; by: Point }) => {
     if (!hasOpenedPage(ctx)) return
     const page = ctx.page
     const found = findShape(page, args.item)
-    if (!found) return
+    if (found === NO_ITEM) return
     const by = toPaperDelta(ctx.stage, args.by)
     const on = { page: page.id }
     if (found.parent === args.parent) {
@@ -197,7 +215,8 @@ export const PAPER_REPARENT = kit.defineCommand({
     }
     const asked = { x: found.at.x + by.x, y: found.at.y + by.y }
     const at = nearestReparent(ctx.catalog, page, args.item, args.parent, asked) || asked
-    a.perform(ITEM_REPARENT.id, { item: args.item, parent: args.parent, at, crowd: "push" }, on)
+    const parent = args.parent === PAGE_ITSELF ? null : args.parent // アクションの引数では、ページそのものは null
+    a.perform(ITEM_REPARENT.id, { item: args.item, parent, at, crowd: "push" }, on)
   },
   when: hasOpenedPage,
 })
@@ -210,12 +229,13 @@ export const PAPER_RESIZE = kit.defineCommand({
   title: "Resize item",
   run: (ctx, a, args: { item: string; edges: Edges; by: Point }) => {
     const paper = areaOf(ctx.stage)
-    if (!hasOpenedPage(ctx) || !paper) return
+    if (!hasOpenedPage(ctx) || paper === NO_PAPER) return
     const page = ctx.page
-    const placed = findShape(page, args.item)?.shape
-    if (!placed) return
+    const found = findShape(page, args.item)
+    if (found === NO_ITEM) return
+    const placed = found.shape
     const to = stretchedBy(ctx.catalog, placed, args.edges, toPaperDelta(ctx.stage, args.by), paper)
-    if (to) a.perform(ITEM_RESIZE.id, { item: placed.id, ...to }, { page: page.id })
+    if (to !== CANNOT_RESIZE) a.perform(ITEM_RESIZE.id, { item: placed.id, ...to }, { page: page.id })
   },
   when: hasOpenedPage,
 })

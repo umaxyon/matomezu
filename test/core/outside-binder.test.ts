@@ -6,6 +6,7 @@ import { type LibraryAndBooks, openablePage } from "../../web/src/core/library"
 import {
   askedOutermostOf,
   newStage,
+  openedEntry,
   openedPageById,
   openOutsideBinder,
   openPrintPreview,
@@ -47,7 +48,7 @@ function opened(at?: string): Workspace {
   return { ...ws, stages: ws.stages.map(s => openOutsideBinder(CORE_CATALOG, s, n1, at)) }
 }
 const shown = (ws: Workspace | typeof NO_STAGES_LEFT) =>
-  ws === NO_STAGES_LEFT ? ws : ws.stages.map(s => [s.opened?.outermost, shownPageId(s.opened)])
+  ws === NO_STAGES_LEFT ? ws : ws.stages.map(s => [openedEntry(s.opened), shownPageId(s.opened)])
 
 test("開けるブックの外のバインダは、ブックに入っていない、ゴミ箱の中でない、中のページが全部在るバインダ", () => {
   expect(outsideBinderIn(library(), "n1")).toMatchObject({ kind: "binder", id: "n1", lineup: [s1, s2, s3] })

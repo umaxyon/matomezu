@@ -14,7 +14,7 @@
 // 鉛筆の間は、根でない行を押して動かすとドラッグになり、落とした所で中身ごと付け替える（落とす先は drag.ts が決める。行の写しがポインタに付き、元の行と中身は薄く、
 // 中へ入るフォルダの行には点線の枠、行の間に入る所には線を出す）。ポインタが端に近ければ紙をずらす。付け替えが紙に入らず断られたら、トーストで知らせる
 import { type MouseEvent, memo, type PointerEvent, type RefObject, useMemo, useRef } from "react"
-import { paperOf, type StageView } from "../../../../plugin-api"
+import { NO_AREA, NO_PAGE, NO_PAPER, NO_STAGE, paperOf, type StageView } from "../../../../plugin-api"
 import {
   useActions,
   useAllowed,
@@ -27,9 +27,12 @@ import {
   useStage,
   useStageArea,
 } from "../../../../plugin-api/ui"
-import { growOf, pageContext } from "../../../base"
+import { growOf, NO_DRAFT, NO_GROW, pageContext } from "../../../base"
 import {
   FolderIcon,
+  NO_WRITING,
+  NOT_COMPOSING,
+  NOT_PRESSED,
   PaperFrame,
   RichBar,
   RichInput,
@@ -68,7 +71,7 @@ export function DirView() {
   const stage = useStage()
   const openMenu = useContextMenu(DIR_CONTEXT)
   const ref = useRef<HTMLDivElement>(null)
-  if (!stage) return null
+  if (stage === NO_STAGE) return null
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューはポインタの操作で、キーの操作はメニューとコマンドが受ける
     <div ref={ref} className={styles.dir} onContextMenu={e => openMenu(e, {})}>
@@ -82,8 +85,8 @@ function Content({ stage, area }: { stage: StageView; area: RefObject<HTMLDivEle
   const t = useMessages(kit)
   // 紙の大きさ（変わらなければ同じ物を渡し、紙をずらしただけでは行を描き直さない）
   const size = paperOf(stage)
-  const w = size?.w
-  const h = size?.h
+  const w = size === NO_PAPER ? undefined : size.w
+  const h = size === NO_PAPER ? undefined : size.h
   const paperSize = useMemo(() => (w !== undefined && h !== undefined ? { w, h } : null), [w, h])
   if (!paperSize) return null
   return (
@@ -105,7 +108,8 @@ const Rows = memo(function Rows({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const page = useShownPage()
+  const shownPage = useShownPage()
+  const page = shownPage === NO_PAGE ? undefined : shownPage
   const perform = usePerform()
   const { select, setEditing, showToast } = useActions()
   const toggle = useCommand(FOLDER_TOGGLE.id)
@@ -124,30 +128,30 @@ const Rows = memo(function Rows({
   const writing = writingName({ stage })
   const picking = usingPencil && stage.editing === KIND_PICK
   // 名前と説明の入力Form（書いている字は名前が DIR_DRAFT、説明が DIR_NOTE_DRAFT。名前と説明を同時には書かない）
-  const edit = { target: selected, keyScope: DIR_EDIT_KEY_SCOPE.id, commit: DIR_EDIT_COMMIT.id }
+  const edit = { target: selected ?? NO_WRITING, keyScope: DIR_EDIT_KEY_SCOPE.id, commit: DIR_EDIT_COMMIT.id } as const
   const nameInput = useInPlaceInput(kit, DIR_DRAFT, { ...edit, active: writing })
   const noteInput = useInPlaceInput(kit, DIR_NOTE_DRAFT, { ...edit, active: writingNote({ stage }) })
-  const text = nameInput.text
+  const text = nameInput.text === NO_DRAFT ? null : nameInput.text
   // 書いている字を重ねた根
   const shown =
     root && text !== null && selected !== undefined ? (changeNode(root, selected, { name: text }) ?? root) : root
-  const growing = page ? growOf(catalog, page) : undefined // ページの増やす向き（可変ページでなければ undefined）
+  const growing = page ? growOf(catalog, page) : NO_GROW // ページの増やす向き（可変ページでなければ NO_GROW）
   // 印刷と同じ並べ方（print.ts の laidPage）で、書いている字を重ねた根を 1 度だけ並べる
   const laid =
     page && shown
       ? laidPage(catalog, page, { setting: pageContext(catalog, page).setting, grow: growing }, shown)
       : null
   // 可変ページなら、行と説明が入るだけ右と下へ並べた印刷区画に空きを足した広さを、ステージに知らせる
-  useStageArea(growing && laid ? laidArea(paper, growing, laid, true).size : null)
+  useStageArea(growing !== NO_GROW && laid ? laidArea(paper, growing, laid, true).size : NO_AREA)
   if (!page || !root || !shown || !laid || selected === undefined) return null
   const dir = root
   const { rows, lines, notes, divider } = laid
   const at = rows.find(r => r.id === selected)
   const noting = writingNote({ stage }) && notes !== null
-  const noteText = noting ? noteInput.text : null
+  const noteText = noting && noteInput.text !== NO_DRAFT ? noteInput.text : null
   const description = nodeOf(dir, selected)?.description ?? ""
   // ドラッグで動かしている行（押しただけでまだ動かしていなければ null）と、落とす先
-  const dragging = drag.state?.moved ? drag.state : null
+  const dragging = drag.state !== NOT_PRESSED && drag.state.moved ? drag.state : null
   const moving = dragging ? subtreeIds(nodeOf(dir, dragging.id) ?? { id: dragging.id, kind: "file", name: "" }) : null
   const drop = dragging ? dropAt(dir, rows, dragging.id, dragging.at) : null
   const ghost = dragging && rows.find(r => r.id === dragging.id)
@@ -220,7 +224,10 @@ const Rows = memo(function Rows({
           style={{
             left: nameLeft(at.x) - EDITOR_INSET,
             top: at.y,
-            width: editorWidth(nameInput.composing ?? text ?? at.name, at.w - (nameLeft(at.x) - at.x)),
+            width: editorWidth(
+              (nameInput.composing !== NOT_COMPOSING ? nameInput.composing : text) ?? at.name,
+              at.w - (nameLeft(at.x) - at.x),
+            ),
             height: at.h,
           }}
         />

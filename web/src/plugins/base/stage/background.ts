@@ -1,5 +1,6 @@
 // 背景編集モードのコマンド: 背景（ページの slide。背景を持つタイプだけ）を直すモードに入る・出る、中身を隠す、背景の印刷の設定を変える。
 // モードはステージが持つ（core/stage.ts の edits）。中身を隠しているかは base が持つステージのプラグイン状態（states.ts。モードを出ると戻る）
+
 import { pageType } from "../../../core/core-catalog"
 import { slideIsBackground } from "../../../core/def/page-type"
 import { editingBackground as isEditing } from "../../../core/stage"
@@ -18,7 +19,7 @@ const hasBackground = (ctx: CommandContext): boolean => {
 }
 
 // 背景編集モードに入ったとき、前に隠していた中身は見せる
-const showContent = (a: CommandActions) => a.updatePluginState(CONTENT_HIDDEN, () => undefined)
+const showContent = (a: CommandActions) => a.resetPluginState(CONTENT_HIDDEN)
 
 // 背景編集モードに入る・出る（フッタのボタン。もう一度押すと出る）
 export const BACKGROUND_TOGGLE = kit.defineCommand({
@@ -60,9 +61,9 @@ export const BACKGROUND_END = kit.defineCommand({
 export const BACKGROUND_HIDE_CONTENT = kit.defineCommand({
   id: "background-hide-content",
   title: "Hide content",
-  run: (_ctx, a) => a.updatePluginState(CONTENT_HIDDEN, now => (now ? undefined : true)),
+  run: (_ctx, a) => a.updatePluginState(CONTENT_HIDDEN, now => !now),
   when: editingBackground,
-  active: ctx => ctx.pluginState(CONTENT_HIDDEN) ?? false,
+  active: ctx => ctx.pluginState(CONTENT_HIDDEN),
 })
 
 // 開いているページの背景の印刷の設定を変える（フッタの「印刷対象」）

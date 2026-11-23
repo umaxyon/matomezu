@@ -2,7 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { HOME_ID } from "../../../web/src/core/folders"
-import { shownPageId, shownType } from "../../../web/src/core/stage"
+import { NO_PAGE_TYPE, NOTHING_OPENED, shownPageId, shownType } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
 import { currentStage } from "../../../web/src/core/workspace"
 import { addPageIn, createBookIn } from "../../../web/src/plugins/base"
@@ -34,7 +34,7 @@ test("ページを開くのは指定したステージで、そのステージ�
 test("分けたステージは何も開いておらず、ブックを開くとそのステージがカレントになる", () => {
   const { state, actions } = newStore()
   actions.split("s1")
-  expect(screenOf(state.getState().window).stages[1]!.opened).toBeNull()
+  expect(screenOf(state.getState().window).stages[1]!.opened).toBe(NOTHING_OPENED)
   actions.openBook("s2", "b3")
   const ws = screenOf(state.getState().window)
   expect(ws.stages[1]!.opened).toMatchObject({
@@ -50,7 +50,7 @@ test("ブックを開いていないステージには、ページは足せな�
   const { state, actions } = newStore()
   actions.split("s1")
   const s = state.getState()
-  expect(screenOf(s.window).stages.map(st => shownType(st.opened ?? null))).toEqual(["@matomezu/drawing:drawing", null])
+  expect(screenOf(s.window).stages.map(st => shownType(st.opened))).toEqual(["@matomezu/drawing:drawing", NO_PAGE_TYPE])
   expect(addPageIn({ state, actions }, "s2", { type: "@matomezu/drawing:drawing", title: "x" })).toBe(false)
   expect(state.getState()).toBe(s)
 })
@@ -105,8 +105,14 @@ test("ページの無いブックを 2 つのステージで開いて最初の�
   actions.split("s1")
   actions.openBook("s2", "n1")
   addPageIn({ state, actions }, "s2", { type: "@matomezu/drawing:drawing", title: "最初" })
-  expect(screenOf(state.getState().window).stages.map(st => shownPageId(st.opened ?? null))).toEqual(["n2", "n2"])
+  expect(screenOf(state.getState().window).stages.map(st => shownPageId(st.opened ?? NOTHING_OPENED))).toEqual([
+    "n2",
+    "n2",
+  ])
   // ほかのページを見ているステージは変えない
   addPageIn({ state, actions }, "s2", { type: "@matomezu/drawing:drawing", title: "次" })
-  expect(screenOf(state.getState().window).stages.map(st => shownPageId(st.opened ?? null))).toEqual(["n2", "n3"])
+  expect(screenOf(state.getState().window).stages.map(st => shownPageId(st.opened ?? NOTHING_OPENED))).toEqual([
+    "n2",
+    "n3",
+  ])
 })

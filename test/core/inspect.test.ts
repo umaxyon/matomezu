@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import { pagesOf } from "../../web/src/core/book"
-import { ANY_PAGE_TYPE } from "../../web/src/core/def/action"
+import { ANY_PAGE_TYPE, NO_CONTROL_CENTER } from "../../web/src/core/def/action"
 import { deniedBy, inspect } from "../../web/src/core/inspect"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
@@ -156,7 +156,7 @@ describe("inspect: アクションの許可", () => {
       inspect(
         CORE_CATALOG,
         { kind: "action", actor: USER, action: "@matomezu/base:book-create" },
-        { controlCenter: null },
+        { controlCenter: NO_CONTROL_CENTER },
       ),
     ).toMatchObject({
       value: false,

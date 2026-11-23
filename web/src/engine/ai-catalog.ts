@@ -44,7 +44,7 @@ function aiTables(of: Assembled) {
       id: t.id,
       title: en(t.title),
       grouping: t.grouping, // binder のタイプのページは、そのタイプのバインダの中にだけ置ける
-      grows: growKindOf(t.grow), // 可変ページの決め方（base の growKindOf）
+      grows: growKindOf(t), // 可変ページの決め方（base の growKindOf）
       items: t.items.allowed, // ページに置けるアイテム
       // ページの slide（形だけの並び）に置けるアイテムと、その並びがページの背景か本体か（無ければ null）。read_page には、背景は有無と文字だけが見える（page.background.texts）
       slide: t.slide ? { items: t.slide.allowed, role: slideIsBackground(t) ? "background" : "body" } : null,

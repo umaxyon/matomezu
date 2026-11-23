@@ -3,6 +3,7 @@
 // タグはプロジェクトの順で、入らない分は「+N」
 // 押すとチケットスクリーンを開く（上下に分けて見せていれば閉じる。開き方は useOpenTicket の card）。上下に分けて見せているチケットのカードは色を付ける（data-open）。
 // チケットカードには data-card（チケットの id）を付ける
+import { NO_STATE } from "../../../plugin-api"
 import { useMessages, usePluginState } from "../../../plugin-api/ui"
 import { useWorkingOn } from "../current-ticket/useCurrentTickets"
 import { kit } from "../kit"
@@ -45,7 +46,7 @@ export function TicketCardView({
   const opener = useOpenTicket()
   const working = useWorkingOn(ticket)
   const visit = usePluginState(kit, CARD_VISIT)
-  const lit = visit?.phase === "visiting" && visit.ticket === ticket.id
+  const lit = visit !== NO_STATE && visit.phase === "visiting" && visit.ticket === ticket.id
   const show = () => opener.card(ticket.id)
   const volumeShown = shows.volume && ticket.volume !== "none"
   return (

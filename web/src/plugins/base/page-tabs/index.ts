@@ -1,7 +1,7 @@
 // ページ: ページを作る・開くコマンドと、ページを作るダイアログ（作るものはダイアログで決める）。ページの設定のダイアログと、それを開くコマンド。
 // ページを作るダイアログとページの設定のダイアログは、ページのタイプが自分のものにできる（dialogs。行うアクションは同じ page-add・page-update）
 
-import { findBinder, findPage, siblingsOf } from "../../../core/book"
+import { findBinder, findPage, NO_BINDER, NO_PAGE, siblingsOf } from "../../../core/book"
 import type { MessageKey } from "../../../core/catalog"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
@@ -142,8 +142,8 @@ export const PAGE_SETTINGS_OF = kit.defineCommand({
   title: "Page settings",
   run: (ctx, a, { page }: { page: string }) => {
     const lineup = lineupIn(ctx)
-    const found = lineup !== NO_LINEUP ? findPage(lineup, page)?.page : undefined
-    if (found) a.openDialog(pageDialog(ctx.catalog, found.type, "settings"), { page: found.id })
+    const found = lineup !== NO_LINEUP ? findPage(lineup, page) : NO_PAGE
+    if (found !== NO_PAGE) a.openDialog(pageDialog(ctx.catalog, found.page.type, "settings"), { page })
   },
   when: ctx => lineupIn(ctx) !== NO_LINEUP,
 })
@@ -155,19 +155,20 @@ export const PAGE_ADD_AFTER = kit.defineCommand({
   // 作るのは、ページ page と同じタイプのページ
   permissionScope: (ctx, args: { page: string } | undefined) => {
     const lineup = lineupIn(ctx)
-    return { creates: (args && lineup !== NO_LINEUP && findPage(lineup, args.page)?.page.type) || ANY_PAGE_TYPE }
+    const found = args && lineup !== NO_LINEUP ? findPage(lineup, args.page) : NO_PAGE
+    return { creates: found !== NO_PAGE ? found.page.type : ANY_PAGE_TYPE }
   },
   title: "Add page here",
   run: (ctx, a, { page }: { page: string }) => {
     const book = lineupIn(ctx)
     if (book === NO_LINEUP) return
     const at = findPage(book, page)
-    if (!at) return
-    const siblings = siblingsOf(book, page) ?? []
+    if (at === NO_PAGE) return
+    const siblings = siblingsOf(book, page)
     const index = siblings.findIndex(e => e.id === page) + 1
     const done = a.perform(
       PAGE_ADD.id,
-      { type: at.page.type, index, ...(at.binder ? { into: { binder: at.binder.id } } : {}) },
+      { type: at.page.type, index, ...(at.binder !== NO_BINDER ? { into: { binder: at.binder.id } } : {}) },
       { book: book.id },
     )
     if (done.ok) a.openPage(done.result.page)
@@ -208,11 +209,7 @@ export const PAGE_DELETE = kit.defineCommand({
   title: "Delete page...",
   run: (_ctx, a, { page }: { page: string }) => a.openDialog(PAGE_DELETE_DIALOG.id, { page }),
   permissionScope: { page: "page" },
-  when: ctx =>
-    showsPageDelete(
-      ctx.book === NO_BOOK ? null : ctx.book,
-      ctx.outsideBinder === NO_OUTSIDE_BINDER ? null : ctx.outsideBinder,
-    ),
+  when: ctx => showsPageDelete(ctx.book, ctx.outsideBinder),
 })
 
 // バインダ binder の設定のダイアログを開く
@@ -222,14 +219,18 @@ export const BINDER_SETTINGS = kit.defineCommand({
   permissionScope: { entry: "binder" },
   title: "Settings...",
   run: (ctx, a, { binder }: BinderSettingsArgs) => {
-    if (ctx.book !== NO_BOOK && findBinder(ctx.book, binder)) a.openDialog(BINDER_SETTINGS_DIALOG.id, { binder })
+    if (ctx.book !== NO_BOOK && findBinder(ctx.book, binder) !== NO_BINDER)
+      a.openDialog(BINDER_SETTINGS_DIALOG.id, { binder })
   },
   when: ctx => ctx.book !== NO_BOOK,
 })
 
 // 文脈 ctx のステージで開いているバインダの id（ブックの中の、開いているページが入っているバインダか開いている空のバインダ。ブックの外のバインダを開いていれば、そのバインダ。無ければ null）
 function openedBinderIn(ctx: CommandContext): string | null {
-  if (ctx.book !== NO_BOOK) return binderOf(ctx.book, ctx.stage.opened)
+  if (ctx.book !== NO_BOOK) {
+    const binder = binderOf(ctx.book, ctx.stage.opened)
+    return binder === NO_BINDER ? null : binder
+  }
   return ctx.outsideBinder !== NO_OUTSIDE_BINDER ? ctx.outsideBinder.id : null
 }
 

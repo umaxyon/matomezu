@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { NO_STATE } from "../../web/src/core/def/plugin-state"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
@@ -149,7 +150,7 @@ describe("コマンドは、自分のプラグインのプラグイン状態を�
   const TOGGLE = kit.defineCommand({
     id: "toggle",
     title: "toggle",
-    run: (_, a) => a.updatePluginState(MODE, now => (now === "split" ? undefined : "split")),
+    run: (_, a) => a.updatePluginState(MODE, now => (now === "split" ? NO_STATE : "split")),
     when: ctx => ctx.pluginState(MODE) !== "hidden",
     active: ctx => ctx.pluginState(MODE) === "split",
   })
@@ -159,7 +160,7 @@ describe("コマンドは、自分のプラグインのプラグイン状態を�
     title: "toggle",
     run: (_, a) => {
       a.updatePluginState(MODE, () => "split")
-      a.updatePluginState(FLIPPED, now => (now === "on" ? undefined : "on"))
+      a.updatePluginState(FLIPPED, now => (now === "on" ? NO_STATE : "on"))
     },
     when: () => true,
   })

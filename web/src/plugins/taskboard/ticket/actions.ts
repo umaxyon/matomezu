@@ -1,6 +1,6 @@
 // チケットのアクション。チケットを足す・直すは AI も行え、チケットを消す・ロックを外すは利用者だけ
 import { z as zod } from "zod"
-import { type Actor, type AIMessage, workroomOfActor } from "../../../plugin-api"
+import { type Actor, type AIMessage, NO_WORKROOM, workroomOfActor } from "../../../plugin-api"
 import { READS_WORKROOM_KEYS } from "../../base"
 import { byOf, type Records, readsBy, recordIn, workroomsOf } from "../by"
 import { kit } from "../kit"
@@ -71,7 +71,7 @@ export function assignedMessages(
   project: Project,
 ): AIMessage[] {
   const own = workroomOfActor(actor)
-  if (own === undefined) return []
+  if (own === NO_WORKROOM) return []
   const label = ticketLabel(project.prefix, ticket.number)
   return after
     .filter(w => w !== own && !before.includes(w))

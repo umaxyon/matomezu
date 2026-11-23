@@ -2,4 +2,4 @@
 import { kit } from "../kit"
 
 // プロジェクトの一覧を開いているか（最初は閉じている）
-export const LIST_OPEN = kit.definePluginStateOf<boolean>()({ id: "list-open", scope: "window" })
+export const LIST_OPEN = kit.definePluginStateOf<boolean>()({ id: "list-open", scope: "window", default: false })

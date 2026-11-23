@@ -5,7 +5,7 @@
 import { expect, test } from "bun:test"
 import { HOME_ID } from "../../../web/src/core/folders"
 import { LIBRARY_HISTORY } from "../../../web/src/core/history"
-import { shownPageId } from "../../../web/src/core/stage"
+import { NO_PAGE, NOTHING_OPENED, shownPageId } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { PAGE_CREATE } from "../../../web/src/plugins/base/library/page-create"
@@ -153,14 +153,14 @@ test("entry-move: 開いているブックのスライドがバインダの外�
   const into = folderIn(act)
   showFirstBook(store)
   store.actions.openPage("s1", s.page)
-  const shown = () => screenOf(state().window).stages.map(st => shownPageId(st.opened ?? null))
+  const shown = () => screenOf(state().window).stages.map(st => shownPageId(st.opened ?? NOTHING_OPENED))
   expect(shown()).toEqual([s.page])
   // バインダの中の隣のページを開く
   expect(act("entry-move", { entry: s.page, into }).ok).toBe(true)
   expect(shown()).toEqual([t])
   // バインダの中の残りのページが無いので、ブックに残った空のバインダを開く
   expect(act("entry-move", { entry: t, into }).ok).toBe(true)
-  expect(shown()).toEqual([null])
+  expect(shown()).toEqual([NO_PAGE])
   expect(screenOf(state().window).stages[0]?.opened).toMatchObject({ kind: "binder", binder: s.binder })
 })
 
@@ -193,7 +193,7 @@ test("entry-move: 開いているブックのページがフォルダへ出る�
   const { store, state, add, act } = setup()
   const a = add("b1", { title: "A" }).page
   showFirstBook(store)
-  const shown = () => screenOf(state().window).stages.map(s => shownPageId(s.opened ?? null))
+  const shown = () => screenOf(state().window).stages.map(s => shownPageId(s.opened ?? NOTHING_OPENED))
   expect(shown()).toEqual(["p1"])
   expect(act("entry-move", { entry: "p1", into: folderIn(act) }).ok).toBe(true)
   expect(shown()).toEqual([a])

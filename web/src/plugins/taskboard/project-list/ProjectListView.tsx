@@ -15,7 +15,7 @@ import styles from "./ProjectListView.module.css"
 
 export function ProjectListView() {
   const t = useMessages(kit)
-  const open = usePluginState(kit, LIST_OPEN) ?? false
+  const open = usePluginState(kit, LIST_OPEN)
   const updateOpen = useUpdatePluginState(kit, LIST_OPEN)
   const projects = useRecords(PROJECT.id, { where: [] })
   const settings = useBoardSettings()

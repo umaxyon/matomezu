@@ -3,7 +3,7 @@
 // ステップ（steps）は見る順に並べ、最初に値のあったステップで決まる（決まった後のステップも並べる）。ステップの出どころは文ではなくデータで返す
 
 import { type Actor, canAct, isAI, isVisitor, USER } from "./actor"
-import { findBinder, findPage, pagesOf } from "./book"
+import { findBinder, findPage, foundPage, NO_BINDER, pagesOf } from "./book"
 import type { ActionId, SubjectId } from "./catalog"
 import { type CoreCatalog, pageType } from "./core-catalog"
 import {
@@ -15,6 +15,7 @@ import {
   changesBookOnly,
   isInStageEntry,
   isOnPage,
+  NO_CONTROL_CENTER,
   type Where,
 } from "./def/action"
 import type { ControlCenterDef } from "./def/control-center"
@@ -97,12 +98,18 @@ export interface AskedPage {
 }
 
 // ctx は行う文脈（コントロールセンターと、在れば core が持たせたレコードの読み口と書庫のフォルダ。認可ステップの読み口とバックヤードに使う）
+// id のバインダが入れるページのタイプ（バインダが無ければ undefined）
+function typeOfBinder(book: Book, id: string): string | undefined {
+  const binder = findBinder(book, id)
+  return binder === NO_BINDER ? undefined : binder.pageType
+}
+
 export function inspect(
   catalog: CoreCatalog,
   query: Query,
   ctx?: Pick<ActionContext, "controlCenter"> & WithSource & WithFolders,
 ): Inspected<boolean> {
-  return action(catalog, query, ctx ?? { controlCenter: null })
+  return action(catalog, query, ctx ?? { controlCenter: NO_CONTROL_CENTER })
 }
 
 // アクション action を、開いているブック book の所 where で使えるかの問い。ブック・ページ・アノテーションが対象のアクションだけ book と where を渡す
@@ -202,7 +209,7 @@ function typesAt(
     // 表に無い物は、タイプが分からないので使えない
     return every(
       where.entries
-        .map(id => findPage(book, id)?.page.type ?? findBinder(book, id)?.pageType)
+        .map(id => foundPage(findPage(book, id))?.type ?? typeOfBinder(book, id))
         .map(type => (type !== undefined && catalog.pageTypes.has(type) ? type : undefined)),
     )
   const pages = pagesOf(book)
@@ -248,7 +255,7 @@ function permissionQuery(
   actor: Actor,
   ctx: object,
 ): PermissionQuery {
-  const page = isOnPage(def.target) && where?.page !== undefined ? findPage(book, where.page)?.page : undefined
+  const page = isOnPage(def.target) && where?.page !== undefined ? foundPage(findPage(book, where.page)) : undefined
   const entry = backyardEntryIn(ctx, book.id)
   const backyardEntry = entry ? { backyardEntry: entry } : {}
   if (!page) return { kind: "folder", action: def, folder: book, actor, ...(where ? { where } : {}), ...backyardEntry }
@@ -368,7 +375,7 @@ function action(
       : page
         ? decide([known, userOnly, participation, ...permitted, ...typeSteps(def, pageType(catalog, page.page.type))])
         : decide([known, userOnly, participation])
-  const center = controlCenter === null ? undefined : catalog.controlCenters.get(controlCenter)
+  const center = controlCenter === NO_CONTROL_CENTER ? undefined : catalog.controlCenters.get(controlCenter)
   if (!center)
     return decide([known, userOnly, participation, { from: { source: "controlCenter", id: null }, value: false }])
   const items = userSettingSteps(catalog, def.target === "settings" ? (settings ?? []) : [], q.actor, center)
@@ -386,6 +393,9 @@ function action(
 // 認可ステップを除いて決めた答え（タイプなどで使えるか。認可ステップが止めているかは見ない）
 export const withoutPermissions = (answer: Inspected<boolean>): Inspected<boolean> =>
   decide(answer.steps.filter(s => s.from.source !== "permission"))
+
+// 使えるかの答え（matomezu/ui の Allowed など）の permission の、止めたのが認可ステップでない（タイプなどで使えない）ときの値
+export const NO_PERMISSION = "none"
 
 // 答えを止めたのが認可ステップなら、そのステップの id（使えるか、ほかのステップが止めたなら null）
 export const deniedBy = (answer: Inspected<boolean>): string | null =>

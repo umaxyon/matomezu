@@ -104,7 +104,7 @@ test("印刷区画に載っているか: 形は掛かっている印刷区画の
   // 1 つ目の印刷区画の右の端から少しだけはみ出す箱は、1 つ目と 2 つ目の印刷区画の両方に載り、またいだ箱として挙がる
   const box = (caption: string) =>
     pagesOf(book())[0]!.items!.find(i => (i.props as { caption?: string }).caption === caption)!
-  const w = placedSize(store.catalog.core, box("一") as never)!.w
+  const w = (placedSize(store.catalog.core, box("一") as never) as { w: number }).w
   expect(place(paperW - w + 10, "少し").ok).toBe(true)
   expect(filled()).toEqual(["0,0", "1,0"])
   expect(entryCrossings(store.catalog.core, book())).toEqual([

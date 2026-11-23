@@ -2,15 +2,21 @@
 // 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
 // ブックスクリーンに開く行（ページの在るブック・ワーカーブックと、ブックの中のページ）は、1 回押すと選んで「開く／分割で開く」を出し、2 回押すと全画面で開く（「画面を分割」で出した書庫のスクリーンでは出さない）。
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
-import { type CSSProperties, type MouseEvent, useEffect, useId, useRef, useState } from "react"
+import { type CSSProperties, type MouseEvent, useCallback, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { type Naming, namingOf, titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
 import type { MatomezuState } from "../../../store/state"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu, useToggledMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
-import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
+import {
+  usePluginState,
+  useReadPluginState,
+  useResetPluginState,
+  useSetPluginState,
+} from "../../../ui/plugin-state-hooks"
 import { useCatalog, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useUserSetting } from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
@@ -53,7 +59,6 @@ import {
   treeCurrentOf,
   treeRowsOf,
   unfoldable,
-  unfoldedOf,
 } from "./outline"
 import { RowPressOf } from "./RowPress"
 import { usePickRows } from "./RowTable"
@@ -62,7 +67,7 @@ import { type FoundRow, NO_SEARCH, searchWord } from "./search"
 import { SHOW_UNREADABLE_FOLDER } from "./show-unreadable"
 import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_TREE_WIDTH, LIBRARY_UNFOLDED } from "./state"
 import { TrashView } from "./TrashView"
-import { CONTENT_MIN_WIDTH, DEFAULT_TREE_WIDTH, TREE_MIN_WIDTH, treeWidthAt } from "./tree-width"
+import { CONTENT_MIN_WIDTH, TREE_MIN_WIDTH, treeWidthAt } from "./tree-width"
 import { UnreadableView } from "./UnreadableView"
 import { type LibraryDrag, useLibraryDrag } from "./useLibraryDrag"
 import { createdIn, deskTitleOf, isDeskRow } from "./workdesk-rows"
@@ -108,8 +113,15 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const openEntry = useCommand(LIBRARY_ENTRY_OPEN.id).run
   const value = usePluginState(kit, LIBRARY_FOLDER)
   const setFolder = useSetPluginState(kit, LIBRARY_FOLDER)
-  const picked = usePluginState(kit, LIBRARY_PICKED)
-  const setPicked = useSetPluginState(kit, LIBRARY_PICKED)
+  const pickedState = usePluginState(kit, LIBRARY_PICKED)
+  const picked = pickedState === NO_STATE ? undefined : pickedState
+  const setPickedState = useSetPluginState(kit, LIBRARY_PICKED)
+  const resetPicked = useResetPluginState(kit, LIBRARY_PICKED)
+  // 行 id を選ぶ（undefined なら選ぶのをやめる）
+  const setPicked = useCallback(
+    (id: string | undefined) => (id === undefined ? resetPicked() : setPickedState(id)),
+    [setPickedState, resetPicked],
+  )
   const desks = useWorkdesks()
   const opened = useMatomezuState(s => openedFolderOf(s.folders, value, desks))
   const path = useMatomezuState(useShallow(s => pathTo(s.folders, opened, desks)))
@@ -134,7 +146,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const pageNew = useCommand(LIBRARY_PAGE_NEW.id, { folder: opened })
   const addPageMenu = useToggledMenu(LIBRARY_ADD_PAGE_MENU)
   const addPage = useRef<HTMLSpanElement>(null)
-  const unfolded = unfoldedOf(usePluginState(kit, LIBRARY_UNFOLDED))
+  const unfolded = usePluginState(kit, LIBRARY_UNFOLDED)
   const setUnfolded = useSetPluginState(kit, LIBRARY_UNFOLDED)
   const readUnfolded = useReadPluginState(kit, LIBRARY_UNFOLDED)
   const shown = new Set(unfolded)
@@ -146,10 +158,13 @@ export function LibraryView({ className }: { className?: string } = {}) {
     if (next.unfolded !== unfolded) setUnfolded([...next.unfolded])
   }
   // 検索: 入力Formに打っている途中の言葉 typed と、「検索」を押して探している言葉 query
-  const query = usePluginState(kit, LIBRARY_QUERY)
-  const treeWidth = usePluginState(kit, LIBRARY_TREE_WIDTH) ?? DEFAULT_TREE_WIDTH
+  const queryState = usePluginState(kit, LIBRARY_QUERY)
+  const query = queryState === NO_STATE ? undefined : queryState
+  const treeWidth = usePluginState(kit, LIBRARY_TREE_WIDTH)
   const setTreeWidth = useSetPluginState(kit, LIBRARY_TREE_WIDTH)
+  const resetTreeWidth = useResetPluginState(kit, LIBRARY_TREE_WIDTH)
   const setQuery = useSetPluginState(kit, LIBRARY_QUERY)
+  const resetQuery = useResetPluginState(kit, LIBRARY_QUERY)
   const [typed, setTyped] = useState(query ?? "")
   const searchForm = useId()
   // 検索をやめたら（フォルダの中へ入った・コマンドがやめた）、入力Formも空にする
@@ -158,7 +173,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
   }, [query])
   // フォルダの中へ入る（ツリーのフォルダの行・パンくず）: 検索していればやめ、右の枠にその中身を出す
   const enter = (folder: string) => {
-    if (query !== undefined) setQuery(undefined)
+    if (query !== undefined) resetQuery()
     arrive({ id: folder, holder: folder, holds: true })
   }
   // 読めない物のフォルダを開く（ツリーの下の ⚠ の行）: 選んでいる行も外す
@@ -172,7 +187,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const openEntryMenu = useContextMenu(LIBRARY_ENTRY_CONTEXT)
   const openFolderMenu = useContextMenu(LIBRARY_FOLDER_CONTEXT)
   const { drag, asking, clearing, onPointerDown, answered, cleared } = useLibraryDrag(root, id => {
-    const now = unfoldedOf(readUnfolded())
+    const now = readUnfolded()
     if (!now.includes(id) && read().folders[id] !== undefined && id !== TRASH_ID) setUnfolded([...now, id])
   })
   // Tab で止まる行: ツリーは今いる行（出ていなければ書庫ホーム）、右の枠は選んでいる行（無ければ最初の行）
@@ -252,7 +267,8 @@ export function LibraryView({ className }: { className?: string } = {}) {
             className={styles.search}
             onSubmit={e => {
               e.preventDefault()
-              setQuery(searchWord(typed) === NO_SEARCH ? undefined : typed.trim())
+              if (searchWord(typed) === NO_SEARCH) resetQuery()
+              else setQuery(typed.trim())
             }}
           >
             <input
@@ -263,7 +279,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
               onChange={e => {
                 setTyped(e.target.value)
                 // 入力Formを空にしたら、元の表示に戻す
-                if (e.target.value === "") setQuery(undefined)
+                if (e.target.value === "") resetQuery()
               }}
             />
             <ActionButton form={searchForm} raised>
@@ -289,7 +305,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
         direction="row"
         frame={root}
         onMove={(at, length) => setTreeWidth(treeWidthAt(at, length))}
-        onReset={() => setTreeWidth(undefined)}
+        onReset={() => resetTreeWidth()}
         className={styles.treeSplitter}
         data-tree-splitter
       />

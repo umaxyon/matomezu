@@ -5,13 +5,15 @@ import type { ReactNode } from "react"
 import { allowedItems, type CoreCatalog, type ItemPage, type PlacedShape } from "../../../plugin-api"
 import {
   type ItemViewProps,
+  NO_HOVER,
+  NO_POINT,
   type ShapeScene,
   TokenScope,
   useCoreCatalog,
   useTokenScope,
   useUiCatalog,
 } from "../../../plugin-api/ui"
-import { placedSize, shapeDefOf, sheetShapes, shownRects } from "../../base"
+import { NO_SHAPE_DEF, NO_SIZE, placedSize, shapeDefOf, sheetShapes, shownRects } from "../../base"
 import type { PrintSheetProps } from "../../base/ui"
 import styles from "./PaperView.module.css"
 
@@ -36,8 +38,8 @@ export function PaperSheet({ zoom, page, column, row, paper }: PrintSheetProps) 
     released: NO_IDS,
     busy: false,
     selectable: false,
-    hover: null,
-    localOf: () => null,
+    hover: NO_HOVER,
+    localOf: () => NO_POINT,
   }
   const connectors = allowedItems(catalog, page).flatMap(c => {
     const view = ui.connectors.get(c)?.view
@@ -61,8 +63,9 @@ function SheetItem({ catalog, zoom, item }: { catalog: CoreCatalog; zoom: number
   const tokens = useTokenScope(item.item)
   const size = placedSize(catalog, item)
   const View = ui?.view as ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode) | undefined
+  const def = shapeDefOf(catalog, item.item)
   const content = Object.fromEntries(
-    Object.keys(shapeDefOf(catalog, item.item)?.content ?? {}).map(k => [k, (item as Record<string, unknown>)[k]]),
+    Object.keys((def !== NO_SHAPE_DEF && def.content) || {}).map(k => [k, (item as Record<string, unknown>)[k]]),
   )
   return (
     <div
@@ -70,12 +73,12 @@ function SheetItem({ catalog, zoom, item }: { catalog: CoreCatalog; zoom: number
       style={{
         left: item.x,
         top: item.y,
-        width: size?.w,
-        height: size?.h,
+        width: size !== NO_SIZE ? size.w : undefined,
+        height: size !== NO_SIZE ? size.h : undefined,
         ...tokens,
       }}
     >
-      {View && size ? (
+      {View && size !== NO_SIZE ? (
         <View
           props={item.props}
           size={size}

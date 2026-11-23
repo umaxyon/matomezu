@@ -155,6 +155,15 @@ export function backyardBookOf(library: Pick<Library, "folders">, backyard: stri
   return row?.folderRole === "backyard" ? row.lineup.find(r => sameWorkKey(r.workKey, key))?.id : undefined
 }
 
+// 書庫 library のバックヤード（印 backyard）の中のブック（id と workKey。並びの順。バックヤードが無ければ空）
+export function backyardBooksOf(
+  library: Pick<Library, "folders">,
+  backyard: string,
+): readonly { id: string; workKey: WorkKey }[] {
+  const row = library.folders[backyardIdOf(backyard)]
+  return row?.folderRole === "backyard" ? row.lineup.map(r => ({ id: r.id, workKey: r.workKey })) : []
+}
+
 // まだどこにも入っていないブック book（withBook で行を足した物）を、バックヤード（印 backyard）の並びの末尾に workKey key で置いた書庫。
 // ブックが無いかもう入っている（no-entry）、バックヤードの行が無い（no-folder）、同じ workKey のブックがもう在る（work-key-taken）なら、その訳
 export function placedInBackyard(
@@ -386,6 +395,9 @@ export const namingIn = (catalog: CoreCatalog, lang: Lang): Naming => ({ catalog
 // 利用者の設定 settings の言語で名前を引く決まり（言語を選んでいない・使えなければ英語）。画面も常駐も、名前の決まりはこれで引く
 export const namingOf = (catalog: CoreCatalog, settings: Settings): Naming =>
   namingIn(catalog, langOf(catalog, settings, "en"))
+
+// 名前が無いときの値（名前の無い物・書庫に無い物・利用者名を決めていない。どの名前とも重ならないよう、文字列にしない）
+export const NO_NAME: unique symbol = Symbol("no name")
 
 // ページかフォルダの行 row（種類 kind）の名前（名前の無い物・行が無ければ undefined）。名前を引くのは、ここだけ:
 // システムフォルダは、印の定義の title を naming の言語で引く（定義が機能台帳に無ければ名前の無い物）。ほかは行の title

@@ -4,7 +4,7 @@
 import type { ToolId } from "../../../core/catalog"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { LibraryAndBooks } from "../../../core/library"
-import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
+import { NO_TOOL, toolDef, toolSetOf, toolsIn } from "../../../core/tools"
 import { usableIn, type Workspace } from "../../../core/workspace"
 import { kit } from "../kit"
 
@@ -14,9 +14,9 @@ declare module "../../../core/catalog" {
   }
 }
 
-// 道具 tool（無ければ null）の間、紙をずらさないか
-export const keepsPan = (catalog: CoreCatalog, tool: string | null): boolean =>
-  tool !== null && toolDef(catalog, tool).keepsPan === true
+// 道具 tool（無ければ NO_TOOL）の間、紙をずらさないか
+export const keepsPan = (catalog: CoreCatalog, tool: string): boolean =>
+  tool !== NO_TOOL && toolDef(catalog, tool).keepsPan === true
 
 // 組 set の、ドラッグで紙をずらす道具（無ければ null）
 export const panningTool = (catalog: CoreCatalog, set: string): ToolId | null =>

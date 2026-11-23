@@ -29,13 +29,19 @@ declare module "../../../core/catalog" {
 export const itemAiPlaced = (catalog: CoreCatalog, page: ItemPage): AiPlaced[] =>
   [...allRectsOf(catalog, page)].map(([id, r]) => ({ id, x: r.x, y: r.y, w: r.w, h: r.h }))
 
-// ページ page の形の、描いた位置と大きさ（ページのタイプのプレゼンテーションが aiPlaced を持たなければ null）
-export function aiPlacedOfPage(catalog: CoreCatalog, page: ItemPage): readonly AiPlaced[] | null {
+// 描いた位置と大きさを答えない（ページのタイプのプレゼンテーションが aiPlaced を持たない）
+export const NO_AI_PLACED = "none"
+
+// ページ page の形の、描いた位置と大きさ（ページのタイプのプレゼンテーションが aiPlaced を持たなければ NO_AI_PLACED）
+export function aiPlacedOfPage(catalog: CoreCatalog, page: ItemPage): readonly AiPlaced[] | typeof NO_AI_PLACED {
   const aiPlaced = catalog.presentations.get(pageType(catalog, page.type).presentation)?.aiPlaced
-  return aiPlaced ? aiPlaced(catalog, page) : null
+  return aiPlaced ? aiPlaced(catalog, page) : NO_AI_PLACED
 }
 
 // ブック book のページごとの、描いた位置と大きさ（ページの id ごと。aiPlacedOfPage）
-export function aiPlacedOf(catalog: CoreCatalog, book: Book): Record<string, readonly AiPlaced[] | null> {
+export function aiPlacedOf(
+  catalog: CoreCatalog,
+  book: Book,
+): Record<string, readonly AiPlaced[] | typeof NO_AI_PLACED> {
   return Object.fromEntries(pagesOf(book).map(p => [p.id, aiPlacedOfPage(catalog, p)]))
 }

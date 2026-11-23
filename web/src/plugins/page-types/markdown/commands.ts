@@ -1,7 +1,7 @@
 // ペインの並べ方のコマンドと、ソースのペインのテキストFormの中のキー（元に戻す・やり直す・検索は base のコマンド）。
 // 並べ方のコマンドは 4 つ（ソースだけ・左右に並べる・上下に並べる・プレビューだけ）で、ビューの上の行のボタンが押す。今の並べ方のコマンドは押した状態。
 // 利用者が選んだ並べ方は画面の場所に入れるプラグイン状態に持つ（panes.ts の PANE_LAYOUT_STATE）。コマンドは並べ方（mode）だけを変え、選んだ並べ方にする
-import type { CommandContext } from "../../../plugin-api"
+import type { CommandContext, NO_STATE } from "../../../plugin-api"
 import { hasOpenedPage } from "../../base"
 import { kit } from "./kit"
 import { MARKDOWN_PRESENTATION, SOURCE_KEY_SCOPE } from "./markdown"
@@ -28,7 +28,9 @@ function paneInputHere(ctx: CommandContext): { id: string; text: string } | null
 const toMode = (mode: PaneMode) => ({
   run: (
     ctx: CommandContext,
-    a: { updatePluginState(def: typeof PANE_LAYOUT_STATE, f: (now: ChosenLayout | undefined) => ChosenLayout): void },
+    a: {
+      updatePluginState(def: typeof PANE_LAYOUT_STATE, f: (now: ChosenLayout | typeof NO_STATE) => ChosenLayout): void
+    },
   ) =>
     a.updatePluginState(PANE_LAYOUT_STATE, now =>
       chosenWith(now, paneLayoutOf(now, ctx.pluginState(PANE_OPENING_STATE), paneInputHere(ctx)), { mode }),

@@ -4,28 +4,33 @@
 
 import { fail } from "../../../core/errors"
 import { outsideBinderIn } from "../../../core/folders-tree"
-import { openedBook, shownPageId } from "../../../core/stage"
+import { NOTHING_OPENED, openedBook, shownPageId } from "../../../core/stage"
 import { stageIn } from "../../../core/window"
+import { NO_BOOK, NO_OUTSIDE_BINDER } from "../../../store/commands/def"
 import { openedAt } from "../../../store/dialogs"
 import { ActsOnScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
-import { NO_LINEUP, openedLineup } from "../page-tabs/opened-lineup"
+import { openedLineup } from "../page-tabs/opened-lineup"
 import { useEditLock } from "../utils/useEditLock"
 import { locksOf } from "./locks"
 
 export function DialogHost() {
   const dialog = useMatomezuState(s => s.dialog)
-  const opened = useMatomezuState(s => (s.dialog ? stageIn(s.window, s.dialog.stage)?.opened : undefined) ?? null)
+  const opened = useMatomezuState(
+    s => (s.dialog ? stageIn(s.window, s.dialog.stage)?.opened : undefined) ?? NOTHING_OPENED,
+  )
   const book = useMatomezuState(s => openedBook(s.books, opened))
-  const binder = useMatomezuState(s => (opened && outsideBinderIn(s, opened.outermost.id)) ?? null)
+  const binder = useMatomezuState(
+    s => (opened !== NOTHING_OPENED && outsideBinderIn(s, opened.outermost.id)) || NO_OUTSIDE_BINDER,
+  )
   const { closeDialog } = useStoreActions()
   const ui = useUiCatalog()
   const dialogs = useCatalog().store.dialogs
   const def = dialog ? dialogs.get(dialog.id) : undefined
   if (!dialog) return null
   const View = ui.dialogViews.get(dialog.id) ?? fail("E109", { kind: "dialog", id: dialog.id })
-  const lineup = openedLineup(book ?? null, binder)
-  const locks = locksOf(lineup === NO_LINEUP ? null : lineup, shownPageId(opened), def?.edits?.(dialog.args) ?? [])
+  const lineup = openedLineup(book ?? NO_BOOK, binder)
+  const locks = locksOf(lineup, shownPageId(opened), def?.edits?.(dialog.args) ?? [])
   return (
     <ActsOnScope at={openedAt(dialog)}>
       {locks.map(l => (

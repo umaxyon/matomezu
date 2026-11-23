@@ -2,6 +2,8 @@
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
+import { NO_ITEM } from "../../web/src/core/placed"
+import { NO_PAGE } from "../../web/src/core/stage"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -25,7 +27,8 @@ function setup() {
   })
   const titles: (string | null)[] = []
   function Probe({ id }: { id: string }) {
-    titles.push(usePageById(id)?.title ?? null)
+    const page = usePageById(id)
+    titles.push(page === NO_PAGE ? null : page.title)
     return null
   }
   const draw = (node: React.ReactNode) =>
@@ -85,8 +88,10 @@ test("useItem も、引けるのは開いている物の中のページのアイ
   })
   const got: (string | null)[] = []
   function Probe({ page, id }: { page: string; id: string }) {
-    got.push(useItem(page, id)?.id ?? null)
-    got.push(usePageById(page)?.id ?? null)
+    const item = useItem(page, id)
+    got.push(item === NO_ITEM ? null : item.id)
+    const found = usePageById(page)
+    got.push(found === NO_PAGE ? null : found.id)
     return null
   }
   act(() => showFirstBook(instance))

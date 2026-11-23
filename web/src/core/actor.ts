@@ -19,9 +19,11 @@ export const isUser = (actor: Actor): actor is Extract<Actor, { kind: "user" }> 
 export const canAct = (actor: Actor): boolean => !isAI(actor) || typeof actor.workroom === "object"
 // AI がビジターか
 export const isVisitor = (actor: Actor): boolean => isAI(actor) && actor.workroom === "visitor"
-// AI が入っているワークルームの id（利用者・確定していない AI・ビジターは undefined）
-export const workroomOfActor = (actor: Actor): string | undefined =>
-  isAI(actor) && typeof actor.workroom === "object" ? actor.workroom.id : undefined
+// ワークルームが無いときの値（ワークルームに入っていない者・管理者のワークルームが無い）
+export const NO_WORKROOM = "none"
+// AI が入っているワークルームの id（利用者・確定していない AI・ビジターは NO_WORKROOM）
+export const workroomOfActor = (actor: Actor): string =>
+  isAI(actor) && typeof actor.workroom === "object" ? actor.workroom.id : NO_WORKROOM
 
 // 外から来るアクター: 利用者か、AI（入っているワークルームの id か、ビジターなら as が visitor。どちらも無ければ確定していない）
 export type WireActor = { kind: "user" } | { kind: "ai"; workroom?: string; as?: "visitor" }

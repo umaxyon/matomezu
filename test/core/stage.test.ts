@@ -1,9 +1,15 @@
 import { describe, expect, test } from "bun:test"
+import { NO_BINDER } from "../../web/src/core/book"
 import {
   areaOf,
   binderOf,
   closePrintPreview,
   followBook,
+  NO_AREA,
+  NO_ORIGIN,
+  NO_PAGE,
+  NO_PAPER,
+  NO_SHIFT,
   newStage,
   openBinder,
   openBook,
@@ -27,13 +33,26 @@ import { contentSize, MARGIN } from "../../web/src/core/viewport"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
+// 紙の大きさ（紙が無ければテストを落とす）
+const sheetOf = (stage: Parameters<typeof paperOf>[0]) => {
+  const paper = paperOf(stage)
+  if (paper === NO_PAPER) throw new Error("no paper")
+  return paper
+}
+// 開いているページ（開いていなければテストを落とす）
+const pageOf = (opened: Parameters<typeof openedPage>[0]) => {
+  const page = openedPage(opened)
+  if (page === NO_PAGE) throw new Error("no page")
+  return page
+}
+
 describe("stage", () => {
   const paged = testBook("b1", "見本", [
     drawingPage("p1"),
     drawingPage("p2", { title: "ページ 2", paper: "@matomezu/base:a5", orientation: "portrait" }),
   ])
   const stage = openBook(CORE_CATALOG, newStage("s1"), paged)
-  const content = contentSize(paperOf(stage)!, 1)
+  const content = contentSize(sheetOf(stage), 1)
   const small = { w: 400, h: 300 } // 中身が収まらない表示領域
 
   test("測る前は、ずらしても範囲に収めない（大きさが分からないので）", () => {
@@ -77,7 +96,7 @@ describe("stage", () => {
 
   test("紙は、ずらす量から余白の分だけ内側に置く", () => {
     const s = panBy(resize(stage, small), -30, -40)
-    expect(placement(s)).toEqual({ x: MARGIN - 30, y: MARGIN - 40, ...paperOf(s)!, zoom: 1 })
+    expect(placement(s)).toEqual({ x: MARGIN - 30, y: MARGIN - 40, ...sheetOf(s), zoom: 1 })
   })
 
   test("倍率を変えても、渡した点（無ければ表示領域の真ん中）の下の紙の点は動かない。開いたときの見え方に戻せる", () => {
@@ -97,8 +116,8 @@ describe("stage", () => {
 
   test("何も開いていないステージは、紙が無く、ずらせない", () => {
     const empty = resize(newStage("s2"), small)
-    expect(paperOf(empty)).toBeNull()
-    expect(placement(empty)).toBeNull()
+    expect(paperOf(empty)).toBe(NO_PAPER)
+    expect(placement(empty)).toBe(NO_PAPER)
     expect(panBy(empty, -10, -10)).toBe(empty)
     expect(openPage(CORE_CATALOG, empty, paged, "p1")).toBe(empty)
   })
@@ -115,6 +134,9 @@ describe("stage", () => {
       outermost: { kind: "book", id: "b9" },
       page: "p4",
       paper: { status: "known", size: { w: 1123, h: 794 } },
+      area: NO_AREA,
+      shift: NO_SHIFT,
+      origin: NO_ORIGIN,
     })
     expect([opened.pan, opened.starting]).toEqual([{ x: 0, y: 0 }, true])
   })
@@ -122,7 +144,7 @@ describe("stage", () => {
   test("ページの無いブックを開くと、ページも紙も開かず、ずらせない", () => {
     const opened = openBook(CORE_CATALOG, resize(stage, small), testBook("b0", "見本", []))
     expect(opened.opened).toEqual({ kind: "none", outermost: { kind: "book", id: "b0" } })
-    expect(placement(opened)).toBeNull()
+    expect(placement(opened)).toBe(NO_PAPER)
     expect(panBy(opened, -10, -10)).toBe(opened)
   })
 })
@@ -146,7 +168,7 @@ test("プレゼンテーションが知らせた広さ（可変ページ）は�
   const page = drawingPage("p1", { orientation: "portrait" })
   const book = testBook("b1", "見本", [page])
   const opened = resize(openBook(CORE_CATALOG, newStage("s1"), book), { w: 400, h: 300 })
-  const sheet = paperOf(opened)!
+  const sheet = sheetOf(opened)
   expect(areaOf(opened)).toEqual(sheet)
   const area = { w: sheet.w, h: sheet.h * 3 }
   const grown = setArea(opened, area)
@@ -168,7 +190,7 @@ test("プレゼンテーションが知らせた広さ（可変ページ）は�
 test("開いているページの中身をずらした（ページの shift が変わった）なら、中身が同じ所に見えるようパンを合わせ、知らせた広さも先に広げる", () => {
   const page = drawingPage("p1", { orientation: "portrait" })
   const book = testBook("b1", "見本", [page])
-  const sheet = paperOf(openBook(CORE_CATALOG, newStage("s1"), book))!
+  const sheet = sheetOf(openBook(CORE_CATALOG, newStage("s1"), book))
   const view = { w: 400, h: 300 }
   const start = setArea(resize(openBook(CORE_CATALOG, newStage("s1"), book), view), { w: sheet.w * 3, h: sheet.h * 3 })
   const at = panBy(start, -sheet.w, -sheet.h) // 2 つ目の印刷区画の左上あたりを見ている
@@ -186,7 +208,7 @@ test("開いているページの中身をずらした（ページの shift が�
 test("位置をデータに持たないプレゼンテーションが、描く中身をずらした量（origin）を広さと一緒に知らせて変われば、中身が同じ所に見えるようパンを合わせる", () => {
   const page = drawingPage("p1", { orientation: "portrait" })
   const book = testBook("b1", "見本", [page])
-  const sheet = paperOf(openBook(CORE_CATALOG, newStage("s1"), book))!
+  const sheet = sheetOf(openBook(CORE_CATALOG, newStage("s1"), book))
   const view = { w: 400, h: 300 }
   const area = { w: sheet.w * 3, h: sheet.h * 2 }
   const start = setArea(resize(openBook(CORE_CATALOG, newStage("s1"), book), view), area, { x: 1, y: 0 })
@@ -194,10 +216,10 @@ test("位置をデータに持たないプレゼンテーションが、描く�
   // 左へ印刷区画 1 つ分あふれて、右へ印刷区画 2 つ分ずらすことになった
   const moved = setArea(at, { w: sheet.w * 4, h: sheet.h * 2 }, { x: 2, y: 0 })
   expect(moved.pan).toEqual({ x: at.pan.x - sheet.w, y: at.pan.y })
-  expect(openedPage(moved.opened ?? null)?.origin).toEqual({ x: 2, y: 0 })
+  expect(pageOf(moved.opened).origin).toEqual({ x: 2, y: 0 })
   // 同じ広さとずらした量なら同じ値。紙 1 枚に戻せば、ずらした量も無くなる
   expect(setArea(moved, { w: sheet.w * 4, h: sheet.h * 2 }, { x: 2, y: 0 })).toBe(moved)
-  expect(openedPage(setArea(moved, null).opened ?? null)?.origin).toBeUndefined()
+  expect(pageOf(setArea(moved, null).opened).origin).toBe(NO_ORIGIN)
 })
 
 test("開いたばかりのページは、知らせた初めの位置（start）を表示領域の左上に置く。紙の左上でなければ広さが届くまで待ち、動かしたあとや開き直すまでは合わせない", () => {
@@ -205,7 +227,7 @@ test("開いたばかりのページは、知らせた初めの位置（start）
   const book = testBook("b1", "見本", [page])
   const view = { w: 400, h: 300 }
   const opened = resize(openBook(CORE_CATALOG, newStage("s1"), book), view)
-  const sheet = paperOf(opened)!
+  const sheet = sheetOf(opened)
   const area = { w: sheet.w * 3, h: sheet.h * 2 }
   const start = { x: sheet.w, y: sheet.h }
   // 初めの位置が先に届いても、広さが届くまでは動かさない
@@ -235,12 +257,12 @@ test("開いていたページが無くなって隣のページを開いたと�
   const book = testBook("b1", "見本", [p1, p2])
   const view = { w: 400, h: 300 }
   const opened = resize(openBook(CORE_CATALOG, newStage("s1"), book), view)
-  const sheet = paperOf(opened)!
+  const sheet = sheetOf(opened)
   const area = { w: sheet.w * 2, h: sheet.h * 2 }
   const start = { x: sheet.w, y: sheet.h }
   const settledAt = panBy(setStart(setArea(opened, area), start), 50, 50)
   const removed = followBook(CORE_CATALOG, settledAt, { ...book, lineup: [p2] }, book)
-  expect([shownPageId(removed.opened ?? null), removed.starting, removed.pan]).toEqual(["p2", true, { x: 0, y: 0 }])
+  expect([shownPageId(removed.opened), removed.starting, removed.pan]).toEqual(["p2", true, { x: 0, y: 0 }])
   expect(setStart(setArea(removed, area), start).pan).toEqual({ x: -sheet.w, y: -sheet.h })
   // 印刷プレビューを開けば印を下ろし、閉じて知らせが届いても合わせない
   const previewed = openPrintPreview(opened)
@@ -262,18 +284,18 @@ describe("バインダ（スライド）を開く", () => {
 
   test("バインダを開くと中の最初のページ、空のバインダならバインダを開く", () => {
     const opened = openBook(CORE_CATALOG, newStage("s1"), book)
-    expect(shownPageId(openBinder(CORE_CATALOG, opened, book, "f1").opened ?? null)).toBe("s1")
+    expect(shownPageId(openBinder(CORE_CATALOG, opened, book, "f1").opened)).toBe("s1")
     expect(openBinder(CORE_CATALOG, opened, book, "f2").opened).toEqual({
       kind: "binder",
       outermost: { kind: "book", id: "b1" },
       binder: "f2",
       type: SLIDE,
     })
-    expect(binderOf(book, at("s2").opened ?? null)).toBe("f1")
-    expect(binderOf(book, at("p1").opened ?? null)).toBeNull()
+    expect(binderOf(book, at("s2").opened)).toBe("f1")
+    expect(binderOf(book, at("p1").opened)).toBe(NO_BINDER)
     // 並びの最初がバインダなら、その最初のページを開く
     const first = testBook("b2", "スライドだけ", [testBinder("f1", "スライド", SLIDE, slide("s1"))])
-    expect(shownPageId(openBook(CORE_CATALOG, newStage("s1"), first).opened ?? null)).toBe("s1")
+    expect(shownPageId(openBook(CORE_CATALOG, newStage("s1"), first).opened)).toBe("s1")
   })
 
   test("バインダの中のページが無くなれば、同じバインダの後ろ、無ければ前のページ。全部無くなればバインダ（空）", () => {
@@ -283,8 +305,8 @@ describe("バインダ（スライド）を開く", () => {
         testBinder("f1", "スライド", SLIDE, ...["s1", "s2", "s3"].filter(i => !ids.includes(i)).map(slide)),
         testBinder("f2", "空", SLIDE),
       ])
-    expect(shownPageId(followBook(CORE_CATALOG, at("s2"), without("s2"), book).opened ?? null)).toBe("s3")
-    expect(shownPageId(followBook(CORE_CATALOG, at("s3"), without("s3"), book).opened ?? null)).toBe("s2")
+    expect(shownPageId(followBook(CORE_CATALOG, at("s2"), without("s2"), book).opened)).toBe("s3")
+    expect(shownPageId(followBook(CORE_CATALOG, at("s3"), without("s3"), book).opened)).toBe("s2")
     expect(followBook(CORE_CATALOG, at("s1"), without("s1", "s2", "s3"), book).opened).toMatchObject({
       kind: "binder",
       binder: "f1",
@@ -294,8 +316,8 @@ describe("バインダ（スライド）を開く", () => {
   test("空のバインダを開いていて、ページが入ればそのページを開く。バインダが無くなれば並びの最初", () => {
     const empty = openBinder(CORE_CATALOG, openBook(CORE_CATALOG, newStage("s1"), book), book, "f2")
     const filled = testBook("b1", "混ざる", [...book.lineup.slice(0, 2), testBinder("f2", "空", SLIDE, slide("s9"))])
-    expect(shownPageId(followBook(CORE_CATALOG, empty, filled, book).opened ?? null)).toBe("s9")
+    expect(shownPageId(followBook(CORE_CATALOG, empty, filled, book).opened)).toBe("s9")
     const gone = testBook("b1", "混ざる", book.lineup.slice(0, 2))
-    expect(shownPageId(followBook(CORE_CATALOG, empty, gone, book).opened ?? null)).toBe("p1")
+    expect(shownPageId(followBook(CORE_CATALOG, empty, gone, book).opened)).toBe("p1")
   })
 })

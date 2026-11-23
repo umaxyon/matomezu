@@ -3,6 +3,7 @@
 // 名前が空か、どれかが重なっている間は保存できない。保存はプロジェクトを直すアクション 1 回で、常駐の答えを待ってから閉じる（断られたらダイアログの中に出す）。
 // プロジェクトが無いか、直せなければ（閉じたプロジェクトなど。認可ステップに聞く）、すぐ閉じる
 import { useEffect, useId, useState } from "react"
+import { NO_RECORD } from "../../../plugin-api"
 import {
   type DialogProps,
   useActions,
@@ -44,18 +45,18 @@ const PREFIX_TYPING = /^([A-Za-z]{1,3}-?)?$/
 export function ProjectSettingsDialog({ args, onClose }: DialogProps<{ project: string }>) {
   const project = useRecord(PROJECT.id, args.project)
   const allowed = useAllowedOn(PROJECT_UPDATE.id, {}, { record: args.project }).ok
-  const gone = !project || !allowed
+  const gone = project === NO_RECORD || !allowed
   useEffect(() => {
     if (gone) onClose()
   }, [gone, onClose])
-  return gone ? null : <Settings project={project} onClose={onClose} />
+  return project === NO_RECORD || !allowed ? null : <Settings project={project} onClose={onClose} />
 }
 
 function Settings({
   project,
   onClose,
 }: {
-  project: NonNullable<ReturnType<typeof useRecord<typeof PROJECT.id>>>
+  project: Exclude<ReturnType<typeof useRecord<typeof PROJECT.id>>, typeof NO_RECORD>
   onClose: () => void
 }) {
   const t = useMessages(kit)

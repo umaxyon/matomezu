@@ -313,7 +313,7 @@ export {
 } from "./book-look"
 export { createBookIn } from "./book-new"
 export type { PageContext, SettingReader } from "./book-settings"
-export { pageContext, settingValue } from "./book-settings"
+export { NO_HOLDER, pageContext, settingValue } from "./book-settings"
 export { MY_WORKDESK } from "./library"
 export { PAPER_IDS } from "./looks"
 // Markdown の原文を読む・描いた文書が使う物（ほかのプラグインが使う。追加プラグインには matomezu から出す）
@@ -343,21 +343,31 @@ export {
   wordLinksOf,
 } from "./markdown"
 // 拡張ポイントに書き足した物の型（定義を書くプラグインが使う。追加プラグインには matomezu から出す）
-export { itemMinimapMarks, type MinimapMark } from "./minimap"
+export { itemMinimapMarks, type MinimapMark, NOT_DRAWN } from "./minimap"
 export type { PageProblem } from "./pages"
 export { addPageIn, type PageFieldsWay, pageFieldsWay } from "./pages"
-export type { FoundWorkerBook, ParticipantCategory, VisitorRow, WorkroomRow, WorkroomState } from "./participant"
 export {
   adminWorkroom,
+  type FoundWorkerBook,
   isAdminActor,
   JOINED_MESSAGE,
   myWorkdeskIn,
+  NO_BRANCH,
+  NO_CATEGORY,
+  NO_MODEL,
+  NO_OCCUPANT,
   NO_WORKER_BOOK,
+  NOT_CALLED,
+  NOT_REQUESTED,
+  type ParticipantCategory,
   participantCategory,
   READS_ADMIN,
   READS_WORKROOM_KEYS,
   VISITOR_JOINED_MESSAGE,
+  type VisitorRow,
   visitorName,
+  type WorkroomRow,
+  type WorkroomState,
   workTitleIn,
 } from "./participant"
 // 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）
@@ -370,6 +380,8 @@ export {
   alignPadding,
   allRectsOf,
   apart,
+  CANNOT_PLACE,
+  CANNOT_RESIZE,
   CHILD_AREA,
   childOrigin,
   commitChildren,
@@ -392,6 +404,13 @@ export {
   LEN,
   minSize,
   NEST_PADDING,
+  NO_AI_PLACED,
+  NO_EXTENT,
+  NO_FRAME,
+  NO_GROW,
+  NO_SHAPE_DEF,
+  NO_SIZE,
+  NO_SPOT,
   newClash,
   nextItemId,
   paperSize,
@@ -445,6 +464,7 @@ export {
   captionTextWidth,
   clampLines,
   clampRich,
+  FULL_WIDTH,
   PAGE_TEXT_COLORS,
   PLACE_LINES,
   parseRich,

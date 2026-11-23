@@ -4,13 +4,14 @@ import {
   type CoreCatalog,
   findShape,
   type ItemPage,
+  NO_ITEM,
   type PlacedShape,
   type Point,
   type Rect,
   type Size,
   walkShapes,
 } from "../../../plugin-api"
-import type { Edges } from "../../base"
+import { CANNOT_RESIZE, type Edges } from "../../base"
 import { sizedTo, stretchedBy } from "./items"
 
 // ドラッグ中にアイテム item をずらして描く量（紙の上）。shift はポインタの動いた量（紙の上。ドラッグしていなければ null）、plan は入れ替えを含めたドラッグ中の四角（items.ts の dragging）、dragged は動かしているアイテム
@@ -34,12 +35,13 @@ export function shownShape(
   stretching: { item: string; edges: Edges; by: Point } | null,
   paper: Size | null,
 ): PlacedShape {
-  const item = findShape(shownPage, placed.id)?.shape ?? placed
+  const found = findShape(shownPage, placed.id)
+  const item = found === NO_ITEM ? placed : found.shape
   const st = stretching
   if (!st || st.item !== item.id || !paper) return item
   const to = stretchedBy(catalog, item, st.edges, st.by, paper)
   // 大きさを項目に写す形は、写した項目で描く（w・h を書いても、大きさは項目から決まるため）
-  return to ? { ...sizedTo(catalog, item, to), x: to.x, y: to.y } : item
+  return to !== CANNOT_RESIZE ? { ...sizedTo(catalog, item, to), x: to.x, y: to.y } : item
 }
 
 // ページ page の形（子の形も）のうち、ずらして描く形と、その量（shiftOf。ずらさなければ null）

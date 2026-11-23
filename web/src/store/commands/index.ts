@@ -3,9 +3,9 @@
 import { USER } from "../../core/actor"
 import type { CommandId, CommandTable } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
-import type { Where } from "../../core/def/action"
-import type { PluginStateDef } from "../../core/def/plugin-state"
-import { namingOf, titleOf } from "../../core/entries"
+import type { NO_CONTROL_CENTER, Where } from "../../core/def/action"
+import { stateRead } from "../../core/def/plugin-state"
+import { NO_NAME, namingOf, titleOf } from "../../core/entries"
 import { fail } from "../../core/errors"
 import { pageIn } from "../../core/folders"
 import { outsideBinderIn } from "../../core/folders-tree"
@@ -15,7 +15,7 @@ import { splitId } from "../../core/names"
 import { openedAnswer } from "../../core/perform-permit"
 import { permittedIn } from "../../core/perform-world"
 import { readerOf, sourceOf } from "../../core/record-source"
-import { openedBook, shownPageId, stageBlocks } from "../../core/stage"
+import { openedBook, openedEntry, shownPageId, stageBlocks } from "../../core/stage"
 import {
   currentScreen,
   currentStageOf,
@@ -27,6 +27,8 @@ import {
   workspaceOf,
 } from "../../core/window"
 import { stageView, toolOf } from "../../core/workspace"
+import { NO_CONTEXT_MENU } from "../context-menus"
+import { NO_DIALOG } from "../dialogs"
 import type { Assembled } from "../plugin"
 import { ownedPluginState, placeOf, pluginValueOf } from "../plugin-state"
 import type { MatomezuState } from "../state"
@@ -88,7 +90,7 @@ const NO_SUBJECTS: readonly string[] = []
 // 呼んだときの、スクリーンから呼ぶコマンドの文脈。reads は、コマンドの定義が readsSubjects に書いた、読むレコードの種類。プラグイン状態は、コマンドを持つプラグインの宣言だけを読める
 export function screenCommandContext(
   catalog: CoreCatalog,
-  controlCenter: string | null,
+  controlCenter: string | typeof NO_CONTROL_CENTER,
   state: MatomezuState,
   at: string,
   command: string,
@@ -103,17 +105,20 @@ export function screenCommandContext(
     screen: calledScreen(screen),
     arrangement: { id: win.arrangement },
     settings,
-    dialog,
-    contextMenu,
+    dialog: dialog ?? NO_DIALOG,
+    contextMenu: contextMenu ?? NO_CONTEXT_MENU,
     libraryHistory: state.history[LIBRARY_HISTORY] ?? NO_HISTORY,
     folders: state.folders,
-    pageTitle: page => titleOf(state, "page", page, namingOf(catalog, settings)),
+    pageTitle: page => titleOf(state, "page", page, namingOf(catalog, settings)) ?? NO_NAME,
     // スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値
-    pluginState: <S>(def: PluginStateDef<S>) =>
-      pluginValueOf(
-        state.pluginValues,
-        placeOf(def.scope, { stage: at, screen: screen.id }),
-        ownedPluginState(commandOwner(command), def),
+    pluginState: def =>
+      stateRead(
+        def,
+        pluginValueOf(
+          state.pluginValues,
+          placeOf(def.scope, { stage: at, screen: screen.id }),
+          ownedPluginState(commandOwner(command), def),
+        ),
       ),
     read: readerOf(catalog, sourceOf(state.records), reads),
   }
@@ -132,7 +137,7 @@ const NO_ANNOTATIONS: readonly never[] = []
 // コマンド command をステージ stageId から呼んだときの、ステージから呼ぶコマンドの文脈。ステージが無ければ null
 export function commandContext(
   catalog: CoreCatalog,
-  controlCenter: string | null,
+  controlCenter: string | typeof NO_CONTROL_CENTER,
   state: MatomezuState,
   stageId: string,
   command: string,
@@ -141,7 +146,7 @@ export function commandContext(
   if (!stage) return null
   const book = openedBook(state.books, stage.opened) ?? NO_BOOK
   const page = shownPageId(stage.opened)
-  const entry = stage.opened?.outermost
+  const entry = openedEntry(stage.opened)
   const workspace = workspaceOf(state.window, stageId)
   const screen = screenOfStage(state.window, stageId) ?? currentScreen(state.window)
   return withUnreadableItems(
@@ -152,9 +157,9 @@ export function commandContext(
           stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state)),
           book,
           outsideBinder: (entry?.kind === "binder" && outsideBinderIn(state, entry.id)) || NO_OUTSIDE_BINDER,
-          page: (page !== null && pageIn(state.pages, page)) || NO_PAGE,
-          history: (stage.opened && state.history[stage.opened.outermost.id]) || NO_HISTORY,
-          annotations: (page !== null && state.annotations[page]) || NO_ANNOTATIONS,
+          page: (page !== NO_PAGE && pageIn(state.pages, page)) || NO_PAGE,
+          history: (entry && state.history[entry.id]) || NO_HISTORY,
+          annotations: (page !== NO_PAGE && state.annotations[page]) || NO_ANNOTATIONS,
         },
         workspace,
         stageId,
@@ -204,8 +209,8 @@ function performable(c: Called, arg?: unknown): boolean {
 // 使えるかを問う所: コマンドの許可スコープの所。書いていない・引数がまだ無くて分からないなら、開いているページ（ページのタイプで決まるアクションを、ブック全体として問わないように）
 function whereOf(c: Called, arg?: unknown): Where | undefined {
   if (!("stage" in c.ctx)) return undefined
-  const page = shownPageId(c.ctx.stage.opened ?? null)
-  return commandScopeOf(c.def.permissionScope, c.ctx, arg) ?? (page === null ? undefined : { page })
+  const page = shownPageId(c.ctx.stage.opened)
+  return commandScopeOf(c.def.permissionScope, c.ctx, arg) ?? (page === NO_PAGE ? undefined : { page })
 }
 
 // 出すか: 行うアクションが使え、when が出すとするとき（arg は、押す前から分かっている引数）

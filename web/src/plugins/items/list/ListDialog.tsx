@@ -8,7 +8,14 @@
 // 追加は決めた項目の値を、開いた側が渡した置き方（ShapeAddArgs の place）に渡す（置く・選ぶ・断りの文は開いた側が持つ）。編集はリストの項目を書き換える（item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
+import {
+  type ItemProps,
+  type MessageKey,
+  NO_DIALOG_PREVIEW,
+  NO_ITEM,
+  NO_OUTERMOST,
+  type ShapeAddArgs,
+} from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -21,6 +28,8 @@ import {
   dividerClass,
   Form,
   inlineClass,
+  NO_COLOR,
+  NO_SWATCHES,
   Problem,
   pairClass,
   Section,
@@ -76,7 +85,7 @@ export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
       start={EMPTY}
       checked={false}
       pageTheme={pageTheme}
-      ready={outermost !== undefined}
+      ready={outermost !== NO_OUTERMOST}
       onSubmit={add}
       onClose={onClose}
     />
@@ -87,13 +96,14 @@ export function EditListDialog({ args, onClose }: DialogProps<{ page: string; it
   const catalog = useCoreCatalog()
   const outermost = useOutermostOf()
   const pageTheme = usePageTheme()
-  const found = useItem(args.page, args.item, LIST.id)
+  const item = useItem(args.page, args.item, LIST.id)
+  const found = item === NO_ITEM ? undefined : item
   const { previewDialog } = useActions()
   const perform = usePerform()
   // 行の高さの下書き（rowLines）は、行の行数を書き換えた行の並びとして見せる（項目の下書きを当てたリストで数える）
   const preview = useCallback(
     (look: Look | null, rowLines?: RowsLines) => {
-      if (!look || !outermost || !found) return previewDialog(null)
+      if (!look || outermost === NO_OUTERMOST || !found) return previewDialog(NO_DIALOG_PREVIEW)
       const content =
         rowLines === undefined
           ? undefined
@@ -102,7 +112,7 @@ export function EditListDialog({ args, onClose }: DialogProps<{ page: string; it
     },
     [outermost, args.item, found, previewDialog],
   )
-  if (!outermost || !found) return null
+  if (outermost === NO_OUTERMOST || !found) return null
   const rows: readonly ListRow[] = found.children ?? []
   const update = (props: ListProps, rowLines?: RowsLines) => {
     // 「ページのテーマ」・色の「なし」に戻したら、リストのテーマ・色の項目を消す
@@ -157,7 +167,7 @@ function ListDialog({
   start: ListProps
   checked: boolean // チェックの入った行があるか（チェックリストを切るときに確かめる）
   hasRows?: boolean // 行があるか（あれば「行の高さ」を出す）
-  pageTheme: string | undefined
+  pageTheme: string
   ready: boolean
   onSubmit: (props: ListProps, rowLines?: RowsLines) => MessageKey | null // 断られたわけの文言（決められたら null）
   onPreview?: (look: Look | null, rowLines?: RowsLines) => void // テーマ・色・チェックリスト・行の色分け・行の高さを選んだ（元の値に戻せば null）
@@ -259,15 +269,15 @@ function ListDialog({
               ))}
             </select>
           </label>
-          {swatches && (
+          {swatches !== NO_SWATCHES && (
             <span className={pairClass}>
               <span>{t("Color")}</span>
               <ColorPicker
                 label={t("Color")}
-                value={color}
+                value={color ?? NO_COLOR}
                 palette={swatches.palette}
                 none={swatches.none}
-                onChange={setColor}
+                onChange={c => setColor(c === NO_COLOR ? undefined : c)}
               />
             </span>
           )}

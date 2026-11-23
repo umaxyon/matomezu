@@ -47,9 +47,9 @@ export function LaneView({
   const t = useMessages(kit)
   const sorts = usePluginState(kit, LANE_SORTS)
   const updateSorts = useUpdatePluginState(kit, LANE_SORTS)
-  const rules: SortRules = sorts?.[project.id]?.[lane.id] ?? DEFAULT_SORT
+  const rules: SortRules = sorts[project.id]?.[lane.id] ?? DEFAULT_SORT
   const setRules = (next: SortRules) =>
-    updateSorts(now => ({ ...now, [project.id]: { ...now?.[project.id], [lane.id]: next } }))
+    updateSorts(now => ({ ...now, [project.id]: { ...now[project.id], [lane.id]: next } }))
   const [trayOpen, setTrayOpen] = useState(false)
   const [opener, setOpener] = useState<HTMLButtonElement | null>(null)
   const [settling, setSettling] = useState(false)

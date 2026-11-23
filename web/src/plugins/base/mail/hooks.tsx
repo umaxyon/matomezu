@@ -1,6 +1,8 @@
 // 郵便箱を読み、郵便を開くフック
+
 import { useCallback } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { openedEntry } from "../../../core/stage"
 import { recentBookScreen, stageIn } from "../../../core/window"
 import { NO_STAGE } from "../../../store/dialogs"
 import { useStageId } from "../../../ui/scope"
@@ -34,7 +36,7 @@ export function useMailboxPanel(): { open: boolean; toggle: () => void } {
   const toggle = useToggleLeftSidePanelAt()
   const here = useStageId()
   const recent = useMatomezuState(s => recentBookScreen(s.window)?.stages.current ?? NO_STAGE)
-  const stage = here ?? recent
+  const stage = here !== NO_STAGE ? here : recent
   const open = useLeftSidePanelShowsAt(stage, mailboxEntries)
   return { open, toggle: () => toggle(stage, mailboxEntries) }
 }
@@ -59,7 +61,7 @@ export function useShowMailPlaceAt(): (target: string, mail: Mail) => void {
       const to = placeNow(mail, read().books)
       if (!to) return
       actions.showStage(target)
-      if (stageIn(read().window, target)?.opened?.outermost.id !== to.book) actions.openBook(target, to.book)
+      if (openedEntry(stageIn(read().window, target)?.opened)?.id !== to.book) actions.openBook(target, to.book)
       if (to.page) actions.openPage(target, to.page)
       if (to.ids && to.ids.length > 0) {
         reveal(target, to.ids)
@@ -78,7 +80,7 @@ export function useShowMailPlace(): (mail: Mail) => void {
   const read = useReadState()
   return useCallback(
     mail => {
-      if (stage !== null) return show(stage, mail)
+      if (stage !== NO_STAGE) return show(stage, mail)
       const to = placeNow(mail, read().books)
       if (!to) return
       const shown = actions.showBookStage(to.book)

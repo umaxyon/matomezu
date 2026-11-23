@@ -8,13 +8,14 @@ import type { CoreCatalog } from "../../../core/core-catalog"
 import { withStageEntryRow } from "../../../core/entries"
 import { inTrash, NO_OUTERMOST, outermostOf } from "../../../core/folders-tree"
 import type { ItemPage } from "../../../core/placed"
+import { openedEntry } from "../../../core/stage"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
 import { calledStageOf } from "../../../store/commands/def"
 import { withOutermostSettings } from "../book-look"
 import type { SettingReader } from "../book-settings"
 import { outermostSettingsPatch, settingValue } from "../book-settings"
 import { kit } from "../kit"
-import type { GrowSides } from "../place/grow"
+import type { GrowSides, NO_GROW } from "../place/grow"
 import { openRightSidePanelIn } from "../right-side-panel/state"
 import { fitSideView, moveHere } from "../zoom"
 import { hasCrossing } from "./entry-sheets"
@@ -41,13 +42,13 @@ declare module "../../../core/catalog" {
   }
   interface PresentationExtras {
     // ページ page の印刷区画。並べ方を描くときに決めるプレゼンテーション（ツリーなど）が、ビューがステージに知らせる広さと同じ座標で返す。
-    // setting はそのページで効いている設定の値、grow は増やす向き（可変ページでなければ undefined）。purpose は数える物: print は印刷プレビューと
+    // setting はそのページで効いている設定の値、grow は増やす向き（可変ページでなければ NO_GROW）。purpose は数える物: print は印刷プレビューと
     // 印刷に並べる並べ方（改ページなど印刷のときだけの並べ直しのあと）、screen はステージに描く並べ方（何も載っていない印刷区画を暗くするのに使う）。
     // 無ければ、形の位置から決める（base の pageArea と filledSheets）
     printSheets?(
       catalog: CoreCatalog,
       page: ItemPage,
-      on: { setting: SettingReader; grow: GrowSides | undefined; purpose: SheetPurpose },
+      on: { setting: SettingReader; grow: GrowSides | typeof NO_GROW; purpose: SheetPurpose },
     ): PrintSheets
   }
 }
@@ -120,7 +121,7 @@ const sideOf = (ctx: CommandContext) => fitSide(ctx.catalog, previewedIn(ctx))
 // 印刷区画の境目をまたいだ形を直してもらうタイプで、またいだ形があれば、印刷プレビューは開かず、それを知らせる右サイドパネルを開く
 function openPreview(ctx: CommandContext, a: CommandActions) {
   const previewed = previewedIn(ctx)
-  if (previewed && calledStageOf(ctx)?.opened && hasCrossing(ctx.catalog, previewed)) {
+  if (previewed && openedEntry(calledStageOf(ctx)?.opened) && hasCrossing(ctx.catalog, previewed)) {
     openRightSidePanelIn(ctx, a, printCheckOpen(previewed.id))
     return
   }

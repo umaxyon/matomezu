@@ -7,6 +7,7 @@ import {
   bodyMinWidth,
   bodySides,
   bodyWidthAfter,
+  FULL_WIDTH,
   textBlock,
   textBlockHeight,
 } from "../../../web/src/plugins/base/text/block"
@@ -79,5 +80,5 @@ test("本文の列の端を動かすと、中央寄せは両側が同じだけ�
   expect(bodyWidthAfter(of("left"), INNER, LEAST, "right", -10)).toBe(INNER - 10)
   expect(bodyWidthAfter(of("right"), INNER, LEAST, "left", 10)).toBe(INNER - 10)
   expect(bodyWidthAfter(of("left"), INNER, LEAST, "right", -999)).toBe(bodyMinWidth(of("left"), LEAST))
-  expect(bodyWidthAfter({ ...of("left"), bodyWidth: 80 }, INNER, LEAST, "right", 999)).toBeNull()
+  expect(bodyWidthAfter({ ...of("left"), bodyWidth: 80 }, INNER, LEAST, "right", 999)).toBe(FULL_WIDTH)
 })

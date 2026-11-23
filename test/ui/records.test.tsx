@@ -5,6 +5,7 @@ import { worldRows } from "../support"
 import { describe, expect, test } from "bun:test"
 import { act, renderHook } from "@testing-library/react"
 import type { ReactNode } from "react"
+import { NO_RECORD } from "../../web/src/core/records"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { type RecordsQuery, useRecord, useRecords } from "../../web/src/ui/record-hooks"
@@ -53,8 +54,8 @@ describe("レコードを読むフック", () => {
     const list = rooms.result.current
     expect(list.map(r => r.name)).toEqual(["あ", "い"])
     const one = renderHook(() => useRecord(WORKROOM, list[1]?.id ?? ""), { wrapper })
-    expect(one.result.current?.name).toBe("い")
-    expect(renderHook(() => useRecord(WORKROOM, "nothing"), { wrapper }).result.current).toBeUndefined()
+    expect(one.result.current).toMatchObject({ name: "い" })
+    expect(renderHook(() => useRecord(WORKROOM, "nothing"), { wrapper }).result.current).toBe(NO_RECORD)
     // 別の種類のレコードが変わっても、ワークルームの配列は変わらない
     act(() => {
       store.actions.perform("@matomezu/taskboard:project-add", {})
@@ -70,7 +71,7 @@ describe("レコードを読むフック", () => {
       store.receive({ ...worldRows([]), settings: {}, records: { [TICKET]: { old: { id: "old", name: "x" } } } }, []),
     )
     expect(renderHook(() => useRecords(TICKET, { where: [] }), { wrapper }).result.current).toEqual([])
-    expect(renderHook(() => useRecord(TICKET, "old"), { wrapper }).result.current).toBeUndefined()
+    expect(renderHook(() => useRecord(TICKET, "old"), { wrapper }).result.current).toBe(NO_RECORD)
   })
 
   test("索引キーの条件に合う物を、並びの順に件数まで返す。宣言に無い索引キーを書けば何も返さない", () => {

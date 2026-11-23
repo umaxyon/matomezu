@@ -11,6 +11,8 @@ import {
   blockBodyHeight,
   clampRich,
   type GrowSides,
+  NO_EXTENT,
+  NO_GROW,
   parseRich,
   type RichLine,
   richWidth,
@@ -248,7 +250,7 @@ export function layoutTree(
   paper: { w: number; h: number },
   size: NodeSize = DEFAULT_NODE_SIZE,
   shape: NodeShape = DEFAULT_NODE_SHAPE,
-  sides?: GrowSides,
+  sides: GrowSides | typeof NO_GROW = NO_GROW,
 ): TreeLayout {
   const look = { size, shape }
   const box = rootBox(root, size)
@@ -281,7 +283,7 @@ export function layoutTree(
     shiftInto(out, paper)
   } else branch(r, kids, grow, look, out)
   out.fits = out.nodes.every(n => n.x >= 0 && n.y >= 0 && n.x + n.w <= paper.w && n.y + n.h <= paper.h)
-  if (sides) {
+  if (sides !== NO_GROW) {
     out.origin = originOf(out, paper, sides)
     shiftBy(out, out.origin.x * paper.w, out.origin.y * paper.h)
     out.fits = true
@@ -289,9 +291,9 @@ export function layoutTree(
   return out
 }
 
-// 並べた節の外枠（紙の座標。節が無ければ null）
-export function laidExtent(nodes: readonly Rect[]): Rect | null {
-  if (nodes.length === 0) return null
+// 並べた節の外枠（紙の座標。節が無ければ NO_EXTENT）
+export function laidExtent(nodes: readonly Rect[]): Rect | typeof NO_EXTENT {
+  if (nodes.length === 0) return NO_EXTENT
   const x = Math.min(...nodes.map(n => n.x))
   const y = Math.min(...nodes.map(n => n.y))
   return { x, y, w: Math.max(...nodes.map(n => n.x + n.w)) - x, h: Math.max(...nodes.map(n => n.y + n.h)) - y }

@@ -4,8 +4,9 @@
 import type { Annotation } from "../../core/annotation"
 import type { ActionId, ActionTable, CommandExtras, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
-import { ANY_PAGE_TYPE, type ArgsOfType, type Where } from "../../core/def/action"
-import type { PluginStateDef, PluginStateRead } from "../../core/def/plugin-state"
+import { ANY_PAGE_TYPE, type ArgsOfType, type NO_CONTROL_CENTER, type Where } from "../../core/def/action"
+import type { NO_STATE, PluginStateDef, PluginStateRead, StateRead } from "../../core/def/plugin-state"
+import type { NO_NAME } from "../../core/entries"
 import { fail } from "../../core/errors"
 import type { Folders } from "../../core/folders"
 import { outsideAsked } from "../../core/folders-tree"
@@ -20,12 +21,12 @@ import type { ItemPage } from "../../core/placed"
 import type { RecordReader } from "../../core/record-source"
 import type { BinderEntry, Book } from "../../core/schema/book"
 import type { Settings } from "../../core/settings"
-import { type Stage, shownPageId, toPaper } from "../../core/stage"
+import { NO_PAGE, NO_PAPER, NOTHING_OPENED, type Stage, shownPageId, toPaper } from "../../core/stage"
 import type { StageListed, WindowState } from "../../core/window"
 import type { StageView, Workspace } from "../../core/workspace"
 import type { Actions, BoundPlaceActions, ProbeActions, WindowActions } from "../actions"
-import type { OpenedContextMenu } from "../context-menus"
-import type { OpenedDialog } from "../dialogs"
+import type { NO_CONTEXT_MENU, OpenedContextMenu } from "../context-menus"
+import type { NO_DIALOG, OpenedDialog } from "../dialogs"
 
 // コマンドの許可スコープ: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
 // { page } には、ページの id が入っている引数の名前を書く（右クリックしたページのように、引数が所を決めるとき）。
@@ -71,8 +72,8 @@ export function commandScopeOf(
     // 引数がまだ無ければ、所は分からない（問う側が、開いているページで問う）
     return typeof page === "string" ? { page } : undefined
   }
-  const page = shownPageId(ctx.stage.opened) ?? undefined
-  const on = page ? { page } : {}
+  const page = shownPageId(ctx.stage.opened)
+  const on = page === NO_PAGE ? {} : { page }
   return scope === "opened-page" ? on : { ...on, ids: ctx.stage.selection }
 }
 
@@ -86,17 +87,17 @@ export interface CalledScreen {
 // スクリーンから呼ぶコマンド（defineScreenCommand）が受け取る、呼ばれた場所の様子。ステージを持たないスクリーンからも呼べるように、ステージ・ブックを持たない
 export interface ScreenCommandContext {
   catalog: CoreCatalog
-  controlCenter: string | null // インスタンスのコントロールセンターの定義の id
+  controlCenter: string | typeof NO_CONTROL_CENTER // インスタンスのコントロールセンターの定義の id（無ければ NO_CONTROL_CENTER）
   screen: CalledScreen // 呼ばれた場所のスクリーン（スクリーンの外から呼ばれたら、カレントスクリーン）
   arrangement: { id: string } // 窓のスクリーンアレンジメントの定義の id（値は並べるスクリーンを名指すので持たない）
   settings: Settings
-  dialog: OpenedDialog | null // 開いているダイアログ
-  contextMenu: OpenedContextMenu | null // 開いている右クリックのメニュー
+  dialog: OpenedDialog | typeof NO_DIALOG // 開いているダイアログ（無ければ NO_DIALOG）
+  contextMenu: OpenedContextMenu | typeof NO_CONTEXT_MENU // 開いている右クリックのメニュー（無ければ NO_CONTEXT_MENU）
   libraryHistory: History // 書庫の履歴
   folders: Folders // 書庫のフォルダの表（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダの行と並び。読むだけ。ページの中身は持たない）
-  pageTitle(page: string): string | undefined // ページ page の名前（名前の無いページ・表に無い物は undefined。ページの中身は渡さない）
+  pageTitle(page: string): string | typeof NO_NAME // ページ page の名前（名前の無いページ・表に無い物は NO_NAME。ページの中身は渡さない）
   // コマンドを持つプラグインが宣言したプラグイン状態 def の今の値（スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値。
-  // 無ければ undefined。ほかのプラグインの宣言は E125。変えるのは run が受け取る updatePluginState）
+  // 無ければ、既定を持つ宣言は既定、持たない宣言は NO_STATE。ほかのプラグインの宣言は E125。変えるのは run が受け取る updatePluginState と resetPluginState）
   pluginState: PluginStateRead
   // コマンドの定義の readsSubjects に書いた種類のレコードを読む（ほかの種類は none と空。ステージから呼ぶコマンドは、どの種類も読まない）
   read: RecordReader
@@ -106,8 +107,8 @@ export interface ScreenCommandContext {
 export const NO_BOOK = "none"
 // CommandContext の binder の、開いている物がブックの外のバインダでないときの値
 export const NO_OUTSIDE_BINDER = "none"
-// CommandContext の page の、ページを開いていないときの値
-export const NO_PAGE = "none"
+// CommandContext の page の、ページを開いていないときの値は NO_PAGE（core/stage.ts）
+export { NO_PAGE }
 
 // ステージから呼ぶコマンド（defineCommand）が受け取る、呼ばれた場所の様子
 export interface CommandContext extends ScreenCommandContext {
@@ -117,14 +118,14 @@ export interface CommandContext extends ScreenCommandContext {
   page: ItemPage | typeof NO_PAGE // そのステージで開いているページ（ブックの中でも外でも。ページを開いていなければ NO_PAGE）
   history: History // そのステージで開いているステージエントリ（ブックか、ブックの外のページ・バインダ）の、画面の履歴（何も開いていなければ空）
   annotations: readonly Annotation[] // 開いているページのアノテーション（読むだけ。ページを開いていなければ空）
-  toPaper(p: Point): Point | null // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す（紙が無ければ null）
+  toPaper(p: Point): Point | typeof NO_PAPER // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す（紙が無ければ NO_PAPER）
 }
 
 // 開いているスクリーン 1 枚（id 付き。base のコマンドが screensOf で読む）
 export interface OpenScreen extends CalledScreen {
   id: string // 開いた 1 枚ごとの id
   stageList: readonly StageListed[] // ステージの並び（左から。何かを開いているか付き。ステージを並べないスクリーンなら空）
-  currentStage: string | null // カレントのステージの id（ステージを並べないスクリーンなら null）
+  currentStage: string // カレントのステージの id（ステージを並べないスクリーンなら NO_STAGE）
 }
 
 // スクリーンから呼ぶコマンドの文脈ごとの、ほかのスクリーンを名指す物（呼ばれた場所のスクリーンの id・開いているスクリーンをカレントにした順に並べた物（最後がカレントスクリーン）・
@@ -181,7 +182,7 @@ export function withWorkspace(
     ...ctx,
     toPaper: p => {
       const stage = workspace.stages.find(s => s.id === stageId)
-      return stage ? toPaper(stage, p) : null
+      return stage ? toPaper(stage, p) : NO_PAPER
     },
   }
   workspaces.set(full, { workspace, stage: stageId, books })
@@ -195,7 +196,8 @@ export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ct
 // どちらも開いていなければ undefined）
 export function askedIn(ctx: CommandContext): AskedOutermost | undefined {
   if (ctx.book !== NO_BOOK) return { book: ctx.book }
-  if (!ctx.stage.opened || ctx.stage.opened.outermost.kind === "book" || ctx.page === NO_PAGE) return undefined
+  if (ctx.stage.opened === NOTHING_OPENED || ctx.stage.opened.outermost.kind === "book" || ctx.page === NO_PAGE)
+    return undefined
   const asked = outsideAsked(ctx.folders, ctx.page)
   const binder = ctx.outsideBinder
   return binder === NO_OUTSIDE_BINDER ? asked : { ...asked, binder }
@@ -213,8 +215,13 @@ export function calledStageOf(ctx: CommandContext): Stage | undefined {
 // コマンドが受け取る store の操作: 窓の操作と、呼ばれた場所（ステージから呼ぶコマンドはそのステージ、スクリーンから呼ぶコマンドはそのスクリーン）に向けた操作に、
 // そのコマンドを持つプラグインのプラグイン状態を変える操作を足したもの
 export interface CommandActions extends WindowActions, BoundPlaceActions {
-  // このコマンドを持つプラグインが宣言したプラグイン状態 def の値を、今の値から change が返す値にする（undefined なら消す。ステージごとの宣言は呼ばれた場所のステージの値）。1 回のコマンドで何度書いても、store には 1 回で書く。画面の場所に入れる宣言の形に合わなければ E123
-  updatePluginState<S>(def: PluginStateDef<S>, change: (now: S | undefined) => S | undefined): void
+  // このコマンドを持つプラグインが宣言したプラグイン状態 def の値を、今の値から change が返す値にする（NO_STATE を返せば消す。ステージごとの宣言は呼ばれた場所のステージの値）。1 回のコマンドで何度書いても、store には 1 回で書く。画面の場所に入れる宣言の形に合わなければ E123
+  updatePluginState<S, D extends PluginStateDef<S>>(
+    def: D & PluginStateDef<S>,
+    change: (now: StateRead<D>) => D extends { default: unknown } ? S : S | typeof NO_STATE,
+  ): void
+  // 同じく、def の値を消す（既定を持つ宣言は既定を、持たない宣言は NO_STATE を読むようになる）
+  resetPluginState(def: PluginStateDef<unknown>): void
 }
 
 // コマンドに渡した操作ごとの、store の素の操作（ほかのスクリーン・ステージを名指す操作も持つ。プラグイン API には出さない。base のコマンドが storeActionsOf で読む）
@@ -224,10 +231,10 @@ export const givenActions = new WeakMap<CommandActions, Actions>()
 export const storeActionsOf = (a: CommandActions): Actions => givenActions.get(a) ?? fail("E116")
 
 // コマンドを持つプラグインの、スクリーンごとの宣言 def の値を、呼ばれた場所でないスクリーン screen で、今の値から change が返す値にする（updatePluginState と同じく、1 回のコマンドの書き込みにまとめる）。スクリーンごとの宣言でなければ E124
-export type UpdatePluginStateAt = <S>(
+export type UpdatePluginStateAt = <S, D extends PluginStateDef<S>>(
   screen: string,
-  def: PluginStateDef<S>,
-  change: (now: S | undefined) => S | undefined,
+  def: D & PluginStateDef<S>,
+  change: (now: StateRead<D>) => D extends { default: unknown } ? S : S | typeof NO_STATE,
 ) => void
 // コマンドに渡した操作ごとの、ほかのスクリーンの自分の宣言の値を変える操作（プラグイン API には出さない。base のコマンドが updatePluginStateAtOf で読む）
 export const givenScreenWrites = new WeakMap<CommandActions, UpdatePluginStateAt>()
@@ -236,6 +243,12 @@ export const givenScreenWrites = new WeakMap<CommandActions, UpdatePluginStateAt
 export const updatePluginStateAtOf = (a: CommandActions): UpdatePluginStateAt =>
   givenScreenWrites.get(a) ?? fail("E116")
 
+// コマンドを持つプラグインの、スクリーンごとの宣言 def の値を、呼ばれた場所でないスクリーン screen で消す（resetPluginState と同じく、1 回のコマンドの書き込みにまとめる）。スクリーンごとの宣言でなければ E124
+export type ResetPluginStateAt = (screen: string, def: PluginStateDef<unknown>) => void
+// コマンドに渡した操作ごとの、ほかのスクリーンの自分の宣言の値を消す操作（プラグイン API には出さない。base のコマンドが resetPluginStateAtOf で読む）
+export const givenScreenResets = new WeakMap<CommandActions, ResetPluginStateAt>()
+// コマンドが受け取った操作 a の、ほかのスクリーンの自分の宣言の値を消す操作（store がコマンドに渡した操作だけが持つ）
+export const resetPluginStateAtOf = (a: CommandActions): ResetPluginStateAt => givenScreenResets.get(a) ?? fail("E116")
 // コマンドに渡した操作ごとの、窓の今の値を読む口（プラグイン API には出さない。base のコマンドが windowNowOf で読む）
 export const givenWindowReads = new WeakMap<CommandActions, () => WindowState>()
 

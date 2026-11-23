@@ -10,6 +10,7 @@ import { linesOf } from "../../../../web/src/plugins/items/line/placed"
 import { SHAPE_RULES, SLANT, TURNED_SLANT } from "../../../../web/src/plugins/items/shape/outline"
 import { SHAPES } from "../../../../web/src/plugins/items/shape/shapes"
 import { placedWidth } from "../../../../web/src/plugins/items/shape/size"
+import { placingItemOf } from "../../../support"
 import { flowchart } from "../../page-types/flowchart/support"
 
 afterEach(cleanup)
@@ -46,7 +47,9 @@ test("フローチャートのツールボックス（下の行のフッタメ�
   ).toEqual(names)
   fireEvent.click(within(panel).getByRole("button", { name: "ひし形", hidden: true }))
   expect(screen.queryByRole("group", { name: "形", hidden: true })).toBeNull()
-  expect(screenOf(store.state.getState().window).stages[0]!.placing?.item).toBe("@matomezu/shape:shape-diamond")
+  expect(placingItemOf(screenOf(store.state.getState().window).stages[0]!.placing)).toBe(
+    "@matomezu/shape:shape-diamond",
+  )
   expect(screen.getByRole("button", { name: "形", hidden: true }).getAttribute("aria-pressed")).toBe("true")
 })
 

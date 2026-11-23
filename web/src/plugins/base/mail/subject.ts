@@ -1,5 +1,5 @@
 // 郵便箱: 郵便のレコードの種類（対象の定義 mail）と、郵便を 1 通足すアクションが使う処理（上限を守って古い郵便を消す）
-import { type Actor, workroomOfActor } from "../../../core/actor"
+import { type Actor, NO_WORKROOM, workroomOfActor } from "../../../core/actor"
 import type { ActionContext, AIEditTicketChange, RecordRead } from "../../../core/def/action"
 import { inOrder } from "../../../core/record-keys"
 import { NO_RECORD, RECORDS_MAX, type Records } from "../../../core/records"
@@ -50,13 +50,13 @@ export const READS_MAILBOX_KEYS = () => [{ subject: MAIL.id, where: [], keysOnly
 export function readsMailSender(actor: Actor): readonly RecordRead[] {
   const mailbox = READS_MAILBOX_KEYS()
   const roomId = workroomOfActor(actor)
-  if (roomId === undefined) return mailbox
+  if (roomId === NO_WORKROOM) return mailbox
   return [...mailbox, readsParticipantsIn(roomId), { subject: WORKROOM.id, id: roomId }]
 }
 
 function mailSender(ctx: ActionContext): Mail["sender"] {
   const roomId = workroomOfActor(ctx.actor)
-  if (roomId === undefined) return undefined
+  if (roomId === NO_WORKROOM) return undefined
   const participants = keyRowsIn(ctx, PARTICIPANT.id).filter(
     ({ keys }) => keys.workroom === roomId && keys.state === "joined",
   )

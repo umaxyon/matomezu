@@ -52,6 +52,9 @@ export function Field({
 
 // 選択肢から 1 つを選ぶボタンの並び（名前は label。選択肢ごとに値・名前・中身のアイコン。中は見えないラジオボタン）。
 // clearable なら、どれも選ばない（undefined）を許し、選んでいる物をもう一度押すと外す。disabled の選択肢は灰色で押せない
+// 選択肢のどれも選んでいないときの値（Choices の clearable と InheritChoices。選択肢の値は文字列なので、文字列でない値）
+export const NO_CHOICE: unique symbol = Symbol("no choice")
+
 export function Choices<V extends string>({
   label,
   value,
@@ -63,7 +66,7 @@ export function Choices<V extends string>({
   options: readonly { value: V; label: string; icon: ReactNode; disabled?: boolean }[]
 } & (
   | { value: V; onChange: (value: V) => void; clearable?: false }
-  | { value: V | undefined; onChange: (value: V | undefined) => void; clearable: true }
+  | { value: V | typeof NO_CHOICE; onChange: (value: V | typeof NO_CHOICE) => void; clearable: true }
 )) {
   const name = useId()
   return (
@@ -80,7 +83,7 @@ export function Choices<V extends string>({
             checked={o.value === value}
             onChange={() => onChange(o.value)}
             onClick={() => {
-              if (clearable && o.value === value) (onChange as (value: V | undefined) => void)(undefined)
+              if (clearable && o.value === value) (onChange as (value: V | typeof NO_CHOICE) => void)(NO_CHOICE)
             }}
           />
           {o.icon}
@@ -139,12 +142,19 @@ export function InheritChoices<V extends string>({
 }: {
   label: string
   inherit: { label: string; title: string }
-  value: V | undefined
+  value: V | typeof NO_CHOICE // NO_CHOICE は継ぐ
   options: readonly { value: V; label: string; icon: ReactNode }[]
-  onChange: (value: V | undefined) => void
+  onChange: (value: V | typeof NO_CHOICE) => void
 }) {
   const all = [{ value: "" as const, label: inherit.title, icon: <ChoiceText>{inherit.label}</ChoiceText> }, ...options]
-  return <Choices<V | ""> label={label} value={value ?? ""} options={all} onChange={v => onChange(v || undefined)} />
+  return (
+    <Choices<V | "">
+      label={label}
+      value={value === NO_CHOICE ? "" : value}
+      options={all}
+      onChange={v => onChange(v === "" ? NO_CHOICE : v)}
+    />
+  )
 }
 
 // 入力Formを並べた form。決めるボタンか、決めるキー（キーバインドの dialog-submit）で onSubmit。ready でなければ送らない。

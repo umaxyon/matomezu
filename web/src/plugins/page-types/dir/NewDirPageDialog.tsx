@@ -3,7 +3,7 @@
 import { useState } from "react"
 import type { NewPageDialogArgs } from "../../../plugin-api"
 import { type DialogProps, useMessages } from "../../../plugin-api/ui"
-import { controlClass, Dialog, Field, Form, useNewPage } from "../../base/ui"
+import { controlClass, Dialog, Field, Form, NO_LINEUP, useNewPage } from "../../base/ui"
 import { DIR } from "./dir"
 import { kit } from "./kit"
 
@@ -12,7 +12,7 @@ export function NewDirPageDialog({ args, onClose }: DialogProps<NewPageDialogArg
   const { lineup, titles, add: addPage } = useNewPage(args)
   const [title, setTitle] = useState(titles.page)
   const [name, setName] = useState<string | null>(null) // null はページ名と同じ
-  if (!lineup) return null
+  if (lineup === NO_LINEUP) return null
   const create = () => {
     if (addPage({ type: DIR.id, title, fields: { root: { name: name ?? title } } })) onClose()
   }

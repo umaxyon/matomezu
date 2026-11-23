@@ -1,7 +1,9 @@
 // 左サイドパネルの入れ物: 窓の左に、上から下まで出す（window/WindowView.tsx が描く）。開いている間は、右にある画面（ブックスクリーンかコントロールセンター）を押し縮める（窓が狭ければ、画面の幅が 0 になる）。
 // 上にタブの行と閉じるボタンを置き、中身は、開く側が渡したタブの組のうち開いているタブの 1 つだけを、渡された物のまま描く。タブの名前はウィジェットの定義の leftSidePanel.title。
 // 開いたら中にフォーカスを入れ、Esc は左サイドパネルのキーの範囲で閉じる。外を押しても閉じない（閉じるのは、閉じるボタン・Esc・開くボタン）
+
 import { type ReactNode, useEffect, useRef } from "react"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { useMessages, useT } from "../../../ui/i18n"
 import { usePluginState } from "../../../ui/plugin-state-hooks"
 import { StageScope } from "../../../ui/scope"
@@ -16,7 +18,8 @@ export const LEFT_SIDE_PANEL_WIDTH = 400 // 開いているときの幅（px。�
 
 export function LeftSidePanel() {
   const t = useMessages(kit)
-  const opened = usePluginState(kit, LEFT_SIDE_PANEL_STATE) ?? null
+  const held = usePluginState(kit, LEFT_SIDE_PANEL_STATE)
+  const opened = held === NO_STATE ? null : held
   const width = opened ? `min(${LEFT_SIDE_PANEL_WIDTH}px, 100vw)` : 0
   return (
     <aside

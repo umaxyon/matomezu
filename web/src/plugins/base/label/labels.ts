@@ -2,7 +2,7 @@ import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { idsIn } from "../../../core/ids"
 import { connectorsOf, walkShapes } from "../../../core/placed"
 import type { Page } from "../../../core/schema/book"
-import { shapeDefOf } from "../place/placed"
+import { NO_SHAPE_DEF, shapeDefOf } from "../place/placed"
 import { parseRich, plainOf } from "../text/rich"
 
 export type AnchorLabel = { text: string } | { title: string }
@@ -22,12 +22,13 @@ export function anchorLabel(catalog: CoreCatalog, pages: readonly Page[], id: st
     const shape = walkShapes(page).find(({ shape }) => idsIn({ ...shape, shapes: undefined }).includes(id))?.shape
     if (shape) {
       const def = shapeDefOf(catalog, shape.item)
+      if (def === NO_SHAPE_DEF) return { title: shape.item }
       const caption =
-        shape.id === id && def?.captionProp
+        shape.id === id && def.captionProp
           ? (shape.props as Record<string, unknown> | undefined)?.[def.captionProp]
           : undefined
-      const name = def?.labelOf ? def.labelOf(shape, id) : typeof caption === "string" ? caption : ""
-      return plain(name) ?? { title: def?.title ?? shape.item }
+      const name = def.labelOf ? def.labelOf(shape, id) : typeof caption === "string" ? caption : ""
+      return plain(name) ?? { title: def.title }
     }
     const line = connectorsOf(page).find(c => c.id === id)
     if (line) {

@@ -49,6 +49,16 @@ type ShapeProps = ShapeItemDef["props"]
 type Held<H> = H extends SettingHolder ? { holder: H } : { holder?: never }
 
 // 定義の関数の組。返す型は書いておく（文言の表を通して、この組の型が自分を参照するため）
+// 画面の場所に入れないプラグイン状態の宣言を作る関数（既定 default を持てば、値が無いときにそれを読む）
+export interface DefinePluginStateOf<P extends string, S> {
+  <const Id extends string, const Sc extends PluginStateScope>(
+    def: Omit<PluginStateDef<S>, "id" | "scope" | "address" | "schema" | "default"> & { id: Id; scope: Sc; default: S },
+  ): PluginStateDef<S> & { id: Owned<P, Id>; scope: Sc; address: "none"; default: S }
+  <const Id extends string, const Sc extends PluginStateScope>(
+    def: Omit<PluginStateDef<S>, "id" | "scope" | "address" | "schema" | "default"> & { id: Id; scope: Sc },
+  ): PluginStateDef<S> & { id: Owned<P, Id>; scope: Sc; address: "none" }
+}
+
 export interface PluginKit<P extends string, M extends MessageMap> {
   id: P // プラグインの id
   messages: OwnedMessages<P, M> // 頭を付けた文言（core/catalog.ts の MessageTable に書き足す）
@@ -247,14 +257,29 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     def: Omit<KeyScopeDef, "id" | "title" | "commandsFrom"> & { id: Id; title: keyof M & string; commandsFrom: F },
   ): KeyScopeDef & { id: Owned<P, Id>; commandsFrom: F }
 
-  // プラグイン状態の宣言（プラグインが画面の中で持つ状態。id は頭が付く）。address が push か replace なら、値を画面の場所（URL）に入れ、読み直しても戻す。値の形 schema を持つ
+  // プラグイン状態の宣言（プラグインが画面の中で持つ状態。id は頭が付く）。address が push か replace なら、値を画面の場所（URL）に入れ、読み直しても戻す。値の形 schema を持つ。
+  // 既定 default を持てば、値が無いときにそれを読む（持たなければ NO_STATE を読む）
   definePluginState<
     const Id extends string,
     S,
     const Sc extends PluginStateScope,
     const Ad extends Exclude<PluginStateAddress, "none">,
   >(
-    def: Omit<PluginStateDef<S>, "id" | "scope" | "address" | "schema"> & {
+    def: Omit<PluginStateDef<S>, "id" | "scope" | "address" | "schema" | "default"> & {
+      id: Id
+      scope: Sc
+      address: Ad
+      schema: PluginStateSchema<S>
+      default: NoInfer<S>
+    },
+  ): PluginStateDef<S> & { id: Owned<P, Id>; scope: Sc; address: Ad; default: S }
+  definePluginState<
+    const Id extends string,
+    S,
+    const Sc extends PluginStateScope,
+    const Ad extends Exclude<PluginStateAddress, "none">,
+  >(
+    def: Omit<PluginStateDef<S>, "id" | "scope" | "address" | "schema" | "default"> & {
       id: Id
       scope: Sc
       address: Ad
@@ -268,9 +293,7 @@ export interface PluginKit<P extends string, M extends MessageMap> {
   ): Omit<LibraryAppearanceDef, "id"> & { id: Owned<P, Id> }
 
   // 画面の場所に入れない（none）プラグイン状態の宣言（読み直すと消える。値の型だけを持つ。kit.definePluginStateOf<値の型>()({ id, scope })）
-  definePluginStateOf<S>(): <const Id extends string, const Sc extends PluginStateScope>(
-    def: Omit<PluginStateDef<S>, "id" | "scope" | "address" | "schema"> & { id: Id; scope: Sc },
-  ) => PluginStateDef<S> & { id: Owned<P, Id>; scope: Sc; address: "none" }
+  definePluginStateOf<S>(): DefinePluginStateOf<P, S>
 
   // キーの既定のキーバインド 1 つ（command はコマンドの本当の id。args はそのコマンドの引数の型。title は自分の文言の短い鍵）
   defineKey<const K extends KeyDef>(def: K & { title?: keyof M & string }): Omit<K, "id"> & { id: Owned<P, K["id"]> }

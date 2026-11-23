@@ -1,7 +1,8 @@
 // 刷るときの紙の決まり（見た目を持たない計算）: 並べた印刷区画の大きさごとに名前付きの @page を作り、紙ちょうどの大きさ・余白 0 で刷る
 // （紙の大きさは 96dpi で刷ったときの px なので、そのまま CSS の px で書く）。大きさの違う紙が混ざっても、印刷区画ごとにその紙で刷る
+
+import { NO_NAME } from "../../../core/entries"
 import type { Size } from "../../../core/geom"
-import { NO_NAME } from "./previewed"
 
 // 大きさ size の印刷区画を刷る @page の名前（CSS の名前は数字で始められないので頭に語を付ける）
 export const pageNameOf = (size: Size): string => `sheet-${Math.round(size.w)}x${Math.round(size.h)}`

@@ -3,25 +3,28 @@
 // 紙に入れる名前の無い物（ブックの外のページ 1 枚）には、ブック名を入れる項目を出さない）、印刷区画より大きくて紙の境目で切れる形のバッジ（押すとその形のページの編集へ）。
 // 項目を変えるとすぐに print-preview-update で変える。ロック中なら先に書き換えてよいかを確かめ、よければロックを外して変え、掛け直す。
 // 右サイドパネルの閉じるボタン（と Esc）で閉じると、印刷プレビューも閉じる（PrintPreviewView）。ステージが印刷プレビューでなくなったら、右サイドパネルを閉じる
+
 import { useEffect, useState } from "react"
-import { previewing as isPreviewing } from "../../../core/stage"
+import { NOT_SET } from "../../../core/def/setting"
+import { NO_NAME } from "../../../core/entries"
+import { previewing as isPreviewing, NO_PAGE } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useStageHere } from "../../../ui/scope"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
-import { useActions, useAllowed, useAllowedOn, usePerform } from "../../../ui/view-hooks"
+import { NO_PERMISSION, useActions, useAllowed, useAllowedOn, usePerform } from "../../../ui/view-hooks"
 import { outermostSettingDefs, ownSettings } from "../book-settings"
 import { Confirm } from "../dialog-host/Confirm"
 import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, PAGE_LOCK, PAGE_UNLOCK } from "../lock"
 import { LockToggle } from "../lock/LockToggle"
-import { useCloseRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
+import { NO_RIGHT_SIDE_PANEL, useCloseRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
 import { ZoomBar, ZoomButton } from "../zoom/ZoomBar"
 import { fitSide, PRINT, PRINT_PREVIEW_BOOK_NAME, PRINT_PREVIEW_FIT, PRINT_PREVIEW_UPDATE } from "."
 import { entryCrossings } from "./entry-sheets"
 import styles from "./PrintPreviewPanel.module.css"
 import { PRINT_PREVIEW_PANEL_ID } from "./panel-id"
-import { NO_LOCK, NO_NAME, type PreviewedEntry, type PreviewedLock } from "./previewed"
+import { NO_LOCK, type PreviewedEntry, type PreviewedLock } from "./previewed"
 import { ShapeBadges } from "./ShapeBadges"
 import { usePreviewed } from "./usePreviewed"
 
@@ -34,7 +37,7 @@ export function PrintPreviewPanel() {
   const open = useRightSidePanel()
   const close = useCloseRightSidePanel()
   const previewing = useStageHere(st => !!st && isPreviewing(st))
-  const mine = open?.widget === PRINT_PREVIEW_PANEL_ID
+  const mine = open !== NO_RIGHT_SIDE_PANEL && open.widget === PRINT_PREVIEW_PANEL_ID
   useEffect(() => {
     if (mine && !previewing) close()
   }, [mine, previewing, close])
@@ -51,7 +54,7 @@ function PrintPreviewPanelBody({ previewed }: { previewed: PreviewedEntry }) {
   const [confirming, setConfirming] = useState<Patch | null>(null)
   // 変えられるか（ロックで止められるなら、確かめてから外して変えるので変えられる。ほかの認可ステップに止められるなら変えられない）
   const changing = useAllowedOn(PRINT_PREVIEW_UPDATE.id, { entry: previewed.id, settings: {} })
-  const blocked = !changing.ok && changing.permission !== null && changing.permission !== LOCK.id
+  const blocked = !changing.ok && changing.permission !== NO_PERMISSION && changing.permission !== LOCK.id
   const lock = previewed.lock
   const locked = lock !== NO_LOCK && lock.locked
   const update = (patch: Patch) => performOther(PRINT_PREVIEW_UPDATE.id, { entry: previewed.id, settings: patch })
@@ -79,10 +82,11 @@ function PrintPreviewPanelBody({ previewed }: { previewed: PreviewedEntry }) {
               key={id}
               of="outermost"
               label={t(def.title)}
-              value={own[id]}
-              inherited={def.default}
-              page={null}
-              onChange={(v: string | undefined) => change({ [id]: v ?? null })}
+              value={own[id] ?? NOT_SET}
+              inherited={def.default ?? NOT_SET}
+              page={NO_PAGE}
+              onChange={(v: string) => change({ [id]: v })}
+              onReset={() => change({ [id]: null })}
             />
           )
         })}

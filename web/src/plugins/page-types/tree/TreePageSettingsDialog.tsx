@@ -11,7 +11,8 @@ import { treeRootOf } from "./node"
 
 export function TreePageSettingsDialog({ args, onClose }: DialogProps<PageSettingsArgs>) {
   const t = useMessages(kit)
-  const root = treeRootOf(usePageById(args.page))
+  const page = usePageById(args.page)
+  const root = treeRootOf(page)
   const [caption, setCaption] = useState(root ? root.caption : "")
   const [body, setBody] = useState(root ? (root.body ?? "") : "")
   const [showBody, setShowBody] = useState(root?.showBody === true)

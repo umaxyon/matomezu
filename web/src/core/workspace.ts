@@ -18,9 +18,13 @@ import {
   followOutsideBinder,
   followOutsidePage,
   followBook as followStage,
+  NO_PAGE,
+  NO_PLACING,
+  NOTHING_OPENED,
   newStage,
   openBinder,
   openBook,
+  openedEntry,
   openPage,
   type Placing,
   type Stage,
@@ -30,7 +34,7 @@ import {
   stopPlacing,
   togglePlacing as togglePlacingOn,
 } from "./stage"
-import { hasTool, nextTool, placingTool, type Tools, toolDef, toolIn, toolSetOf, toolUsable } from "./tools"
+import { hasTool, NO_TOOL, nextTool, placingTool, type Tools, toolDef, toolIn, toolSetOf, toolUsable } from "./tools"
 
 // 横に並べる。share は分割したときの左のステージの幅の割合（分割をやめても覚えていて、次に分割したときもその割合で分ける）
 export interface Arrangement {
@@ -136,7 +140,8 @@ export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string, from: Li
 // ステージで道具を使えるか（開いているブックかブックの外のページのページで、行うアクションのどれかを認可ステップが止めない）
 export function usableIn(catalog: CoreCatalog, stage: Stage, from: LibraryAndBooks): (tool: string) => boolean {
   const on = askedOutermostOf(from, stage.opened) ?? null
-  return tool => toolUsable(catalog, tool, on, shownPageId(stage.opened))
+  const page = shownPageId(stage.opened)
+  return tool => toolUsable(catalog, tool, on, page === NO_PAGE ? null : page)
 }
 
 // ステージが使う道具の組の道具を替える。同じ組を使うステージは、全部その道具になる。組に無い道具には替えない。
@@ -166,7 +171,8 @@ export function togglePlacing(
   const stage = next.stages.find(s => s.id === id)
   const set = stage ? toolSetOf(catalog, stage) : null
   const places = set ? placingTool(catalog, set) : null
-  if (!stage?.placing || !set || !places || toolIn(catalog, next.tools, set) === places) return next
+  if (!stage || stage.placing === NO_PLACING || !set || !places || toolIn(catalog, next.tools, set) === places)
+    return next
   return { ...next, tools: { ...next.tools, [set]: places } }
 }
 
@@ -184,7 +190,7 @@ export function showBinder(catalog: CoreCatalog, ws: Workspace, stage: string, b
 // 今の道具が替わった（認可ステップが今の道具を止め、組の次の使える道具になったときも）なら、その場の編集を終える
 function followIn(catalog: CoreCatalog, ws: Workspace, stage: Stage, book: Book, before?: Book): Stage {
   const next = followStage(catalog, stage, book, before)
-  if (next.editing === "none" || !before || next.opened?.outermost.id !== book.id) return next
+  if (next.editing === "none" || !before || openedEntry(next.opened)?.id !== book.id) return next
   return editEndedOnToolChange(catalog, ws, stage, next, onlyBook(before), onlyBook(book))
 }
 
@@ -232,11 +238,12 @@ export function followLibrary(
   }
   // ステージが開いている物（何も開いていなければ "none"、無くなっていれば undefined）。開いていたページがよそへ移されていれば、移った先のブックかバインダ
   const held = (s: Stage): Book | ItemPage | BinderEntry | "none" | undefined => {
-    if (!s.opened) return "none"
+    if (s.opened === NOTHING_OPENED) return "none"
     const { kind, id } = s.opened.outermost
     if (kind === "book") return books[id]
     const here = kind === "page" ? outsidePageIn(now, id) : outsideBinderIn(now, id)
-    return here ?? movedInto(shownPageId(s.opened))
+    const page = shownPageId(s.opened)
+    return here ?? movedInto(page === NO_PAGE ? null : page)
   }
   const gone = ws.stages.filter(s => held(s) === undefined).map(s => s.id)
   if (gone.length === ws.stages.length) return NO_STAGES_LEFT
@@ -244,7 +251,7 @@ export function followLibrary(
   const stages = left.stages.map(s => {
     const has = held(s)
     if (has === undefined || has === "none") return s
-    const at = s.opened?.outermost
+    const at = openedEntry(s.opened)
     if ("kind" in has) {
       // ブックの外のページ・バインダも、今の道具が替わった（ロックされたなど）なら、その場の編集を終える
       const next =
@@ -271,7 +278,7 @@ export function emptied(ws: Workspace): Workspace {
 // 表示領域の大きさ・道具のアイコンなど、中の状態は見せない（matomezu/ui の useStage）
 export type StageView = Pick<Stage, "opened" | "zoom" | "selection" | "editing" | "placing" | "edits"> & {
   mode: StageMode["kind"] // 編集の間か、印刷プレビューの間か
-  tool: ToolId | null
+  tool: ToolId | typeof NO_TOOL // 今の道具（ページのタイプが道具を使わない・使える道具が無ければ NO_TOOL）
   pans: boolean // 紙をずらす道具か（印刷プレビューの間は、いつもずらす）
 }
 
@@ -290,7 +297,7 @@ export function stageView(
     editing,
     placing,
     edits,
-    tool,
+    tool: tool ?? NO_TOOL,
     pans: mode === "print-preview" || (tool !== null && toolDef(catalog, tool).pans === true),
   }
 }

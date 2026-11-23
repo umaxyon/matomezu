@@ -5,8 +5,8 @@ import type { Point } from "../../../core/geom"
 import { type ItemPage, slideOf } from "../../../core/placed"
 import type { StageLineup } from "../../../core/schema/book"
 import { settingsAt, settingValue } from "../book-settings"
-import { growOf, pageArea, paperSize, slideOffsetOf } from "../place/grow"
-import { placedSize } from "../place/placed"
+import { growOf, NO_GROW, pageArea, paperSize, slideOffsetOf } from "../place/grow"
+import { NO_SIZE, placedSize } from "../place/placed"
 import type { PrintSheets, SheetPurpose } from "."
 import { crossingShapes, filledSheets, sheetKey } from "./filled"
 import type { PreviewedEntry } from "./previewed"
@@ -38,13 +38,13 @@ export function sheetsOfPage(
 // 印刷区画 sheets を、ページの slide の形（背景）がすべて入るだけ、右・下へ増やした物（可変ページでなければそのまま）
 function backgroundCovered<S extends Omit<PrintSheets, "filled">>(catalog: CoreCatalog, page: ItemPage, sheets: S): S {
   const paper = paperSize(catalog, page)
-  if (!growOf(catalog, page)) return sheets
+  if (growOf(catalog, page) === NO_GROW) return sheets
   const offset = slideOffsetOf(catalog, page)
   let columns = sheets.columns
   let rows = sheets.rows
   for (const s of slideOf(page)) {
     const size = placedSize(catalog, s)
-    if (!size) continue
+    if (size === NO_SIZE) continue
     columns = Math.max(columns, Math.ceil((s.x + offset.x + size.w) / paper.w - 1e-9))
     rows = Math.max(rows, Math.ceil((s.y + offset.y + size.h) / paper.h - 1e-9))
   }
@@ -78,7 +78,7 @@ export function entryCrossings(
   entry: StageLineup,
 ): { page: string; crossing: readonly string[]; oversized: readonly string[] }[] {
   return pagesOf(entry).flatMap(page => {
-    if (pageType(catalog, page.type).printCrossing !== "ask" || !growOf(catalog, page)) return []
+    if (pageType(catalog, page.type).printCrossing !== "ask" || growOf(catalog, page) === NO_GROW) return []
     const found = crossingShapes(catalog, page)
     return found.crossing.length + found.oversized.length > 0 ? [{ page: page.id, ...found }] : []
   })

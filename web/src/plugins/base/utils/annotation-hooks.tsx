@@ -4,6 +4,7 @@ import { useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { type Annotation, type Annotations, unexpired, usableAnnotations } from "../../../core/annotation"
 import type { MessageKey } from "../../../core/i18n/i18n"
+import { NO_PAGE } from "../../../core/stage"
 import { useMatomezuState } from "../../../ui/store-context"
 import { useActions, useCoreCatalog, usePage, usePerform } from "../../../ui/view-hooks"
 import { refusalMessage } from "./refusal"
@@ -22,14 +23,17 @@ const useNowIso = (): string => new Date(useNow(EXPIRY_CHECK_MS)).toISOString()
 export function useAnnotationsIn(): readonly Annotation[] {
   const catalog = useCoreCatalog()
   const shown = usePage()
-  const page = shown?.id ?? null
+  const page = shown === NO_PAGE ? null : shown.id
   const all = useMatomezuState(s => (page && s.annotations[page]) || NONE)
   const settings = useMatomezuState(s => s.settings)
   const locked = useMatomezuState(
     useShallow(s => Object.values(s.editLocks).flatMap(l => ("within" in l && l.within === page ? l.ids : []))),
   )
   const now = useNowIso()
-  const usable = useMemo(() => (shown ? usableAnnotations(catalog, shown, all) : NONE), [catalog, shown, all])
+  const usable = useMemo(
+    () => (shown === NO_PAGE ? NONE : usableAnnotations(catalog, shown, all)),
+    [catalog, shown, all],
+  )
   return useMemo(
     () => unexpired(catalog, usable, settings, now, new Set(locked)),
     [catalog, usable, settings, now, locked],
@@ -75,7 +79,8 @@ export function usePerformOrToast(
   ) => { ok: boolean; result?: unknown }
   const catalog = useCoreCatalog()
   const { showToast } = useActions()
-  const drawn = usePage()?.id
+  const shownPage = usePage()
+  const drawn = shownPage === NO_PAGE ? undefined : shownPage.id
   return (action, args, page) => {
     const on = page ?? drawn
     // 宛先のページが無ければ行わず、断りの理由の無い断りと同じに知らせる

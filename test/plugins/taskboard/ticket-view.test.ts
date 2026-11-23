@@ -1,6 +1,7 @@
 // チケットスクリーンが見せる物の整え方: チケット履歴の行（起票の行・新しい順）・日ごとのまとめ・担当（ticket/assignees.ts）
 
 import { expect, test } from "bun:test"
+import { NO_STATE } from "../../../web/src/core/def/plugin-state"
 import { assigneesOf } from "../../../web/src/plugins/taskboard/ticket/assignees"
 import { viewOf } from "../../../web/src/plugins/taskboard/ticket-screen"
 import {
@@ -69,7 +70,7 @@ test("題の色は、起票の行が success、そのほかは列挙の値の da
 })
 
 test("チケットスクリーンの画面の状態は、開いているチケットが替われば初めの形に戻る", () => {
-  const first = viewOf(undefined, "t1")
+  const first = viewOf(NO_STATE, "t1")
   expect(first).toEqual({ ticket: "t1", mode: "rendered-only", side: "body", maximized: false })
   const changed = { ...first, maximized: true, question: "q" }
   expect(viewOf(changed, "t1")).toBe(changed)

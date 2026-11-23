@@ -9,7 +9,7 @@
 // 管理者がいなければ入れたワークルームを管理者にする、まで 1 つのアクションで行う（ビジターとして受け入れるときは、ワークルームに触らない）。
 // workroom-remove も、いる参加者を一緒に外す。外す参加者は id で渡し、渡した参加者がそのワークルームにいるときだけ外す（生きているかは、ダイアログが見る）
 import { z } from "zod"
-import { type Actor, workroomOfActor } from "../../../core/actor"
+import { type Actor, NO_WORKROOM, workroomOfActor } from "../../../core/actor"
 import type { ActionContext, RecordRead } from "../../../core/def/action"
 import { PARTICIPANT_STATES } from "../../../core/def/subject"
 import { BIRD_IDS } from "../birds"
@@ -379,26 +379,40 @@ export const ADMIN_SET = kit.defineAction({
 // 管理者の印を読むアクションが reads に足す物（印は全体に 1 件）
 export const READS_ADMIN: RecordRead = { subject: ADMIN_MARK.id, where: [] }
 
-// 管理者のワークルームの id（印が無い・none・指す先のワークルームが無ければ undefined。決め方は adminRoomOf）。
+// 管理者のワークルームの id（印が無い・none・指す先のワークルームが無ければ NO_WORKROOM。決め方は adminRoomOf）。
 // ctx は READS_ADMIN と READS_WORKROOM_KEYS を読んだアクションの文脈
-export function adminWorkroom(ctx: Pick<ActionContext, "records" | "keys">): string | undefined {
+export function adminWorkroom(ctx: Pick<ActionContext, "records" | "keys">): string {
   const mark = Object.values(ctx.records?.[ADMIN_MARK.id] ?? {}).flatMap(m => {
     const read = ADMIN_MARK.record.safeParse(m)
     return read.success ? [read.data] : []
   })[0]
-  return adminRoomOf(
-    mark,
-    Object.keys(ctx.keys?.[WORKROOM.id] ?? {}).map(id => ({ id })),
+  return (
+    adminRoomOf(
+      mark,
+      Object.keys(ctx.keys?.[WORKROOM.id] ?? {}).map(id => ({ id })),
+    ) ?? NO_WORKROOM
   )
 }
 
 // actor が、管理者のワークルーム（adminWorkroom）に入っている AI か。ctx は READS_ADMIN と READS_WORKROOM_KEYS を読んだアクションの文脈
 export function isAdminActor(actor: Actor, ctx: Pick<ActionContext, "records" | "keys">): boolean {
   const id = workroomOfActor(actor)
-  return id !== undefined && adminWorkroom(ctx) === id
+  return id !== NO_WORKROOM && adminWorkroom(ctx) === id
 }
 
 export { PARTICIPANT_ALIVE } from "./alive"
 export { JOIN_REQUEST_DIALOG, PARTICIPANT_JOIN_DIALOG, PARTICIPANT_WELCOME_DIALOG } from "./dialogs"
-export type { ParticipantCategory, VisitorRow, WorkroomRow, WorkroomState } from "./rows"
-export { participantCategory, visitorName } from "./rows"
+export {
+  NO_BRANCH,
+  NO_CATEGORY,
+  NO_MODEL,
+  NO_OCCUPANT,
+  NOT_CALLED,
+  NOT_REQUESTED,
+  type ParticipantCategory,
+  participantCategory,
+  type VisitorRow,
+  visitorName,
+  type WorkroomRow,
+  type WorkroomState,
+} from "./rows"

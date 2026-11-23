@@ -21,6 +21,7 @@ import { AtCorner, useAtCornerBubble } from "../corner-status/corner"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import {
+  NO_RIGHT_SIDE_PANEL,
   useCloseRightSidePanel,
   useFollowsSelection,
   useOpenRightSidePanel,
@@ -28,7 +29,7 @@ import {
 } from "../right-side-panel/hooks"
 import { pointedSelection } from "../right-side-panel/state"
 import { Ask, type AskItem } from "../stand/Ask"
-import { StandAt, useStandAway, useStandFacing } from "../stand/anchors"
+import { NOT_AWAY, StandAt, useStandAway, useStandFacing } from "../stand/anchors"
 import { StandPointer } from "../stand/StandPointer"
 import { facingY } from "../stand/stand-place"
 import { clampChars } from "../text/text"
@@ -72,7 +73,7 @@ function useOpenNote(note: string, anchors: Anchors) {
   const readStage = useReadStageHere()
   const { select } = useActions()
   const anchor = lastAnchor(anchors)
-  const busy = !!shown && shown.subject !== note && shown.subject !== NEW_NOTE
+  const busy = shown !== NO_RIGHT_SIDE_PANEL && shown.subject !== note && shown.subject !== NEW_NOTE
   // 物を押したときと同じく、焦点はスタンドに残さない（スタンドはキーを外へ渡さず、Esc で閉じられなくなる）
   const pick = (e: MouseEvent<HTMLButtonElement>) => {
     e.currentTarget.blur()
@@ -82,7 +83,7 @@ function useOpenNote(note: string, anchors: Anchors) {
   const open = (e: MouseEvent<HTMLButtonElement>) =>
     follows
       ? pick(e)
-      : shown && shown.subject !== note
+      : shown !== NO_RIGHT_SIDE_PANEL && shown.subject !== note
         ? closePanel()
         : openPanel({ widget: NOTE_PANEL_ID, subject: note, anchors, current: anchor })
   return { open, busy }
@@ -133,7 +134,8 @@ function NotePointer({
   onOpen: (e: MouseEvent<HTMLButtonElement>) => void
 }) {
   const t = useMessages(kit)
-  const opens = useStandAway()?.afterShow === "pointer"
+  const away = useStandAway()
+  const opens = away !== NOT_AWAY && away.afterShow === "pointer"
   const show = t("Show {name}", { name: useAnchorName(anchor) })
   return (
     <StandPointer
@@ -295,7 +297,7 @@ export function ReadCheckLook() {
 
 // 付けた物の上の辺が見える所の外にある間は pointer（マークポインタ）を、そうでなければ children を出す
 function Away({ pointer, children }: { pointer: ReactNode; children: ReactNode }) {
-  return useStandAway() ? pointer : children
+  return useStandAway() !== NOT_AWAY ? pointer : children
 }
 
 // 伝言の吹き出し: 幅は BUBBLE_W で、物の右のいつもの位置から範囲の右の端までがそれより狭ければ、右の端に押されてそこまで縮める（BUBBLE_MIN_W まで。左の端は動かない）

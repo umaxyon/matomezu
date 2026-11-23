@@ -4,7 +4,7 @@ import { expect, test } from "bun:test"
 import { z } from "zod"
 import { USER } from "../../web/src/core/actor"
 import { readLibrary, unreadableUnitsOf } from "../../web/src/core/book"
-import { defineAction, type Where } from "../../web/src/core/def/action"
+import { defineAction, NO_CONTROL_CENTER, type Where } from "../../web/src/core/def/action"
 import { HOME_ID, type Library, TRASH_ID } from "../../web/src/core/folders"
 import { bookOf, withBinderEntry } from "../../web/src/core/folders-books"
 import { withChanges } from "../../web/src/core/folders-changes"
@@ -21,7 +21,7 @@ const slide = (id: string, title: string, rest: object = {}) => testPage(SLIDE, 
 const ctxOf = (catalog = CORE_CATALOG) =>
   ({
     catalog,
-    controlCenter: null,
+    controlCenter: NO_CONTROL_CENTER,
     lang: "en" as const,
     newId: sequence(),
     now: "2026-01-01T00:00:00.000Z",
@@ -262,15 +262,18 @@ test("画面の問い（openedAnswer。所で問う）は、行う前の問い�
     [base("book-update"), { title: "名前" }, {}],
   ]
   for (const [id, args, where] of cases) {
-    const asked = openedAnswer(CORE_CATALOG, id, on, where, { controlCenter: null })
+    const asked = openedAnswer(CORE_CATALOG, id, on, where, { controlCenter: NO_CONTROL_CENTER })
     const permitted = permittedIn(outside, id, args, { book: "n1" }, ctxOf())
     expect([id, args, asked.value === true]).toEqual([id, args, permitted.ok])
   }
   // どのページも変える所（allPages）は、ブックの中と同じく、ロックしたページが 1 枚でも在れば使えない（ページごとに飛ばすのは、行うときの pages の形だけ）
-  expect(openedAnswer(CORE_CATALOG, base("pages-update"), on, { allPages: true }, { controlCenter: null }).value).toBe(
-    false,
-  )
-  expect(openedAnswer(CORE_CATALOG, base("page-remove"), on, { page: "s2" }, { controlCenter: null })).toMatchObject({
+  expect(
+    openedAnswer(CORE_CATALOG, base("pages-update"), on, { allPages: true }, { controlCenter: NO_CONTROL_CENTER })
+      .value,
+  ).toBe(false)
+  expect(
+    openedAnswer(CORE_CATALOG, base("page-remove"), on, { page: "s2" }, { controlCenter: NO_CONTROL_CENTER }),
+  ).toMatchObject({
     value: false,
     decidedBy: { source: "permission", id: base("lock") },
   })

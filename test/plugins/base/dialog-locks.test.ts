@@ -1,7 +1,9 @@
 // ダイアログが開いている間に掛ける編集ロックの所（base/dialog-host/locks.ts）
 import { expect, test } from "bun:test"
 import type { BinderEntry } from "../../../web/src/core/schema/book"
+import { NO_PAGE } from "../../../web/src/core/stage"
 import { locksOf } from "../../../web/src/plugins/base/dialog-host/locks"
+import { NO_LINEUP } from "../../../web/src/plugins/base/page-tabs/opened-lineup"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../../lineup"
 
 const binder = testBinder("n1", "束", SLIDE, testPage(SLIDE, "s1", { title: "1" })) as BinderEntry
@@ -21,6 +23,6 @@ test("ブックの外のバインダでは、バインダの id はそのバイ�
 })
 
 test("ブックの外のページ 1 枚では、どれも開いているページに掛ける。開いているページが無ければ掛けない", () => {
-  expect(locksOf(null, "x1", ["x1", "item"])).toEqual([{ within: "x1", ids: ["x1", "item"] }])
-  expect(locksOf(null, null, ["x1"])).toEqual([])
+  expect(locksOf(NO_LINEUP, "x1", ["x1", "item"])).toEqual([{ within: "x1", ids: ["x1", "item"] }])
+  expect(locksOf(NO_LINEUP, NO_PAGE, ["x1"])).toEqual([])
 })

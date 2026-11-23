@@ -4,11 +4,11 @@
 // 動かし始めたときと、動かしたあと終えたとき（落としても、やめても。落とす前）にすることは、begin・end で渡せる（begin にはポインタの所を、area から見た点で渡す）
 import { type RefObject, useEffect, useEffectEvent, useRef, useState } from "react"
 import type { Point } from "../../../core/geom"
-import { toPaper } from "../../../core/stage"
+import { NO_PAPER, NO_STAGE, toPaper } from "../../../core/stage"
 import type { StageView } from "../../../core/workspace"
-import { useActions, useStagePan, useToPaper } from "../../../ui/view-hooks"
+import { PAN_NOT_WATCHED, useActions, useStagePan, useToPaper } from "../../../ui/view-hooks"
 import { DRAG_START } from "./drag"
-import { edgePanner } from "./edge-pan"
+import { edgePanner, NO_VIEW_AREA } from "./edge-pan"
 
 export interface PaperDrag {
   id: string // 押した物
@@ -17,6 +17,9 @@ export interface PaperDrag {
   at: Point // ポインタの所（紙の座標）
   moved: boolean // DRAG_START より動かしたか
 }
+
+// 押していないときの値
+export const NOT_PRESSED = "none"
 
 export interface PaperDragWays {
   begin?: (pointer: Point) => void
@@ -36,7 +39,8 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
   const toPaperOf = useToPaper()
   const toPaperAt = (cx: number, cy: number): Point | null => {
     const p = local(cx, cy)
-    return p ? toPaperOf(p) : null
+    const at = p ? toPaperOf(p) : NO_PAPER
+    return at === NO_PAPER ? null : at
   }
   const localAt = useEffectEvent(local)
   const paperAt = useEffectEvent(toPaperAt)
@@ -52,9 +56,9 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
     const d = latest.current
     const c = pointer.current
     const p = c && localAt(c.x, c.y)
-    if (!d?.moved || !p || !pan) return
+    if (!d?.moved || !p || pan === NO_STAGE || pan === PAN_NOT_WATCHED) return
     const at = toPaper({ opened, pan, zoom }, p)
-    if (at && (at.x !== d.at.x || at.y !== d.at.y)) setPress({ ...d, at })
+    if (at !== NO_PAPER && (at.x !== d.at.x || at.y !== d.at.y)) setPress({ ...d, at })
   }, [opened, pan, zoom])
   useEffect(() => {
     if (!pressed) return
@@ -62,7 +66,7 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
     const panner = edgePanner(
       () => {
         const r = area.current?.getBoundingClientRect()
-        return r ? { x: r.left, y: r.top, w: r.width, h: r.height } : null
+        return r ? { x: r.left, y: r.top, w: r.width, h: r.height } : NO_VIEW_AREA
       },
       (dx, dy) => panStageBy(dx, dy),
     )
@@ -106,5 +110,7 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
     if (at)
       setPress({ id: item.id, from: { x: cx, y: cy }, grab: { x: at.x - item.x, y: at.y - item.y }, at, moved: false })
   }
-  return { state, start, onDrop }
+  // state は押している物（押していなければ NOT_PRESSED）
+  const shown: PaperDrag | typeof NOT_PRESSED = state ?? NOT_PRESSED
+  return { state: shown, start, onDrop }
 }

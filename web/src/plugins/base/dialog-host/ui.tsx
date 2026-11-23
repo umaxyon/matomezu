@@ -11,7 +11,7 @@ export const DIALOG_HOST = defineWidget({
   view: DialogHost,
 })
 
-export { ColorPicker, type Swatch } from "./ColorPicker"
+export { ColorPicker, NO_COLOR, type Swatch } from "./ColorPicker"
 export { Confirm, Notice } from "./Confirm"
 export { Dialog } from "./Dialog"
 export {
@@ -25,6 +25,7 @@ export {
   InheritChoices,
   inlineClass,
   MultiChoices,
+  NO_CHOICE,
   Problem,
   pairClass,
   rowClass,

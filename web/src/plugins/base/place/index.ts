@@ -1,6 +1,6 @@
 // アイテムを置く処理: 置く・押しのける・枠・伸びの処理を集める
 
-export { type AiPlaced, aiPlacedOf, aiPlacedOfPage, itemAiPlaced } from "./ai-placed"
+export { type AiPlaced, aiPlacedOf, aiPlacedOfPage, itemAiPlaced, NO_AI_PLACED } from "./ai-placed"
 export type { Frame } from "./frame"
 export {
   CHILD_AREA,
@@ -9,6 +9,8 @@ export {
   frameAround,
   frameOf,
   freeSpotIn,
+  NO_FRAME,
+  NO_SPOT,
   placeChild,
   replaceChild,
   settleChildren,
@@ -22,6 +24,8 @@ export {
   growKindOf,
   grownArea,
   growOf,
+  NO_EXTENT,
+  NO_GROW,
   paperSize,
   roomOf,
   slideOffsetOf,
@@ -29,6 +33,7 @@ export {
 export type { GrowFrom } from "./items"
 export {
   adaptPage,
+  CANNOT_PLACE,
   FAMILY_TITLE_CHECK,
   followConnectors,
   gapOf,
@@ -46,7 +51,16 @@ export {
   unpinPage,
 } from "./items"
 export type { PortArea, Ports } from "./placed"
-export { allRectsOf, NEST_PADDING, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./placed"
+export {
+  allRectsOf,
+  NEST_PADDING,
+  NO_SHAPE_DEF,
+  NO_SIZE,
+  placedSize,
+  portAreasOf,
+  rectsOf,
+  shapeDefOf,
+} from "./placed"
 export type { Axis, Gap } from "./push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./push"
-export { type Edges, itemSize, minSize, resizedBy, widenForCaption } from "./size"
+export { CANNOT_RESIZE, type Edges, itemSize, minSize, resizedBy, widenForCaption } from "./size"

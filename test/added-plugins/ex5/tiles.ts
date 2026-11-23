@@ -1,7 +1,7 @@
 // ex5 の形「タイル」: 色の札（tiles）を並べる入れ物。文字は持たない（captionProp なし）。
 // 項目に自分の意味の theme（札の色合い）と caption（札の並びの名前。編集はしない）を持ち、中身のフィールドは children でなく tiles
 
-import { findPage, z } from "matomezu"
+import { findPage, NO_PAGE, z } from "matomezu"
 import { kit } from "./kit"
 
 const TILES_SIZE = { w: 160, h: 96 }
@@ -60,7 +60,10 @@ export const TILE_LIMIT_PERMISSION = kit.definePermission({
   keeps: c => {
     if (c.kind !== "folder" || !c.after) return true
     const after = c.after
-    return c.changes.pages.every(p => tilesOn(findPage(after, p.id)?.page as TilesPage | undefined) <= TILE_LIMIT)
+    return c.changes.pages.every(p => {
+      const at = findPage(after, p.id)
+      return at === NO_PAGE || tilesOn(at.page as TilesPage) <= TILE_LIMIT
+    })
   },
 })
 

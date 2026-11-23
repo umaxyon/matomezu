@@ -1,12 +1,15 @@
 // 書庫の画面のコマンド（base/library/commands.ts）: 扱う物の決め方・ツリーと右の枠の矢印・落とした物を動かす
+
 import { expect, test } from "bun:test"
 import type { CommandId } from "../../../web/src/core/catalog"
 import { entriesIn } from "../../../web/src/core/entries"
 import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../web/src/core/folders"
+import { NOTHING_OPENED } from "../../../web/src/core/stage"
 import { holderForNewPage, pageFolderFor } from "../../../web/src/plugins/base/library/entries"
 import {
   LIBRARY_COLUMNS,
   LIBRARY_FOLDER,
+  LIBRARY_FOUND_PICKED,
   LIBRARY_PICKED,
   LIBRARY_QUERY,
   LIBRARY_UNFOLDED,
@@ -308,10 +311,11 @@ test("落とした物を動かす: スライドをフォルダへ落とすと、
   expect(ids(a)).not.toContain(box)
 })
 
-test("開く: 2 回押す・Enter・メニューの「開く」の 1 つの道。名指さなければ選んでいる行、{at: tree} ならツリーで今いる行。フォルダは中へ入る", () => {
+test("開く: 2 回押す・Enter・メニューの「開く」の 1 つの道。名指さなければ選んでいる行、{at: tree} ならツリーで今いる行、{at: found} なら検索の結果で選んでいる物。フォルダは中へ入る", () => {
   const { store, center, folder, run, at, set } = setup()
   const opened = () => store.state.getState().window.screens.flatMap(s => s.stages?.stages.map(st => st.opened) ?? [])
-  const shows = (book: string) => opened().some(o => o !== null && "outermost" in o && o.outermost.id === book)
+  const shows = (book: string) =>
+    opened().some(o => o !== NOTHING_OPENED && "outermost" in o && o.outermost.id === book)
   const a = folder("あ")
   // 何も選んでいなければ、何もしない
   run("library-entry-open")
@@ -330,6 +334,13 @@ test("開く: 2 回押す・Enter・メニューの「開く」の 1 つの道�
   set(LIBRARY_FOLDER.id, center, "b4")
   run("library-entry-open", { at: "tree" })
   expect(shows("b4")).toBe(true)
+  // 検索の結果から（{at: found}）: 結果の枠で選んでいる物が無ければツリーで今いる行、在ればその物
+  set(LIBRARY_FOLDER.id, center, a)
+  run("library-entry-open", { at: "found" })
+  expect(at().folder).toBe(a)
+  set(LIBRARY_FOUND_PICKED.id, center, "b2")
+  run("library-entry-open", { at: "found" })
+  expect(shows("b2")).toBe(true)
 })
 
 test("書庫を開く: 書庫のスクリーンを 1 枚ずつの並べ方でカレントにする。開いていれば新しく開かず、それをカレントスクリーンにする", () => {

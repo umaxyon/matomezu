@@ -1,5 +1,6 @@
 // 右サイドパネルの見た目: 開け閉めのフックとスロット
 export {
+  NO_RIGHT_SIDE_PANEL,
   useCloseRightSidePanel,
   useFollowsSelection,
   useOpenRightSidePanel,

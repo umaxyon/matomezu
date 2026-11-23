@@ -4,7 +4,7 @@
 // 拡大・縮小は、表示領域の中の点 at の下の紙の点を動かさない（null なら表示領域の真ん中。Ctrl+ホイールはポインタの下を渡す）。
 // 開いたときの見え方（倍率 100%・初めの位置。中身の載った印刷区画の左上が表示領域の左上）に戻すコマンド（キーの既定は Home）と、ページの紙全体を表示領域に収めるコマンド（ZOOM_MIN より小さくはしない）
 import type { Point, Size } from "../../../core/geom"
-import { extentOf, panBy, paperOf, resetView, type Stage, zoomTo } from "../../../core/stage"
+import { extentOf, NO_PAPER, panBy, paperOf, resetView, type Stage, zoomTo } from "../../../core/stage"
 import { MARGIN, ZOOM_MAX, ZOOM_MIN, zoomInRange } from "../../../core/viewport"
 import type { Actions, BoundPlaceActions } from "../../../store/actions"
 import { type CommandContext, calledStageOf } from "../../../store/commands/def"
@@ -36,7 +36,7 @@ export const fitZoom = (size: Size, view: Size, pad: number, max = ZOOM_MAX): nu
   ) / 100
 
 // 倍率を変えられるステージか: 紙を置いているか、印刷プレビューの間（紙を置かないプレゼンテーションのページでも、並べた印刷区画をずらし、倍率を変える）
-const zoomable = (ctx: CommandContext): boolean => paperOf(ctx.stage) !== null || ctx.stage.mode === "print-preview"
+const zoomable = (ctx: CommandContext): boolean => paperOf(ctx.stage) !== NO_PAPER || ctx.stage.mode === "print-preview"
 
 // ページの紙全体（可変ページは、プレゼンテーションが知らせた広さ全体。印刷プレビューは並べた印刷区画の全体）を表示領域に収めた見え方: 収まる倍率（ZOOM_MIN～ZOOM_MAX）にして、紙を真ん中に置く。紙か表示領域が無ければそのまま
 export function fitView(stage: Stage): Stage {

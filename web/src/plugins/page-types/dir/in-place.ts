@@ -2,7 +2,7 @@
 // 入力Formが名乗るキーの範囲 DIR_EDIT_KEY_SCOPE の Enter で確定し、Escape で取り消す（焦点が外れたときは base の useInPlaceInput の onBlur が確定のコマンドを行う）。
 // 名前を書き終えたとき、することは edit.ts の editEnd（空なら消す・名前を変える）、説明は noteEnd が決める。書き換えが紙に入らず断られたら、トーストで知らせる
 import type { CommandContext } from "../../../plugin-api"
-import { endInPlace, type InPlaceDraft, inPlaceText } from "../../base"
+import { endInPlace, type InPlaceDraft, inPlaceText, NO_DRAFT } from "../../base"
 import { NODE_REMOVE, NODE_UPDATE } from "./actions"
 import { ADDED_EDIT, dirAt, fitRefusal, NAME_EDIT } from "./commands"
 import { afterRemove, editEnd, noteEnd, selectedIn } from "./edit"
@@ -40,7 +40,8 @@ function endEdit(ctx: CommandContext, a: Actions, commit: boolean): void {
   const selected = selectedIn(dir.root, ctx.stage.selection)
   const on = { page: dir.page.id }
   if (writingNote(ctx)) {
-    const text = commit ? inPlaceText(ctx, DIR_NOTE_DRAFT, selected) : null
+    const draft = commit ? inPlaceText(ctx, DIR_NOTE_DRAFT, selected) : NO_DRAFT
+    const text = draft === NO_DRAFT ? null : draft
     endInPlace(ctx, a, DIR_NOTE_DRAFT, false, () => {
       const next = commit ? noteEnd(dir.root, selected, text) : undefined
       if (next === undefined) return
@@ -49,7 +50,8 @@ function endEdit(ctx: CommandContext, a: Actions, commit: boolean): void {
     })
     return
   }
-  const text = commit ? inPlaceText(ctx, DIR_DRAFT, selected) : null
+  const draft = commit ? inPlaceText(ctx, DIR_DRAFT, selected) : NO_DRAFT
+  const text = draft === NO_DRAFT ? null : draft
   endInPlace(ctx, a, DIR_DRAFT, ctx.stage.editing === ADDED_EDIT, () => {
     const todo = editEnd(dir.root, selected, text)
     if (todo.kind === "remove") {

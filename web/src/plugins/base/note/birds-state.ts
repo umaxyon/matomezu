@@ -3,9 +3,13 @@
 import type { Bird } from "../birds"
 import { kit } from "../kit"
 
+// 鳥を割り当てた付ける先が無いときの値
+const NO_BIRDS: Readonly<Record<string, Bird>> = {}
+
 export const NOTE_BIRDS = kit.definePluginStateOf<Readonly<Record<string, Bird>>>()({
   id: "note-birds",
   scope: "stage",
+  default: NO_BIRDS,
 })
 
 export const NOTE_STATES = [NOTE_BIRDS] as const

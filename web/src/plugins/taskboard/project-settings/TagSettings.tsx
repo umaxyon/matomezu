@@ -4,7 +4,7 @@
 import { useState } from "react"
 import { PALETTE } from "../../../plugin-api"
 import { useMessages } from "../../../plugin-api/ui"
-import { ColorPicker, type Swatch } from "../../base/ui"
+import { ColorPicker, NO_COLOR, type Swatch } from "../../base/ui"
 import { kit } from "../kit"
 import { TAG_NAME_MAX } from "../project"
 import { NameField, PromptSplit, rowProps } from "./PromptSplit"
@@ -34,7 +34,7 @@ export function TagSettings({ tags, repeated }: { tags: EditableRows<TagRow>; re
         <div key={tag.key} {...rowProps(tag.key, selected, setSelected)}>
           <ColorPicker
             label={t("Color of {name}", { name: tag.name })}
-            value={tag.color}
+            value={tag.color ?? NO_COLOR}
             palette={swatches}
             swatchesOnly
             onChange={color => {

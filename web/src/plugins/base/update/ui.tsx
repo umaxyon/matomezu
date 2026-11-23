@@ -8,7 +8,7 @@ import { UpdateCategory } from "./UpdateCategory"
 
 export const STALE_BUILD = defineWidget({ id: kit.name("stale-build"), slots: ["root"], view: StaleBuildDialog })
 
-export { useUpdateStatus } from "./hooks"
+export { NO_LATEST, NO_UPDATE_STATUS, NOT_ASKED, NOT_CHECKED, useUpdateStatus } from "./hooks"
 
 // 設定カテゴリ「更新」
 export const UPDATE_CATEGORY = defineSettingsCategory({
