@@ -1,5 +1,5 @@
-// 参加者・ワークルーム・管理者の印（base の対象の定義。レコード）: 要求は AI も行え、受け入れる・外す・部屋を作る・消すは利用者だけ。
-// 部屋の名前は重ならず、部屋に入る参加者は 1 人で、人のいる部屋は消せない。要求は受け入れ・断り・キャンセルで終わる
+// 参加者・ワークルーム・管理者の印（base の対象の定義。レコード）: 要求は AI も行え、受け入れる・外す・ワークルームを作る・消すは利用者だけ。
+// ワークルームの名前は重ならず、ワークルームに入る参加者は 1 人で、人のいるワークルームは消せない。要求は受け入れ・断り・キャンセルで終わる
 
 import { expect, test } from "bun:test"
 import { z } from "zod"
@@ -61,7 +61,7 @@ test("要求すると、受け入れていない参加者のレコードが足�
   expect(people()).toHaveLength(1)
 })
 
-test("ワークルームの名前は 20 字まで（要求の希望も、部屋を作るときも。21 字は断り、20 字は通す）", () => {
+test("ワークルームの名前は 20 字まで（要求の希望も、ワークルームを作るときも。21 字は断り、20 字は通す）", () => {
   const { request, addRoom, perform } = ready()
   expect(request({ ...WHO, wantedName: "あ".repeat(21) }).ok).toBe(false)
   expect(request({ ...WHO, wantedName: "あ".repeat(20) }).ok).toBe(true)
@@ -69,7 +69,7 @@ test("ワークルームの名前は 20 字まで（要求の希望も、部屋�
   expect(addRoom("い".repeat(20)).ok).toBe(true)
 })
 
-test("受け入れると、部屋を指して受け入れた時点を書く（希望の名前は外す）。2 回目の受け入れと、人のいる部屋・無い部屋への受け入れは断る", () => {
+test("受け入れると、ワークルームを指して受け入れた時点を書く（希望の名前は外す）。2 回目の受け入れと、人のいるワークルーム・無いワークルームへの受け入れは断る", () => {
   const { people, request, addRoom, perform } = ready()
   const first = request({ ...WHO, wantedName: "希望" }).result.participant
   const room = addRoom("A").result.workroom
@@ -83,7 +83,7 @@ test("受け入れると、部屋を指して受け入れた時点を書く（�
   expect(perform(ACCEPT, { workroom: room }, { record: second }).ok).toBe(false)
 })
 
-test("AI は要求できるが、受け入れる・断る・キャンセルする・外す・部屋を作る・消す・管理者を決めるはできない（利用者だけ）", () => {
+test("AI は要求できるが、受け入れる・断る・キャンセルする・外す・ワークルームを作る・消す・管理者を決めるはできない（利用者だけ）", () => {
   const { store, request, addRoom } = ready()
   const id = request().result.participant
   const room = addRoom("A").result.workroom
@@ -152,7 +152,7 @@ test("受け入れていない要求は 100 件まで。超えたら要求を断
   expect(request({ ...WHO, link: "over" }).ok).toBe(false)
 })
 
-test("部屋の名前は重ならない（作るときも、名前を変えるときも）。名前以外は同じ名前のまま変えられる", () => {
+test("ワークルームの名前は重ならない（作るときも、名前を変えるときも）。名前以外は同じ名前のまま変えられる", () => {
   const { rooms, addRoom, perform } = ready()
   const a = addRoom("A", "inko").result.workroom
   const b = addRoom("B", "suzume").result.workroom
@@ -162,7 +162,7 @@ test("部屋の名前は重ならない（作るときも、名前を変える�
   expect(rooms().find(r => r.id === a)).toMatchObject({ name: "A", bird: "buncho", palette: "forest" })
 })
 
-test("人のいる部屋は消せず、外してから消せる。消した部屋の id は戻らない", () => {
+test("人のいるワークルームは消せず、外してから消せる。消したワークルームの id は戻らない", () => {
   const { rooms, request, addRoom, perform } = ready()
   const id = request().result.participant
   const room = addRoom("A").result.workroom
@@ -174,7 +174,7 @@ test("人のいる部屋は消せず、外してから消せる。消した部�
   expect(addRoom("A").result.workroom).not.toBe(room)
 })
 
-test("管理者の印は 1 件（id は admin）。部屋か none を指し、無い部屋は断る", () => {
+test("管理者の印は 1 件（id は admin）。ワークルームか none を指し、無いワークルームは断る", () => {
   const { store, addRoom, perform } = ready()
   const room = addRoom("A").result.workroom
   expect(perform(ADMIN_SET, { workroom: "nope" }).ok).toBe(false)
@@ -202,7 +202,7 @@ test("要求をキャンセルとして終える役（cancelsJoinRequest）は�
 })
 
 test.each([DECLINE, CANCEL])(
-  "%s は要求のレコードを消す（痕跡は残さない）。受け入れた参加者と、無い参加者には行えない。外すと部屋は空室で残る",
+  "%s は要求のレコードを消す（痕跡は残さない）。受け入れた参加者と、無い参加者には行えない。外すとワークルームは空室で残る",
   action => {
     const { people, rooms, request, addRoom, perform } = ready()
     const a = request().result.participant
@@ -261,7 +261,7 @@ test("役 participants の種類の state は、常駐が読む値（requested�
   expect(codesWith(z.string())).toContain("E130")
 })
 
-// いる参加者を外して入れる・新しい部屋を作って入れる・前の部屋を消して作る・部屋を消すは、1 つのアクションで、全部通るか全部断られる
+// いる参加者を外して入れる・新しいワークルームを作って入れる・前のワークルームを消して作る・ワークルームを消すは、1 つのアクションで、全部通るか全部断られる
 function roomWith(link: string, name: string) {
   const r = ready()
   const holder = r.request({ ...WHO, link }).result.participant
@@ -284,7 +284,7 @@ test("いる参加者を外して入れる: 渡した参加者がいれば外し
   expect(perform(ACCEPT, { workroom: room, occupant: next }, { record: third }).ok).toBe(true)
 })
 
-test("新しい部屋を作って入れる: 部屋の id を返し、名前が重なれば断る", () => {
+test("新しいワークルームを作って入れる: ワークルームの id を返し、名前が重なれば断る", () => {
   const { people, rooms, request, addRoom, perform } = ready()
   const a = request().result.participant
   const done = perform(ACCEPT, { newWorkroom: { name: "N", bird: "buncho" } }, { record: a })
@@ -299,7 +299,7 @@ test("新しい部屋を作って入れる: 部屋の id を返し、名前が�
   expect(people().find(p => p.id === b)?.state).toBe("requested")
 })
 
-test("前の部屋を消して新しく始める: 同じ名前でよく、外した人と消した部屋が無くなる。名前が別の部屋と重なれば断り、外した人も消した部屋も残る", () => {
+test("前のワークルームを消して新しく始める: 同じ名前でよく、外した人と消したワークルームが無くなる。名前が別のワークルームと重なれば断り、外した人も消したワークルームも残る", () => {
   const { people, rooms, request, addRoom, perform, holder, room } = roomWith("L1", "A")
   const other = addRoom("B").result.workroom
   const next = request({ ...WHO, link: "L2" }).result.participant
@@ -323,7 +323,7 @@ test("前の部屋を消して新しく始める: 同じ名前でよく、外し
   expect(people().map(p => [p.id, p.workroom])).toEqual([[next, made]])
 })
 
-test("部屋を消す: いる参加者を一緒に外し、渡した参加者が違えば断って何も変えない。すでにいなくて空なら消せる", () => {
+test("ワークルームを消す: いる参加者を一緒に外し、渡した参加者が違えば断って何も変えない。すでにいなくて空なら消せる", () => {
   const { people, rooms, perform, holder, room } = roomWith("L1", "A")
   expect(perform(ROOM_REMOVE, {}, { record: room }).ok).toBe(false)
   expect(perform(ROOM_REMOVE, { occupant: "other" }, { record: room }).ok).toBe(false)
@@ -332,7 +332,7 @@ test("部屋を消す: いる参加者を一緒に外し、渡した参加者が
   expect(perform(ROOM_REMOVE, { occupant: holder }, { record: room }).ok).toBe(true)
   expect(people()).toHaveLength(0)
   expect(rooms()).toHaveLength(0)
-  // 外す参加者がすでにいなくて空の部屋も消せる
+  // 外す参加者がすでにいなくて空のワークルームも消せる
   const again = roomWith("L9", "C")
   again.perform(REMOVE, {}, { record: again.holder })
   expect(again.perform(ROOM_REMOVE, { occupant: again.holder }, { record: again.room }).ok).toBe(true)
@@ -368,7 +368,7 @@ test("ビジターとして頼んだ要求は、ビジターとしてだけ受�
   expect(people()[0]).not.toHaveProperty("as")
 })
 
-test("管理者がいなければ、受け入れたワーカーのワークルームが管理者になる（印が無い・指す先が無い・同じ受け入れで消す部屋を指す）。none と、在る部屋を指す印は変えない", () => {
+test("管理者がいなければ、受け入れたワーカーのワークルームが管理者になる（印が無い・指す先が無い・同じ受け入れで消すワークルームを指す）。none と、在るワークルームを指す印は変えない", () => {
   // 印が無い: 1 人目のワーカーが管理者になり、2 人目は変えない
   const a = ready()
   const first = a.request().result.participant
@@ -400,7 +400,7 @@ test("管理者がいなければ、受け入れたワーカーのワークル�
   expect(c.perform(ACCEPT, { workroom: roomC }, { record: q }).ok).toBe(true)
   expect(adminOf(c.store)).toBe(roomC)
 
-  // 同じ受け入れで消す部屋が管理者なら、新しい部屋に付け替える
+  // 同じ受け入れで消すワークルームが管理者なら、新しいワークルームに付け替える
   const d = ready()
   const old = d.request().result.participant
   const oldRoom = (
