@@ -3,6 +3,7 @@
 import { expect, test } from "bun:test"
 import { shownModel } from "../../../web/src/plugins/base/participant/live"
 import {
+  isAdminParticipant,
   participantCategory,
   visitorName,
   visitorRows,
@@ -54,4 +55,5 @@ test("ビジターの行は、ワークルームを持たない受け入れ済�
   expect(participantCategory(people[1] as never)).toBe("worker")
   expect(participantCategory(all[2] as never)).toBe("visitor")
   expect(participantCategory({ id: "q", state: "requested" } as never)).toBeUndefined()
+  expect([people[0], people[1], all[2]].map(p => isAdminParticipant(p as never, "r1"))).toEqual([true, false, false])
 })

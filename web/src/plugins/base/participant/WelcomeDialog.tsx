@@ -11,7 +11,7 @@ import { asBird } from "./birds"
 import { useAdminRoom, useParticipantLive, useParticipants, useWorkrooms } from "./hooks"
 import { shownModel } from "./live"
 import styles from "./Participant.module.css"
-import { type ParticipantCategory, participantCategory, visitorName } from "./rows"
+import { isAdminParticipant, type ParticipantCategory, participantCategory, visitorName } from "./rows"
 import { VisitorIcon } from "./VisitorIcon"
 
 const CATEGORY_TITLES = {
@@ -26,7 +26,7 @@ export function ParticipantWelcomeDialog({ args, onClose }: DialogProps<{ partic
   const admin = useAdminRoom()
   const live = useParticipantLive()
   const category = who ? participantCategory(who) : undefined
-  const isAdmin = !!room && room.id === admin
+  const isAdmin = !!who && isAdminParticipant(who, admin)
   const bird = room ? asBird(room.bird) : undefined
   return (
     <Dialog title={t("Welcome")} width={360} onClose={onClose}>

@@ -102,5 +102,9 @@ export function participantCategory(p: Participant): ParticipantCategory | undef
   return p.state === "joined" ? "worker" : undefined
 }
 
+// 管理者か: 管理者の印が指すワークルームに入っているワーカー（admin は adminRoomOf が答えるワークルームの id）
+export const isAdminParticipant = (p: Participant, admin: string | undefined): boolean =>
+  p.state === "joined" && admin !== undefined && p.workroom === admin
+
 // ビジターの呼び名（ワークルームの名前が無いので、AI の名前と元のセッション名）
 export const visitorName = (p: Participant): string => (p.sessionName ? `${p.ai} / ${p.sessionName}` : p.ai)
