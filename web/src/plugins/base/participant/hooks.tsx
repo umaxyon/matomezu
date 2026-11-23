@@ -124,7 +124,7 @@ export function useWorkroomActions(): WorkroomActions {
   }, [perform, showToast, catalog, marked])
 }
 
-// ワークルーム room 自身のワーカーブックのページの数（部屋を消す・引き継がずに入り直すと消える。ブックが無ければ 0）
+// ワークルーム room 自身のワーカーブックのページの数（ワークルームを消す・引き継がずに入り直すと消える。ブックが無ければ 0）
 export function useOwnBookPages(room: string): number {
   return useMatomezuState(s => ownBookPagesOf(s.folders, room))
 }

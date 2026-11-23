@@ -58,7 +58,7 @@ export function workdesksOf(catalog: CoreCatalog, read: RecordReader, folders: F
 }
 
 // ワークルーム room 自身のワーカーブック（tickets-history の中の、workKey がそのワークルームのブック）のページの数（ブックが無ければ 0）。
-// 部屋を消す・引き継がずに入り直すと、このブックは完全に消える
+// ワークルームを消す・引き継がずに入り直すと、このブックは完全に消える
 export function ownBookPagesOf(folders: Folders, room: string): number {
   const book = backyardBookOf({ folders }, TICKETS_HISTORY.id, { subject: WORKROOM.id, id: room })
   return book === undefined ? 0 : rowsWithin(folders, book).pages.length

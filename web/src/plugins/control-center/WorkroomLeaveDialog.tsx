@@ -13,7 +13,7 @@ export function WorkroomLeaveDialog({ args, onClose }: DialogProps<{ workroom: s
   const row = useWorkroomRows().find(r => r.room.id === args.workroom)
   const rooms = useWorkroomActions()
   const occupant = row?.participant?.id
-  // 部屋を削除すると、ワークルーム自身のワーカーブックが完全に消える
+  // ワークルームを消すと、ワークルーム自身のワーカーブックが完全に消える
   const pages = useOwnBookPages(args.workroom)
   const gone = !row
   useEffect(() => {

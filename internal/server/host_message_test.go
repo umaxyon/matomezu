@@ -35,7 +35,7 @@ func TestHostMessageWakesTheAssignedAI(t *testing.T) {
 	}
 }
 
-// 部屋を消すと、エンジンに渡していなかったワークルーム自身のブックの行を常駐が足して行い直し、そのブックを完全に消す
+// ワークルームを消すと、エンジンに渡していなかったワークルーム自身のブックの行を常駐が足して行い直し、そのブックを完全に消す
 func TestRemovingAWorkroomPurgesItsBook(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")

@@ -34,6 +34,7 @@ import {
   titleTaken,
 } from "./perform"
 import { isRecordTarget } from "./perform-checks"
+import { brokenIn } from "./perform-library"
 import { NOT_IN_BOOK, type PermitContext, type Permitted, permitted } from "./perform-permit"
 import { FOLDERS, type WithFolders } from "./permission-input"
 import type { ItemPage } from "./placed"
@@ -357,6 +358,10 @@ function performRecord(
   const records = followed.records
   const yard = followedInBackyard(world, world.annotations, followed.backyard)
   if (!yard.ok) return { ok: false, reason: "needs-rows", books: yard.needs }
+  if (action && yard.changes) {
+    const kept = brokenIn(ctx, action, world, withChanges(world, yard.changes), "follow")
+    if (kept) return { ok: false, reason: "denied", ...kept }
+  }
   const removed = (rows: Readonly<Record<string, unknown>> = {}) =>
     Object.entries(rows).flatMap(([id, r]) => (r === REMOVED ? [id] : []))
   const yardRows = [
