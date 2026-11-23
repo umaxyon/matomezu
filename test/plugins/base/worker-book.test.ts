@@ -9,20 +9,23 @@ import { performIn } from "../../../web/src/core/perform-world"
 import { readerOf, sourceOf } from "../../../web/src/core/record-source"
 import type { Records } from "../../../web/src/core/records"
 import { TICKETS_HISTORY } from "../../../web/src/plugins/base/library/backyards"
-import { WORKER_BOOK } from "../../../web/src/plugins/base/participant/worker-book"
+import { WORK_SUBJECTS_CHECK } from "../../../web/src/plugins/base/participant"
+import { WORKER_BOOK, workerBookOf } from "../../../web/src/plugins/base/participant/worker-book"
 import { roomKey, WORKROOM, YARD, yardCtx, yardWorld } from "../../backyard"
 import { drawingPage, testBook } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
 
 describe("認可ステップを直に問う", () => {
-  // 種類 s が、レコード w（id はワークルーム）の ticket を作業中のチケットとして答える機能台帳
+  // 種類 s が、レコード w（id はワークルーム）の ticket を作業中のチケット（種類 t。completesWork を持つ）として答える機能台帳
   const catalog = {
     ...CORE_CATALOG,
-    subjects: new Map([
+    subjects: new Map<string, unknown>([
+      ["t", { completesWork: () => false }],
       [
         "s",
         {
           workroomWorkReads: ["w"],
+          workroomWorkSubjects: ["t"],
           workroomWork: (room: string, read: { record(s: string, id: string): unknown }) => {
             const w = read.record("w", room) as { ticket?: string }
             return w?.ticket
@@ -195,5 +198,41 @@ describe("ワーカーブックにページを足す（worker-page-add）", () =
       permission: "@matomezu/base:worker-book",
     })
     expect(add(USER).ok).toBe(false)
+  })
+})
+
+describe("ワーカーブックを持てる作業のレコードの種類", () => {
+  // 種類 s が、ワークルームの作業として種類 kind の k1 を答え、workroomWorkSubjects に listed を書いた機能台帳（種類 t は completesWork を持ち、u は持たない）
+  const catalogWith = (kind: string, listed: readonly string[]) =>
+    ({
+      ...CORE_CATALOG,
+      subjects: new Map<string, unknown>([
+        ["t", { id: "t", completesWork: () => false }],
+        ["u", { id: "u" }],
+        [
+          "s",
+          {
+            id: "s",
+            workroomWorkSubjects: listed,
+            workroomWork: () => ({ kind: "working", title: "k1", key: { subject: kind, id: "k1" }, label: "K1" }),
+          },
+        ],
+      ]),
+    }) as unknown as CoreCatalog
+  const keyOf = (kind: string, listed: readonly string[]) => {
+    const catalog = catalogWith(kind, listed)
+    return workerBookOf(catalog, readerOf(catalog, sourceOf({}), []), "r1").workKey
+  }
+
+  test("workroomWorkSubjects に書いた、completesWork を持つ種類の作業なら、その作業のブック。ほかはワークルーム自身のブック", () => {
+    expect(keyOf("t", ["t"])).toEqual({ subject: "t", id: "k1" })
+    expect(keyOf("t", [])).toEqual({ subject: WORKROOM, id: "r1" })
+    expect(keyOf("u", ["u"])).toEqual({ subject: WORKROOM, id: "r1" })
+  })
+
+  test("workroomWorkSubjects の種類が、台帳に無いか completesWork を持たなければ、台帳アセンブルで E133", () => {
+    const codes = (listed: readonly string[]) => WORK_SUBJECTS_CHECK(catalogWith("t", listed)).map(p => p.code)
+    expect(codes(["t"])).toEqual([])
+    expect(codes(["u", "none"])).toEqual(["E133", "E133"])
   })
 })

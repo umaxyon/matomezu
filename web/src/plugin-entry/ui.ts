@@ -128,6 +128,7 @@ export {
   useOpenRightSidePanel,
   useOpenSettings,
   useOutermostOf,
+  useOwnBookPages,
   usePageProblems,
   usePageTheme,
   usePageThemes,
