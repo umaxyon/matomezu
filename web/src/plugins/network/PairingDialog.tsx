@@ -10,22 +10,20 @@ import { kit } from "./kit"
 import styles from "./Pairing.module.css"
 import { PAIRED_HOST } from "./pairing"
 
-// 頼み 1 つを終えて閉じる（取り下げ・終わった様子を消す）
-function useEnd(onClose: () => void): () => void {
-  const ask = useAskHosts()
-  return () => {
-    void ask({ kind: "end-pairing" }).catch(() => {})
-    onClose()
-  }
-}
-
 export function PairingDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
   const pairing = useHostPeers()?.pairing
-  const end = useEnd(onClose)
+  const ask = useAskHosts()
+  // どの閉じ方でも（×・Esc・外側・受け入れられたあと）、頼みを取り下げ、終わった様子を消す（Esc はキーバインドが閉じるので、ダイアログが消えるときに頼む）
+  useEffect(
+    () => () => {
+      void ask({ kind: "end-pairing" }).catch(() => {})
+    },
+    [ask],
+  )
   return (
-    <Dialog title={t("Pair with a host")} width={480} onClose={end}>
-      {pairing ? <Asked pairing={pairing} onClose={onClose} onEnd={end} /> : <Choose onCancel={end} />}
+    <Dialog title={t("Pair with a host")} width={480} onClose={onClose}>
+      {pairing ? <Asked pairing={pairing} onClose={onClose} /> : <Choose onCancel={onClose} />}
     </Dialog>
   )
 }
@@ -106,7 +104,7 @@ function FoundRow({ host, checked, onPick }: { host: FoundHost; checked: boolean
 }
 
 // 頼んだあと: 待っている・結果
-function Asked({ pairing, onClose, onEnd }: { pairing: HostPairing; onClose: () => void; onEnd: () => void }) {
+function Asked({ pairing, onClose }: { pairing: HostPairing; onClose: () => void }) {
   const t = useMessages(kit)
   const ask = useAskHosts()
   const setById = useSetPluginStateById()
@@ -114,10 +112,9 @@ function Asked({ pairing, onClose, onEnd }: { pairing: HostPairing; onClose: () 
   const accepted = pairing.phase === "accepted" && paired !== undefined
   useEffect(() => {
     if (!accepted || !paired) return
-    void ask({ kind: "end-pairing" }).catch(() => {})
     setById(PICKED_STATE, { kind: PAIRED_HOST.id, id: paired.id })
     onClose()
-  }, [accepted, paired, ask, setById, onClose])
+  }, [accepted, paired, setById, onClose])
   const name = pairing.name || pairing.addr
   if (pairing.phase === "asking" || pairing.phase === "waiting" || pairing.phase === "accepted")
     return (
@@ -125,7 +122,7 @@ function Asked({ pairing, onClose, onEnd }: { pairing: HostPairing; onClose: () 
         <p>{pairing.name ? t("Waiting for {name} to accept", { name }) : t("Asking {name}", { name })}</p>
         {pairing.code ? <Code code={pairing.code} /> : null}
         <div className={styles.buttons}>
-          <ActionButton onClick={onEnd}>{t("Cancel pairing")}</ActionButton>
+          <ActionButton onClick={onClose}>{t("Cancel pairing")}</ActionButton>
         </div>
       </>
     )
@@ -133,7 +130,7 @@ function Asked({ pairing, onClose, onEnd }: { pairing: HostPairing; onClose: () 
     <>
       <p className={styles.failed}>{t(failureText(pairing), { name })}</p>
       <div className={styles.buttons}>
-        <ActionButton onClick={onEnd}>{t("Close")}</ActionButton>
+        <ActionButton onClick={onClose}>{t("Close")}</ActionButton>
         <ActionButton primary onClick={() => void ask({ kind: "end-pairing" }).catch(() => {})}>
           {t("Try again")}
         </ActionButton>
