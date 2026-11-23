@@ -23,6 +23,8 @@ const SPLIT_VALUE = z.strictObject({
   screens: z.array(z.string()),
   behind: z.array(z.string()),
   fits: z.enum(["split", "current"]).optional(),
+  // 並びのうち、窓いっぱいに広げて見せているスクリーン（下の行の □。並びは覚えたまま、もう一度押すと戻す）
+  wide: z.string().optional(),
 })
 export type SplitValue = z.output<typeof SPLIT_VALUE>
 export const NO_SPLIT: SplitValue = { screens: [], behind: [] }
@@ -50,9 +52,17 @@ export function splitShown(
   const current = order[order.length - 1]
   const split = splitOf(screens, value)
   const fits = SPLIT_VALUE.safeParse(value)
-  if (current !== undefined && split.includes(current) && fits.data?.fits !== "current") return split
+  if (current !== undefined && split.includes(current) && fits.data?.fits !== "current" && !widened(split, value))
+    return split
   return current === undefined ? [] : [current]
 }
+
+// 並び split のうち、窓いっぱいに広げているスクリーン（広げていなければ undefined）
+export function wideOf(split: readonly string[], value: unknown): string | undefined {
+  const wide = SPLIT_VALUE.safeParse(value).data?.wide
+  return wide !== undefined && split.includes(wide) ? wide : undefined
+}
+const widened = (split: readonly string[], value: unknown) => wideOf(split, value) !== undefined
 
 // 窓の今のスクリーンアレンジメント（定義の id と値）で、上下に分けて見せている並び（分けて見せていなければ空。カレントスクリーンが並びに無いときも空）
 export function shownSplit(
@@ -63,7 +73,7 @@ export function shownSplit(
   if (arrangement.id !== SPLIT_ROWS.id) return []
   const current = order[order.length - 1]
   const split = splitOf(screens, arrangement.value)
-  return current !== undefined && split.includes(current) ? split : []
+  return current !== undefined && split.includes(current) && !widened(split, arrangement.value) ? split : []
 }
 
 export const SPLIT_ROWS = kit.defineScreenArrangement({
@@ -123,7 +133,8 @@ export function planAt(split: readonly string[], index: number, added: string): 
 }
 
 // 分けた並びから target を閉じる。残りが 1 枚なら、並びから外したが開いたままの物（behind）のうち、いちばん新しい物を上に戻して分けたままにする（無ければ分けない）。
-// 残りの 1 枚がステージを並べるスクリーン（stages に在る物）なら、そのスクリーンを並びから外す。behind が 2 枚以上なら（ステージを分ける前の並び）それに戻し、無ければ分けるのをやめる
+// 残りの 1 枚がステージを並べるスクリーン（stages に在る物）で、behind が 2 枚以上なら（ステージを分ける前の並び）それに戻し、無ければ分けるのをやめる。
+// 閉じた物もステージを並べるスクリーンで、behind が 1 枚なら（その段に開いて替えた物）、ほかと同じく上に戻す
 export function planClose(
   split: readonly string[],
   behind: readonly string[],
@@ -132,7 +143,9 @@ export function planClose(
 ): SplitPlan {
   const rest = split.filter(id => id !== target)
   if (rest.length !== 1) return { screens: rest, leaving: [target] }
-  if (rest[0] !== undefined && stages.includes(rest[0]))
+  // ブックスクリーンどうしの並びで片方を閉じたときは、behind の 1 枚（その段に開いて替えた物）を上に戻す
+  const bookPair = stages.includes(target) && behind.length === 1
+  if (rest[0] !== undefined && stages.includes(rest[0]) && !bookPair)
     return { screens: behind.length >= 2 ? behind : [], leaving: [target] }
   const back = behind.find(id => id !== target)
   return { screens: back === undefined ? [] : [back, ...rest], leaving: [target] }

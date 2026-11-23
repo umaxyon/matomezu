@@ -118,6 +118,8 @@ test("ステージを並べるスクリーンが並びに居るとき: 閉じる
   // 計画: 残りの 1 枚がブックスクリーンなら、behind を上に戻さない
   expect(planClose(["b1", "lib"], ["c1"], "lib", ["b1"])).toEqual({ screens: [], leaving: ["lib"] })
   expect(planClose(["c1", "lib"], ["c9"], "lib", ["b1"])).toEqual({ screens: ["c9", "c1"], leaving: ["lib"] })
+  // ブックスクリーンどうしの並びで片方を閉じると、その段に開いて替えた物（behind の 1 枚）を上に戻す
+  expect(planClose(["b2", "b1"], ["c1"], "b2", ["b1", "b2"])).toEqual({ screens: ["c1", "b1"], leaving: ["b2"] })
   // 行う: ブックスクリーンを上、チケットを下に分け、ブックスクリーンを外す計画でも閉じない
   const store = newStore()
   const read = () => store.state.getState()

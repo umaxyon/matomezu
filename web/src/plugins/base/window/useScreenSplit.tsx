@@ -23,6 +23,8 @@ import {
   SPLIT_ROWS,
   type SplitPlan,
   shownSplit,
+  splitOf,
+  wideOf,
 } from "./split"
 
 const TALL = `(min-height: ${SPLIT_MIN_HEIGHT}px)`
@@ -40,6 +42,12 @@ export const useTallEnough = (): boolean => useSyncExternalStore(subscribeTall, 
 // ステージを並べるスクリーンの id（planClose に渡す）
 export const stageScreensOf = (win: Pick<WindowState, "screens">): readonly string[] =>
   win.screens.filter(s => s.stages).map(s => s.id)
+
+// 並びを覚えたまま窓いっぱいに広げているスクリーン（広げていなければ undefined）
+export const wideIn = (win: WindowState): string | undefined =>
+  win.arrangement === SPLIT_ROWS.id
+    ? wideOf(splitOf(win.screens, win.arrangementValue), win.arrangementValue)
+    : undefined
 
 // 分けて見せている並び（分けて見せていなければ空）
 export const splitIn = (win: WindowState): readonly string[] =>
@@ -84,6 +92,10 @@ export interface ScreenSplit {
   closeOf<P>(def: { id: string }, props: P): void // 分けた並びの、定義 def・渡す値 props のスクリーンを閉じる
   showOf<P>(def: { id: string }, props: P): void // 分けた並びの、定義 def・渡す値 props のスクリーンをカレントスクリーンにし、枠を一瞬光らせる
   expand(): void // 起点のスクリーンだけを 1 枚で見せ、並びのほかの物は閉じる
+  wide: boolean // 起点のスクリーンを、並びを覚えたまま窓いっぱいに広げているか
+  widen(): void // 起点のスクリーンを、並びを覚えたまま窓いっぱいに広げる（ブックスクリーンの下の行の □）
+  unwiden(): void // 広げていた並びに戻す
+  closeBooks(): void // 並びの中のブックスクリーンを閉じて、1 枚ずつに戻す（並びの中のステージを並べないスクリーンから、ブックを全画面で開くとき）
   closeAll(): void // 分けて並べている物を全部閉じて、1 枚ずつに戻す（閉じられない物は残る）
 }
 
@@ -94,6 +106,7 @@ export function useScreenSplit(): ScreenSplit {
   const currentId = useMatomezuState(s => currentScreen(s.window).id)
   const currentDef = useMatomezuState(s => currentScreen(s.window).def)
   const split = useMatomezuState(useShallow(s => splitIn(s.window)))
+  const wideHere = useMatomezuState(s => wideIn(s.window) === (inside?.id ?? currentScreen(s.window).id))
   const members = useMatomezuState(useShallow(s => split.map(id => s.window.screens.find(x => x.id === id) ?? null)))
   const tall = useTallEnough()
   const actions = useStoreActions()
@@ -162,6 +175,22 @@ export function useScreenSplit(): ScreenSplit {
     expand: () => {
       apply(planExpand(split, here.id))
       actions.makeScreenCurrent(here.id)
+    },
+    wide: wideHere,
+    widen: () => {
+      const win = read().window
+      actions.setScreenArrangement(SPLIT_ROWS.id, { ...(win.arrangementValue as object), wide: here.id })
+      actions.makeScreenCurrent(here.id)
+    },
+    unwiden: () => {
+      const { wide: _, ...value } = read().window.arrangementValue as { wide?: string }
+      actions.setScreenArrangement(SPLIT_ROWS.id, value)
+      actions.makeScreenCurrent(here.id)
+    },
+    closeBooks: () => {
+      const books = split.filter(id => stageScreensOf(read().window).includes(id))
+      apply({ screens: [], leaving: split })
+      for (const id of books) actions.closeScreen(id)
     },
   }
 }

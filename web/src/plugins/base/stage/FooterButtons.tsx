@@ -1,6 +1,6 @@
 // ステージの下の行の頭の「閉じる」と、右端の「□」（広げる）。
 // 閉じる: ステージを分けていれば、このステージを閉じる。分けていなければ、ブックスクリーンを閉じる（上下に分けた並びの中なら、並びから外してから。窓の最後の 1 枚なら出さない）。
-// □: ステージを分けていれば、このステージだけを広げて見せる（もう一度で戻す）。分けていなくて、上下に分けた並びの中なら、このスクリーンだけを窓いっぱいにする（並びのほかの物は閉じる）。どちらでもなければ出さない
+// □: ステージを分けていれば、このステージだけを広げて見せる（もう一度で戻す）。分けていなくて、上下に分けた並びの中なら、並びを覚えたまま、このスクリーンだけを窓いっぱいにする（もう一度で並びに戻す）。どちらでもなければ出さない
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { kit } from "../kit"
@@ -37,19 +37,28 @@ export function FooterWidenButton() {
   const t = useMessages(kit)
   const widen = useCommand(STAGE_WIDEN.id)
   const split = useScreenSplit()
-  if (!widen.shown && !split.inSplit) return null
-  const label = widen.shown ? t(widen.active ? "Restore stage" : "Widen stage") : t("Maximize screen")
+  if (!widen.shown && !split.inSplit && !split.wide) return null
+  // 押されている見た目（戻す絵）: ステージを広げている間と、並びを覚えたままスクリーンを広げている間
+  const active = widen.shown ? widen.active : split.wide
+  const label = widen.shown
+    ? t(widen.active ? "Restore stage" : "Widen stage")
+    : t(split.wide ? "Restore split" : "Maximize screen")
+  const press = () => {
+    if (widen.shown) return widen.run()
+    if (split.wide) return split.unwiden()
+    split.widen()
+  }
   return (
     <button
       type="button"
       className={styles.maximize}
       aria-label={label}
-      aria-pressed={widen.shown ? widen.active : undefined}
+      aria-pressed={active}
       title={label}
       data-footer-widen
-      onClick={() => (widen.shown ? widen.run() : split.expand())}
+      onClick={press}
     >
-      {widen.shown && widen.active ? (
+      {active ? (
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <rect x="4.5" y="8.5" width="11" height="11" rx="1.5" />
           <path d="M8.5 8.5v-3a1.5 1.5 0 0 1 1.5-1.5h8a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5h-3" />
