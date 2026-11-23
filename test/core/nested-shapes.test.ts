@@ -6,6 +6,7 @@ import {
   findShape,
   type ItemPage,
   NO_ITEM,
+  PAGE_ITSELF,
   type PlacedShape,
   replaceShape,
   walkShapes,
@@ -75,11 +76,11 @@ describe("子までたどる・探す・置き換える", () => {
 
   test("親の次にその子孫の順で、親の id と紙の上の左上を付ける", () => {
     expect(walkShapes(page).map(s => [s.shape.id, s.parent, s.at.x, s.at.y])).toEqual([
-      ["a", null, 100, 50],
+      ["a", PAGE_ITSELF, 100, 50],
       ["b", "a", 110, 70],
       ["c", "b", 111, 72],
       ["d", "a", 140, 50],
-      ["e", null, 300, 0],
+      ["e", PAGE_ITSELF, 300, 0],
     ])
   })
 
@@ -97,9 +98,9 @@ describe("子までたどる・探す・置き換える", () => {
   })
 
   test("null を返すと子孫ごと除く。子が無くなった親は shapes を持たない。無い id なら null", () => {
-    const next = replaceShape(page, "b", () => null) as ItemPage
+    const next = replaceShape(page, "b", () => NO_ITEM) as ItemPage
     expect(walkShapes(next).map(s => s.shape.id)).toEqual(["a", "d", "e"])
-    const empty = replaceShape(next, "d", () => null) as ItemPage
+    const empty = replaceShape(next, "d", () => NO_ITEM) as ItemPage
     expect(empty.items?.[0]).not.toHaveProperty("shapes")
     expect(replaceShape(page, "z", s => s)).toBe(NO_ITEM)
     expect(replaceShape(page, "l1", s => s)).toBe(NO_ITEM)

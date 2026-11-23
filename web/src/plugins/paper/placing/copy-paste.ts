@@ -7,7 +7,9 @@ import {
   NO_ITEM,
   NO_PAPER,
   NO_STATE,
+  PAGE_ITSELF,
   type Point,
+  type ShapeParent,
   walkShapes,
 } from "../../../plugin-api"
 import { hasOpenedPage, NO_SHAPE_DEF, NO_SIZE, placedSize, refusalMessage, shapeDefOf } from "../../base"
@@ -28,11 +30,11 @@ const keep = (a: { updatePluginState(def: typeof CLIP_STATE, change: () => Clip)
   a.updatePluginState(CLIP_STATE, () => clip)
 
 // 貼る先: ページの形を 1 つだけ選んでいれば、子を持てる形ならその中、持てない形（と、写した形そのもの）ならその形の隣（同じ親の中の、すぐ右）。それ以外はページ（最初の空き）
-function targetOf(ctx: CommandContext, clip: Clip): { parent: string | null; at?: Point } {
+function targetOf(ctx: CommandContext, clip: Clip): { parent: ShapeParent; at?: Point } {
   const page = hasOpenedPage(ctx) ? ctx.page : undefined
   const { selection } = ctx.stage
   const only = page && selection.length === 1 && selection[0] !== undefined ? findShape(page, selection[0]) : NO_ITEM
-  if (only === NO_ITEM) return { parent: null }
+  if (only === NO_ITEM) return { parent: PAGE_ITSELF }
   // 写した形そのものを選んでいるときは、その中でなく隣に貼る（自分の中には入れない）
   const copied = clip.shapes.some(c => c.id === only.shape.id)
   const def = shapeDefOf(ctx.catalog, only.shape.item)
@@ -48,7 +50,7 @@ function pasteAt(
   ctx: CommandContext,
   a: Parameters<(typeof PAPER_PASTE)["run"]>[1],
   clip: Clip,
-  where: { parent: string | null; at?: Point },
+  where: { parent: ShapeParent; at?: Point },
   quiet = false,
 ): boolean {
   if (!hasOpenedPage(ctx)) return false
@@ -57,7 +59,7 @@ function pasteAt(
   const done = a.perform(
     ITEM_PASTE.id,
     {
-      ...(where.parent === null ? {} : { parent: where.parent }),
+      ...(where.parent === PAGE_ITSELF ? {} : { parent: where.parent }),
       ...(at ? { at } : {}),
       crowd: "push",
       shapes: clip.shapes as unknown as Record<string, unknown>[],
@@ -80,11 +82,11 @@ function pasteAt(
 // 選んでいる物に応じた貼る先に貼り、入れなければ（入れ物が狭い・隣に収まらない）ページの最初の空きに貼る。どこにも貼れなければトーストで知らせる
 function pasteNearSelection(ctx: CommandContext, a: Parameters<(typeof PAPER_PASTE)["run"]>[1], clip: Clip): void {
   const where = targetOf(ctx, clip)
-  if (where.parent === null) {
+  if (where.parent === PAGE_ITSELF) {
     pasteAt(ctx, a, clip, where)
     return
   }
-  if (!pasteAt(ctx, a, clip, where, true)) pasteAt(ctx, a, clip, { parent: null })
+  if (!pasteAt(ctx, a, clip, where, true)) pasteAt(ctx, a, clip, { parent: PAGE_ITSELF })
 }
 
 // 選んでいるアイテムを写しにする。写せない形が混じればトーストで知らせて null
@@ -147,7 +149,7 @@ export const PAPER_PASTE_AT = kit.defineCommand({
   run: (ctx, a, args: { pointer?: Point }) => {
     const clip = clipIn(ctx)
     const at = args.pointer && ctx.toPaper(args.pointer)
-    if (clip) pasteAt(ctx, a, clip, at && at !== NO_PAPER ? { parent: null, at } : { parent: null })
+    if (clip) pasteAt(ctx, a, clip, at && at !== NO_PAPER ? { parent: PAGE_ITSELF, at } : { parent: PAGE_ITSELF })
   },
   when: hasOpenedPage,
   enabled: ctx => clipIn(ctx) !== null,
@@ -164,10 +166,10 @@ export const PAPER_DUPLICATE = kit.defineCommand({
     if (!hasOpenedPage(ctx) || !clip) return
     const roots = walkShapes(ctx.page).filter(s => clip.shapes.some(c => c.id === s.shape.id))
     const parents = new Set(roots.map(r => r.parent))
-    const parent = parents.size === 1 ? (roots[0]?.parent ?? null) : null
+    const parent = parents.size === 1 ? (roots[0]?.parent ?? PAGE_ITSELF) : PAGE_ITSELF
     const origin = {
-      x: Math.min(...roots.map(r => (parent === null ? r.at.x : r.shape.x))),
-      y: Math.min(...roots.map(r => (parent === null ? r.at.y : r.shape.y))),
+      x: Math.min(...roots.map(r => (parent === PAGE_ITSELF ? r.at.x : r.shape.x))),
+      y: Math.min(...roots.map(r => (parent === PAGE_ITSELF ? r.at.y : r.shape.y))),
     }
     pasteAt(ctx, a, clip, { parent, at: { x: origin.x + 16, y: origin.y + 16 } })
   },

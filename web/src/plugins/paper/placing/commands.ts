@@ -7,12 +7,15 @@ import {
   findShape,
   type MessageKey,
   NO_CONTEXT_MENU,
+  NO_DIALOG,
   NO_ITEM,
   NO_PAPER,
   NO_PLACING,
   NO_PROPS,
+  PAGE_ITSELF,
   type Point,
   type ShapeAddArgs,
+  type ShapeParent,
   shapeDialogs,
   shapesOf,
   toPaperDelta,
@@ -66,7 +69,7 @@ export const PAPER_PLACE = kit.defineCommand({
     // 空きに置くなら座標を渡さず、中身を決めた大きさで item-place が空きを選ぶ
     const where = {
       ...(target.free ? {} : { at: target.at }),
-      ...(target.parent === null ? {} : { parent: target.parent }),
+      ...(target.parent === PAGE_ITSELF ? {} : { parent: target.parent }),
     }
     // 項目の値 props で置いて選ぶ。断られたら断りの文
     const place = (props: Readonly<Record<string, unknown>> | typeof NO_PROPS): MessageKey | null => {
@@ -85,8 +88,8 @@ export const PAPER_PLACE = kit.defineCommand({
     }
     // 形の定義が名指す追加のダイアログ（無ければそのまま置く。置こうとしている物が項目の値を持っていれば、聞かずにその値で置く）
     const def = shapeDefOf(ctx.catalog, placing.item)
-    const dialog = def !== NO_SHAPE_DEF ? shapeDialogs(def).add : undefined
-    if (dialog && placing.props === NO_PROPS) {
+    const dialog = def !== NO_SHAPE_DEF ? shapeDialogs(def).add : NO_DIALOG
+    if (dialog !== NO_DIALOG && placing.props === NO_PROPS) {
       a.stopPlacing()
       const args: ShapeAddArgs = { page: page.id, place }
       a.openDialog(dialog, args)
@@ -112,7 +115,7 @@ function editable(ctx: CommandContext): boolean {
   if (amongSelected(ctx.stage.selection, target.item)) return false
   const placed = hasOpenedPage(ctx) ? findShape(ctx.page, target.item) : NO_ITEM
   const def = placed !== NO_ITEM ? shapeDefOf(ctx.catalog, placed.shape.item) : NO_SHAPE_DEF
-  return def !== NO_SHAPE_DEF && shapeDialogs(def).edit !== undefined
+  return def !== NO_SHAPE_DEF && shapeDialogs(def).edit !== NO_DIALOG
 }
 
 // アイテムの中身を変えるダイアログを開く（アイテムの定義の dialogs.edit。どの深さの子の形も）。開いているページに無いアイテムなら何もしない。
@@ -126,8 +129,8 @@ export const PAPER_EDIT = kit.defineCommand({
     if (!hasOpenedPage(ctx)) return
     const placed = findShape(ctx.page, item)
     const def = placed !== NO_ITEM ? shapeDefOf(ctx.catalog, placed.shape.item) : NO_SHAPE_DEF
-    const dialog = def !== NO_SHAPE_DEF ? shapeDialogs(def).edit : undefined
-    if (!dialog) return
+    const dialog = def !== NO_SHAPE_DEF ? shapeDialogs(def).edit : NO_DIALOG
+    if (dialog === NO_DIALOG) return
     a.openDialog(dialog, { page: ctx.page.id, item })
   },
   // 右クリックのメニューでは、編集のダイアログを持つ形のときだけ出す
@@ -198,7 +201,7 @@ export const PAPER_REPARENT = kit.defineCommand({
   performs: [ITEM_REPARENT.id, ITEM_MOVE.id],
   permissionScope: "opened-page",
   title: "Reparent item",
-  run: (ctx, a, args: { item: string; parent: string | null; by: Point }) => {
+  run: (ctx, a, args: { item: string; parent: ShapeParent; by: Point }) => {
     if (!hasOpenedPage(ctx)) return
     const page = ctx.page
     const found = findShape(page, args.item)
@@ -212,7 +215,8 @@ export const PAPER_REPARENT = kit.defineCommand({
     }
     const asked = { x: found.at.x + by.x, y: found.at.y + by.y }
     const at = nearestReparent(ctx.catalog, page, args.item, args.parent, asked) || asked
-    a.perform(ITEM_REPARENT.id, { item: args.item, parent: args.parent, at, crowd: "push" }, on)
+    const parent = args.parent === PAGE_ITSELF ? null : args.parent // アクションの引数では、ページそのものは null
+    a.perform(ITEM_REPARENT.id, { item: args.item, parent, at, crowd: "push" }, on)
   },
   when: hasOpenedPage,
 })

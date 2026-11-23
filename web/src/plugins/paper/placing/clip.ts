@@ -11,11 +11,13 @@ import {
   findShape,
   type ItemPage,
   NO_ITEM,
+  PAGE_ITSELF,
   type PlacedConnector,
   type PlacedShape,
   type Point,
   pageItemsOf,
   type ShapeData,
+  type ShapeParent,
   type Size,
   walkShapes,
 } from "../../../plugin-api"
@@ -145,11 +147,11 @@ export function pasted(
   if ((connectors as PlacedConnector[]).some(c => !inside.has(c.from) || !inside.has(c.to))) return null
   const copy = renewedIds(page, { shapes: parsed as PlacedShape[], connectors: connectors as PlacedConnector[] }, newId)
   const box = boxOf(catalog, copy.shapes)
-  const parent = args.parent ?? null
+  const parent: ShapeParent = args.parent ?? PAGE_ITSELF // アクションの引数の null と無しは、ページそのもの
   if (!box) return null
-  if (parent !== null && !nests(catalog, page, parent)) return null
+  if (parent !== PAGE_ITSELF && !nests(catalog, page, parent)) return null
   const push = args.crowd === "push"
-  const grows = new Set(parent === null ? [] : [parent, ...ancestorsOf(page, parent)])
+  const grows = new Set(parent === PAGE_ITSELF ? [] : [parent, ...ancestorsOf(page, parent)])
   // 範囲の左上を at にして貼ったページと、動いたほかの形
   const tryAt = (at: Point) => {
     let placed: ItemPage | typeof CANNOT_PLACE = page
@@ -157,7 +159,7 @@ export function pasted(
       const to = { x: at.x + s.x - box.origin.x, y: at.y + s.y - box.origin.y }
       if (placed === CANNOT_PLACE) break
       placed =
-        parent === null
+        parent === PAGE_ITSELF
           ? placeItem(catalog, placed, { ...s, ...to })
           : placeChild(catalog, placed, parent, { ...s, ...to }, to)
     }
@@ -190,7 +192,7 @@ export function nearestPaste(
   catalog: CoreCatalog,
   page: ItemPage,
   clip: Clip,
-  parent: string | null,
+  parent: ShapeParent,
   asked: Point,
 ): Point | null {
   const size = clipSize(catalog, clip)
@@ -198,7 +200,7 @@ export function nearestPaste(
   let n = 0
   const fits = (at: Point) => {
     const done = pasted(catalog, page, () => `fit${n++}`, {
-      ...(parent === null ? {} : { parent }),
+      ...(parent === PAGE_ITSELF ? {} : { parent }),
       at,
       crowd: "push",
       shapes: clip.shapes,

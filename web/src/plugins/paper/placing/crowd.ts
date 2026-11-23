@@ -1,6 +1,14 @@
 // 置く・動かすときのほかの形との関係: 押される形を調べて断る・空きを知らせる。アクションとコピーして貼るが共に使う
 import { z } from "zod"
-import { type CoreCatalog, type Declined, findShape, type ItemPage, NO_ITEM, type Point } from "../../../plugin-api"
+import {
+  type CoreCatalog,
+  type Declined,
+  findShape,
+  type ItemPage,
+  NO_ITEM,
+  PAGE_ITSELF,
+  type Point,
+} from "../../../plugin-api"
 import { allRectsOf } from "../../base"
 import { kit } from "../kit"
 
@@ -17,8 +25,8 @@ export const CROWD_AI =
 // 形 id の祖先（親から上へ）
 export function ancestorsOf(page: ItemPage, id: string): string[] {
   const found = findShape(page, id)
-  const parent = found === NO_ITEM ? null : found.parent
-  return parent !== null ? [parent, ...ancestorsOf(page, parent)] : []
+  const parent = found === NO_ITEM ? PAGE_ITSELF : found.parent
+  return parent !== PAGE_ITSELF ? [parent, ...ancestorsOf(page, parent)] : []
 }
 
 // ページ page を next に変えたとき、紙の上で動いた・大きさの変わった形（free は問わない形、grows は大きさだけ変わってよい形）

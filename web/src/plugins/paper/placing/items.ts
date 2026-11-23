@@ -6,11 +6,13 @@ import {
   type ItemPage,
   NO_ITEM,
   NO_PROPS,
+  PAGE_ITSELF,
   type PlacedShape,
   type Point,
   type Rect,
   replaceShape,
   type ShapeOnPage,
+  type ShapeParent,
   type Size,
   shapeSchema,
   walkShapes,
@@ -121,7 +123,7 @@ export function moveItems(
       moved.set(id, { x: noiseless(r.x - was.x), y: noiseless(r.y - was.y) })
   }
   const followed = followConnectors(catalog, page, moved)
-  if (frame.parent === null) return tidyPage(catalog, { ...followed, items: placedAt(catalog, followed, after) })
+  if (frame.parent === PAGE_ITSELF) return tidyPage(catalog, { ...followed, items: placedAt(catalog, followed, after) })
   return commitChildren(catalog, followed, { ...frame, parent: frame.parent }, after)
 }
 
@@ -146,15 +148,15 @@ export function reparentedAt(
   catalog: CoreCatalog,
   page: ItemPage,
   item: string,
-  parent: string | null,
+  parent: ShapeParent,
   where: Point,
 ): ItemPage | typeof CANNOT_PLACE {
   const found = findShape(page, item)
-  const out = replaceShape(page, item, () => null)
+  const out = replaceShape(page, item, () => NO_ITEM)
   if (found === NO_ITEM || out === NO_ITEM || found.parent === parent) return CANNOT_PLACE
-  const into = parent === null ? null : findShape(out, parent)
+  if (parent === PAGE_ITSELF) return placeItem(catalog, out, { ...found.shape, ...where })
+  const into = findShape(out, parent)
   if (into === NO_ITEM) return CANNOT_PLACE
-  if (!into) return placeItem(catalog, out, { ...found.shape, ...where })
   return placeChild(catalog, out, into.shape.id, found.shape, {
     x: where.x - into.at.x,
     y: where.y - into.at.y,
@@ -167,14 +169,14 @@ export function nearestReparent(
   catalog: CoreCatalog,
   page: ItemPage,
   item: string,
-  parent: string | null,
+  parent: ShapeParent,
   at: Point,
 ): Point | null {
   const found = findShape(page, item)
-  const into = parent !== null ? findShape(page, parent) : null
+  const into = parent !== PAGE_ITSELF ? findShape(page, parent) : NO_ITEM
   if (found === NO_ITEM) return null
   const target =
-    into && into !== NO_ITEM
+    into !== NO_ITEM
       ? { x: into.at.x + childOrigin(catalog, into.shape).x, y: into.at.y + childOrigin(catalog, into.shape).y }
       : found.at
   return stepToward(at, target, p => reparentedAt(catalog, page, item, parent, p) !== CANNOT_PLACE)
@@ -194,7 +196,7 @@ export function stepToward(from: Point, to: Point, fits: (p: Point) => boolean):
 // 形 id と、その子孫の id
 export function subtreeOf(page: ItemPage, id: string): Set<string> {
   const own = new Set([id])
-  for (const { shape, parent } of walkShapes(page)) if (parent !== null && own.has(parent)) own.add(shape.id)
+  for (const { shape, parent } of walkShapes(page)) if (parent !== PAGE_ITSELF && own.has(parent)) own.add(shape.id)
   return own
 }
 
@@ -222,12 +224,12 @@ export function dropTarget(catalog: CoreCatalog, page: ItemPage, id: string, at:
   return innermostAt(catalog, page, at, s => !own.has(s.shape.id) && nests(catalog, s.shape.item))?.shape.id ?? null
 }
 
-// 大きさ size の形を、形 parent（null はページ）の中に置ける空きの左上（item-place の at と同じく、親があれば親の左上から）。
+// 大きさ size の形を、親 parent（PAGE_ITSELF はページ）の中に置ける空きの左上（item-place の at と同じく、親があれば親の左上から）。
 // 空きは base の freeSpotIn の格子で、fits が通す目（Frame の左上からでなく、この at で受ける）。無ければ null
 export function freeAt(
   catalog: CoreCatalog,
   page: ItemPage,
-  parent: string | null,
+  parent: ShapeParent,
   size: Size,
   fits: (at: Point) => boolean = () => true,
 ): Point | null {
@@ -262,7 +264,7 @@ export function placingShape(
 // free なら空きに置く（at は、置く物の定義の大きさで探した空き。置くときは at を渡さず、中身を決めた大きさで item-place が探し直す）。
 // shown は、置く所の紙の上の左上（点線の影を描く所）。fits は、そこに置けるか（ページに置くなら紙からはみ出さないか。親の中と空きは置ける）
 export interface PlaceTarget {
-  parent: string | null
+  parent: ShapeParent
   at: Point
   free: boolean
   shown: Point
@@ -285,7 +287,7 @@ export function placeTarget(
   const under = innermostAt(catalog, page, pointer)
   if (!under) {
     const fits = placeItem(catalog, page, { ...shape, ...at }) !== CANNOT_PLACE
-    return { parent: null, at, free: false, shown: at, fits }
+    return { parent: PAGE_ITSELF, at, free: false, shown: at, fits }
   }
   if (nests(catalog, under.shape.item)) {
     const inner = { x: at.x - under.at.x, y: at.y - under.at.y }
@@ -295,7 +297,8 @@ export function placeTarget(
     return { parent: under.shape.id, at: inner, free: false, shown, fits }
   }
   const spot = freeAt(catalog, page, under.parent, size)
-  const base = under.parent === null ? { x: 0, y: 0 } : walkShapes(page).find(s => s.shape.id === under.parent)?.at
+  const base =
+    under.parent === PAGE_ITSELF ? { x: 0, y: 0 } : walkShapes(page).find(s => s.shape.id === under.parent)?.at
   if (!spot || !base) return null
   return { parent: under.parent, at: spot, free: true, shown: { x: base.x + spot.x, y: base.y + spot.y }, fits: true }
 }

@@ -3,7 +3,7 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
 import type { Rect } from "../../../web/src/core/geom"
-import { type ItemPage, walkShapes } from "../../../web/src/core/placed"
+import { type ItemPage, PAGE_ITSELF, walkShapes } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
 import { childOrigin, type Frame, frameOf, freeSpotIn, NO_SPOT } from "../../../web/src/plugins/base/place/frame"
@@ -67,7 +67,7 @@ test("親を渡して置くと、親の子の並びの末尾に、親の左上�
   const b = place(store, { at: { x: 20, y: 60 }, parent: a, w: 200, h: 150 })!
   const c = place(store, { at: { x: 20, y: 60 }, parent: b, w: 64, h: 40 })!
   expect(ids(store)).toEqual([
-    [a, null],
+    [a, PAGE_ITSELF],
     [b, a],
     [c, b],
   ])
@@ -185,14 +185,14 @@ test("親を消すと子孫も、子孫に付いた線も消える。子だけ�
   expect(run(store, "@matomezu/line:line-connect", { from: c, to: d }).ok).toBe(true)
   expect(run(store, "@matomezu/paper:item-remove", { items: [c] }).ok).toBe(true)
   expect(ids(store)).toEqual([
-    [a, null],
+    [a, PAGE_ITSELF],
     [b, a],
-    [d, null],
+    [d, PAGE_ITSELF],
   ])
   expect(at(store, b)?.shape).not.toHaveProperty("shapes")
   expect(page(store).items?.some(i => !("x" in i))).toBe(false)
   expect(run(store, "@matomezu/paper:item-remove", { items: [a, b] }).ok).toBe(true)
-  expect(ids(store)).toEqual([[d, null]])
+  expect(ids(store)).toEqual([[d, PAGE_ITSELF]])
 })
 
 test("付け替えは紙の上の位置を変えずに中へ入れ・ページへ出し、つながる線は残る", () => {
@@ -205,7 +205,7 @@ test("付け替えは紙の上の位置を変えずに中へ入れ・ページ�
   expect(at(store, b)).toMatchObject({ parent: a, at: { x: 500, y: 100 }, shape: { x: 500, y: 100 } })
   expect(page(store).items?.filter(i => !("x" in i))).toHaveLength(1)
   expect(run(store, "@matomezu/paper:item-reparent", { item: b, parent: null }).ok).toBe(true)
-  expect(at(store, b)).toMatchObject({ parent: null, at: { x: 500, y: 100 } })
+  expect(at(store, b)).toMatchObject({ parent: PAGE_ITSELF, at: { x: 500, y: 100 } })
   expect(page(store).items?.filter(i => !("x" in i))).toHaveLength(1)
 })
 
@@ -231,9 +231,9 @@ test("自分か自分の子孫の中へ・子を持てない形の中へ・今�
   expect(reparent(b, a)).toBe(false)
   expect(reparent(a, null)).toBe(false)
   expect(ids(store)).toEqual([
-    [a, null],
+    [a, PAGE_ITSELF],
     [b, a],
-    [l, null],
+    [l, PAGE_ITSELF],
   ])
 })
 
@@ -390,7 +390,7 @@ test("置く先: 点の下に形が無ければページのその所、子を持
   const target = (pointer: { x: number; y: number }) =>
     placeTarget(CORE_CATALOG, page(store), pointer, { x: pointer.x - 16, y: pointer.y - 12 }, shape)
   expect(target({ x: 40, y: 40 })).toEqual({
-    parent: null,
+    parent: PAGE_ITSELF,
     at: { x: 24, y: 28 },
     free: false,
     shown: { x: 24, y: 28 },
@@ -418,7 +418,7 @@ test("置く先: 点の下に形が無ければページのその所、子を持
   })
   // ページのリストの上: ページの左上から格子で、内包ボックスとリストに近づかない目
   const spot = target({ x: 710, y: 110 })!
-  expect(spot.parent).toBeNull()
+  expect(spot.parent).toBe(PAGE_ITSELF)
   const placed = place(store, { at: spot.at, w: size.w, h: size.h })!
   expect(at(store, placed)!.at).toEqual(spot.at)
   expect(at(store, a)!.at).toEqual({ x: 100, y: 100 })
@@ -432,7 +432,7 @@ test("空きの格子: 子の領域では必ず見つかり（行が下へ増え
   const frame = frameOf(CORE_CATALOG, page(store), a) as Frame
   // 兄弟 2 つと置く形で 3 つ: 列は 2、空いた目は 2 行目の左
   expect(freeSpotIn(frame, { w: 100, h: 60 })).toEqual({ x: 0, y: 68 })
-  const paper = frameOf(CORE_CATALOG, page(store), null) as Frame
+  const paper = frameOf(CORE_CATALOG, page(store), PAGE_ITSELF) as Frame
   expect(freeSpotIn(paper, { w: paper.paper.w, h: paper.paper.h })).toBe(NO_SPOT)
 })
 

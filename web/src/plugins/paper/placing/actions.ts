@@ -7,10 +7,12 @@ import {
   findShape,
   type ItemPage,
   NO_ITEM,
+  PAGE_ITSELF,
   type PlacedShape,
   type Point,
   replaceShape,
   type ShapeData,
+  type ShapeParent,
 } from "../../../plugin-api"
 import {
   allRectsOf,
@@ -63,7 +65,7 @@ function replaceAnywhere(
   if (found === NO_ITEM) return CANNOT_PLACE
   const parent = found.parent
   const settled = settleChildren(catalog, next)
-  return parent === null ? replacePushing(catalog, page, settled, shrink) : replaceChild(catalog, page, settled)
+  return parent === PAGE_ITSELF ? replacePushing(catalog, page, settled, shrink) : replaceChild(catalog, page, settled)
 }
 
 export const ITEM_PLACE = kit.defineAction({
@@ -101,13 +103,13 @@ export const ITEM_PLACE = kit.defineAction({
     if (!item) return null
     const sized = placedSize(ctx.catalog, item)
     if (sized === NO_SIZE || !shapeThemeFits(ctx.catalog, page.type, item)) return null
-    const parent = args.parent ?? null
+    const parent: ShapeParent = args.parent ?? PAGE_ITSELF // 引数に無ければ、ページそのもの
     const push = args.crowd === "push"
-    const grows = new Set(parent === null ? [] : [parent, ...ancestorsOf(page, parent)])
+    const grows = new Set(parent === PAGE_ITSELF ? [] : [parent, ...ancestorsOf(page, parent)])
     // at に置いたページと、置いた形と、動いたほかの形
     const tryAt = (at: Point) => {
       const next =
-        parent === null
+        parent === PAGE_ITSELF
           ? placeItem(ctx.catalog, page, { ...item, ...at })
           : placeChild(ctx.catalog, page, parent, item, at)
       const placed = next !== CANNOT_PLACE ? findShape(next, item.id) : NO_ITEM
@@ -216,14 +218,15 @@ export const ITEM_REPARENT = kit.defineAction({
   }),
   permissionScope: { item: "item" },
   run: (page, args, ctx) => {
+    const parent: ShapeParent = args.parent ?? PAGE_ITSELF // 引数の null は、ページそのもの
     const found = findShape(page, args.item)
-    if (found === NO_ITEM || found.parent === args.parent) return null
+    if (found === NO_ITEM || found.parent === parent) return null
     // 抜いたページ（線の整えはまだかけない。抜いた形につながる線を残すため）
-    const out = replaceShape(page, args.item, () => null)
+    const out = replaceShape(page, args.item, () => NO_ITEM)
     if (out === NO_ITEM) return null
     const shape = found.shape
     // 入れる先は抜いたあとのページで探す（自分か自分の子孫の中へは、見つからないので断る）
-    const into = args.parent === null ? null : findShape(out, args.parent)
+    const into = parent === PAGE_ITSELF ? null : findShape(out, parent)
     if (into === NO_ITEM) return null
     const origin = into?.at ?? { x: 0, y: 0 }
     const free = subtreeOf(page, args.item)
@@ -244,7 +247,7 @@ export const ITEM_REPARENT = kit.defineAction({
     // 添える空き（入れる先の中の、ほかの形を動かさない所。紙の上の位置）
     const size = placedSize(ctx.catalog, shape)
     const calm = (at: Point) => tryAt({ x: at.x + origin.x, y: at.y + origin.y })?.moved.length === 0
-    const spot = size !== NO_SIZE && freeAt(ctx.catalog, out, args.parent, size, calm)
+    const spot = size !== NO_SIZE && freeAt(ctx.catalog, out, parent, size, calm)
     return crowded(ctx.catalog, page, tried.moved, spot ? { x: spot.x + origin.x, y: spot.y + origin.y } : null)
   },
 })

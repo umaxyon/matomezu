@@ -11,6 +11,7 @@ import {
   type ItemPage,
   isShape,
   NO_ITEM,
+  PAGE_ITSELF,
   type PlacedConnector,
   type PlacedItem,
   type PlacedShape,
@@ -159,7 +160,7 @@ export function followConnectors<P extends ItemPage>(
 ): P {
   const by = new Map<string, Point>()
   for (const { shape, parent } of walkShapes(page)) {
-    const d = moved.get(shape.id) ?? (parent === null ? undefined : by.get(parent))
+    const d = moved.get(shape.id) ?? (parent === PAGE_ITSELF ? undefined : by.get(parent))
     if (d) by.set(shape.id, d)
   }
   const shifted = shiftedConnectors(catalog, page, c => {
@@ -273,7 +274,7 @@ export function removeItems(
   // ページのアイテムはまとめて除き、子の形は 1 つずつ除く（先に除いた祖先の子孫は、もう無い）
   let next: ItemPage = { ...page, items: pageItemsOf(page).filter(i => !targets.has(i.id)) }
   for (const id of targets) {
-    const out = replaceShape(next, id, () => null)
+    const out = replaceShape(next, id, () => NO_ITEM)
     if (out !== NO_ITEM) next = out
   }
   return tidyPage(catalog, next)
@@ -283,16 +284,16 @@ export function removeItems(
 function rootOf(page: ItemPage, id: string): string | null {
   const found = findShape(page, id)
   if (found === NO_ITEM) return null
-  return found.parent === null ? id : rootOf(page, found.parent)
+  return found.parent === PAGE_ITSELF ? id : rootOf(page, found.parent)
 }
 
 // ページのどの深さの形 id も f の返す形に置き換え、変えたあとの一番上の祖先の大きさで、近づきすぎたページの形を押してどける（縮めない。replacePushing）。
-// f が null を返せば子孫ごと除く（祖先は縮むだけなので押さない）。無い形・はみ出す・押した相手が紙に収まらないなら CANNOT_PLACE
+// f が NO_ITEM を返せば子孫ごと除く（祖先は縮むだけなので押さない）。無い形・はみ出す・押した相手が紙に収まらないなら CANNOT_PLACE
 export function replaceShapePushing(
   catalog: CoreCatalog,
   page: ItemPage,
   id: string,
-  f: (shape: PlacedShape) => PlacedShape | null,
+  f: (shape: PlacedShape) => PlacedShape | typeof NO_ITEM,
 ): ItemPage | typeof CANNOT_PLACE {
   const root = rootOf(page, id)
   if (root === null) return CANNOT_PLACE

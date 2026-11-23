@@ -2,7 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
-import { connectorsOf, type ItemPage, shapesOf, walkShapes } from "../../../web/src/core/placed"
+import { connectorsOf, type ItemPage, PAGE_ITSELF, shapesOf, walkShapes } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
 import { type Clip, clipOf, nearestPaste } from "../../../web/src/plugins/paper/placing/clip"
@@ -145,8 +145,8 @@ test("紙に収まらない場所は、収まる一番近い場所へ寄せる�
   const a = place(store, BOX, { at: { x: 0, y: 0 } })
   const clip = clipFrom(store, [a])
   const paged = pageOf(book(store), "p1")
-  expect(nearestPaste(CORE_CATALOG, paged, clip, null, { x: 300, y: 300 })).toEqual({ x: 300, y: 300 })
-  const near = nearestPaste(CORE_CATALOG, paged, clip, null, { x: -500, y: -500 })
+  expect(nearestPaste(CORE_CATALOG, paged, clip, PAGE_ITSELF, { x: 300, y: 300 })).toEqual({ x: 300, y: 300 })
+  const near = nearestPaste(CORE_CATALOG, paged, clip, PAGE_ITSELF, { x: -500, y: -500 })
   expect(near).not.toBeNull()
   expect(near?.x).toBeGreaterThanOrEqual(0)
   expect(near?.y).toBeGreaterThanOrEqual(0)
@@ -233,5 +233,5 @@ test("写した入れ物を選んだまま貼ると、その中でなく隣に�
   const [made] = selection(store)
   expect(made).not.toBe(a)
   expect(shapesOf(page(store as never))).toHaveLength(2)
-  expect(shapeOf(page(store as never), made as string).parent).toBeNull()
+  expect(shapeOf(page(store as never), made as string).parent).toBe(PAGE_ITSELF)
 })

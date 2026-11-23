@@ -8,10 +8,12 @@ import {
   connectorDef,
   type ItemPage,
   isShape,
+  PAGE_ITSELF,
   type PlacedConnector,
   type PlacedItem,
   type PlacedShape,
   pageItemsOf,
+  type ShapeParent,
   shapesOf,
   walkShapes,
 } from "../../../core/placed"
@@ -132,10 +134,10 @@ export function portAreasOf(
 ): Map<string, PortArea> {
   const walked = walkShapes(page)
   const items = new Map(walked.map(({ shape }) => [shape.id, shape]))
-  const parents = new Map(walked.map(({ shape, parent }) => [shape.id, parent]))
+  const parents = new Map<string, ShapeParent>(walked.map(({ shape, parent }) => [shape.id, parent]))
   const ancestorsOf = (id: string): string[] => {
     const parent = parents.get(id)
-    return parent ? [parent, ...ancestorsOf(parent)] : []
+    return parent !== undefined && parent !== PAGE_ITSELF ? [parent, ...ancestorsOf(parent)] : []
   }
   const areas = new Map<string, PortArea>()
   for (const [id, r] of rects) {

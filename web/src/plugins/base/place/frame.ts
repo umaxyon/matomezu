@@ -3,7 +3,14 @@
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { ShapeData } from "../../../core/def/item"
 import type { Point, Rect, Size } from "../../../core/geom"
-import { findShape, type ItemPage, NO_ITEM, type PlacedShape } from "../../../core/placed"
+import {
+  findShape,
+  type ItemPage,
+  NO_ITEM,
+  PAGE_ITSELF,
+  type PlacedShape,
+  type ShapeParent,
+} from "../../../core/placed"
 import { roomOf } from "./grow"
 import { CANNOT_PLACE, gapOf, replaceShapePushing } from "./items"
 import { NEST_PADDING, NO_SHAPE_DEF, NO_SIZE, placedSize, rectsOf, shapeDefOf } from "./placed"
@@ -13,7 +20,7 @@ import { GAP, inPaper, newClash, planPlace, pushFrom, tooClose } from "./push"
 export const CHILD_AREA: Size = { w: Number.POSITIVE_INFINITY, h: Number.POSITIVE_INFINITY }
 
 export interface Frame {
-  parent: string | null // 子の領域の持ち主の形の id（ページなら null）
+  parent: ShapeParent // 子の領域の持ち主の形の id（ページなら PAGE_ITSELF）
   origin: Point // Frame の左上（データの位置 = Frame の中の位置 + origin。ページは紙の左上）
   paper: Size // Frame の大きさ
   rects: Map<string, Rect> // Frame の中の形の四角（Frame の左上から。大きさの分からない形は入れない）
@@ -38,9 +45,9 @@ function childRects(catalog: CoreCatalog, parent: PlacedShape, origin: Point): M
 // Frame が無い（無い形）
 export const NO_FRAME = "none"
 
-// ページ page の、形 parent の子の領域の Frame（null ならページの紙。可変ページは、空きの印刷区画を含めた広さ。roomOf）。無い形なら NO_FRAME
-export function frameOf(catalog: CoreCatalog, page: ItemPage, parent: string | null): Frame | typeof NO_FRAME {
-  if (parent === null) {
+// ページ page の、親 parent の子の領域の Frame（PAGE_ITSELF ならページの紙。可変ページは、空きの印刷区画を含めた広さ。roomOf）。無い形なら NO_FRAME
+export function frameOf(catalog: CoreCatalog, page: ItemPage, parent: ShapeParent): Frame | typeof NO_FRAME {
+  if (parent === PAGE_ITSELF) {
     const paper = roomOf(catalog, page)
     return { parent, origin: { x: 0, y: 0 }, paper, rects: rectsOf(catalog, page) }
   }
@@ -115,7 +122,7 @@ export function placeChild(
 export function replaceChild(catalog: CoreCatalog, page: ItemPage, next: PlacedShape): ItemPage | typeof CANNOT_PLACE {
   const frame = frameAround(catalog, page, next.id)
   const size = placedSize(catalog, next)
-  if (frame === NO_FRAME || frame.parent === null || size === NO_SIZE) return CANNOT_PLACE
+  if (frame === NO_FRAME || frame.parent === PAGE_ITSELF || size === NO_SIZE) return CANNOT_PLACE
   const rect = { x: next.x - frame.origin.x, y: next.y - frame.origin.y, ...size }
   if (!inPaper(rect, frame.paper)) return CANNOT_PLACE
   const gap = gapOf(catalog, page)

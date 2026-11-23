@@ -9,6 +9,7 @@ import {
   findShape,
   type ItemPage,
   NO_ITEM,
+  PAGE_ITSELF,
   type Point,
   type Rect,
   walkShapes,
@@ -66,8 +67,8 @@ const holds = (value: unknown, id: string): boolean =>
 export function sameLevel(page: ItemPage, ids: readonly string[]): readonly string[] {
   const ancestors = (id: string): string[] => {
     const found = findShape(page, id)
-    const parent = found === NO_ITEM ? null : found.parent
-    return parent === null ? [] : [...ancestors(parent), parent]
+    const parent = found === NO_ITEM ? PAGE_ITSELF : found.parent
+    return parent === PAGE_ITSELF ? [] : [...ancestors(parent), parent]
   }
   const chains = new Map(ids.filter(id => findShape(page, id) !== NO_ITEM).map(id => [id, ancestors(id)]))
   const all = [...chains.values()]
