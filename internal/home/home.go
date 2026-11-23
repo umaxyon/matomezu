@@ -22,10 +22,11 @@ import (
 const EnvHome = "MATOMEZU_HOME"
 
 const (
-	lockName    = "server.lock"
-	serverName  = "server.json"
-	portName    = "port.json"
-	cookiesName = "cookies.json"
+	lockName     = "server.lock"
+	serverName   = "server.json"
+	portName     = "port.json"
+	hostPortName = "host-port.json"
+	cookiesName  = "cookies.json"
 )
 
 // Dir は matomezu 保管庫フォルダの場所。EnvHome があればそれ、無ければどの OS でもホームの下の .matomezu。
@@ -122,7 +123,31 @@ func (h *Home) ReadServer() (*Server, error) {
 
 // ReadPort は、利用者が選んだ常駐のポート（port.json）。選んでいなければ 0
 func (h *Home) ReadPort() (int, error) {
-	b, err := os.ReadFile(filepath.Join(h.Dir, portName))
+	return h.readPort(portName)
+}
+
+// WritePort は、利用者が選んだ常駐のポートを port.json に書く（このあと立てる常駐は、選び直すまでこのポートで待つ）
+func (h *Home) WritePort(port int) error {
+	return h.writePort(portName, port)
+}
+
+// ReadHostPort は、ホストどうしの入口のポート（host-port.json。初めて開いたときに空いている番号を取って覚えた物）。覚えていなければ 0
+func (h *Home) ReadHostPort() (int, error) {
+	return h.readPort(hostPortName)
+}
+
+// WriteHostPort は、ホストどうしの入口のポートを覚える
+func (h *Home) WriteHostPort(port int) error {
+	return h.writePort(hostPortName, port)
+}
+
+// HostKeyPath は、このホストの秘密鍵のファイル（ホスト id はこの鍵から決まる）
+func (h *Home) HostKeyPath() string {
+	return filepath.Join(h.Dir, "host.key")
+}
+
+func (h *Home) readPort(name string) (int, error) {
+	b, err := os.ReadFile(filepath.Join(h.Dir, name))
 	if errors.Is(err, fs.ErrNotExist) {
 		return 0, nil
 	}
@@ -133,24 +158,23 @@ func (h *Home) ReadPort() (int, error) {
 		Port int `json:"port"`
 	}
 	if err := json.Unmarshal(b, &p); err != nil {
-		return 0, fmt.Errorf("%s: %w", portName, err)
+		return 0, fmt.Errorf("%s: %w", name, err)
 	}
 	return p.Port, nil
 }
 
-// WritePort は、利用者が選んだ常駐のポートを port.json に書く（このあと立てる常駐は、選び直すまでこのポートで待つ）
-func (h *Home) WritePort(port int) error {
+func (h *Home) writePort(name string, port int) error {
 	b, err := json.Marshal(struct {
 		Port int `json:"port"`
 	}{port})
 	if err != nil {
 		return err
 	}
-	tmp := filepath.Join(h.Dir, portName+".tmp")
+	tmp := filepath.Join(h.Dir, name+".tmp")
 	if err := os.WriteFile(tmp, b, 0o600); err != nil {
 		return err
 	}
-	return os.Rename(tmp, filepath.Join(h.Dir, portName))
+	return os.Rename(tmp, filepath.Join(h.Dir, name))
 }
 
 // RemoveServer は server.json を消す（常駐が止まるとき）

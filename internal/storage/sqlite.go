@@ -218,6 +218,8 @@ var migrations = []string{
 	`SELECT 1;`,
 	// 要求中の参加者が持つ orcaWorkspace を adeWorkspace（ADE のワークスペース）に名前を替える（Go の移し替え。migrate_participant_ade.go）
 	`SELECT 1;`,
+	// プロジェクトに、レーンのタイトル帯に出す物（laneShows）を足す（Go の移し替え。migrate_lane_shows.go）
+	`SELECT 1;`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う
@@ -236,6 +238,7 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	33: dropJoinRequestMail,
 	34: fillCurrentWorks,
 	35: participantAdeWorkspaces,
+	36: addLaneShows,
 }
 
 type sqliteStorage struct {

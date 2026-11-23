@@ -45,6 +45,11 @@
   font-weight: 600;
   text-align: center;
 }
+/* 名前の右のチケットの数（名前より薄く、太字にしない） */
+.count {
+  color: var(--skin-text-muted);
+  font-weight: 400;
+}
 .lane[data-dragging="true"] {
   opacity: 0.5;
 }

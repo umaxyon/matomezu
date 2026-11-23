@@ -67,7 +67,8 @@ import {
   BACKGROUND_PRINT_CONTROL,
   BOOK_CONTENT,
   BOOK_VIEW,
-  CLOSE_BUTTON,
+  FOOTER_CLOSE_BUTTON,
+  FOOTER_WIDEN_BUTTON,
   PAPER_LAYER,
   PRINT_AREA_LAYER,
   PRINT_AREA_TOGGLE,
@@ -206,6 +207,7 @@ import type { PrintSheetProps } from "./print-preview/ui"
 
 // ページの設定の項目とステージエントリが持つ設定の項目のコンポーネントの並び（ページのタイプの設定のダイアログが使う）
 export { type SettingsPatch, useSettingControls } from "./book-settings/ui"
+export { useHostStatus } from "./host/ui"
 export type { RightSidePanelOpen } from "./right-side-panel/ui"
 export {
   RIGHT_SIDE_PANEL,
@@ -223,7 +225,14 @@ export {
   useSearchHits,
   useSearchPick,
 } from "./search/ui"
-export { defineSettingsCategory, SettingRow, UserSettings, useOpenSettings } from "./settings/ui"
+export {
+  defineSettingsCategory,
+  SettingRow,
+  TextSettingControl,
+  UserSettings,
+  useOpenSettings,
+  useUserName,
+} from "./settings/ui"
 export {
   BodyField,
   CaptionField,
@@ -334,7 +343,8 @@ export const BASE_UI = definePluginUi(BASE, {
     STAGE_MENU_BUTTONS,
     PAGE_TABS,
     PAGE_LIST,
-    CLOSE_BUTTON,
+    FOOTER_CLOSE_BUTTON,
+    FOOTER_WIDEN_BUTTON,
     GENERAL_CATEGORY,
     KEYS_CATEGORY,
     PLUGINS_CATEGORY,
@@ -463,7 +473,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:stage-menu-buttons": typeof STAGE_MENU_BUTTONS
     "@matomezu/base:page-tabs": typeof PAGE_TABS
     "@matomezu/base:page-list": typeof PAGE_LIST
-    "@matomezu/base:close-button": typeof CLOSE_BUTTON
+    "@matomezu/base:footer-close-button": typeof FOOTER_CLOSE_BUTTON
+    "@matomezu/base:footer-widen-button": typeof FOOTER_WIDEN_BUTTON
     "@matomezu/base:settings-general": typeof GENERAL_CATEGORY
     "@matomezu/base:settings-keys": typeof KEYS_CATEGORY
     "@matomezu/base:settings-plugins": typeof PLUGINS_CATEGORY

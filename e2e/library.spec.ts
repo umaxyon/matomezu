@@ -623,8 +623,10 @@ test("書庫のツリーで、ブックの中のページの名前を F2 で変�
   await tree.getByRole("button", { name: "中のページ甲 の中を出す" }).click()
   await tree.getByRole("button", { name: "中のページ乙 の中を出す" }).click()
 
-  // F2 で名前を変える
+  // F2 で名前を変える（クリックで出る「開く／分割で開く」は閉じる）
   await row("甲").click()
+  await expect(page.getByRole("menuitem", { name: "分割で開く" })).toBeVisible()
+  await page.keyboard.press("Escape")
   await page.keyboard.press("F2")
   await page.getByRole("dialog").getByRole("textbox").fill("甲 改")
   await page.keyboard.press("Enter")

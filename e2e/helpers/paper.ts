@@ -2,6 +2,7 @@
 import { expect, type Locator, type Page } from "@playwright/test"
 import { BODY } from "../text-widths"
 import { footerMenuTool } from "./footer-menu"
+import { stillBox } from "./motion"
 
 export const paper = (page: Page) => page.getByRole("img", { name: "紙" })
 
@@ -30,7 +31,7 @@ export async function settled(page: Page, at: Locator = paper(page)) {
 
 // 紙の左上から (x, y) の画面の座標
 export async function onPaper(page: Page, x: number, y: number) {
-  const at = (await paper(page).boundingBox())!
+  const at = await stillBox(paper(page))
   return { x: at.x + x, y: at.y + y }
 }
 

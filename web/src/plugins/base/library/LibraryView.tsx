@@ -1,9 +1,10 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
-// 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。ページの在るワーカーブックの行は、1 回押すと選んで「開く／分割で開く」を出し、2 回押すと全画面で開く。
+// 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
+// ブックスクリーンに開く行（ページの在るブック・ワーカーブックと、ブックの中のページ）は、1 回押すと選んで「開く／分割で開く」を出し、2 回押すと全画面で開く（ブックスクリーンと分けた並びの中では出さない）。
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
 import { type CSSProperties, type MouseEvent, type ReactNode, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { type Naming, namingOf, rowsWithin, titleOf } from "../../../core/entries"
+import { type Naming, namingOf, titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
 import type { MatomezuState } from "../../../store/state"
 import { useCommand } from "../../../ui/commands"
@@ -16,7 +17,9 @@ import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import type { Workdesk } from "../participant/workdesks"
 import { SplitHandle } from "../utils/SplitHandle"
+import { BOOK_SCREEN_DEF } from "../window"
 import { useBookOpenChoice } from "../window/useBookOpenChoice"
+import { useScreenSplit } from "../window/useScreenSplit"
 import {
   LIBRARY_ADD_PAGE_MENU,
   LIBRARY_BOOK_NEW,
@@ -41,6 +44,8 @@ import styles from "./LibraryView.module.css"
 import { MoveClashConfirm } from "./MoveClashConfirm"
 import {
   arrivedAt,
+  type BookOpened,
+  bookOpenedFrom,
   holdsRows,
   type LibraryRow,
   NO_TITLE,
@@ -64,7 +69,7 @@ import { TrashView } from "./TrashView"
 import { CONTENT_MIN_WIDTH, DEFAULT_TREE_WIDTH, TREE_MIN_WIDTH, treeWidthAt } from "./tree-width"
 import { UnreadableView } from "./UnreadableView"
 import { type LibraryDrag, useLibraryDrag } from "./useLibraryDrag"
-import { createdIn, deskPlaceOf, deskTitleOf, GONE, isDeskRow } from "./workdesk-rows"
+import { createdIn, deskTitleOf, isDeskRow } from "./workdesk-rows"
 
 // 一番上に並ぶフォルダの行（書庫ホームとゴミ箱と、設定がオンなら読めない物のフォルダ。名前は画面が付ける）
 const topRowsOf = (unreadableShown: boolean): readonly LibraryRow[] =>
@@ -434,7 +439,7 @@ function ContentEntry({
   const nameOf = useNameOf()
   const { onClick, ...marks } = pressProps
   return (
-    <RowPressOf id={row.id} click={onClick} open={onOpen}>
+    <RowPressOf row={row} click={onClick} open={onOpen}>
       {press => (
         <li>
           {press.bubble}
@@ -460,15 +465,13 @@ function ContentEntry({
   )
 }
 
-// 書庫の行 id がワーカーブックの行で、その実のブックにページが在れば、実のブックの id（ほかは undefined）
-function useOpenableWorkerBook(id: string): string | undefined {
+// 書庫の行 row を開くと出すブックとページ（bookOpenedFrom）。書庫の画面が、ブックスクリーンと分けた並びにいる間は、開く先が上の段に決まっているので答えない
+// （「分割で開く」と重なる）
+function useBookOpenedFrom(row: LibraryRow): BookOpened | undefined {
   const desks = useWorkdesks()
-  return useMatomezuState(s => {
-    if (!isDeskRow(id)) return undefined
-    const place = deskPlaceOf(desks, s.folders, id)
-    if (place === undefined || place === GONE || place.at !== "book" || place.real === undefined) return undefined
-    return rowsWithin(s.folders, place.real).pages.length > 0 ? place.real : undefined
-  })
+  const split = useScreenSplit()
+  const besideBook = split.inSplit && split.defs.includes(BOOK_SCREEN_DEF.id)
+  return useMatomezuState(useShallow(s => (besideBook ? undefined : bookOpenedFrom(s.folders, row, desks))))
 }
 
 // 行の押し方 press（クリック・ダブルクリック・「開く／分割で開く」の吹き出し）
@@ -478,21 +481,21 @@ interface RowPress {
   bubble: ReactNode
 }
 
-// 行 id の押し方を children に渡して描く: ページの在るワーカーブックの行は、クリックで行を選ぶ物 click を行ってから「開く／分割で開く」、ダブルクリックで開く（open）。
-// ほかの行は、クリックで click、ダブルクリックで open
+// 行 row の押し方を children に渡して描く: ブックスクリーンに開く行（ページの在るブックと、ブックの中のページ）は、クリックで行を選ぶ物 click を行ってから
+// 「開く／分割で開く」、ダブルクリックで開く（open）。ほかの行は、クリックで click、ダブルクリックで open
 function RowPressOf({
-  id,
+  row,
   click,
   open,
   children,
-}: PressOptions & { id: string; children: (p: RowPress) => ReactNode }) {
-  const book = useOpenableWorkerBook(id)
-  return book === undefined ? (
+}: PressOptions & { row: LibraryRow; children: (p: RowPress) => ReactNode }) {
+  const opens = useBookOpenedFrom(row)
+  return opens === undefined ? (
     <>{children({ onClick: () => click(), onDoubleClick: open, bubble: null })}</>
   ) : (
-    <WorkerBookPress book={book} click={click} open={open}>
+    <BookPress opens={opens} click={click} open={open}>
       {children}
-    </WorkerBookPress>
+    </BookPress>
   )
 }
 
@@ -501,13 +504,13 @@ interface PressOptions {
   open: () => void
 }
 
-function WorkerBookPress({
-  book,
+function BookPress({
+  opens,
   click,
   open,
   children,
-}: PressOptions & { book: string; children: (p: RowPress) => ReactNode }) {
-  const choice = useBookOpenChoice({ book, full: open, onClick: click })
+}: PressOptions & { opens: BookOpened; children: (p: RowPress) => ReactNode }) {
+  const choice = useBookOpenChoice({ ...opens, full: open, onClick: click })
   return <>{children({ onClick: choice.onClick, onDoubleClick: undefined, bubble: choice.bubble })}</>
 }
 
@@ -532,7 +535,7 @@ function TreeNode({
   const open = unfolds && handlers.shown.has(row.id)
   return (
     <RowPressOf
-      id={row.id}
+      row={row}
       click={() => (holds ? handlers.enter(row.id) : handlers.pick(row, holder))}
       open={() => handlers.open(row)}
     >

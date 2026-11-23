@@ -1,4 +1,4 @@
-// プロジェクト設定の「レーン」: 上に「未分類を表示する」のスイッチ、左にレーンの一覧（つまみ・名前、「レーン追加」、つまみのドラッグで並べ替え）、右に選んだレーンの「レーンプロンプト」。
+// プロジェクト設定の「レーン」: 上に「未分類を表示する」と「件数を表示する」（レーンのタイトル帯にチケットの数を出す）のスイッチ、左にレーンの一覧（つまみ・名前、「レーン追加」、つまみのドラッグで並べ替え）、右に選んだレーンの「レーンプロンプト」。
 // プロンプトの上に「完了レーンにする」のスイッチ（名前のあるレーンだけ）。ほかのレーンが完了のレーンなら、入れる前に確かめる。切ると完了のレーンは無し。
 // その下に「作業中レーンにする」のスイッチ（いくつのレーンにも入れられる）。同じレーンを完了と作業中の両方にはできず、片方が入っている間はもう片方を押せない。
 // 未分類の行は、スイッチが入っている間だけ並びに出る（「未分類」の字とつまみ。プロンプトは書けない）。切っても並びの位置は残る。
@@ -24,6 +24,8 @@ export function LaneSettings({
   done,
   onDone,
   doneBlocked,
+  count,
+  onCount,
 }: {
   lanes: EditableRows<LaneRow>
   repeated: ReadonlySet<string>
@@ -31,6 +33,8 @@ export function LaneSettings({
   done: string // 完了のレーンに選んだ行の鍵（無ければ none）
   onDone: (key: string) => void
   doneBlocked: boolean // 完了のレーンに選んだ行に、担当のいるチケットがある（保存できない）
+  count: boolean // レーンのタイトル帯にチケットの数を出す
+  onCount: (on: boolean) => void
 }) {
   const t = useMessages(kit)
   const { rows, change, add, leave, move, nameRef } = lanes
@@ -51,6 +55,7 @@ export function LaneSettings({
   )
   const chosen = rows.find(r => r.key === selected)
   const switchId = useId()
+  const countId = useId()
   const doneId = useId()
   const workingId = useId()
   // 完了のレーンにしようとして、確かめている行の鍵と、今の完了のレーンの名前
@@ -77,6 +82,10 @@ export function LaneSettings({
           onChange={on => unsorted && change(unsorted.key, { shown: on })}
         />
         <label htmlFor={switchId}>{t("Show unsorted")}</label>
+      </div>
+      <div className={settings.switchRow}>
+        <Switch id={countId} label={t("Show ticket counts")} checked={count} onChange={onCount} />
+        <label htmlFor={countId}>{t("Show ticket counts")}</label>
       </div>
       <PromptSplit
         notes={[

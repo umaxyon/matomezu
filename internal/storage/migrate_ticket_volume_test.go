@@ -6,7 +6,7 @@ import (
 )
 
 // 規模を持たないチケットは none に、cardShows に volume を持たないプロジェクトは true にし、もう値のある物とほかの種類は変えない。
-// 種類の表と、伝えられる前の records の行の両方を直す
+// 種類の表と、伝えられる前の records の行の両方を直す（あとの移し替えも流れるので、プロジェクトには laneShows も付く）
 func TestTicketVolumeIsAdded(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	beforeMigration(t, path, 29,
@@ -28,8 +28,8 @@ func TestTicketVolumeIsAdded(t *testing.T) {
 	want := map[string]string{
 		`SELECT body FROM rec_1 WHERE id = 't1'`:   `{"id":"t1","priority":"high","volume":"none"}`,
 		`SELECT body FROM rec_1 WHERE id = 't2'`:   `{"id":"t2","volume":"l"}`,
-		`SELECT body FROM rec_2 WHERE id = 'p1'`:   `{"cardShows":{"priority":false,"volume":true},"id":"p1"}`,
-		`SELECT body FROM rec_2 WHERE id = 'p2'`:   `{"id":"p2","cardShows":{"priority":true,"volume":false}}`,
+		`SELECT body FROM rec_2 WHERE id = 'p1'`:   `{"cardShows":{"priority":false,"volume":true},"id":"p1","laneShows":{"count":true}}`,
+		`SELECT body FROM rec_2 WHERE id = 'p2'`:   `{"cardShows":{"priority":true,"volume":false},"id":"p2","laneShows":{"count":true}}`,
 		`SELECT body FROM records WHERE id = 't3'`: `{"id":"t3","volume":"none"}`,
 		`SELECT body FROM records WHERE id = 'o1'`: `{"id":"o1"}`,
 	}

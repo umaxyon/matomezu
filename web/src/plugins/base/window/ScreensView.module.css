@@ -2,7 +2,11 @@
 .bookScreen {
   --footer-row-height: 30px; /* 下の行の高さ（utils/FooterRow と同じ） */
   position: absolute;
-  inset: 0;
+  /* 上端と高さは決まった値で持ち（窓いっぱいは 0 と 100%）、上下に分けるときに縮む動きを出す */
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -40,6 +44,35 @@
   .center,
   .center[data-current="book-screen"] {
     transition: none;
+  }
+}
+/* ブックスクリーンを窓いっぱいに見せ始めたときは、それがほかのスクリーンの上を右から滑り込み終えるまで、コントロールセンターの側を動かさずに残す */
+.center[data-current="book-screen"][data-held="true"] {
+  transform: translateX(0);
+  visibility: visible;
+}
+.bookScreen[data-over="true"] {
+  z-index: 2;
+}
+/* ブックスクリーンを閉じた直後は、滑らせずに出す（閉じた物の写しが、上から右へ出ていく） */
+.center[data-instant="true"] {
+  transition: none;
+}
+/* 閉じたブックスクリーンの写し: 閉じたときの位置から右へ滑り出る */
+.bookScreen[data-leaving] {
+  z-index: 1;
+  pointer-events: none;
+  animation-name: book-leave;
+  animation-duration: var(--screen-slide);
+  animation-timing-function: ease;
+  animation-fill-mode: forwards;
+}
+@keyframes book-leave {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
   }
 }
 /* いちばん最近カレントスクリーンにした物でないブックスクリーンは、描いたまま出さない */
@@ -91,11 +124,21 @@
   top: var(--row-top);
   height: var(--row-height);
 }
-/* 上下に分けた並びに入ったブックスクリーン: 下の行の上の残りを、並びの枚数で等分した位置と高さに置く（ステージを並べないスクリーンの行と同じ動き） */
+/* 上下に分けた並びに入ったブックスクリーン: 下の行の上の残りを、並びの枚数で等分した位置と高さに置く（ステージを並べないスクリーンの行と同じ動き）。
+   並びに新しく入る物は、右から滑り込む（分け始めは、上の物が縮み終えてから） */
 .bookScreen {
+  transform: translateX(0);
   transition:
+    transform var(--screen-slide) ease,
     top var(--screen-slide) ease,
     height var(--screen-slide) ease;
+}
+.bookScreen[data-in="false"] {
+  transform: translateX(100%);
+  transition: none;
+}
+.bookScreen[data-late="true"] {
+  transition-delay: var(--screen-slide);
 }
 @media (prefers-reduced-motion: reduce) {
   .bookScreen {
@@ -108,7 +151,6 @@
 }
 .bookScreen[data-row="true"] {
   --rows-height: calc(100% - var(--footer-row-height));
-  inset: auto 0;
   top: calc(var(--rows-height) * var(--row-index) / var(--row-of));
   height: calc(var(--rows-height) / var(--row-of));
 }

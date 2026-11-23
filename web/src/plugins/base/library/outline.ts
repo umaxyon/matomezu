@@ -1,5 +1,13 @@
 // 書庫の画面が描く物を、書庫の表（ページの行とフォルダの行）から出す: フォルダの直下の行・ゴミ箱の行・パンくず・行を開いたときの行き先
-import { type EntryKind, entriesIn, type Naming, rowTitle, titleOf, trashRefsOf } from "../../../core/entries"
+import {
+  type EntryKind,
+  entriesIn,
+  type Naming,
+  rowsWithin,
+  rowTitle,
+  titleOf,
+  trashRefsOf,
+} from "../../../core/entries"
 import {
   type AnyEntryRef,
   BROKEN,
@@ -391,6 +399,31 @@ export function openTargetOf(
   if (atOutsidePagePlace(folders, row.id)) return { to: "page", page: row.id }
   const binder = outsideBinderOver(folders, row.id)
   return binder ? { to: "binder", binder: binder.id, page: row.id } : NOT_OPENED
+}
+
+// 行を開くと出すブックと、そのページ
+export interface BookOpened {
+  book: string
+  page?: string
+}
+
+// 書庫の行 row を、ブックスクリーンに開くなら、開くブックとページ（ページの無いブック・バインダ・ブックの外の物・フォルダは undefined）。
+// ワーカーブックの行は、実のブックで開く（ページが在るときだけ）
+export function bookOpenedFrom(
+  folders: Folders,
+  row: Pick<LibraryRow, "id" | "kind" | "readable">,
+  desks: readonly Workdesk[],
+): BookOpened | undefined {
+  const pagesIn = (book: string) => rowsWithin(folders, book).pages.length
+  if (isDeskRow(row.id)) {
+    const place = deskPlaceOf(desks, folders, row.id)
+    if (place === undefined || place === GONE || place.at !== "book" || place.real === undefined) return undefined
+    return pagesIn(place.real) > 0 ? { book: place.real } : undefined
+  }
+  const target = openTargetOf(folders, row, desks)
+  if (target === NOT_OPENED || target.to !== "book" || target.binder !== undefined) return undefined
+  if (target.page !== undefined) return { book: target.book, page: target.page }
+  return pagesIn(target.book) > 0 ? { book: target.book } : undefined
 }
 
 // 書庫の画面が、中身を並べて見せているフォルダ: 右の枠で開いているフォルダ opened（ゴミ箱を開いていればゴミ箱）と、ツリーで中を出しているフォルダ

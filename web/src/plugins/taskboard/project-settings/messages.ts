@@ -45,6 +45,7 @@ export const PROJECT_SETTINGS_MESSAGES = defineMessages({
   "Lane prompt": { en: "Lane prompt", ja: "レーンプロンプト" },
   "Lane name": { en: "Lane name", ja: "レーン名" },
   "Show unsorted": { en: "Show unsorted", ja: "未分類を表示する" },
+  "Show ticket counts": { en: "Show ticket counts", ja: "件数を表示する" },
   "The names repeat": { en: "The names repeat", ja: "名前が重なっています" },
   "Tickets moved to unsorted are not shown on the board": {
     en: "Tickets moved to unsorted are not shown on the board",

@@ -1,7 +1,7 @@
 // 上下に分けた並びの変わりを行う（useScreenSplit の applySplit と、状態を読めない base のコマンドが通る、ただ 1 つの道）
 import type { OpenedScreen } from "../../../core/window"
 import type { Actions } from "../../../store/actions"
-import { ONE_SCREEN } from "."
+import { ONE_SCREEN } from "./one-screen"
 import { behindOf, SPLIT_ROWS, type SplitPlan } from "./split"
 
 // 並びの変わり plan を行う（useScreenSplit の applySplit の中身。状態を読めないコマンドからも呼ぶ）: screens は変わる前に開いているスクリーン、value は変わる前の上下に分ける値（分けていなければ undefined）。

@@ -88,15 +88,22 @@ func sessionPidSpace(endsWith string) string {
 
 // envName は MCP が参加のときに常駐へ渡す環境名（runtime.GOOS。Linux の中で WSL と分かれば wsl- を頭に付ける）
 func envName() string {
-	if runtime.GOOS == "linux" {
-		if os.Getenv("WSL_DISTRO_NAME") != "" {
-			return "wsl-linux"
-		}
-		if v, err := os.ReadFile("/proc/sys/kernel/osrelease"); err == nil && strings.Contains(strings.ToLower(string(v)), "microsoft") {
-			return "wsl-linux"
-		}
+	if onWSL() {
+		return "wsl-linux"
 	}
 	return runtime.GOOS
+}
+
+// onWSL は、WSL の Linux の中で動いているか
+func onWSL() bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	if os.Getenv("WSL_DISTRO_NAME") != "" {
+		return true
+	}
+	v, err := os.ReadFile("/proc/sys/kernel/osrelease")
+	return err == nil && strings.Contains(strings.ToLower(string(v)), "microsoft")
 }
 
 // gitBranchWait は、git のブランチを読むのを待つ長さ

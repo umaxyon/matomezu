@@ -41,7 +41,7 @@ test("「広げる」で書庫のスクリーンが窓いっぱいになり、�
   page,
 }) => {
   await split(page)
-  await page.getByRole("button", { name: "広げる" }).click()
+  await page.getByRole("button", { name: "広げる", exact: true }).click()
   await expect(library(page)).toBeVisible()
   await expect(page.getByRole("button", { name: "閉じる", exact: true })).toHaveCount(1)
   await library(page).getByRole("button", { name: "残課題" }).dblclick()

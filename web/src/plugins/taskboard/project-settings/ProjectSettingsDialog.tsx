@@ -69,6 +69,7 @@ function Settings({
   const tags = useEditableRows<TagRow>(() => tagRowsOf(project))
   const [cardSize, setCardSize] = useState(project.cardSize)
   const [cardShows, setCardShows] = useState(project.cardShows)
+  const [laneShows, setLaneShows] = useState(project.laneShows)
   const [doneKey, setDoneKey] = useState(project.doneLane ?? NO_DONE_LANE) // 完了のレーンに選んだ行の鍵（もうあるレーンは id。無ければ none）
   const [refused, setRefused] = useState<string | null>(null)
   const others = useRecords(PROJECT.id, { where: [] }).filter(p => p.id !== project.id)
@@ -92,7 +93,7 @@ function Settings({
   const save = async () => {
     const done = await actions.performConfirmed(
       PROJECT_UPDATE.id,
-      updateArgsOf(name, prefix, lanes.rows, tags.rows, doneKey, cardSize, cardShows),
+      updateArgsOf(name, prefix, lanes.rows, tags.rows, doneKey, cardSize, cardShows, laneShows),
       {
         record: project.id,
       },
@@ -194,6 +195,8 @@ function Settings({
                 done={doneKey}
                 onDone={setDoneKey}
                 doneBlocked={doneBlocked}
+                count={laneShows.count}
+                onCount={count => setLaneShows({ ...laneShows, count })}
               />
             </div>
           </SideTabs>
