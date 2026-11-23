@@ -73,6 +73,12 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	in.Watched = h.watched()
 	in.WatchedRecords = h.watchedRecords()
 	out, err := h.engine.PerformWith(in, recordSource{h})
+	// フォローステップがバックヤードの中に行う事の先のブックを渡していなければ、そのブックの行とアノテーションを足して行い直す
+	// （応じる事はアクションのあとに決まるので、先には渡せない。1 回ごとに足りないブックが減るので、ブックの数で止まる）
+	for tries := 0; err == nil && !out.OK && out.Reason == "needs-rows" && tries < len(h.books)+1; tries++ {
+		h.addBookInputs(&in, out.Needs)
+		out, err = h.engine.PerformWith(in, recordSource{h})
+	}
 	if err != nil {
 		return Performed{}, err
 	}
@@ -113,6 +119,10 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, *envelopesRefused)
 		return *envelopesRefused, nil
 	}
+	hostEnvelopes, err := h.hostEnvelopes(out.HostMessages, in.Actor)
+	if err != nil {
+		return Performed{}, err
+	}
 	act := h.actPrefix + "-" + strconv.FormatInt(h.acts+1, 10)
 	shared := h.sharedWithUnreadable()
 	out = withoutSharedRemovals(out, shared)
@@ -139,6 +149,9 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	for _, e := range envelopes {
 		h.deliver(e)
 	}
+	for _, e := range hostEnvelopes {
+		h.deliverHost(e)
+	}
 	h.wakeOnParticipants(requested, cancelled)
 	h.remember(p.Key, done)
 	h.ack(p, done)
@@ -153,6 +166,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 // （バックヤードは、バックヤードにまだ無いブックを作って置くアクションのため）
 func (h *Hub) performInputs(in *engine.Input) error {
 	all := false
+	yards := false // レコードが対象のアクションがある（フォローステップがバックヤードの中のブックを引くので、バックヤードの行も渡す）
 	books := []string{}
 	entries := []string{} // 宛先のページがブックに入っていないときの、渡すエントリ（そのページか、それを持つバインダ）
 	named := []string{}   // 宛先がブックそのもののときの、そのブック（名前を変えうるので、隣のエントリの行も渡す）
@@ -173,6 +187,7 @@ func (h *Hub) performInputs(in *engine.Input) error {
 				add(id)
 			}
 			h.recordInputs(in, needs, step.On)
+			yards = true
 		case step.On == nil:
 			all = true
 		default:
@@ -216,6 +231,9 @@ func (h *Hub) performInputs(in *engine.Input) error {
 	needed := append(slices.Clone(books), entries...)
 	in.Pages, in.Folders = h.rowsOf(needed)
 	in.Folders = append(in.Folders, h.openRowsAbove(needed)...)
+	if yards {
+		in.Folders = append(in.Folders, h.backyardRows()...)
+	}
 	// 宛先がブックそのものか、ブックに入っていないページなら、同じフォルダに直に入っている隣のエントリの行も
 	// （名前の重なりを確かめるため。隣のブック・フォルダの中の行は渡さない）
 	nearPages, nearFolders := h.neighborRows(append(slices.Clone(named), entries...), needed)
@@ -264,4 +282,17 @@ func (h *Hub) actorOfHeld(p Perform) *engine.Actor {
 		return h.actorOfParticipantHeld(p.Participant)
 	}
 	return nil
+}
+
+// addBookInputs は、エンジンに渡す in に、ブック books の行（中の物も）とそのページのアノテーションを足す（h.mu を持って呼ぶ）
+func (h *Hub) addBookInputs(in *engine.Input, books []string) {
+	for _, id := range books {
+		if !h.hasBook(id) || h.inUnreadable(id) {
+			continue
+		}
+		pages, folders := h.rowsOf([]string{id})
+		in.Pages = append(in.Pages, pages...)
+		in.Folders = append(in.Folders, folders...)
+		maps.Copy(in.Annotations, h.annotationsIn(id))
+	}
 }

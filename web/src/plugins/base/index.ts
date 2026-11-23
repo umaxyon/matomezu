@@ -175,6 +175,8 @@ import {
 import {
   ADMIN_MARK,
   ADMIN_SET,
+  FOLLOW_WORK_ENDED,
+  FOLLOW_WORKROOM_GONE,
   JOIN_REQUEST_DIALOG,
   PARTICIPANT,
   PARTICIPANT_ACCEPT,
@@ -552,6 +554,7 @@ export const BASE = defineBuiltin(
     annotations: [NOTE, MARK],
     systemFolders: [DOCUMENTS, WORKROOMS],
     backyards: [TICKETS_HISTORY],
+    followSteps: [FOLLOW_WORKROOM_GONE, FOLLOW_WORK_ENDED],
     mails: [MAIL_LETTER, MAIL_PROPOSAL],
     subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL, SCRAP],
     screens: [BOOK_SCREEN_DEF, LIBRARY_SCREEN],

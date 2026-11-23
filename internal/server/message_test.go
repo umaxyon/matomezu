@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -326,7 +327,8 @@ func TestActionSendsAIMessage(t *testing.T) {
 	if !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("ticket-add = %s", got)
 	}
-	woke := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{}))
+	// 担当に入ったワークルームには、カレントチケットが変わった常駐メッセージも届く（ここでは AI 間メッセージだけを見る）
+	woke := slices.DeleteFunc(wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{})), func(w string) bool { return strings.HasPrefix(w, "matomezu: ") })
 	if len(woke) != 1 || !strings.Contains(woke[0], `matomezu from AI "ひよこ"`) || !strings.Contains(woke[0], `Your workroom was assigned to the ticket`) || strings.Contains(woke[0], "as its lead") {
 		t.Fatalf("wakes = %q", woke)
 	}

@@ -3,6 +3,7 @@
 
 import { type Annotations, withAnnotations } from "./annotation"
 import type { ActionContext, ActionOn, AIEditTicketChange, AIMessage } from "./def/action"
+import type { HostMessage } from "./def/follow-step"
 import type { Folder, PageRow, TableChanges } from "./folders"
 import { withChanges } from "./folders-changes"
 import { type HistoryStep, type RowChange, rowChangesOf } from "./history"
@@ -108,6 +109,7 @@ export type PerformedBulk<R = never> =
       aiMessages?: readonly AIMessage[]
       // records のうち、フォローステップが応じて変えたレコード（バルクの中のどのアクションで応じたかを問わない）
       followed?: readonly { subject: string; id: string }[]
+      hostMessages?: readonly HostMessage[]
     }
   | ((NotDone | R) & { at: number })
 
@@ -134,6 +136,7 @@ export function performBulk<R extends { ok: false } = never>(
   let counters: Counters | undefined
   const tickets: BulkTicketChange[] = []
   const messages: AIMessage[] = []
+  const hostMessages: HostMessage[] = []
   const followed = new Map<string, { subject: string; id: string }>()
   const libraryPages: Record<string, RowChange<PageRow>> = {}
   const libraryFolders: Record<string, RowChange<Folder>> = {}
@@ -177,6 +180,7 @@ export function performBulk<R extends { ok: false } = never>(
     const subject = ctx.catalog.actions.get(step.action)?.target ?? ""
     for (const change of done.aiEditTickets ?? []) tickets.push({ subject, change })
     messages.push(...(done.aiMessages ?? []))
+    hostMessages.push(...(done.hostMessages ?? []))
     for (const c of done.followed ?? []) followed.set(`${c.subject}\n${c.id}`, c)
     now = after
   }
@@ -205,5 +209,6 @@ export function performBulk<R extends { ok: false } = never>(
     ...(tickets.length > 0 ? { aiEditTickets: tickets } : {}),
     ...(messages.length > 0 ? { aiMessages: messages } : {}),
     ...(followedKept.length > 0 ? { followed: followedKept } : {}),
+    ...(hostMessages.length > 0 ? { hostMessages } : {}),
   }
 }

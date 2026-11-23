@@ -54,11 +54,13 @@ const FOLLOW_CARD: FollowStepDef = {
   reads: c => [{ subject: CARD, id: c.id } as never],
   follow: (c, ctx) => {
     const id = `t-${c.id}`
-    if (c.after === "removed") return [{ subject: TALLY, id, record: "removed" } as never]
+    if (c.after === "removed") return { records: [{ subject: TALLY, id, record: "removed" } as never] }
     const card = ctx.records[CARD]?.[c.id] as { label: string }
-    return [
-      { subject: TALLY, id, record: card.label === "bad" ? { id, label: 1 } : { id, label: card.label } } as never,
-    ]
+    return {
+      records: [
+        { subject: TALLY, id, record: card.label === "bad" ? { id, label: 1 } : { id, label: card.label } } as never,
+      ],
+    }
   },
 }
 // エコー: タリーの変わりに応じて写す（2 段目）。タリーは、前の段が応じたあとの値を読む
@@ -69,7 +71,9 @@ const FOLLOW_TALLY: FollowStepDef = {
   follow: (c, ctx) => {
     const id = `e-${c.id}`
     const tally = ctx.records[TALLY]?.[c.id] as { label: string } | undefined
-    return [{ subject: ECHO, id, record: tally ? { id, label: `echo ${tally.label}` } : "removed" } as never]
+    return {
+      records: [{ subject: ECHO, id, record: tally ? { id, label: `echo ${tally.label}` } : "removed" } as never],
+    }
   },
 }
 // どのレコードもタリーを変えさせない認可ステップ（followed を持たないので、応じた変わりは止めない）
@@ -227,7 +231,9 @@ test("コントロールセンターは、変える種類に応じるフォロ�
 test("応じる側の返す物が決まりに外れたら、きっかけのアクションごと断る（数・書かない種類・同じ物を 2 回・作る id の食い違い）", () => {
   const giving = (out: unknown[]) => {
     const catalog = assemble(
-      plugins({ followSteps: [{ ...FOLLOW_CARD, writes: [TALLY as never], follow: () => out as never }] }),
+      plugins({
+        followSteps: [{ ...FOLLOW_CARD, writes: [TALLY as never], follow: () => ({ records: out as never }) }],
+      }),
       CENTER,
     ).catalog.core
     const done = performIn(
@@ -252,7 +258,10 @@ test("応じる側が、アクションの前と同じ値を作り直して返�
   const catalog = assemble(
     plugins({
       followSteps: [
-        { ...FOLLOW_CARD, follow: () => [{ subject: TALLY, id: "t-x", record: { id: "t-x", label: "x" } }] as never },
+        {
+          ...FOLLOW_CARD,
+          follow: () => ({ records: [{ subject: TALLY, id: "t-x", record: { id: "t-x", label: "x" } }] as never }),
+        },
       ],
     }),
     CENTER,

@@ -12,6 +12,7 @@ import {
   type AIMessage,
   takesBook,
 } from "./def/action"
+import type { HostMessage } from "./def/follow-step"
 import { shownToAI } from "./def/subject"
 import { type Naming, namingOf, titleClashes, withFreeTitles } from "./entries"
 import type { Library, PageRow, TableChanges } from "./folders"
@@ -19,6 +20,7 @@ import { bookOf } from "./folders-books"
 import { changesBetween, createdIn, noChanges, placedChanges, rowChanges, withChanges } from "./folders-changes"
 import { bookIdOf, inTrash, outsideBinderIn, permissionFoldersOf, treeHolds } from "./folders-tree"
 import { followChanges } from "./follow"
+import { followedInBackyard } from "./follow-backyard"
 import type { Books } from "./library"
 import {
   type BinderOutsideBook,
@@ -66,8 +68,13 @@ export type PerformedIn =
       aiMessages?: readonly AIMessage[] // レコードが対象のアクションが返した、送る AI 間メッセージの並び（常駐がバルクの書き込みと一緒に送る）
       // records のうち、フォローステップが応じて変えたレコード（core/follow.ts。常駐は、行う者に関わらず、これが編集ロックに当たれば断る）
       followed?: readonly { subject: string; id: string }[]
+      // フォローステップがバックヤードの中で消したページ・フォルダと、アノテーションを消したページ（常駐は、行う者に関わらず、これが編集ロックに当たれば断る）
+      followedRows?: readonly string[]
+      hostMessages?: readonly HostMessage[] // フォローステップが返した、送る常駐メッセージの並び（常駐がバルクの書き込みと一緒に送る）
     }
   | Refused
+  // フォローステップがバックヤードの中に行う事の、ブックの行が世界に無い（常駐が、そのブックの行を足して行い直す。画面は全部を持つので起きない）
+  | { ok: false; reason: "needs-rows"; books: readonly string[] }
   | { ok: false; reason: "no-book" }
   | { ok: false; reason: "no-record"; detail: string }
 
@@ -345,12 +352,23 @@ function performRecord(
   }
   const followed = action
     ? followChanges(ctx, action, source, changes)
-    : { ok: true as const, records: changes, followed: [] }
+    : { ok: true as const, records: changes, followed: [], backyard: [], hostMessages: [] }
   if (!followed.ok) return followed
   const records = followed.records
+  const yard = followedInBackyard(world, world.annotations, followed.backyard)
+  if (!yard.ok) return { ok: false, reason: "needs-rows", books: yard.needs }
+  const removed = (rows: Readonly<Record<string, unknown>> = {}) =>
+    Object.entries(rows).flatMap(([id, r]) => (r === REMOVED ? [id] : []))
+  const yardRows = [
+    ...new Set([...Object.keys(yard.annotations), ...removed(yard.changes?.pages), ...removed(yard.changes?.folders)]),
+  ]
   return {
     ok: true,
     result: done.result,
+    ...(yard.changes ? { changes: yard.changes } : {}),
+    ...(Object.keys(yard.annotations).length > 0 ? { annotations: yard.annotations } : {}),
+    ...(yardRows.length > 0 ? { followedRows: yardRows } : {}),
+    ...(followed.hostMessages.length > 0 ? { hostMessages: followed.hostMessages } : {}),
     ...(records.length > 0 ? { records } : {}),
     ...(followed.followed.length > 0 ? { followed: followed.followed } : {}),
     ...(records.length > 0 && Object.keys(used).length > 0 ? { counters: { [target]: used } } : {}),
