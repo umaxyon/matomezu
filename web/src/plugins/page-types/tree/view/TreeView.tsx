@@ -11,7 +11,16 @@
 // ドラッグの間は倍率を 100% にし、ポインタが端に近ければ紙をずらす（遠くの節にも落とせる）。終えたら編集の倍率に戻す。
 // 足す・書き換える・付け替えるのが紙に入らないので断られたら、トーストで知らせる
 import { Fragment, memo, type RefObject, useEffect, useMemo, useRef, useState } from "react"
-import { paperOf, placement, type Size, type StageView } from "../../../../plugin-api"
+import {
+  NO_AREA,
+  NO_PAGE,
+  NO_PAPER,
+  NO_STAGE,
+  paperOf,
+  placement,
+  type Size,
+  type StageView,
+} from "../../../../plugin-api"
 import {
   useActions,
   useAllowed,
@@ -22,13 +31,18 @@ import {
   useMessages,
   usePerform,
   usePluginState,
+  useResetPluginState,
   useSetPluginState,
   useShownPage,
   useStage,
   useStageArea,
 } from "../../../../plugin-api/ui"
-import { growOf, pageContext, refusalMessage, settingValue } from "../../../base"
+import { growOf, NO_DRAFT, NO_GROW, NO_HOLDER, pageContext, refusalMessage, settingValue } from "../../../base"
 import {
+  NO_SWATCHES,
+  NO_WRITING,
+  NOT_COMPOSING,
+  NOT_PRESSED,
   PaperFrame,
   RichBar,
   RichInput,
@@ -79,7 +93,7 @@ export function TreeView() {
   const ref = useRef<HTMLDivElement>(null)
   const [view, setView] = useState<Size | null>(null)
   useResize(ref, setView)
-  if (!stage) return null
+  if (stage === NO_STAGE) return null
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューはポインタの操作で、キーの操作はメニューとコマンドが受ける
     <div ref={ref} className={styles.tree} onContextMenu={e => openMenu(e, {})}>
@@ -100,8 +114,8 @@ function Content({
   const t = useMessages(kit)
   // 紙の大きさ（変わらなければ同じ物を渡し、紙をずらしただけでは木を描き直さない）
   const size = paperOf(stage)
-  const w = size?.w
-  const h = size?.h
+  const w = size === NO_PAPER ? undefined : size.w
+  const h = size === NO_PAPER ? undefined : size.h
   const paperSize = useMemo(() => (w !== undefined && h !== undefined ? { w, h } : null), [w, h])
   if (!paperSize) return null
   return (
@@ -137,7 +151,8 @@ const Tree = memo(function Tree({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const page = useShownPage()
+  const shownPage = useShownPage()
+  const page = shownPage === NO_PAGE ? undefined : shownPage
   const perform = usePerform()
   const { select, setEditing, panStageBy, zoomStage, showToast, openDialog } = useActions()
   const anchor = useAnchorRef() // 節にアンカーを付ける（そばにスタンドを立てられる）
@@ -153,7 +168,7 @@ const Tree = memo(function Tree({
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
   const openNodeMenu = useContextMenu(NODE_CONTEXT)
   const root = treeRootOf(page)
-  const grow = settingValue(catalog, page ?? null, GROW)
+  const grow = settingValue(catalog, page ?? NO_HOLDER, GROW)
   const usingEdit = stage.tool === EDIT_TOOL.id
   const selected = root ? selectedIn(root, stage.selection) : null
   const swatches = useSwatches(usePageTheme(), NODE_FILL) // 節の色のスタンドに並べる色
@@ -161,7 +176,7 @@ const Tree = memo(function Tree({
   const writing = writingCaption({ stage }) && selected !== null
   // キャプションの入力Form（書いている字は TREE_DRAFT）
   const caption = useInPlaceInput(kit, TREE_DRAFT, {
-    target: selected ?? undefined,
+    target: selected ?? NO_WRITING,
     active: writing,
     keyScope: TREE_EDIT_KEY_SCOPE.id,
     commit: TREE_EDIT_COMMIT.id,
@@ -172,25 +187,25 @@ const Tree = memo(function Tree({
     begin: p => zoomStage(1, p),
     end: () => zoomStage(toolZoom(true)),
   })
-  const text = caption.text
+  const text = caption.text === NO_DRAFT ? null : caption.text
   const shown = root && selected && text !== null ? withCaption(root, selected, text) : root
-  const shape = settingValue(catalog, page ?? null, NODE_SHAPE)
-  const lineShape = settingValue(catalog, page ?? null, LINE_SHAPE)
-  // ページの増やす向き（可変ページでなければ undefined）
-  const growing = page ? growOf(catalog, page) : undefined
+  const shape = settingValue(catalog, page ?? NO_HOLDER, NODE_SHAPE)
+  const lineShape = settingValue(catalog, page ?? NO_HOLDER, LINE_SHAPE)
+  // ページの増やす向き（可変ページでなければ NO_GROW）
+  const growing = page ? growOf(catalog, page) : NO_GROW
   // 印刷と同じ並べ方（print.ts の laidPage）で、書いている字を重ねた木を並べる
   const laid =
     page && shown
       ? laidPage(catalog, page, { setting: pageContext(catalog, page).setting, grow: growing }, shown)
       : null
   // 可変ページなら、節の外枠が入るだけ並べた印刷区画に空きを足した広さと、木全体をずらした印刷区画の数を、ステージに知らせる
-  useStageArea(laid && growing ? laidArea(paper, growing, laid, true).size : null, laidOrigin(laid))
+  useStageArea(laid && growing !== NO_GROW ? laidArea(paper, growing, laid, true).size : NO_AREA, laidOrigin(laid))
   const at = laid?.nodes.find(n => n.id === selected)
   // 節のフォーカス（選んでいる節を中央に置き、そのほかを暗くする）を外している間か。背景編集モードに入ると外し（ページ全体を収める）、
   // 出てもそのまま（見え方は変えない）。節を選ぶか書き換え始めるか、ページを替えると戻る
   const focused = useFocus(stage, page?.id)
   useToolZoom(usingEdit, focused, zoomStage)
-  useCentered(stage, usingEdit && focused && !drag.state ? at : undefined, view, panStageBy)
+  useCentered(stage, usingEdit && focused && drag.state === NOT_PRESSED ? at : undefined, view, panStageBy)
   if (!page || !root || !laid || !selected) return null
   const tree = root
   const pageId = page.id
@@ -205,7 +220,7 @@ const Tree = memo(function Tree({
   }
   const { nodes, lines } = laid
   // ドラッグで動かしている節（押しただけでまだ動かしていなければ null）と、落とす先
-  const dragging = drag.state?.moved ? drag.state : null
+  const dragging = drag.state !== NOT_PRESSED && drag.state.moved ? drag.state : null
   const moving = dragging ? subtreeIds(nodeOf(tree, dragging.id) ?? { id: dragging.id, caption: "" }) : null
   const drop = dragging ? dropAt(tree, grow, nodes, dragging.id, dragging.at) : null
   const ghost = dragging && nodes.find(n => n.id === dragging.id)
@@ -291,7 +306,7 @@ const Tree = memo(function Tree({
         // 選んでいる節のほかを少し暗くする（節の周りに大きな影を落とす）
         <div data-spotlight className={styles.spotlight} style={{ left: at.x, top: at.y, width: at.w, height: at.h }} />
       )}
-      {picking && swatches && (
+      {picking && swatches !== NO_SWATCHES && (
         <NodeColorStand
           page={pageId}
           node={selected}
@@ -312,7 +327,7 @@ const Tree = memo(function Tree({
           style={{
             left: at.x,
             top: at.y,
-            width: editorWidth(caption.composing ?? text ?? at.caption, at.w),
+            width: editorWidth((caption.composing !== NOT_COMPOSING ? caption.composing : text) ?? at.caption, at.w),
             height: at.h,
           }}
         />
@@ -378,8 +393,9 @@ export function NodeText({ node: n }: { node: LaidNode }) {
 // 節のフォーカスが付いているか。背景編集モードに入ると外し、ページ全体を収める（出ても外れたまま、見え方も変えない）。
 // 選びが空でなくなる（節を選ぶ）・節の書き換えを始める・ページが替わると、付いた状態に戻る
 function useFocus(stage: StageView, page: string | undefined): boolean {
-  const released = usePluginState(kit, TREE_FOCUS_RELEASED_STATE) === true
+  const released = usePluginState(kit, TREE_FOCUS_RELEASED_STATE)
   const writeFocus = useSetPluginState(kit, TREE_FOCUS_RELEASED_STATE)
+  const resetFocus = useResetPluginState(kit, TREE_FOCUS_RELEASED_STATE)
   const fit = useCommand("@matomezu/base:zoom-fit")
   const background = stage.edits === "slide"
   const items = stage.edits === "items"
@@ -392,7 +408,7 @@ function useFocus(stage: StageView, page: string | undefined): boolean {
   useEffect(() => {
     if (was.current === page) return
     was.current = page
-    writeFocus(undefined)
+    resetFocus()
   }, [page])
   // ページを替えて入るとき（ページの右クリックのメニュー）は、替えたあとに外すので、この順
   // biome-ignore lint/correctness/useExhaustiveDependencies: 入ったときだけ外す
@@ -402,8 +418,8 @@ function useFocus(stage: StageView, page: string | undefined): boolean {
     fitRef.current.run()
   }, [background])
   useEffect(() => {
-    if (items && released && (selecting || editing)) writeFocus(undefined)
-  }, [items, released, selecting, editing, writeFocus])
+    if (items && released && (selecting || editing)) resetFocus()
+  }, [items, released, selecting, editing, resetFocus])
   return !released && !background
 }
 
@@ -436,8 +452,17 @@ function useCentered(
   const centerNow = useRef<() => void>(() => {})
   centerNow.current = () => {
     const pan = latestPan()
-    const at = pan && placement({ ...latest.current, pan })
-    if (x === undefined || y === undefined || w === undefined || h === undefined || !view?.w || !view.h || !at) return
+    const at = pan === NO_STAGE ? NO_PAPER : placement({ ...latest.current, pan })
+    if (
+      x === undefined ||
+      y === undefined ||
+      w === undefined ||
+      h === undefined ||
+      !view?.w ||
+      !view.h ||
+      at === NO_PAPER
+    )
+      return
     const shift = centerShift({ x, y, w, h }, view, at)
     if (shift) panStageBy(shift.dx, shift.dy)
   }

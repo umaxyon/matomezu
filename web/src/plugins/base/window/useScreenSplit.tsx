@@ -1,13 +1,15 @@
 // スクリーンを上下に分けて並べる操作（SPLIT_ROWS）。描いている場所のスクリーン（スクリーンの外ならカレントスクリーン）を起点にし、ほかのスクリーンを id で名指さない。
 // 並びから外れたスクリーンは、ここで閉じる（開く側は閉じない）。窓が低い（SPLIT_MIN_HEIGHT 未満）ときは、分けずに 1 枚で開く
+
 import { useCallback, useMemo, useSyncExternalStore } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { sameData } from "../../../core/same"
 import { currentScreen, recentPlainScreen, type WindowState } from "../../../core/window"
 import { type Actions, SCREEN_REFUSED } from "../../../store/actions"
 import type { MatomezuState } from "../../../store/state"
 import { useUpdatePluginState } from "../../../ui/plugin-state-hooks"
-import { useScreenContext } from "../../../ui/screen-context"
+import { NO_SCREEN, useScreenContext } from "../../../ui/screen-context"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { applySplitFrom, showBookSplit } from "./apply-split"
@@ -100,13 +102,15 @@ export function useScreenSplit(): ScreenSplit {
   const currentId = useMatomezuState(s => currentScreen(s.window).id)
   const currentDef = useMatomezuState(s => currentScreen(s.window).def)
   const split = useMatomezuState(useShallow(s => splitIn(s.window)))
-  const wideHere = useMatomezuState(s => wideIn(s.window) === (inside?.id ?? currentScreen(s.window).id))
+  const wideHere = useMatomezuState(
+    s => wideIn(s.window) === (inside !== NO_SCREEN ? inside.id : currentScreen(s.window).id),
+  )
   const behindHere = useMatomezuState(s => recentPlainScreen(s.window)?.id)
   const members = useMatomezuState(useShallow(s => split.map(id => s.window.screens.find(x => x.id === id) ?? null)))
   const tall = useTallEnough()
   const actions = useStoreActions()
   const flash = useUpdatePluginState(kit, SCREEN_FLASH)
-  const here = inside ? { id: inside.id, def: inside.def } : { id: currentId, def: currentDef }
+  const here = inside !== NO_SCREEN ? { id: inside.id, def: inside.def } : { id: currentId, def: currentDef }
   const shownHere = useMemo(() => ({ def: here.def }), [here.def])
   const apply = useCallback((plan: SplitPlan) => applySplit(actions, read, plan), [actions, read])
   const find = useCallback(
@@ -147,7 +151,7 @@ export function useScreenSplit(): ScreenSplit {
         keepHere,
         max,
         tall: tallNow(),
-        flash: screen => flash(was => ({ screen, n: (was?.n ?? 0) + 1 })),
+        flash: screen => flash(was => ({ screen, n: (was === NO_STATE ? 0 : was.n) + 1 })),
         book,
         page,
       }),
@@ -160,7 +164,7 @@ export function useScreenSplit(): ScreenSplit {
       const id = find(def, props)
       if (id === undefined) return
       actions.makeScreenCurrent(id)
-      flash(was => ({ screen: id, n: (was?.n ?? 0) + 1 }))
+      flash(was => ({ screen: id, n: (was === NO_STATE ? 0 : was.n) + 1 }))
     },
     expand: () => {
       apply(planExpand(split, here.id))

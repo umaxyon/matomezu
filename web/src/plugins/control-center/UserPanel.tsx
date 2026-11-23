@@ -1,11 +1,13 @@
 // 左の列の最上段: 題（全体設定の歯車）・あなた・郵便/書庫/プロジェクトのボタン。郵便は左サイドパネルの郵便箱を開閉し、全体設定は設定画面を開く。
 // 新しい版があれば、題の左の巣箱が金色と元の色を行き来し、押すと設定画面の「更新」を開く
 import type { ReactNode } from "react"
+import { NO_NAME } from "../../plugin-api"
 import { useCommand, useMessages, useUiCatalog } from "../../plugin-api/ui"
 import {
   Band,
   GearIcon,
   IconButton,
+  NO_UPDATE_STATUS,
   Panel,
   Tip,
   useMailboxPanel,
@@ -34,7 +36,8 @@ export function UserPanel({ screen, onShow }: { screen: ContentArea; onShow: (to
   const settings = useCommand("@matomezu/base:settings-open")
   // 題の左の巣箱の絵（見た目だけ。チケットの帯の巣箱のボタンと同じ絵を、そのコマンドの id で引く）
   const birdhouse = useUiCatalog().commandIcons.get(BIRDHOUSE_COMMAND)
-  const newer = useUpdateStatus()?.state === "newer"
+  const update = useUpdateStatus()
+  const newer = update !== NO_UPDATE_STATUS && update.state === "newer"
   const openUpdates = useOpenSettings(UPDATE_CATEGORY)
   const tiles: Tile[] = [
     { label: t("Mailbox"), icon: <MailIcon />, onClick: mailbox.toggle, pressed: mailbox.open },
@@ -69,7 +72,7 @@ export function UserPanel({ screen, onShow }: { screen: ContentArea; onShow: (to
       </Band>
       <div className={styles.me}>
         <AvatarIcon />
-        <span className={styles.meName}>{userName ?? t("You")}</span>
+        <span className={styles.meName}>{userName === NO_NAME ? t("You") : userName}</span>
       </div>
       <div className={styles.tiles}>
         {tiles.map(tile => (

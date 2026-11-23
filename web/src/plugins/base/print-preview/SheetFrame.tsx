@@ -44,7 +44,7 @@ export function SheetFrame({
                   column={sheet.column}
                   row={sheet.row}
                   paper={{ w: sheet.w, h: sheet.h }}
-                  {...(measured !== undefined ? { measured } : {})}
+                  measured={measured}
                 />
               </PageLook>
             </PageScope>

@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { HEX } from "../../../core/color"
 import type { CatalogCheckDef, CoreCatalog } from "../../../core/core-catalog"
+import { settingOr } from "../../../core/def/setting"
 import { problem } from "../../../core/errors"
 import { splitId } from "../../../core/names"
 import type { Page } from "../../../core/schema/book"
@@ -74,7 +75,7 @@ export function textColorsOf(
   page: Pick<Page, "type">,
   viewer: TextColorValues = {},
 ): ReadonlyMap<string, string> {
-  const own = settingValue(catalog, page, PAGE_TEXT_COLORS) ?? {}
+  const own: Readonly<Record<string, string>> = settingOr(settingValue(catalog, page, PAGE_TEXT_COLORS), {})
   const theme = catalog.themes.get(pageTheme(catalog, page))?.textColors ?? {}
   return new Map(
     [...catalog.textColors.values()].map(c => [c.id, viewer[c.id] ?? own[c.id] ?? theme[c.id] ?? c.color] as const),

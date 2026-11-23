@@ -2,13 +2,12 @@
 // その物を書き換えるアクション action（どれで書き換えるかは使う側が言う）が止められていなければ出す
 
 import type { ActionId } from "../../../core/catalog"
-import { shownPageId } from "../../../core/stage"
+import { NO_STAGE } from "../../../core/stage"
 import { useAllowed, useStage } from "../../../ui/view-hooks"
 import { onlySelected } from "../utils/selection"
 
 export function useBodyGrips(id: string, action: ActionId): boolean {
   const at = useStage()
-  const page = shownPageId(at?.opened ?? null) ?? undefined
-  const allowed = useAllowed(action, { page, ids: [id] }).ok
-  return allowed && at !== null && !at.pans && onlySelected(at.selection, id)
+  const allowed = useAllowed(action, { ids: [id] }).ok
+  return allowed && at !== NO_STAGE && !at.pans && onlySelected(at.selection, id)
 }

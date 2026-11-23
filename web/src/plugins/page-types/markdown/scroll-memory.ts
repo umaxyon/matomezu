@@ -14,11 +14,15 @@ export type PageScroll = z.infer<typeof PAGE_SCROLL>
 const SCROLLS = z.record(z.string(), PAGE_SCROLL)
 export type Scrolls = z.infer<typeof SCROLLS>
 
+// 覚えている位置が無いときの値
+const NO_SCROLLS: Scrolls = {}
+
 export const SCROLL_STATE = kit.definePluginState({
   id: "scroll-memory",
   scope: "stage",
   schema: SCROLLS,
   address: "replace",
+  default: NO_SCROLLS,
 })
 
 // ページ page の位置を patch のとおりにした記憶（位置は整数に丸め、page を新しい側に置き、MAX_REMEMBERED を超えた古いページは忘れる）

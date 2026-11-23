@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { NO_CONTROL_CENTER } from "../../../web/src/core/def/action"
 import { definePageType } from "../../../web/src/core/def/page-type"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { hasOpenedPage } from "../../../web/src/plugins/base/utils/opened-page"
@@ -44,14 +45,14 @@ const COMMAND = "@matomezu/paper:paper-select-all"
 
 test("ページを開いていて中身が読めれば、開いているページは ctx.page（id もそこから）", () => {
   const instance = make([notes])
-  const ctx = commandContext(instance.catalog.core, null, instance.state.getState(), "s1", COMMAND)!
+  const ctx = commandContext(instance.catalog.core, NO_CONTROL_CENTER, instance.state.getState(), "s1", COMMAND)!
   expect(hasOpenedPage(ctx)).toBe(true)
   expect(hasOpenedPage(ctx) && ctx.page.id).toBe("p1")
 })
 
 test("ブックが読めないブックなら（ページのタイプが無い）、開いているページは無い", () => {
   const instance = make([])
-  const ctx = commandContext(instance.catalog.core, null, instance.state.getState(), "s1", COMMAND)!
+  const ctx = commandContext(instance.catalog.core, NO_CONTROL_CENTER, instance.state.getState(), "s1", COMMAND)!
   expect(hasOpenedPage(ctx)).toBe(false)
 })
 
@@ -59,7 +60,7 @@ test("ステージはページを開いているのに、ページの表にそ�
   const instance = make([notes])
   const state = instance.state.getState()
   const { p1: _, ...pages } = state.pages
-  const ctx = commandContext(instance.catalog.core, null, { ...state, pages }, "s1", COMMAND)!
+  const ctx = commandContext(instance.catalog.core, NO_CONTROL_CENTER, { ...state, pages }, "s1", COMMAND)!
   expect(ctx.stage.opened).toMatchObject({ kind: "page", page: "p1" })
   expect(hasOpenedPage(ctx)).toBe(false)
 })

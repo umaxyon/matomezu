@@ -4,8 +4,10 @@
 // 項目を押すと閉じてから、右クリックされた物を渡してコマンドを呼ぶ。項目の横には、そのコマンドのキーを添える。
 // 中の項目の描いている場所は、メニューを開いた場所（ui/scope.tsx）。
 // 押した物にアンカーが付いていれば、どのメニューにも、区切り線のあとに UI マッピングの anchorMenu のコマンドを足し、押した物のアンカーの id を渡す
+
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { ContextMenuId } from "../../../core/catalog"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import type { Point } from "../../../core/geom"
 import type { OpenedContextMenu } from "../../../store/context-menus"
 import { openedAt } from "../../../store/dialogs"
@@ -43,7 +45,11 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   const items = useContextMenuItems(openedAt(menu), menu.id as ContextMenuId)
   const t = useMessages(kit)
   const readPressed = useReadPluginState(kit, PRESSED_ANCHOR)
-  const [anchor] = useState(() => pressedAnchorAt(readPressed(), menu.at)) // 開いたときの、押した物のアンカー
+  // 開いたときの、押した物のアンカー
+  const [anchor] = useState(() => {
+    const pressed = readPressed()
+    return pressedAnchorAt(pressed === NO_STATE ? undefined : pressed, menu.at)
+  })
   const shown = useAnchorMenuItems(openedAt(menu))
   const anchored = anchor === undefined ? [] : shown
   const own = useUiCatalog().contextMenuRows.get(menu.id) // メニューが自分で出す行（あれば、UI マッピングのコマンドの並びの前に出す）

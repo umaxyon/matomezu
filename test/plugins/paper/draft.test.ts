@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
-import { findShape, type ItemPage, type PlacedShape, replaceShape } from "../../../web/src/core/placed"
+import { type ItemPage, type PlacedShape, replaceShape } from "../../../web/src/core/placed"
 import { settledDraft } from "../../../web/src/plugins/paper/placing/draft"
-import { CORE_CATALOG } from "../../support"
+import { CORE_CATALOG, shapeOf } from "../../support"
 
 // ダイアログの下書きを重ねたページの整え（paper の settledDraft）: 下書きで変わった形は、どの深さの子でも形の整えに通す
 
@@ -36,12 +36,28 @@ const page = {
 } as unknown as ItemPage
 
 test("箱の中のリストのチェックリストを外す下書きは、そのリストの整えに通り、行のチェックが消える", () => {
-  const draft = replaceShape(page, "l1", s => ({ ...s, props: { ...s.props, checklist: false } }) as PlacedShape)!
+  const draft = replaceShape(
+    page,
+    "l1",
+    s => ({ ...s, props: { ...s.props, checklist: false } }) as PlacedShape,
+  ) as ItemPage
   const settled = settledDraft(CORE_CATALOG, page, draft)
-  const rows = (findShape(settled, "l1")!.shape as unknown as typeof list).children
+  const rows = (shapeOf(settled, "l1").shape as unknown as typeof list).children
   expect(rows.map(r => "checked" in r.props)).toEqual([false, false])
 })
 
 test("下書きで何も変わらなければ、ページをそのまま返す", () => {
   expect(settledDraft(CORE_CATALOG, page, page)).toBe(page)
+})
+
+test("子を持つ内包ボックスの縦の位置を下にする下書きは、整えに前の箱を渡し、子が上へずれる", () => {
+  const before = replaceShape(page, "b1", s => ({ ...s, props: { ...s.props, body: "" } }) as PlacedShape) as ItemPage
+  const draft = replaceShape(
+    before,
+    "b1",
+    s => ({ ...s, props: { ...s.props, vAlign: "bottom" } }) as PlacedShape,
+  ) as ItemPage
+  const settled = settledDraft(CORE_CATALOG, before, draft)
+  const child = (shapeOf(settled, "b1").shape as unknown as { shapes: { y: number }[] }).shapes[0]
+  expect(child?.y).toBeLessThan(list.y)
 })

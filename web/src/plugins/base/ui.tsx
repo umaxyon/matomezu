@@ -119,6 +119,8 @@ export {
   InheritChoices,
   inlineClass,
   MultiChoices,
+  NO_CHOICE,
+  NO_COLOR,
   Notice,
   Problem,
   pairClass,
@@ -131,6 +133,9 @@ export {
 } from "./dialog-host/ui"
 export {
   ALIGN_ICONS,
+  NO_SWATCHES,
+  NO_THEME,
+  type Swatches,
   useAligns,
   useOutermostOf,
   usePageTheme,
@@ -143,13 +148,14 @@ export {
   defineLeftSidePanelTab,
   LEFT_SIDE_PANEL,
   LeftSidePanelOpenButton,
+  NO_LEFT_SIDE_PANEL,
   opensOf,
   tabEntry,
   useCloseLeftSidePanel,
   useLeftSidePanel,
   useOpenLeftSidePanel,
 } from "./left-side-panel/ui"
-export { type FolderEntry, LIBRARY_CONTEXT_MENUS, LibraryView, useFolderEntries } from "./library/ui"
+export { type FolderEntry, LIBRARY_CONTEXT_MENUS, LibraryView, NO_FOLDER, useFolderEntries } from "./library/ui"
 export { LockToggle } from "./lock/ui"
 export { defineMailActions, MAIL_ACTIONS, MAILBOX_OPENS, type MailActionsProps, useMailboxPanel } from "./mail/ui"
 export {
@@ -158,9 +164,10 @@ export {
   markdownDocumentOnSkin,
   useMarkdownDocument,
 } from "./markdown/ui"
-export { useDrawnMinimap } from "./minimap/ui"
+export { KEEP_DRAWN, useDrawnMinimap } from "./minimap/ui"
 export { ANNOTATION_ICON, type AnnotationIconProps, defineAnnotationIcon } from "./outbox/ui"
 export {
+  NO_LINEUP,
   PageProblemsView,
   PageSettingsDialogView,
   type PageSettingsDialogViewProps,
@@ -183,10 +190,11 @@ export {
   WorkerBookPages,
   type WorkroomActions,
 } from "./participant/ui"
-export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-preview/ui"
+export { NOT_MEASURED, type PrintMeasured, type PrintMeasureProps, type PrintSheetProps } from "./print-preview/ui"
 export { ScrapForm, ScrapView, type ScrapViewProps } from "./scrap/ui"
 export { ChoiceSetting } from "./settings/ui"
 export {
+  NOT_AWAY,
   type Revealable,
   Stand,
   type StandAway,
@@ -216,10 +224,16 @@ import type { PrintSheetProps } from "./print-preview/ui"
 export { type SettingsPatch, useSettingControls } from "./book-settings/ui"
 export {
   type FoundHost,
+  type HostEntrance,
   type HostPairing,
   type HostPeers,
   type HostRequest,
-  type HostStatus,
+  NO_HOST_PEERS,
+  NO_HOST_STATUS,
+  NO_PAIRING,
+  NO_PORT,
+  NOT_FAILED,
+  NOT_TOLD,
   type PeerLive,
   useAskHosts,
   useHostPeers,
@@ -227,6 +241,7 @@ export {
 } from "./host/ui"
 export type { RightSidePanelOpen } from "./right-side-panel/ui"
 export {
+  NO_RIGHT_SIDE_PANEL,
   RIGHT_SIDE_PANEL,
   useCloseRightSidePanel,
   useFollowsSelection,
@@ -254,6 +269,8 @@ export {
   BodyField,
   CaptionField,
   DividerField,
+  NO_WRITING,
+  NOT_COMPOSING,
   RichBar,
   RichBody,
   RichInput,
@@ -265,7 +282,7 @@ export {
   useEndWhenBlocked,
   useInPlaceInput,
 } from "./text/ui"
-export { useUpdateStatus } from "./update/ui"
+export { NO_LATEST, NO_UPDATE_STATUS, NOT_ASKED, NOT_CHECKED, useUpdateStatus } from "./update/ui"
 export * from "./utils/ui"
 export {
   BOOK_SCREEN,

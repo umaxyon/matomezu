@@ -2,7 +2,7 @@
 
 import { z } from "zod"
 import { type CoreCatalog, connectorSchema, type ItemPage, pageItemsOf } from "../../../plugin-api"
-import { keepApart, nextItemId, portAreasOf } from "../../base"
+import { CANNOT_PLACE, keepApart, nextItemId, portAreasOf } from "../../base"
 import { connectable } from "./connect"
 import { kit } from "./kit"
 import { elbowAt, LINE, LinePatchSchema } from "./line"
@@ -20,7 +20,12 @@ const viaDrawn = (catalog: CoreCatalog, page: ItemPage, line: PlacedLine): boole
   !line.props.via || tidied(catalog, page, line).props.via !== undefined
 
 // ページの線 line を置き換え（無ければ最後に足し）、線でつながった 2 つの形が間隔の下限より近ければ、stay の形（無ければ始点）はそのままでもう一方をどける
-function withLine(catalog: CoreCatalog, page: ItemPage, line: PlacedLine, stay = line.from): ItemPage | null {
+function withLine(
+  catalog: CoreCatalog,
+  page: ItemPage,
+  line: PlacedLine,
+  stay = line.from,
+): ItemPage | typeof CANNOT_PLACE {
   const items = pageItemsOf(page)
   const next = items.some(i => i.id === line.id) ? items.map(i => (i.id === line.id ? line : i)) : [...items, line]
   return keepApart(catalog, { ...page, items: next }, stay, stay === line.from ? line.to : line.from)
@@ -57,7 +62,7 @@ export const LINE_CONNECT = kit.defineAction({
     })
     if (!line.success || !viaDrawn(ctx.catalog, page, line.data)) return null
     const next = withLine(ctx.catalog, page, line.data)
-    return next && { next, result: { line: line.data.id } }
+    return next !== CANNOT_PLACE ? { next, result: { line: line.data.id } } : null
   },
 })
 
@@ -84,7 +89,7 @@ export const LINE_UPDATE = kit.defineAction({
     if (!line.success) return null
     if (args.props.via != null && !viaDrawn(ctx.catalog, page, line.data)) return null
     const next = withLine(ctx.catalog, page, tidied(ctx.catalog, page, line.data))
-    return next && { next, result: {} }
+    return next !== CANNOT_PLACE ? { next, result: {} } : null
   },
 })
 
@@ -125,6 +130,6 @@ export const LINE_RECONNECT = kit.defineAction({
     const line = PlacedLineSchema.safeParse({ ...moved, props: { ...props, ...args.props } })
     if (!line.success) return null
     const next = withLine(ctx.catalog, page, line.data, args.item)
-    return next && { next, result: {} }
+    return next !== CANNOT_PLACE ? { next, result: {} } : null
   },
 })

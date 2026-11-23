@@ -8,7 +8,7 @@ import { HOME_ID, type HomeFolder, type Library, type PlainFolder, TRASH_ID } fr
 import { withChanges } from "../../../web/src/core/folders-changes"
 import { performIn, permittedIn, type World } from "../../../web/src/core/perform-world"
 import type { AnyPage, BinderEntry, Book } from "../../../web/src/core/schema/book"
-import { settingValue } from "../../../web/src/plugins/base/book-settings"
+import { NO_HOLDER, settingValue } from "../../../web/src/plugins/base/book-settings"
 import { PRINT_PREVIEW_FLOW } from "../../../web/src/plugins/base/print-preview"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../../lineup"
 import { CORE_CATALOG, libraryWith, sequence } from "../../support"
@@ -86,12 +86,15 @@ test("ブック・ブックの外のバインダ・ブックの外のページ 1
   for (const id of ["b1", "n1", "x1"]) {
     const world = worldOf()
     const set = after(world, { entry: id, settings: { [FLOW]: "row" } }) as Library
-    expect([id, settingValue(CORE_CATALOG, holderOf(set, id) ?? null, PRINT_PREVIEW_FLOW)]).toEqual([id, "row"])
+    expect([id, settingValue(CORE_CATALOG, holderOf(set, id) ?? NO_HOLDER, PRINT_PREVIEW_FLOW)]).toEqual([id, "row"])
     // ほかのステージエントリの値は変わらない
     for (const other of ["b1", "n1", "x1"].filter(o => o !== id))
       expect([id, other, holderOf(set, other)]).toEqual([id, other, holderOf(world, other)])
     const back = after({ ...world, ...set }, { entry: id, settings: { [FLOW]: null } }) as Library
-    expect([id, settingValue(CORE_CATALOG, holderOf(back, id) ?? null, PRINT_PREVIEW_FLOW)]).toEqual([id, "column"])
+    expect([id, settingValue(CORE_CATALOG, holderOf(back, id) ?? NO_HOLDER, PRINT_PREVIEW_FLOW)]).toEqual([
+      id,
+      "column",
+    ])
     expect([id, "settings" in (holderOf(back, id) ?? {})]).toEqual([id, false])
   }
 })
@@ -187,7 +190,7 @@ test("ブックが対象のアクションは、ブックの外のバインダ�
     expect([
       id,
       done.ok ? "ok" : done,
-      settingValue(CORE_CATALOG, next.folders.n1 ?? null, PRINT_PREVIEW_FLOW),
+      settingValue(CORE_CATALOG, next.folders.n1 ?? NO_HOLDER, PRINT_PREVIEW_FLOW),
     ]).toEqual([id, "ok", "row"])
   }
 })

@@ -4,6 +4,7 @@ import { expect, test } from "bun:test"
 import { USER } from "../../../../web/src/core/actor"
 import { checkBooks, pagesOf } from "../../../../web/src/core/book"
 import { buildCoreCatalog } from "../../../../web/src/core/core-catalog"
+import { NO_CONTROL_CENTER } from "../../../../web/src/core/def/action"
 import { perform } from "../../../../web/src/core/perform"
 import { shapesOf } from "../../../../web/src/core/placed"
 import type { Book } from "../../../../web/src/core/schema/book"
@@ -290,7 +291,7 @@ test("線と線の既定の通り方を選ばないタイプのページでは�
   })
   const ctx = {
     catalog: noLines,
-    controlCenter: null,
+    controlCenter: NO_CONTROL_CENTER,
     lang: "ja",
     newId: sequence("x"),
     now: "2026-10-26T00:00:00.000Z",

@@ -2,6 +2,7 @@
 // ダイアログは、頼んだホスト（ホスト名・利用者名・番地）と接続確認コードと、断る・受け入れる。閉じる（Esc・×）だけなら頼みは残り、しおりもそのまま。
 // 頼みが消えたら（相手がやめた・時間切れ・答えた）「返事済み」と見せる
 import { useMemo } from "react"
+import { NO_RECORD } from "../../plugin-api"
 import { type DialogProps, useActions, useAllowedOn, useMessages, useRecord, useRecords } from "../../plugin-api/ui"
 import {
   ActionButton,
@@ -41,7 +42,7 @@ export function PairingRequestBookmarks() {
 }
 
 export function PairingRequestWatch() {
-  useArrivalMarquee(useRecords(PAIRING_REQUEST.id, { where: [] }), () => ({ message: kit.message(TITLE) }))
+  useArrivalMarquee(useRecords(PAIRING_REQUEST.id, { where: [] }), () => ({ message: kit.message(TITLE), params: {} }))
   return null
 }
 
@@ -55,10 +56,10 @@ export function PairingRequestDialog({ args, onClose }: DialogProps<{ request: s
   const answer = (action: typeof PAIRING_ACCEPT.id | typeof PAIRING_DECLINE.id) => {
     if (perform(action, {}, on).ok) onClose()
   }
-  const ip = request ? ipOf(request.addr) : ""
+  const ip = request === NO_RECORD ? "" : ipOf(request.addr)
   return (
     <Dialog title={t(TITLE)} width={440} onClose={onClose}>
-      {request ? (
+      {request !== NO_RECORD ? (
         <>
           <p className={styles.request}>
             <span className={styles.name}>{request.name}</span>

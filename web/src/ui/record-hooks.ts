@@ -5,6 +5,7 @@ import type { SubjectId } from "../core/catalog"
 import type { RecordOf } from "../core/def/action"
 import { type Condition, type ConditionOf, inOrder, type Order, type OrderOf, unknownKey } from "../core/record-keys"
 import { find, sourceOf } from "../core/record-source"
+import { NO_RECORD } from "../core/records"
 import { useMatomezuState } from "./store-context"
 import { useCoreCatalog } from "./view-hooks"
 
@@ -37,12 +38,12 @@ export function useRecords<const T extends SubjectId>(subject: T, query: Records
   }, [catalog, subject, table, asked])
 }
 
-// 種類 subject の id のレコード 1 件（無いか、定義の record に合わなければ undefined）
-export function useRecord<const T extends SubjectId>(subject: T, id: string): RecordOf<T> | undefined {
+// 種類 subject の id のレコード 1 件（無いか、定義の record に合わなければ NO_RECORD）
+export function useRecord<const T extends SubjectId>(subject: T, id: string): RecordOf<T> | typeof NO_RECORD {
   const catalog = useCoreCatalog()
   const one = useMatomezuState(s => s.records[subject]?.[id])
   return useMemo(() => {
     const record = catalog.subjects.get(subject)?.record
-    return one !== undefined && record?.safeParse(one).success ? (one as RecordOf<T>) : undefined
+    return one !== undefined && record?.safeParse(one).success ? (one as RecordOf<T>) : NO_RECORD
   }, [catalog, subject, one])
 }

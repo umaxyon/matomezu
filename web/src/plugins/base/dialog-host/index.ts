@@ -1,18 +1,19 @@
 // ダイアログのコマンド: 開いているダイアログを決める・閉じる（キーの既定は Enter と Escape）。ステージを持たないスクリーンから出したダイアログにも効くよう、スクリーンから呼ぶコマンド
+import { NO_DIALOG } from "../../../store/dialogs"
 import { kit } from "../kit"
 
 export const DIALOG_SUBMIT = kit.defineScreenCommand({
   id: "dialog-submit",
   title: "Confirm dialog",
   run: (_ctx, a) => a.submitDialog(),
-  when: ctx => ctx.dialog !== null,
+  when: ctx => ctx.dialog !== NO_DIALOG,
 })
 
 export const DIALOG_CLOSE = kit.defineScreenCommand({
   id: "dialog-close",
   title: "Close dialog",
   run: (_ctx, a) => a.closeDialog(),
-  when: ctx => ctx.dialog !== null,
+  when: ctx => ctx.dialog !== NO_DIALOG,
 })
 
 export const DIALOG_KEYS = [

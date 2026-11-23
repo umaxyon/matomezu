@@ -3,13 +3,16 @@
 // 確定でアクション book-update（設定の項目は settings）を書き、キャンセルでは元のまま。見出しの右の鍵でロックを切り替え、確定で book-lock・book-unlock を行う（バックヤードのブックは鍵を出さない）
 // （外すのは書く前、掛けるのは書いた後）。選んでいる値で問題の出るページがあれば、その知らせを出して確定できない。
 // 認可ステップが book-update を止めていれば項目を押せない（ロックなら、鍵を外す方にすれば押せる）
+
 import { useEffect, useId, useState } from "react"
 import { withSettings } from "../../../core/book"
 import { inBackyard } from "../../../core/entries"
+import { NO_BOOK } from "../../../store/commands/def"
+import { NO_DIALOG_PREVIEW } from "../../../store/dialogs"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useMatomezuState } from "../../../ui/store-context"
-import { useActions, useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
+import { NO_PERMISSION, useActions, useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { useSettingControls } from "../book-settings/SettingControls"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form, Problem } from "../dialog-host/FormParts"
@@ -24,7 +27,8 @@ import { BOOK_UPDATE } from "."
 export function BookSettingsDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
   const form = useId()
-  const book = useBook() ?? undefined // 確定したブック（このダイアログが下書きを出すので、下書きを重ねたブックは読まない）
+  const shownBook = useBook()
+  const book = shownBook === NO_BOOK ? undefined : shownBook // 確定したブック（このダイアログが下書きを出すので、下書きを重ねたブックは読まない）
   const { previewDialog } = useActions()
   const perform = usePerform()
   const [title, setTitle] = useState(book?.title ?? "")
@@ -32,15 +36,15 @@ export function BookSettingsDialog({ onClose }: DialogProps) {
   const [taken, setTaken] = useState(false) // 同じ名前の物が在って、断られた
   // 認可ステップが止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）
   const update = useAllowed(BOOK_UPDATE.id)
-  const blocked = !update.ok && update.permission !== null && !(update.permission === LOCK.id && !locked)
-  const settings = useSettingControls({ of: "outermost", book })
+  const blocked = !update.ok && update.permission !== NO_PERMISSION && !(update.permission === LOCK.id && !locked)
+  const settings = useSettingControls({ of: "outermost", book: shownBook })
   const id = book?.id
   // バックヤードのブック（ワーカーブックなど）は鍵を出さない
   const yard = useMatomezuState(s => id !== undefined && inBackyard(s.folders, id))
   const changed = Object.keys(settings.patch).length > 0
-  const problems = usePageProblems(book ? withSettings(book, settings.patch) : undefined)
+  const problems = usePageProblems(book ? withSettings(book, settings.patch) : NO_BOOK)
   useEffect(() => {
-    previewDialog(changed && id ? { outermost: id, props: settings.patch } : null)
+    previewDialog(changed && id ? { outermost: id, props: settings.patch } : NO_DIALOG_PREVIEW)
   }, [changed, id, settings.patch, previewDialog])
   if (!book) return null
   const ready = title.trim() !== "" && problems.length === 0

@@ -4,7 +4,7 @@ import { expect, test } from "bun:test"
 import { stagePlacesOf } from "../../web/src/core/address"
 import { HOME_ID } from "../../web/src/core/folders"
 import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
-import { askedOutermostOf, shownPageId } from "../../web/src/core/stage"
+import { askedOutermostOf, openedEntry, shownPageId } from "../../web/src/core/stage"
 import { toolUsable } from "../../web/src/core/tools"
 import { stageIn } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
@@ -143,7 +143,7 @@ test("ブックの外のページを開いた画面の場所は、ブックを�
   const again = withOutside()
   again.locate(address)
   const opens = (s: Store) =>
-    s.state.getState().window.screens.flatMap(c => c.stages?.stages.map(t => t.opened?.outermost) ?? [])
+    s.state.getState().window.screens.flatMap(c => c.stages?.stages.map(t => openedEntry(t.opened)) ?? [])
   expect(opens(again)).toContainEqual({ kind: "page", id: "o1" })
   expect(opens(store)).toContainEqual({ kind: "page", id: "o1" })
   expect(stage).not.toBe(NO_STAGE)
@@ -154,7 +154,7 @@ test("ブックの外のページを開いた画面の場所は、ブックを�
   moved.receive({ ...worldRows([into, ...rest]), settings: {} }, [])
   moved.locate(address)
   const at = moved.state.getState().window.screens.flatMap(c => c.stages?.stages ?? [])
-  expect(at.map(t => [t.opened?.outermost, shownPageId(t.opened)])).toContainEqual([
+  expect(at.map(t => [openedEntry(t.opened), shownPageId(t.opened)])).toContainEqual([
     { kind: "book", id: book!.id },
     "o1",
   ])
@@ -290,7 +290,7 @@ test("開く物を名指して開く（openToStage）: ステージが NO_STAGE 
   const store = withOutside()
   const [book] = Object.values(store.state.getState().books)
   if (!book) throw new Error("no book")
-  const outermostOf = (stage: string) => stageIn(store.state.getState().window, stage)?.opened?.outermost
+  const outermostOf = (stage: string) => openedEntry(stageIn(store.state.getState().window, stage)?.opened)
   const first = store.actions.openToStage({ to: "page", page: "o1" }, NO_STAGE)
   expect(outermostOf(first)).toEqual({ kind: "page", id: "o1" })
   expect(store.actions.openToStage({ to: "book", book: book.id }, first)).toBe(first)

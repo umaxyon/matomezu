@@ -43,6 +43,7 @@ export const DECK_ORDER = kit.definePluginState({
   scope: "stage",
   schema: z.enum(DECK_ORDERS),
   address: "replace",
+  default: "written",
 })
 
 // 選んでいるカード（並びの位置。画面の場所には入れない。選んでいなければ無い）

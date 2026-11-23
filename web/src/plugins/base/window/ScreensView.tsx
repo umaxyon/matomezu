@@ -8,8 +8,10 @@
 // ブックスクリーンを入れた並び（「画面を分割」で下に書庫のスクリーンを出した物）は畳まず、低い間はカレントスクリーンだけを窓いっぱいに見せる。
 // 並びに入れたブックスクリーンは上の行に描き、押せばカレントスクリーンにする。その間、並びに入っていないステージを並べないスクリーンは見せない。
 // ステージを並べないスクリーンが出ている間の下の行は、スロット screen-footer に置いたウィジェットを並べる（置いた物が無ければ、下の行を描かない）
+
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { bookScreenCurrent, type OpenedScreen, recentBookScreen, recentPlainScreen } from "../../../core/window"
 import { usePluginState } from "../../../ui/plugin-state-hooks"
 import { ScreenView } from "../../../ui/ScreenView"
@@ -200,7 +202,7 @@ export function ScreensView() {
                 row={row}
                 slides={!first.current?.includes(id)}
                 layer={layers.indexOf(id) + (row === null ? 0 : layers.length)}
-                flash={flash?.screen === id ? flash.n : 0}
+                flash={flash !== NO_STATE && flash.screen === id ? flash.n : 0}
                 late={starting && row !== null && id === current}
                 onPress={() => {
                   if (row !== null && id !== current) makeScreenCurrent(id)

@@ -25,7 +25,10 @@ export interface Swatch {
   label: string // 見本の名前
 }
 
-// 「なし」を選べず、見本も無いときに、値が無い（undefined）ボタンに使う色
+// 色が「なし」のときの値（色の名前と #rrggbb のほかの値なので、文字列でない値）
+export const NO_COLOR: unique symbol = Symbol("no color")
+
+// 「なし」を選べず、見本も無いときに、値が無い（NO_COLOR）ボタンに使う色
 const NO_SWATCH_HEX = "#000000"
 
 export function ColorPicker({
@@ -40,18 +43,19 @@ export function ColorPicker({
 }: {
   id?: string
   label: string // ボタンの名前
-  value: string | undefined // 代表色の名前か #rrggbb。undefined は「なし」
+  value: string | typeof NO_COLOR // 代表色の名前か #rrggbb。NO_COLOR は「なし」
   palette: readonly Swatch[]
   none?: string // 「なし」のときの見た目の色（#rrggbb）。渡さなければ「なし」を選べない
   swatchesOnly?: boolean // 見本（と「なし」）だけから選ぶ
   disabled?: boolean
-  onChange: (value: string | undefined) => void
+  onChange: (value: string | typeof NO_COLOR) => void
 }) {
   const [open, setOpen] = useState(false)
   const button = useRef<HTMLButtonElement>(null)
   const hexOf = (v: string | undefined) =>
     v === undefined ? (none ?? palette[0]?.hex ?? NO_SWATCH_HEX) : (palette.find(p => p.name === v)?.hex ?? v)
-  const shown = hexOf(value)
+  const picked = value === NO_COLOR ? undefined : value
+  const shown = hexOf(picked)
   return (
     <>
       <button
@@ -62,7 +66,7 @@ export function ColorPicker({
         aria-label={label}
         aria-haspopup="dialog"
         aria-expanded={open}
-        data-none={value === undefined && none !== undefined}
+        data-none={value === NO_COLOR && none !== undefined}
         disabled={disabled}
         style={{ "--color": shown } as CSSProperties}
         onClick={() => setOpen(o => !o)}
@@ -70,12 +74,12 @@ export function ColorPicker({
       {open && button.current && (
         <Popup
           opener={button.current}
-          value={value}
+          value={picked}
           start={shown}
           palette={palette}
           offersNone={none !== undefined}
           swatchesOnly={swatchesOnly}
-          onChange={onChange}
+          onChange={v => onChange(v ?? NO_COLOR)}
           onClose={() => {
             setOpen(false)
             button.current?.focus()

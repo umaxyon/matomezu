@@ -3,10 +3,16 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { shownPageId } from "../../../core/stage"
+import { NO_STATE } from "../../../core/def/plugin-state"
+import { NO_STAGE, NOTHING_OPENED } from "../../../core/stage"
 import { screenOf, stageIn } from "../../../core/window"
 import { type PluginValues, pluginValueOf } from "../../../store/plugin-state"
-import { useReadPluginStateAt, useSetPluginStateAt, useSetPluginStatesAt } from "../../../ui/at-hooks"
+import {
+  useReadPluginStateAt,
+  useResetPluginStateAt,
+  useSetPluginStateAt,
+  useSetPluginStatesAt,
+} from "../../../ui/at-hooks"
 import { useStageId } from "../../../ui/scope"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { useUiCatalog } from "../../../ui/view-hooks"
@@ -14,6 +20,7 @@ import { kit } from "../kit"
 import { SLIDE_MS } from "../window/slide"
 import {
   openedRestore,
+  panelPageOf,
   RIGHT_SIDE_PANEL_RESTORE_STATE,
   RIGHT_SIDE_PANEL_STATE,
   type RightSidePanelOpen,
@@ -48,9 +55,12 @@ export const useStagesWithRightSidePanel = (): readonly string[] =>
     ),
   )
 
-// ステージ stage の右サイドパネル（開いていなければ null。stage が null なら null）
-export const useRightSidePanelAt = (stage: string | null): RightSidePanelOpen | null =>
-  useMatomezuState(s => (stage === null ? null : (panelOf(s, stage) ?? null)))
+// 右サイドパネルが開いていないときの値（useRightSidePanel・useRightSidePanelAt）
+export const NO_RIGHT_SIDE_PANEL = "none"
+
+// ステージ stage の右サイドパネル（開いていなければ NO_RIGHT_SIDE_PANEL。stage が NO_STAGE なら NO_RIGHT_SIDE_PANEL）
+export const useRightSidePanelAt = (stage: string): RightSidePanelOpen | typeof NO_RIGHT_SIDE_PANEL =>
+  useMatomezuState(s => (stage === NO_STAGE ? NO_RIGHT_SIDE_PANEL : (panelOf(s, stage) ?? NO_RIGHT_SIDE_PANEL)))
 
 // 右サイドパネルを開く関数（開くとブックスクリーンをカレントスクリーンにする）: ステージ stage で、中身 widget に物 subject（付いた先は anchors、カレントは current）を見せる（閉じたら戻すため、開く前の見え方も覚える）。
 // 選択に従う中身なら、入れ物が開いたときにステージの選択を anchors にする。右サイドパネルを閉じたのと同じ押しなら開かない。
@@ -71,8 +81,8 @@ export function useOpenRightSidePanelAt(): (
       const { window } = read()
       const now = stageIn(window, stage)
       const opened = now?.opened
-      if (!now || !opened) return
-      const panel = { ...open, book: opened.outermost.id, page: shownPageId(opened) }
+      if (!now || !opened || opened === NOTHING_OPENED) return
+      const panel = { ...open, book: opened.outermost.id, page: panelPageOf(opened) }
       setStates(
         restore === "back"
           ? [
@@ -89,10 +99,10 @@ export function useOpenRightSidePanelAt(): (
 
 // ステージ stage で、選択に従う右サイドパネルの中身が開いているか（開いている間は、選択は付いた先を選ぶ物になる。
 // 紙のビューなどは、この間は階層の違う物も混ぜて選ばせ、押しても物を動かさない）
-export function useFollowsSelectionAt(stage: string | null): boolean {
+export function useFollowsSelectionAt(stage: string): boolean {
   const open = useRightSidePanelAt(stage)
   const widgets = useUiCatalog().widgets
-  return !!open && !!widgets.get(open.widget)?.rightSidePanel?.followsSelection
+  return open !== NO_RIGHT_SIDE_PANEL && !!widgets.get(open.widget)?.rightSidePanel?.followsSelection
 }
 
 // 選択に従う中身で、ステージ stage の付いた先から anchor を外す関数: 選択からも外し、カレントは一つ前の物へ（state.ts の withoutAnchor）。残りが無ければ閉じる
@@ -104,7 +114,7 @@ export function useTakeOffAnchorAt(): (stage: string, anchor: string) => void {
   return useCallback(
     (stage, anchor) => {
       const open = readPanel(stage)
-      if (!open) return
+      if (open === NO_STATE) return
       const next = withoutAnchor(open, anchor)
       if (next.anchors.length === 0) {
         close(stage)
@@ -124,7 +134,8 @@ export function useSetRightSidePanelCurrentAt(): (stage: string, anchor: string)
   return useCallback(
     (stage, anchor) => {
       const open = readPanel(stage)
-      if (open?.anchors.includes(anchor) && open.current !== anchor) set(stage, { ...open, current: anchor })
+      if (open !== NO_STATE && open.anchors.includes(anchor) && open.current !== anchor)
+        set(stage, { ...open, current: anchor })
     },
     [readPanel, set],
   )
@@ -132,8 +143,8 @@ export function useSetRightSidePanelCurrentAt(): (stage: string, anchor: string)
 
 // ステージ stage の右サイドパネルを閉じる関数
 export function useCloseRightSidePanelAt(): (stage: string) => void {
-  const set = useSetPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
-  return useCallback(stage => set(stage, undefined), [set])
+  const reset = useResetPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
+  return useCallback(stage => reset(stage), [reset])
 }
 
 // サイドパネル（右か左）を開いたステージが替わってから、幅を動かし終えるまで true（替わったのと同じ描き方で true にし、列の幅と一緒に動きを付ける）。
@@ -152,8 +163,9 @@ export function useSidePanelSliding(stage: string | null): boolean {
 // ここから下は、描いている場所（ui/scope.tsx）のステージの右サイドパネルを読み書きするフック（プラグインと、骨組みでない部品が使う。ステージを名指さない）。
 // 描いている場所がステージでなければ（ステージの外で見るだけに描くページの中など）、開いておらず、開け閉めもしない
 
-// 描いている場所のステージの右サイドパネル（開いていなければ null）
-export const useRightSidePanel = (): RightSidePanelOpen | null => useRightSidePanelAt(useStageId())
+// 描いている場所のステージの右サイドパネル（開いていなければ NO_RIGHT_SIDE_PANEL）
+export const useRightSidePanel = (): RightSidePanelOpen | typeof NO_RIGHT_SIDE_PANEL =>
+  useRightSidePanelAt(useStageId())
 
 // 描いている場所のステージで、右サイドパネルを開く関数（開き方は useOpenRightSidePanelAt と同じ）
 export function useOpenRightSidePanel(): (
@@ -164,7 +176,7 @@ export function useOpenRightSidePanel(): (
   const openAt = useOpenRightSidePanelAt()
   return useCallback(
     (open, restore) => {
-      if (stage !== null) openAt(stage, open, restore)
+      if (stage !== NO_STAGE) openAt(stage, open, restore)
     },
     [stage, openAt],
   )
@@ -179,7 +191,7 @@ export function useTakeOffAnchor(): (anchor: string) => void {
   const takeOff = useTakeOffAnchorAt()
   return useCallback(
     anchor => {
-      if (stage !== null) takeOff(stage, anchor)
+      if (stage !== NO_STAGE) takeOff(stage, anchor)
     },
     [stage, takeOff],
   )
@@ -191,7 +203,7 @@ export function useSetRightSidePanelCurrent(): (anchor: string) => void {
   const setCurrent = useSetRightSidePanelCurrentAt()
   return useCallback(
     anchor => {
-      if (stage !== null) setCurrent(stage, anchor)
+      if (stage !== NO_STAGE) setCurrent(stage, anchor)
     },
     [stage, setCurrent],
   )
@@ -202,6 +214,6 @@ export function useCloseRightSidePanel(): () => void {
   const stage = useStageId()
   const close = useCloseRightSidePanelAt()
   return useCallback(() => {
-    if (stage !== null) close(stage)
+    if (stage !== NO_STAGE) close(stage)
   }, [stage, close])
 }

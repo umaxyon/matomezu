@@ -37,7 +37,7 @@ export const opensOf = (...tabs: readonly { opens?: readonly SlotId[] }[]): read
   ...new Set(tabs.flatMap(t => t.opens ?? [])),
 ]
 
-export { useCloseLeftSidePanel, useLeftSidePanel, useOpenLeftSidePanel } from "./hooks"
+export { NO_LEFT_SIDE_PANEL, useCloseLeftSidePanel, useLeftSidePanel, useOpenLeftSidePanel } from "./hooks"
 export { LeftSidePanelOpenButton } from "./OpenButton"
 export { LEFT_SIDE_PANEL } from "./slots"
 export type { LeftSidePanelEntry, LeftSidePanelOpen } from "./state"

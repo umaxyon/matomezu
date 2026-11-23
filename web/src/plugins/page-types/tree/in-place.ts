@@ -3,7 +3,7 @@
 // 書き終えたとき、することは edit.ts の editEnd（空の子なら消す・書く）が決め、書き分け（根はページのフィールド、子は node-update）は write.ts の nodeWrite。
 // 書き換えが紙に入らず断られたら、トーストで知らせる
 import type { CommandContext } from "../../../plugin-api"
-import { endInPlace, type InPlaceDraft, inPlaceText, refusalMessage } from "../../base"
+import { endInPlace, type InPlaceDraft, inPlaceText, NO_DRAFT, refusalMessage } from "../../base"
 import { NODE_REMOVE, NODE_UPDATE } from "./actions"
 import { treeAt } from "./commands"
 import { ADDED_EDIT, afterRemove, CAPTION_EDIT, editEnd, selectedIn } from "./edit"
@@ -33,7 +33,8 @@ function endEdit(ctx: CommandContext, a: Actions, commit: boolean): void {
   const selected = tree && selectedIn(tree.root, ctx.stage.selection)
   if (!tree || !selected) return
   const on = { page: tree.page.id }
-  const text = commit ? inPlaceText(ctx, TREE_DRAFT, selected) : null
+  const draft = commit ? inPlaceText(ctx, TREE_DRAFT, selected) : NO_DRAFT
+  const text = draft === NO_DRAFT ? null : draft
   endInPlace(ctx, a, TREE_DRAFT, ctx.stage.editing === ADDED_EDIT, () => {
     const todo = editEnd(tree.root, selected, text)
     if (todo.kind === "remove") {

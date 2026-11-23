@@ -3,6 +3,7 @@
 // チケット履歴の質問を押すと、質問の枠が右の領域の上に重なる。名前・本文・優先度は直したそばから反映する（本文は打つたびに送り、変換中は送らない）。
 // ロック中のチケットは薄くして直せなくし、帯のロックで掛け外しする。直している間（名前の入力か本文の編集にフォーカスがある間）は、チケットに編集ロックを掛ける。画面の状態は、開いているチケットが替われば初めに戻る
 import { useMemo, useState } from "react"
+import { NO_RECORD } from "../../../plugin-api"
 import {
   useActions,
   useAllowedOn,
@@ -42,7 +43,7 @@ export function TicketScreen() {
   const t = useMessages(kit)
   const id = useScreen(TICKET_SCREEN).props.ticket
   const ticket = useRecord(TICKET.id, id)
-  if (!ticket)
+  if (ticket === NO_RECORD)
     return (
       <section className={styles.screen} aria-label={t("ticket screen")}>
         <div className={`${styles.ticket} ${styles.alone}`}>
@@ -66,7 +67,8 @@ function TicketBody({ ticket }: { ticket: Ticket }) {
   const workroomNames = useMemo(() => Object.fromEntries(workrooms.map(w => [w.id, w.name])), [workrooms])
   const { perform } = useActions()
   // 画面の状態は、開いたスクリーン 1 枚ごと（閉じると消えるので、開くたびに初めに戻る）
-  const [now, update] = [usePluginState(kit, TICKET_SCREEN_STATE), useUpdatePluginState(kit, TICKET_SCREEN_STATE)]
+  const now = usePluginState(kit, TICKET_SCREEN_STATE)
+  const update = useUpdatePluginState(kit, TICKET_SCREEN_STATE)
   const view = viewOf(now, id)
   const set = (patch: Partial<TicketScreenState>) => update(cur => ({ ...viewOf(cur, id), ...patch }))
   const [editing, setEditing] = useState(false) // 名前の入力か本文の編集にフォーカスがある間
@@ -88,8 +90,9 @@ function TicketBody({ ticket }: { ticket: Ticket }) {
     volume?: (typeof VOLUMES)[number]
     tags?: string[]
   }) => perform(TICKET_UPDATE.id, patch, { record: id })
-  const tags = project ? tagsOf(project, ticket) : []
-  const tagChoices = project?.tags.filter(tag => tag.enabled && !ticket.tags.includes(tag.id)) ?? []
+  const tags = project !== NO_RECORD ? tagsOf(project, ticket) : []
+  const tagChoices =
+    project !== NO_RECORD ? project.tags.filter(tag => tag.enabled && !ticket.tags.includes(tag.id)) : []
   const rows = historyRows(ticket, lines)
   const question = rows.find(r => r.id === view.question)
   const assignees = assigneesOf(ticket, workrooms)
@@ -109,7 +112,9 @@ function TicketBody({ ticket }: { ticket: Ticket }) {
           </div>
           <div className={styles.content} inert={view.maximized}>
             <div className={styles.head}>
-              <span className={styles.id}>{ticketLabel(project?.prefix ?? "", ticket.number)}</span>
+              <span className={styles.id}>
+                {ticketLabel(project !== NO_RECORD ? project.prefix : "", ticket.number)}
+              </span>
               <TagPicker tags={tags} choices={tagChoices} canEdit={canEdit} onChange={next => edit({ tags: next })} />
             </div>
             <NameField name={ticket.name} canEdit={canEdit} onEditing={setEditing} onRename={name => edit({ name })} />

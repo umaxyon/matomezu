@@ -4,6 +4,9 @@ import { expect, test } from "bun:test"
 import { shownModel } from "../../../web/src/plugins/base/participant/live"
 import {
   isAdminParticipant,
+  NO_CATEGORY,
+  NO_OCCUPANT,
+  NOT_CALLED,
   participantCategory,
   visitorName,
   visitorRows,
@@ -15,7 +18,7 @@ const room = (id: string, name: string) => ({ id, name, bird: "inko", createdAt:
 const joined = (id: string, workroom: string) => ({ id, state: "joined", workroom }) as never
 const rooms = [room("r1", "桜"), room("r2", "梅"), room("r3", "松")]
 const people = [joined("a", "r1"), joined("b", "r2")]
-const alive = (calledAt: string | undefined) => calledAt === "now"
+const alive = (calledAt: string) => calledAt === "now"
 
 test("引き継げるワークルームは、空室と、いる参加者が生きていないワークルーム。生きている参加者のいるワークルームは引き継げない", () => {
   expect(takeable(rooms, people, { a: "now", b: "old" }, alive, 0).map(r => r.id)).toEqual(["r2", "r3"])
@@ -43,17 +46,21 @@ test("ビジターの行は、ワークルームを持たない受け入れ済�
   const all = [...people, visitor("v2", "2", "D92"), visitor("v1", "1"), { id: "q", state: "requested" } as never]
   const rows = visitorRows({ participants: all, ready: ["v1"], live: {}, calls: { v2: "now" } })
   expect(rows.map(r => [r.participant.id, r.state, r.calledAt])).toEqual([
-    ["v1", "ready", undefined],
+    ["v1", "ready", NOT_CALLED],
     ["v2", "preparing", "now"],
   ])
   expect(visitorName(rows[1]?.participant as never)).toBe("claude / D92")
   expect(visitorName(rows[0]?.participant as never)).toBe("claude")
   const rooms3 = workroomRows({ rooms, participants: all, admin: "r1", ready: [], live: {}, calls: {}, activities: {} })
-  expect(rooms3.map(r => r.participant?.id)).toEqual(["a", "b", undefined])
+  expect(rooms3.map(r => (r.participant !== NO_OCCUPANT ? r.participant.id : NO_OCCUPANT))).toEqual([
+    "a",
+    "b",
+    NO_OCCUPANT,
+  ])
   expect(rooms3[0]?.admin).toBe(true)
   expect(participantCategory(people[0] as never)).toBe("worker")
   expect(participantCategory(people[1] as never)).toBe("worker")
   expect(participantCategory(all[2] as never)).toBe("visitor")
-  expect(participantCategory({ id: "q", state: "requested" } as never)).toBeUndefined()
+  expect(participantCategory({ id: "q", state: "requested" } as never)).toBe(NO_CATEGORY)
   expect([people[0], people[1], all[2]].map(p => isAdminParticipant(p as never, "r1"))).toEqual([true, false, false])
 })

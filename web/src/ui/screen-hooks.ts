@@ -6,7 +6,7 @@ import { useShallow } from "zustand/react/shallow"
 import { fail } from "../core/errors"
 import { currentScreen, shownScreens } from "../core/window"
 import { useArranged } from "./arranged-context"
-import { useScreenContext } from "./screen-context"
+import { NO_SCREEN, useScreenContext, useScreenIdHere } from "./screen-context"
 import { useMatomezuState, useReadState, useStoreActions } from "./store-context"
 import { useCoreCatalog } from "./view-hooks"
 
@@ -23,18 +23,21 @@ export function useScreen<P>(def: { id: string; props: PropsShape<P> }): {
   current: boolean
 } {
   const here = useScreenContext()
-  if (here === null || here.def !== def.id) fail("E126", { screen: def.id })
+  if (here === NO_SCREEN || here.def !== def.id) fail("E126", { screen: def.id })
   const { props, shown, current } = here
   return useMemo(() => ({ props: props as P, shown, current }), [props, shown, current])
 }
 
 // 描いている場所のスクリーンが、見えているか・カレントスクリーンか（定義を問わない。スクリーンの定義を持たないビューが、自分のいるスクリーンを知るのに使う）。
-// スクリーンの外（窓の枠のウィジェットなど）で呼べば null
-export function useScreenHere(): { shown: boolean; current: boolean } | null {
+// スクリーンの外（窓の枠のウィジェットなど）で呼べば NO_SCREEN
+export function useScreenHere(): { shown: boolean; current: boolean } | typeof NO_SCREEN {
   const here = useScreenContext()
-  const shown = here?.shown
-  const current = here?.current
-  return useMemo(() => (shown === undefined || current === undefined ? null : { shown, current }), [shown, current])
+  const shown = here === NO_SCREEN ? undefined : here.shown
+  const current = here === NO_SCREEN ? undefined : here.current
+  return useMemo(
+    () => (shown === undefined || current === undefined ? NO_SCREEN : { shown, current }),
+    [shown, current],
+  )
 }
 
 // スクリーンを開く・描いている場所のスクリーンを閉じる・渡す値を替える。描いている場所のスクリーンは、スクリーンの外（窓の枠のウィジェットなど）ならカレントスクリーン。
@@ -47,7 +50,7 @@ export function useScreens(): {
   setProps<P>(def: { id: string; props: PropsShape<P> }, props: P): boolean
   close(): void
 } {
-  const here = useScreenContext()?.id ?? null
+  const here = useScreenIdHere() ?? null
   const read = useReadState()
   const { openScreen, setScreenProps, closeScreen } = useStoreActions()
   return useMemo(() => {

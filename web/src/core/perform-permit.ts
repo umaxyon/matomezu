@@ -1,7 +1,7 @@
 // アクションを行う前に、使えるかと認可ステップが止めるかを問う（perform の行う前の確かめと同じ答え。run は回さない）
 
 import { USER } from "./actor"
-import { findPage, pagesOf } from "./book"
+import { findPage, NO_PAGE, pagesOf } from "./book"
 import type { CoreCatalog } from "./core-catalog"
 import {
   type ActionContext,
@@ -225,7 +225,7 @@ export function allowedOnBook(catalog: CoreCatalog, book: Book, id: string, args
   if (action?.target !== "book" && action?.target !== "page") return false
   const parsed = action.args.safeParse(args)
   if (!parsed.success) return false
-  if (action.target === "page" && (page === undefined || !findPage(book, page))) return false
+  if (action.target === "page" && (page === undefined || findPage(book, page) === NO_PAGE)) return false
   const where =
     action.target === "page"
       ? pageScopeOf(action.permissionScope as AnyPagePermissionScope | undefined, page as string, parsed.data)

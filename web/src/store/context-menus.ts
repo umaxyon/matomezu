@@ -3,6 +3,9 @@
 // メニューの id と受け取る物の型、中身（コマンドの並び）は ui が持つ（core/catalog.ts の ContextMenuTable と UI マッピングの contextMenus）
 import type { Point } from "../core/geom"
 
+// コマンドの文脈の contextMenu の、右クリックのメニューを開いていないときの値
+export const NO_CONTEXT_MENU = "none"
+
 export interface OpenedContextMenu {
   id: string
   stage: string // 開いたステージ（ステージを持たないスクリーンから開いたら NO_STAGE）

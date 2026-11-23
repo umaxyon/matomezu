@@ -75,49 +75,57 @@ export const shapesOf = (page: ItemPage): PlacedShape[] => pageItemsOf(page).fil
 export const connectorsOf = (page: ItemPage): PlacedConnector[] =>
   pageItemsOf(page).filter((i): i is PlacedConnector => !isShape(i))
 
-// 子までたどった形: 形と、親の形の id（ページの形は null）と、紙の上の左上
+// 形がページの上にじかにあるときの、親の値（親はページそのもの。形の id はどんな文字列にもなるので、文字列でない定数）
+export const PAGE_ITSELF: unique symbol = Symbol("page itself")
+// 形の親: 親の形の id か、ページそのもの（PAGE_ITSELF）
+export type ShapeParent = string | typeof PAGE_ITSELF
+
+// 子までたどった形: 形と、親（ページの形は PAGE_ITSELF）と、紙の上の左上
 export interface ShapeOnPage {
   shape: PlacedShape
-  parent: string | null
+  parent: ShapeParent
   at: Point
 }
 
 // ページの形を子まで深さごとにたどる（親の次にその子孫。描く順）
 export function walkShapes(page: ItemPage): ShapeOnPage[] {
-  const walk = (shapes: readonly ShapeData[], parent: string | null, origin: Point): ShapeOnPage[] =>
+  const walk = (shapes: readonly ShapeData[], parent: ShapeParent, origin: Point): ShapeOnPage[] =>
     shapes.flatMap(shape => {
       const at = { x: origin.x + shape.x, y: origin.y + shape.y }
       return [{ shape: shape as PlacedShape, parent, at }, ...walk(shape.shapes ?? [], shape.id, at)]
     })
-  return walk(shapesOf(page), null, { x: 0, y: 0 })
+  return walk(shapesOf(page), PAGE_ITSELF, { x: 0, y: 0 })
 }
 
-// ページの中のどの深さの形も、id で探す
-export const findShape = (page: ItemPage, id: string): ShapeOnPage | undefined =>
-  walkShapes(page).find(s => s.shape.id === id)
+// アイテムが無いときの値（ページに id のアイテムが無い）
+export const NO_ITEM = "none"
 
-// id の形を f の返す形に置き換えたページ（どの深さでも。f が null を返せば子孫ごと除く）。形が無ければ null
+// ページの中のどの深さの形も、id で探す（無ければ NO_ITEM）
+export const findShape = (page: ItemPage, id: string): ShapeOnPage | typeof NO_ITEM =>
+  walkShapes(page).find(s => s.shape.id === id) ?? NO_ITEM
+
+// id の形を f の返す形に置き換えたページ（どの深さでも。f が NO_ITEM を返せば子孫ごと除く）。形が無ければ NO_ITEM
 export function replaceShape(
   page: ItemPage,
   id: string,
-  f: (shape: PlacedShape) => PlacedShape | null,
-): ItemPage | null {
+  f: (shape: PlacedShape) => PlacedShape | typeof NO_ITEM,
+): ItemPage | typeof NO_ITEM {
   const items = replaceIn(pageItemsOf(page), id, f)
-  return items && { ...page, items }
+  return items ? { ...page, items } : NO_ITEM
 }
 
 // 並びの中の id の形を置き換えた並び（子の並びもたどる。子の並びが空になれば shapes を持たない）。無ければ null
 function replaceIn<T extends { id: string }>(
   list: readonly T[],
   id: string,
-  f: (shape: PlacedShape) => PlacedShape | null,
+  f: (shape: PlacedShape) => PlacedShape | typeof NO_ITEM,
 ): T[] | null {
   for (const [i, item] of list.entries()) {
     if (!("x" in item)) continue
     const shape = item as unknown as ShapeData
     if (shape.id === id) {
       const next = f(shape as PlacedShape)
-      return [...list.slice(0, i), ...(next ? [next as unknown as T] : []), ...list.slice(i + 1)]
+      return [...list.slice(0, i), ...(next !== NO_ITEM ? [next as unknown as T] : []), ...list.slice(i + 1)]
     }
     const shapes = shape.shapes && replaceIn(shape.shapes, id, f)
     if (!shapes) continue
@@ -145,8 +153,8 @@ export function byConnector(catalog: CoreCatalog, page: ItemPage): [ConnectorIte
 // ページの形 id（どの深さの形でも）が、つなげる形（connectable）か
 // 機能台帳に無い形は、何ができるか分からないので、つなげる物として扱う（前につないだ線のあるブックを読めるように）
 export function connectableShape(catalog: CoreCatalog, page: ItemPage, id: string): boolean {
-  const shape = findShape(page, id)?.shape
-  return !!shape && isConnectable(catalog, shape)
+  const found = findShape(page, id)
+  return found !== NO_ITEM && isConnectable(catalog, found.shape)
 }
 
 const isConnectable = (catalog: CoreCatalog, shape: PlacedShape): boolean => {

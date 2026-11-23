@@ -1,8 +1,11 @@
 // 左サイドパネルを開け閉めするフック（持ち方は state.ts。窓のプラグイン状態）。窓に 1 つ。
 // 開くのは、開く側が渡したタブの組（どのタブに何を渡すか）で置き換える。カレントスクリーンは替えない。
 // ステージの物を見せるタブ（タブの定義の scope が "stage"）が組にあれば、開いた所のステージを一緒に持つ（タブの中身は、そのステージの中として描かれる）
+
 import { useCallback } from "react"
-import { usePluginState, useSetPluginState, useUpdatePluginState } from "../../../ui/plugin-state-hooks"
+import { NO_STATE } from "../../../core/def/plugin-state"
+import { NO_STAGE } from "../../../core/stage"
+import { usePluginState, useResetPluginState, useUpdatePluginState } from "../../../ui/plugin-state-hooks"
 import { useStageId } from "../../../ui/scope"
 import { useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
@@ -15,21 +18,28 @@ import {
   showsLeftSidePanel,
 } from "./state"
 
-// 開いている左サイドパネル（渡されたタブの組と開いているタブ。閉じていれば null）
-export const useLeftSidePanel = (): LeftSidePanelOpen | null => usePluginState(kit, LEFT_SIDE_PANEL_STATE) ?? null
+// 左サイドパネルが閉じているときの値（useLeftSidePanel）
+export const NO_LEFT_SIDE_PANEL = "none"
 
-// タブの組 entries が見せるステージを決める関数: ステージの物を見せるタブが組にあれば stage、無ければ null
-function useShownStage(): (entries: readonly LeftSidePanelEntry[], stage: string | null) => string | null {
+// 開いている左サイドパネル（渡されたタブの組と開いているタブ。閉じていれば NO_LEFT_SIDE_PANEL）
+export function useLeftSidePanel(): LeftSidePanelOpen | typeof NO_LEFT_SIDE_PANEL {
+  const open = usePluginState(kit, LEFT_SIDE_PANEL_STATE)
+  return open === NO_STATE ? NO_LEFT_SIDE_PANEL : open
+}
+
+// タブの組 entries が見せるステージを決める関数: ステージの物を見せるタブが組にあれば stage、無ければ（stage が NO_STAGE でも）null
+function useShownStage(): (entries: readonly LeftSidePanelEntry[], stage: string) => string | null {
   const widgets = useUiCatalog().widgets
   return useCallback(
-    (entries, stage) => (entries.some(e => widgets.get(e.tab)?.leftSidePanel?.scope === "stage") ? stage : null),
+    (entries, stage) =>
+      stage !== NO_STAGE && entries.some(e => widgets.get(e.tab)?.leftSidePanel?.scope === "stage") ? stage : null,
     [widgets],
   )
 }
 
 // ステージ stage の物を見せて、タブの組 entries で左サイドパネルを開く関数（開くタブは tab。無ければ今のタブが組にあればそのまま、無ければ最初）
 export function useOpenLeftSidePanelAt(): (
-  stage: string | null,
+  stage: string,
   entries: readonly LeftSidePanelEntry[],
   tab?: string,
 ) => void {
@@ -42,7 +52,7 @@ export function useOpenLeftSidePanelAt(): (
 }
 
 // 開くボタンを押したときの関数（ステージ stage の物を見せる）: 今と同じタブの組で同じステージなら閉じ、違えばそのタブの組に置き換える
-export function useToggleLeftSidePanelAt(): (stage: string | null, entries: readonly LeftSidePanelEntry[]) => void {
+export function useToggleLeftSidePanelAt(): (stage: string, entries: readonly LeftSidePanelEntry[]) => void {
   const update = useUpdatePluginState(kit, LEFT_SIDE_PANEL_STATE)
   const shown = useShownStage()
   return useCallback(
@@ -52,7 +62,7 @@ export function useToggleLeftSidePanelAt(): (stage: string | null, entries: read
 }
 
 // 今、タブの組 entries を、ステージ stage の物を見せて開いているか
-export function useLeftSidePanelShowsAt(stage: string | null, entries: readonly LeftSidePanelEntry[]): boolean {
+export function useLeftSidePanelShowsAt(stage: string, entries: readonly LeftSidePanelEntry[]): boolean {
   const now = usePluginState(kit, LEFT_SIDE_PANEL_STATE)
   return showsLeftSidePanel(now, entries, useShownStage()(entries, stage))
 }
@@ -77,12 +87,15 @@ export const useLeftSidePanelShows = (entries: readonly LeftSidePanelEntry[]): b
 
 // 左サイドパネルを閉じる関数
 export function useCloseLeftSidePanel(): () => void {
-  const set = useSetPluginState(kit, LEFT_SIDE_PANEL_STATE)
-  return useCallback(() => set(undefined), [set])
+  const reset = useResetPluginState(kit, LEFT_SIDE_PANEL_STATE)
+  return useCallback(() => reset(), [reset])
 }
 
 // 開いているタブを tab にする関数（渡されたタブの組の中のタブだけ）
 export function useSetLeftSidePanelTab(): (tab: string) => void {
   const update = useUpdatePluginState(kit, LEFT_SIDE_PANEL_STATE)
-  return useCallback(tab => update(now => (now?.entries.some(e => e.tab === tab) ? { ...now, tab } : now)), [update])
+  return useCallback(
+    tab => update(now => (now !== NO_STATE && now.entries.some(e => e.tab === tab) ? { ...now, tab } : now)),
+    [update],
+  )
 }

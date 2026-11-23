@@ -2,7 +2,7 @@
 // （つまみの長さは見えている割合。決まりは scrollbar.ts）。つまみをドラッグするとずらし、溝を押すとそこへ移る。広さはステージが印刷プレビューに
 // 知らせた広さ（extentOf）で、ずらす量を範囲に収めるのもステージ（パンと同じ）
 import { type PointerEvent, useRef } from "react"
-import { extentOf, previewing } from "../../../core/stage"
+import { extentOf, NO_STAGE, previewing } from "../../../core/stage"
 import { contentSize } from "../../../core/viewport"
 import { useStageHere } from "../../../ui/scope"
 import { useActions, useLatestPan } from "../../../ui/view-hooks"
@@ -43,7 +43,7 @@ function Bar({ axis, along, corner }: { axis: ScrollAxis; along: Along; corner: 
   // ずらす量を target にする（今のずらす量との差をステージに渡す）
   const panTo = (target: number) => {
     const now = latestPan()
-    if (!now) return
+    if (now === NO_STAGE) return
     const by = target - now[along]
     panStageBy(along === "x" ? by : 0, along === "y" ? by : 0)
   }

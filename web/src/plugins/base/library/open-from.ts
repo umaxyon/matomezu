@@ -3,6 +3,7 @@
 // ほかは新しいブックスクリーン（開き分けは store の openToStage）。
 // 書庫のスクリーンから開いたら、書庫のスクリーンは閉じる（コントロールセンターの書庫の画面から開いたときは、そのまま）
 
+import { NO_STATE } from "../../../core/def/plugin-state"
 import type { OpenTo } from "../../../store/actions"
 import {
   arrangementValueIn,
@@ -37,7 +38,7 @@ export function openSplitFromLibrary(ctx: ScreenCommandContext, a: CommandAction
     keepHere: false,
     max: PAIR,
     tall: tallNow(),
-    flash: screen => a.updatePluginState(SCREEN_FLASH, was => ({ screen, n: (was?.n ?? 0) + 1 })),
+    flash: screen => a.updatePluginState(SCREEN_FLASH, was => ({ screen, n: (was === NO_STATE ? 0 : was.n) + 1 })),
     book: opens.book,
     page: opens.page,
   })

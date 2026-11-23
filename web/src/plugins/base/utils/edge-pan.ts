@@ -8,10 +8,13 @@ export function edgeScroll(p: Point, view: { w: number; h: number }, dt: number)
   return { x: -edgeSpeed(p.x, 0, view.w) * dt, y: -edgeSpeed(p.y, 0, view.h) * dt }
 }
 
-// ドラッグの間、紙をずらし続ける繰り返し: follow でポインタの所（画面の座標）を渡すと、表示領域 area（画面の座標の四角）の端の近くにある間、
+// 表示領域が無いときの、edgePanner の area の返す値（ずらさない）
+export const NO_VIEW_AREA = "none"
+
+// ドラッグの間、紙をずらし続ける繰り返し: follow でポインタの所（画面の座標）を渡すと、表示領域 area（画面の座標の四角。無ければ NO_VIEW_AREA）の端の近くにある間、
 // コマごとに pan でずらす（ずらす量は前のコマからの時間で決める。ポインタを動かさなくても続き、端を離れたら止まる）。stop でやめる
 export function edgePanner(
-  area: () => { x: number; y: number; w: number; h: number } | null,
+  area: () => { x: number; y: number; w: number; h: number } | typeof NO_VIEW_AREA,
   pan: (dx: number, dy: number) => void,
 ) {
   let frame = 0
@@ -20,7 +23,7 @@ export function edgePanner(
   const tick = (now: number) => {
     frame = 0
     const r = area()
-    if (!pointer || !r) return
+    if (!pointer || r === NO_VIEW_AREA) return
     // 前のコマからの時間（止まっていたら 1 コマ分。間が空いても一度に飛ばない）
     const dt = Math.min(prev ? now - prev : 16, 50) / 1000
     const by = edgeScroll({ x: pointer.x - r.x, y: pointer.y - r.y }, { w: r.w, h: r.h }, dt)

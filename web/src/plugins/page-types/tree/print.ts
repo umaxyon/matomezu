@@ -5,6 +5,7 @@ import {
   breakShift,
   type GrowSides,
   grownArea,
+  NO_GROW,
   type PrintSheets,
   paperSize,
   printSheetsOf,
@@ -22,7 +23,7 @@ import { NODE_SIZE } from "./size"
 export function laidPage(
   catalog: CoreCatalog,
   page: ItemPage,
-  { setting, grow }: { setting: SettingReader; grow: GrowSides | undefined },
+  { setting, grow }: { setting: SettingReader; grow: GrowSides | typeof NO_GROW },
   root: TreeRoot | undefined = treeRootOf(page),
 ): TreeLayout | null {
   const paper = paperSize(catalog, page)
@@ -41,11 +42,11 @@ export const laidArea = (paper: Size, grow: GrowSides, laid: TreeLayout, spare: 
 export function printLaid(
   catalog: CoreCatalog,
   page: ItemPage,
-  on: { setting: SettingReader; grow: GrowSides | undefined },
+  on: { setting: SettingReader; grow: GrowSides | typeof NO_GROW },
 ): TreeLayout | null {
   const laid = laidPage(catalog, page, on)
   const paper = paperSize(catalog, page)
-  if (!laid || !on.grow) return laid
+  if (!laid || on.grow === NO_GROW) return laid
   const dx = breakShift(
     laid.nodes.map(n => ({ at: n.x, size: n.w })),
     paper.w,
@@ -72,7 +73,7 @@ export function printLaid(
 export function treePrintSheets(
   catalog: CoreCatalog,
   page: ItemPage,
-  on: { setting: SettingReader; grow: GrowSides | undefined; purpose: SheetPurpose },
+  on: { setting: SettingReader; grow: GrowSides | typeof NO_GROW; purpose: SheetPurpose },
 ): PrintSheets {
   const laid = on.purpose === "print" ? printLaid(catalog, page, on) : laidPage(catalog, page, on)
   const paper = paperSize(catalog, page)

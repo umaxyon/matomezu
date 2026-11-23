@@ -1,2 +1,2 @@
 // ミニマップの見た目: 描いたミニマップを読むフック
-export { useDrawnMinimap } from "./drawn"
+export { KEEP_DRAWN, useDrawnMinimap } from "./drawn"

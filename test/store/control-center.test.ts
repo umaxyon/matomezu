@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { checkCoreCatalog } from "../../web/src/core/core-catalog-check"
+import { NO_CONTROL_CENTER } from "../../web/src/core/def/action"
 import { HOME_ID } from "../../web/src/core/folders"
+import { NOTHING_OPENED, openedEntry } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
@@ -19,19 +21,19 @@ describe("コントロールセンター", () => {
     showFirstBook(instance)
     expect(instance.controlCenter).toBe(CENTER)
     expect(Object.keys(instance.state.getState().books)).toEqual([])
-    expect(screenOf(instance.state.getState().window).stages[0]!.opened).toBeNull()
+    expect(screenOf(instance.state.getState().window).stages[0]!.opened).toBe(NOTHING_OPENED)
   })
 
   test("最初に開くのは、渡したブックの最初の 1 冊", () => {
     const instance = newStore()
-    expect(screenOf(instance.state.getState().window).stages[0]!.opened?.outermost.id).toBe(SAMPLE_BOOKS[0]!.id)
+    expect(openedEntry(screenOf(instance.state.getState().window).stages[0]!.opened)?.id).toBe(SAMPLE_BOOKS[0]!.id)
     expect(createBookIn(instance, "s1", { into: HOME_ID, title: "新しい図" })).toBe(true)
   })
 
   test("コントロールセンターの無いインスタンスは、ブックの一覧を変えるアクションを断り、そのコマンドを出さない", () => {
     const instance = createMatomezu({ plugins: BUILTIN, books: SAMPLE_BOOKS })
     showFirstBook(instance)
-    expect(instance.controlCenter).toBeNull()
+    expect(instance.controlCenter).toBe(NO_CONTROL_CENTER)
     expect(createBookIn(instance, "s1", { into: HOME_ID, title: "新しい図" })).toBe(false)
     expect(isShown(instance, instance.state.getState(), "s1", "@matomezu/base:book-new")).toBe(false)
   })

@@ -77,4 +77,4 @@ export const PAGE_CONTEXT_MENU_ROWS = {
 export { PageProblemsView, usePageProblems } from "./PageProblems"
 export { PageSettingsDialogView, type PageSettingsDialogViewProps } from "./PageSettingsDialogView"
 export { type PaperValue, usePaperControls } from "./PaperControls"
-export { useNewPage } from "./useNewPage"
+export { NO_LINEUP, useNewPage } from "./useNewPage"

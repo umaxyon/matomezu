@@ -12,7 +12,7 @@ import { pagesOf } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
 import type { Page } from "../../../core/schema/book"
-import { extentOf as previewArea } from "../../../core/stage"
+import { NO_STAGE, NOTHING_OPENED, extentOf as previewArea } from "../../../core/stage"
 import { paperOrigin } from "../../../core/viewport"
 import { stageIn } from "../../../core/window"
 import type { MatomezuState } from "../../../store/state"
@@ -24,12 +24,17 @@ import { useStage, useStagePan } from "../../../ui/view-hooks"
 import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 import { paperSize } from "../place/grow"
-import { useOpenRightSidePanelAt, useRightSidePanelAt, useSidePanelSliding } from "../right-side-panel/hooks"
+import {
+  NO_RIGHT_SIDE_PANEL,
+  useOpenRightSidePanelAt,
+  useRightSidePanelAt,
+  useSidePanelSliding,
+} from "../right-side-panel/hooks"
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
 import { entrySheets, hasCrossing } from "./entry-sheets"
 import { useMeasures, useReportMeasure, useSetPrintReady } from "./measures"
-import type { PrintMeasured } from "./measures-state"
+import { NOT_MEASURED, type PrintMeasured } from "./measures-state"
 import { PrintOutput } from "./PrintOutput"
 import styles from "./PrintPreviewView.module.css"
 import { PRINT_PREVIEW_PANEL_ID, printCheckOpen } from "./panel-id"
@@ -48,7 +53,7 @@ export interface PrintSheetProps {
   column: number
   row: number
   paper: Size
-  measured?: unknown // 測るだけのビュー（printMeasure）が知らせたデータ（測るプレゼンテーションだけ）
+  measured: unknown // 測るだけのビュー（printMeasure）が知らせたデータ（測らないプレゼンテーションと、まだ測っていない間は NOT_MEASURED）
 }
 
 // 測るだけのビュー（プレゼンテーションのビューの定義の printMeasure）が受け取る物: ページと、紙の大きさ paper、測った結果を知らせる report。
@@ -60,7 +65,7 @@ export interface PrintMeasureProps {
   report(measured: PrintMeasured): void
 }
 
-export type { PrintMeasured } from "./measures-state"
+export { NOT_MEASURED, type PrintMeasured } from "./measures-state"
 
 declare module "../../../core/catalog" {
   interface PresentationViewExtras {
@@ -91,7 +96,7 @@ function useExtent(id: string): { known: boolean; size: string | null } {
 // 描いている場所のステージがあるときだけ描く（無ければ何も描かない）
 export function PrintPreviewView() {
   const id = useStageId()
-  return id === null ? null : <PrintPreviewBody id={id} />
+  return id === NO_STAGE ? null : <PrintPreviewBody id={id} />
 }
 
 function PrintPreviewBody({ id }: { id: string }) {
@@ -142,7 +147,7 @@ function PrintPreviewBody({ id }: { id: string }) {
     () => (previewed ? entrySheets(catalog, previewed, measured) : null),
     [catalog, previewed, measured],
   )
-  const zoom = stage?.zoom ?? 1
+  const zoom = stage === NO_STAGE ? 1 : stage.zoom
   const motion = useZoomMotion(zoom, "")
   // 並べた広さを知らせる（測っている途中と、並べる物が無い間は知らせない。途中の広さで、初めの幅に合わせるのを済ませないように）
   const pending = [...measured.values()].includes("pending")
@@ -153,7 +158,7 @@ function PrintPreviewBody({ id }: { id: string }) {
   const ready = !!layout && !pending && layout.sheets.length > 0
   const setPrintReady = useSetPrintReady()
   useEffect(() => setPrintReady(ready), [ready, setPrintReady])
-  const shown = panel?.widget === PRINT_PREVIEW_PANEL_ID
+  const shown = panel !== NO_RIGHT_SIDE_PANEL && panel.widget === PRINT_PREVIEW_PANEL_ID
   // 初めは、並べる向きと交わる辺を表示領域に合わせる（幅に合わせる。print-preview-fit）。右サイドパネルが出て表示領域が狭まり終えてから合わせ、
   // そのあと表示領域の大きさが変わっても、倍率を変えていなければ合わせ直す
   const fit = useCommand(PRINT_PREVIEW_FIT.id)
@@ -171,7 +176,7 @@ function PrintPreviewBody({ id }: { id: string }) {
   }, [known, size, shown, sliding, id, read])
   const openPanel = useOpenRightSidePanelAt()
   const seen = useRef(false) // 右サイドパネルに中身を出したか
-  const opened = stage?.opened ?? null
+  const opened = stage === NO_STAGE || stage.opened === NOTHING_OPENED ? null : stage.opened
   // 印刷区画の境目をまたいだ形を直してもらうタイプで、またいだ形があれば（AI が印刷プレビューで開いた・開いている間に AI が動かした）、
   // 印刷プレビューを閉じて、それを知らせる右サイドパネルを開く（フッタメニューのボタンと同じ）
   const crossing = useMemo(() => !!previewed && hasCrossing(catalog, previewed), [catalog, previewed])
@@ -208,7 +213,7 @@ function PrintPreviewBody({ id }: { id: string }) {
     el.addEventListener("dblclick", onDoubleClick)
     return () => el.removeEventListener("dblclick", onDoubleClick)
   }, [id, openPage])
-  if (!layout || !pan || !previewed) return null
+  if (!layout || pan === NO_STAGE || !previewed) return null
   const pageOf = (pageId: string) => pages.find(p => p.id === pageId)
   // ブック名（バインダ名）・ページ名と印刷区画の番号（設定で入れるときだけ。番号は並べた印刷区画全体の通し）
   const shows = {
@@ -276,7 +281,7 @@ function PrintPreviewBody({ id }: { id: string }) {
               entry={previewed.id}
               page={pageOf(s.page)}
               sheet={s}
-              measured={measures[s.page]?.data}
+              measured={measures[s.page]?.data ?? NOT_MEASURED}
               labels={labelsOf(s)}
             />
           </div>
@@ -290,7 +295,7 @@ function PrintPreviewBody({ id }: { id: string }) {
             ...s,
             key: keyOf(s),
             page: pageOf(s.page),
-            measured: measures[s.page]?.data,
+            measured: measures[s.page]?.data ?? NOT_MEASURED,
             labels: labelsOf(s),
           }))}
         />

@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { USER } from "../../web/src/core/actor"
-import { defineAction } from "../../web/src/core/def/action"
+import { defineAction, NO_CONTROL_CENTER } from "../../web/src/core/def/action"
 import type { PermissionDef } from "../../web/src/core/def/permission"
 import { perform } from "../../web/src/core/perform"
 import { permitted } from "../../web/src/core/perform-permit"
@@ -49,7 +49,14 @@ const book = testBook("b1", "混ざる", [
   testPage(MARKDOWN, "m1", { title: "文書" }),
   drawingPage("p3", { title: "3" }),
 ])
-const ctx = { catalog, controlCenter: null, lang: "en", newId: () => "n", now: "2026-01-01T00:00:00.000Z", actor: USER }
+const ctx = {
+  catalog,
+  controlCenter: NO_CONTROL_CENTER,
+  lang: "en",
+  newId: () => "n",
+  now: "2026-01-01T00:00:00.000Z",
+  actor: USER,
+}
 const act = (pages: "all" | string[]) => perform(book as never, TOUCH as never, { pages } as never, ctx as never)
 const ask = (pages: "all" | string[]) => permitted(book, TOUCH, { pages }, ctx as never)
 

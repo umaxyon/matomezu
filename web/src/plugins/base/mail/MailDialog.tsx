@@ -9,13 +9,13 @@ import { screenOfStage } from "../../../core/window"
 import { NO_STAGE } from "../../../store/dialogs"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useKindView } from "../../../ui/Slot"
+import { NO_KIND, NO_KIND_VIEW, useKindView } from "../../../ui/Slot"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { useCloseLeftSidePanel, useLeftSidePanel } from "../left-side-panel/hooks"
+import { NO_LEFT_SIDE_PANEL, useCloseLeftSidePanel, useLeftSidePanel } from "../left-side-panel/hooks"
 import { MAIL_SEEN, MAIL_VISITED } from "."
 import { useMailbox, useShowMailPlaceAt } from "./hooks"
 import own from "./Mail.module.css"
@@ -58,12 +58,13 @@ function MailDialogBody({ stage, mail: mailId, onClose }: { stage: string; mail:
   const actions = useStoreActions()
   const closeLeft = useCloseLeftSidePanel()
   const left = useLeftSidePanel()
-  const mailboxOpened = left?.tab === MAILBOX_TAB_ID
+  const mailboxOpened = left !== NO_LEFT_SIDE_PANEL && left.tab === MAILBOX_TAB_ID
   const showPlace = useShowMailPlaceAt()
   const seen = !!mail?.seenAt
   const [docked, setDocked] = useState(false) // 窓の右の端に寄せているか（種類のボタンが頼む）
   // この種類のボタンのウィジェット（あれば、開くボタンの代わりにそのボタンを並べる）
-  const Actions = useKindView(MAIL_ACTIONS, mail?.mail)
+  const kindView = useKindView(MAIL_ACTIONS, mail ? mail.mail : NO_KIND)
+  const Actions = kindView === NO_KIND_VIEW ? undefined : kindView
   // 開いたら見たことにする
   useEffect(() => {
     if (mail && !seen) actions.perform(MAIL_SEEN.id, {}, { record: mail.id })
@@ -96,7 +97,7 @@ function MailDialogBody({ stage, mail: mailId, onClose }: { stage: string; mail:
     if (opens) open(opens.primary)
     else onClose()
   }
-  const closeBoth = mailboxOpened && left && (
+  const closeBoth = mailboxOpened && (
     <ActionButton
       onClick={() => {
         onClose()

@@ -16,7 +16,7 @@ import type { MatomezuState } from "../../../store/state"
 import { usePluginState } from "../../../ui/plugin-state-hooks"
 import { Slot } from "../../../ui/Slot"
 import { StageScope } from "../../../ui/scope"
-import { useScreenContext } from "../../../ui/screen-context"
+import { useScreenIdHere } from "../../../ui/screen-context"
 import { useMatomezuState, useStoreActions } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { PressClosedContext, useOpenedRightSidePanel, useSidePanelSliding } from "../right-side-panel/hooks"
@@ -33,7 +33,7 @@ import styles from "./WorkspaceView.module.css"
 
 export function WorkspaceView() {
   // 描いている場所のブックスクリーンの中（スクリーンの外で描いたときは、いちばん最近カレントスクリーンにしたブックスクリーンの中）
-  const here = useScreenContext()?.id
+  const here = useScreenIdHere()
   const mine = (s: MatomezuState) => s.window.screens.find(x => x.id === here)?.stages ?? screenOf(s.window)
   const ids = useMatomezuState(useShallow(s => mine(s).stages.map(st => st.id)))
   const direction = useMatomezuState(s => mine(s).arrangement.direction)

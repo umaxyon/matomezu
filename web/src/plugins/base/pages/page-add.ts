@@ -12,6 +12,8 @@ import {
   lineupOf,
   type NewPage,
   type NewPageInto,
+  NO_BINDER,
+  NO_PAGE,
   pagesIn,
   putPage,
   withSettings,
@@ -74,14 +76,14 @@ export function withNewPage<B extends StageLineup>(
   if (!type) return null
   // 入れる所: まとまるタイプは into が要り、まとまらないタイプは into を書けない
   if ((type.grouping === "binder") !== (args.into !== undefined)) return null
-  const binder = args.into && "binder" in args.into ? findBinder(book, args.into.binder) : undefined
-  if (args.into && "binder" in args.into && binder?.pageType !== type.id) return null
-  const size = binder ? pagesIn(book, binder.id).length : args.into ? 0 : lineupOf(book).length
+  const binder = args.into && "binder" in args.into ? findBinder(book, args.into.binder) : NO_BINDER
+  if (args.into && "binder" in args.into && (binder === NO_BINDER || binder.pageType !== type.id)) return null
+  const size = binder !== NO_BINDER ? pagesIn(book, binder.id).length : args.into ? 0 : lineupOf(book).length
   const at = args.into && "newBinder" in args.into ? undefined : args.index
   if (at !== undefined && at > size) return null
   if (args.into && "newBinder" in args.into && args.index !== undefined && args.index > lineupOf(book).length)
     return null
-  const place = binder ? { binder: binder.id } : args.into ? "new-binder" : "lineup"
+  const place = binder !== NO_BINDER ? { binder: binder.id } : args.into ? "new-binder" : "lineup"
   const fallback = defaultPaper(catalog, book, type.id, place)
   const choice = { paper: args.paper ?? fallback.paper, orientation: args.orientation ?? fallback.orientation }
   if (!canChoose(paperChoices(catalog, book, type.id, place), choice)) return null
@@ -90,7 +92,7 @@ export function withNewPage<B extends StageLineup>(
   const settings = args.settings === undefined ? null : settingsPatchOf(catalog, type.id)?.safeParse(args.settings)
   if (settings === undefined || settings?.success === false) return null
   // 名前は、同じブックかバインダの中で重ならない（渡した名前が重なれば、並びの決まりで断られる。渡さなければ、重ならない「（無題）」）
-  const siblings = binder ? pagesIn(book, binder.id) : args.into ? [] : lineupOf(book)
+  const siblings = binder !== NO_BINDER ? pagesIn(book, binder.id) : args.into ? [] : lineupOf(book)
   const title =
     args.title ??
     untitledAmong(
@@ -102,12 +104,14 @@ export function withNewPage<B extends StageLineup>(
   const into: NewPageInto =
     args.into && "newBinder" in args.into
       ? { newBinder: { title: args.into.newBinder, pageType: type.id }, ...indexOf(args.index) }
-      : binder
+      : binder !== NO_BINDER
         ? { binder: binder.id, ...indexOf(at) }
         : indexOf(at)
   const made = addPage(book, content, into, ctx.newId)
-  const fresh = made && findPage(made.book, made.page)?.page
-  if (!made || !fresh) return null
+  if (made === NO_BINDER) return null
+  const madeAt = findPage(made.book, made.page)
+  if (madeAt === NO_PAGE) return null
+  const fresh = madeAt.page
   const placed = made.book
   const written = writeFields(catalog, fresh, args.fields, "add", contentIdMaker(fresh, ctx.newId))
   if (!written) return null
@@ -117,13 +121,13 @@ export function withNewPage<B extends StageLineup>(
         putPage(placed, withSettings(written.page, settings.data as Record<string, unknown>) as ItemPage),
       )
     : putPage(placed, written.page as ItemPage)
-  const added = findPage(next, made.page)?.page
-  if (!added || pageProblem(catalog, added)) return null
+  const after = findPage(next, made.page)
+  if (after === NO_PAGE || pageProblem(catalog, after.page)) return null
   return {
     book: next,
     result: {
       page: made.page,
-      ...(made.binder === undefined ? {} : { binder: made.binder }),
+      ...(made.binder === NO_BINDER ? {} : { binder: made.binder }),
       ...(written.result === undefined ? {} : { fields: written.result }),
     },
   }

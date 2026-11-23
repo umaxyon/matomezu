@@ -1,5 +1,6 @@
 // 検索ダイアログの、base のプラグイン状態での持ち方: 開いている間の検索（search）、動かしたダイアログの位置（searchAt。閉じても覚える）、
 // 閉じたときにビューが選ぶ今の当たり（searchPick。閉じるたびに番号を進める）
+import { NO_STATE } from "../../../core/def/plugin-state"
 import type { Point } from "../../../core/geom"
 import { type CommandContext, NO_BOOK } from "../../../store/commands/def"
 import { kit } from "../kit"
@@ -25,8 +26,8 @@ export interface SearchOpen {
 // ステージに覚えた検索 search を、今開いている物で読んだ値: ブックを開いていなければ（inBook が false。ブックの外のページ）、範囲はいつも page。
 // ブックの全部を探していたステージにブックの外のページを開くと、覚えた範囲は book のまま残る。SEARCH_STATE を読む所は、これを通す
 // （コマンドは searchOf、ビューは useSearchHere.tsx のフック）
-export const searchHere = <S extends SearchOpen | undefined>(search: S, inBook: boolean): S =>
-  search && !inBook && search.scope === "book" ? { ...search, scope: "page" } : search
+export const searchHere = (search: SearchOpen | typeof NO_STATE, inBook: boolean): SearchOpen | typeof NO_STATE =>
+  search !== NO_STATE && !inBook && search.scope === "book" ? { ...search, scope: "page" } : search
 
 export interface SearchPick extends SearchSpot {
   n: number // 閉じるたびに進める番号（ビューが前に選んだ物と見分ける）
@@ -46,5 +47,5 @@ export const NEW_SEARCH: Omit<SearchOpen, "scope" | "focus" | "opened"> = {
 }
 
 // コマンドの文脈 ctx のステージに覚えた検索を、今開いている物で読んだ値
-export const searchOf = (ctx: CommandContext): SearchOpen | undefined =>
+export const searchOf = (ctx: CommandContext): SearchOpen | typeof NO_STATE =>
   searchHere(ctx.pluginState(SEARCH_STATE), ctx.book !== NO_BOOK)

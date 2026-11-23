@@ -486,8 +486,11 @@ test("可変ページでは、名前を書いている間も、書いている�
   })
   if (!done.ok) throw new Error("page-add refused")
   const area = () => {
-    const opened = screenOf(store.state.getState().window).stages[0]!.opened as { area?: { w: number; h: number } }
-    return opened.area!
+    const opened = screenOf(store.state.getState().window).stages[0]!.opened as {
+      area: { w: number; h: number } | "none"
+    }
+    if (opened.area === "none") throw new Error("no area")
+    return opened.area
   }
   const before = area()
   press("Enter")

@@ -2,7 +2,7 @@
 // アクション pages-update（ブックのページの設定の項目を、まとめて変える）。テーマと紙の色はページの設定の項目（look.ts）で、選んだタイプのページだけが持つ
 
 import { z } from "zod"
-import { findPage, pagesOf, putPage, withSettings } from "../../../core/book"
+import { findPage, NO_PAGE, pagesOf, putPage, withSettings } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Declined } from "../../../core/def/action"
 import type { Book } from "../../../core/schema/book"
@@ -86,7 +86,7 @@ export const PAGES_UPDATE = kit.defineAction({
   args: PAGES_ARGS,
   describeArgs: catalog => PAGES_ARGS.extend({ settings: settingsArgs(catalog) }),
   run: (book, args, ctx) => {
-    if (args.pages !== "all" && args.pages.some(id => !findPage(book, id))) return null
+    if (args.pages !== "all" && args.pages.some(id => findPage(book, id) === NO_PAGE)) return null
     const targets = pagesOf(book).filter(p => args.pages === "all" || args.pages.includes(p.id))
     let next = book
     const updated: string[] = []

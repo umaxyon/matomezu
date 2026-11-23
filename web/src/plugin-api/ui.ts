@@ -2,13 +2,13 @@
 // 外から読む入口は plugin-entry（matomezu/ui）。状態を丸ごと読むフックは出さない
 
 export { useCommand } from "../ui/commands"
-export type { ConnectorUi, ShapeScene } from "../ui/connector"
-export { ShapeMarksProvider, useShapeMarks } from "../ui/connector"
+export type { ConnectorUi, ShapeMarks, ShapeScene } from "../ui/connector"
+export { KEEP_ALL, NO_HOVER, NO_POINT, NO_TARGET, ShapeMarksProvider, useShapeMarks } from "../ui/connector"
 export { useContextMenu } from "../ui/context-menu"
 export { useMessages, useT } from "../ui/i18n"
 export type { ContextMenuEntry, LayoutDef, MenuItem, WidgetDef, WidgetPlace } from "../ui/layout"
 export { defineLayout, defineWidget } from "../ui/layout"
-export { useMenu, useMenuCommand } from "../ui/menu"
+export { NO_MENU_COMMAND, useMenu, useMenuCommand } from "../ui/menu"
 export type {
   ContextMenuRow,
   ContextMenuRows,
@@ -25,6 +25,7 @@ export { definePluginUi } from "../ui/plugin"
 export {
   usePluginState,
   useReadPluginState,
+  useResetPluginState,
   useSetPluginState,
   useSetPluginStateById,
   useSetPluginStates,
@@ -32,7 +33,8 @@ export {
 } from "../ui/plugin-state-hooks"
 export { useRecord, useRecords } from "../ui/record-hooks"
 export { ScreenView } from "../ui/ScreenView"
-export { KindSlot, Slot, useKindView } from "../ui/Slot"
+export { KindSlot, NO_KIND, NO_KIND_VIEW, Slot, useKindView } from "../ui/Slot"
+export { NO_SCREEN } from "../ui/screen-context"
 export {
   useArrangedScreens,
   useBrowserBack,
@@ -46,6 +48,8 @@ export { useLayoutWarnings } from "../ui/store-context"
 export { TokenScope, themeVars, useTokenScope } from "../ui/theme-vars"
 export {
   type Allowed,
+  NO_PERMISSION,
+  PAN_NOT_WATCHED,
   useActions,
   useAllowed,
   useAllowedOn,

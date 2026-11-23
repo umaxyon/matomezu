@@ -1,7 +1,16 @@
 // 書いた者（チケットを作った者・履歴の行を書いた者）: アクターをそのまま写した形。AI は入っているワークルームの、その時の名前・鳥・配色の写しを持つ
 // （ワークルームを消しても、行の鳥が描ける）。鳥と配色の id は、タスクボードは意味を知らず、そのまま持つ
 import { z } from "zod"
-import { type ActionContext, type Actor, isAI, type RecordOf, type RecordRead, workroomOfActor } from "../../plugin-api"
+import {
+  type ActionContext,
+  type Actor,
+  isAI,
+  NO_RECORD,
+  NO_WORKROOM,
+  type RecordOf,
+  type RecordRead,
+  workroomOfActor,
+} from "../../plugin-api"
 
 export const WORKROOM_SUBJECT = "@matomezu/base:workroom"
 
@@ -25,7 +34,7 @@ export type Records = Pick<ActionContext, "records" | "keys" | "record">
 // アクションが読んだ、種類 subject の id のレコード（reads が id で答えた物か、宛先のレコードが指す先。無ければ undefined）
 export function recordIn(ctx: Records, subject: string, id: string): unknown | undefined {
   const read = ctx.records?.[subject]?.[id] ?? ctx.record?.(subject, id)
-  return read === "none" ? undefined : read
+  return read === NO_RECORD ? undefined : read
 }
 
 export const workroomOf = (ctx: Records, id: string) =>
@@ -34,7 +43,7 @@ export const workroomOf = (ctx: Records, id: string) =>
 // 書いた者を写す（byOf）アクションが読む物: 行う者が入っているワークルーム
 export const readsBy = (actor: Actor): RecordRead[] => {
   const id = workroomOfActor(actor)
-  return id === undefined ? [] : [{ subject: WORKROOM_SUBJECT, id }]
+  return id === NO_WORKROOM ? [] : [{ subject: WORKROOM_SUBJECT, id }]
 }
 
 // ワークルームの候補（id と名前）: 読んだ全部のワークルームの索引キー（base の READS_WORKROOM_KEYS）から。作った順
@@ -48,7 +57,7 @@ export const workroomsOf = (ctx: Records): { id: string; name: string }[] =>
 export function byOf(actor: Actor, ctx: Records): By | null {
   if (!isAI(actor)) return { kind: "user" }
   const id = workroomOfActor(actor)
-  if (id === undefined) return null
+  if (id === NO_WORKROOM) return null
   const room = workroomOf(ctx, id)
   if (!room) return null
   return {

@@ -3,6 +3,7 @@
 // その上に見た目を重ねる（スロットの物が自分のボタンを持てるように。見た目のうちボタンだけが押しを受け、ほかの所の押しは下の選ぶボタンへ通す）。
 // ワークルームの下に、ビジター（ワークルームを持たない、読むだけの参加者）の節を出す（いなければ節ごと出さない）。選ぶのは、選んでいる物（PICKED）の 1 つ
 import { useState } from "react"
+import { NO_STATE } from "../../plugin-api"
 import { Slot, useMessages, usePluginState, useSetPluginState } from "../../plugin-api/ui"
 import { visitorName } from "../base"
 import { Band, Panel, useRowSlide, useVisitorRows, useWorkroomRows, VisitorIcon } from "../base/ui"
@@ -27,7 +28,7 @@ export function ParticipantListView() {
   const picked = usePluginState(kit, PICKED)
   const setPicked = useSetPluginState(kit, PICKED)
   const visitors = useVisitorRows()
-  const isPicked = (kind: string, id: string) => picked?.kind === kind && picked.id === id
+  const isPicked = (kind: string, id: string) => picked !== NO_STATE && picked.kind === kind && picked.id === id
   const detailText = (d: RowDetail) => (d === "preparing" ? t("(preparing)") : null)
   return (
     <Panel className={styles.list}>

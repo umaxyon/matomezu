@@ -1,7 +1,7 @@
 // 関係線のビューと〇: 関係線を点線で描き、ポインタを乗せた形と関係のある形のほかを薄くするよう求める（ShapeMarks）。
 // 〇は形ごとに右上の小さな点（引く操作は持たない。ビルトインの線の〇と重なるかを見るため）
 import { connectorsOf } from "matomezu"
-import { ShapeMarksProvider, type ShapeScene } from "matomezu/ui"
+import { KEEP_ALL, NO_HOVER, NO_TARGET, ShapeMarksProvider, type ShapeScene } from "matomezu/ui"
 import type { ReactNode } from "react"
 import { RELATION } from "./relation"
 
@@ -10,15 +10,16 @@ const relationsIn = (scene: ShapeScene) => connectorsOf(scene.page).filter(c => 
 export function RelationView({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
   const relations = relationsIn(scene)
   const { hover } = scene
-  const keep = hover
-    ? new Set([hover, ...relations.flatMap(r => (r.from === hover ? [r.to] : r.to === hover ? [r.from] : []))])
-    : null
+  const keep =
+    hover !== NO_HOVER
+      ? new Set([hover, ...relations.flatMap(r => (r.from === hover ? [r.to] : r.to === hover ? [r.from] : []))])
+      : KEEP_ALL
   const center = (id: string) => {
     const r = scene.rects.get(id)
     return r ? { x: r.x + r.w / 2, y: r.y + r.h / 2 } : null
   }
   return (
-    <ShapeMarksProvider value={{ keep, target: null }}>
+    <ShapeMarksProvider value={{ keep, target: NO_TARGET }}>
       {children}
       <svg
         aria-hidden="true"

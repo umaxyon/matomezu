@@ -5,7 +5,7 @@ import { checkBooks, restoreBooks } from "../../web/src/core/book"
 import { buildCoreCatalog } from "../../web/src/core/core-catalog"
 import { checkCoreCatalog } from "../../web/src/core/core-catalog-check"
 import { BUILTIN } from "../../web/src/plugins"
-import { settingValue } from "../../web/src/plugins/base/book-settings"
+import { NO_HOLDER, settingValue } from "../../web/src/plugins/base/book-settings"
 import { LINE_ROUTE } from "../../web/src/plugins/items/line/line"
 import { assemble, type Plugin, warningsOf } from "../../web/src/store/plugin"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
@@ -83,7 +83,7 @@ describe("組み立てたブックの形", () => {
       settingValue(CORE_CATALOG, page([], { settings: { "@matomezu/line:line-route": "straight" } }), LINE_ROUTE),
     ).toBe("straight")
     expect(settingValue(CORE_CATALOG, page([]), LINE_ROUTE)).toBe("elbow") // 定義の既定
-    expect(settingValue(CORE_CATALOG, null, LINE_ROUTE)).toBe("elbow")
+    expect(settingValue(CORE_CATALOG, NO_HOLDER, LINE_ROUTE)).toBe("elbow")
   })
 })
 

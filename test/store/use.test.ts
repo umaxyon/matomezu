@@ -1,15 +1,16 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { findPage, putPage } from "../../web/src/core/book"
+import { putPage } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
 import { definePageType } from "../../web/src/core/def/page-type"
 import type { MatomezuError } from "../../web/src/core/errors"
+import { NOTHING_OPENED } from "../../web/src/core/stage"
 import { stageIn } from "../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin, withoutParts } from "../../web/src/store/plugin"
-import { savedRows, shown } from "../support"
+import { pageOf, savedRows, shown } from "../support"
 
 // 取り込んだ追加プラグインの見本: 自分のページのタイプとアクション（core/catalog.ts には書き足さない）
 const NOTE = definePageType({
@@ -33,7 +34,7 @@ const RENAME = defineAction({
   permissionScope: { page: "page" },
   args: z.strictObject({ page: z.string().min(1), title: z.string().min(1) }),
   run: (book, args) => {
-    const page = findPage(book, args.page)?.page
+    const page = pageOf(book, args.page)
     return page ? { next: putPage(book, { ...page, title: args.title }), result: {} } : null
   },
 })
@@ -97,7 +98,7 @@ test("use は前に足したものと置き換える（外したプラグイン�
   instance.use([])
   expect(instance.catalog.core.actions.has("notes:rename")).toBe(false)
   expect(instance.state.getState().books.n1).toBeUndefined()
-  expect(openedOf(instance) ?? null).toBeNull()
+  expect(openedOf(instance) ?? NOTHING_OPENED).toBe(NOTHING_OPENED)
 })
 
 test("check が投げた追加プラグインも食い違いとして E317 を投げ、E318 の reason は check の error の文（画面は見た目の台帳アセンブルで確かめる）", () => {

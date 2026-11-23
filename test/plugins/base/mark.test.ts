@@ -4,6 +4,7 @@ import { expect, test } from "bun:test"
 import { AI } from "../../../web/src/core/actor"
 import { type Annotation, annotationsForAi } from "../../../web/src/core/annotation"
 import { pagesOf } from "../../../web/src/core/book"
+import { NO_CONTROL_CENTER } from "../../../web/src/core/def/action"
 import { performIn } from "../../../web/src/core/perform-world"
 import type { Book } from "../../../web/src/core/schema/book"
 import { MARK_PICKER } from "../../../web/src/plugins/base/mark/states"
@@ -90,7 +91,7 @@ test("AI はマークを付けられないが、読んだ印を付けて外せ�
   }
   const ctx = {
     catalog: CORE_CATALOG,
-    controlCenter: null,
+    controlCenter: NO_CONTROL_CENTER,
     lang: "en" as const,
     newId: () => "n",
     now: "t",

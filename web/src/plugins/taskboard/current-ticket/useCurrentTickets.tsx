@@ -1,5 +1,6 @@
 // ワークルームのカレントチケット（判定は current-work の currentTicketOf）と、担当に入っているがカレントチケットでないチケット（担当に入っていて完了していない、カレントチケットでない物。更新の新しい順）
 import { useMemo } from "react"
+import { NO_RECORD } from "../../../plugin-api"
 import { useRecord, useRecords } from "../../../plugin-api/ui"
 import { CURRENT_WORK, currentTicketOf, isCurrentFor } from "../current-work"
 import { inDoneLane, PROJECT } from "../project"
@@ -18,7 +19,12 @@ export function useCurrentTickets(workroom: string): WorkroomTickets {
   const projects = useRecords(PROJECT.id, { where: [] })
   return useMemo(() => {
     const projectOf = (id: string) => projects.find(p => p.id === id)
-    const current = currentTicketOf(workroom, work, id => tickets.find(t => t.id === id), projectOf)
+    const current = currentTicketOf(
+      workroom,
+      work === NO_RECORD ? undefined : work,
+      id => tickets.find(t => t.id === id),
+      projectOf,
+    )
     const assigned = tickets
       .flatMap(ticket => {
         const project = projectOf(ticket.project)
@@ -35,7 +41,10 @@ export function useWorkingOn(ticket: Ticket): ReadonlySet<string> {
   const works = useRecords(CURRENT_WORK.id, { where: [{ key: "ticket", eq: ticket.id }] })
   const project = useRecord(PROJECT.id, ticket.project)
   return useMemo(
-    () => new Set(works.filter(w => isCurrentFor(ticket, w.id, project)).map(w => w.id)),
+    () =>
+      new Set(
+        works.filter(w => isCurrentFor(ticket, w.id, project === NO_RECORD ? undefined : project)).map(w => w.id),
+      ),
     [works, ticket, project],
   )
 }

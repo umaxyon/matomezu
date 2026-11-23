@@ -4,7 +4,17 @@
 // × と Esc は［やめる］と同じ（頼みを取り下げる。閉じたあとの頼みを見る所が無いため）。どの閉じ方でも、終わった様子を常駐から消す
 import { type FormEvent, useEffect, useId, useState } from "react"
 import { type DialogProps, useMessages, useRecords, useSetPluginStateById } from "../../plugin-api/ui"
-import { ActionButton, Dialog, type FoundHost, type HostPairing, useAskHosts, useHostPeers } from "../base/ui"
+import {
+  ActionButton,
+  Dialog,
+  type FoundHost,
+  type HostPairing,
+  NO_HOST_PEERS,
+  NO_PAIRING,
+  NOT_TOLD,
+  useAskHosts,
+  useHostPeers,
+} from "../base/ui"
 import { CONTROL_CENTER_SCREEN, PICKED_STATE } from "./control-center-ids"
 import { ipOf } from "./hosts"
 import { kit } from "./kit"
@@ -13,7 +23,8 @@ import { PAIRED_HOST } from "./pairing"
 
 export function PairingDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
-  const pairing = useHostPeers()?.pairing
+  const peers = useHostPeers()
+  const pairing = peers === NO_HOST_PEERS ? NO_PAIRING : peers.pairing
   const ask = useAskHosts()
   // どの閉じ方でも（×・Esc・外側・受け入れられたあと）、頼みを取り下げ、終わった様子を消す（Esc はキーバインドが閉じるので、ダイアログが消えるときに頼む）。頼んでいないときも送る（常駐は何もしない）。［つなぐ］の様子が届く前に閉じても漏らさないため
   useEffect(
@@ -24,7 +35,7 @@ export function PairingDialog({ onClose }: DialogProps) {
   )
   return (
     <Dialog title={t("Pair with a host")} width={480} onClose={onClose}>
-      {pairing ? <Asked pairing={pairing} onClose={onClose} /> : <Choose onCancel={onClose} />}
+      {pairing === NO_PAIRING ? <Choose onCancel={onClose} /> : <Asked pairing={pairing} onClose={onClose} />}
     </Dialog>
   )
 }
@@ -33,7 +44,8 @@ export function PairingDialog({ onClose }: DialogProps) {
 function Choose({ onCancel }: { onCancel: () => void }) {
   const t = useMessages(kit)
   const ask = useAskHosts()
-  const found = useHostPeers()?.found ?? []
+  const peers = useHostPeers()
+  const found = peers === NO_HOST_PEERS ? [] : peers.found
   const [chosen, setChosen] = useState<string | undefined>(undefined)
   const [manual, setManual] = useState("")
   const [typing, setTyping] = useState(false)
@@ -118,12 +130,12 @@ function Asked({ pairing, onClose }: { pairing: HostPairing; onClose: () => void
     setById(PICKED_STATE, { kind: PAIRED_HOST.id, id: paired.id }, { screenDef: CONTROL_CENTER_SCREEN })
     onClose()
   }, [accepted, paired, setById, onClose])
-  const name = pairing.name || pairing.addr
+  const name = pairing.name === NOT_TOLD ? pairing.addr : pairing.name
   if (pairing.phase === "asking" || pairing.phase === "waiting" || pairing.phase === "accepted")
     return (
       <>
-        <p>{pairing.name ? t("Waiting for {name} to accept", { name }) : t("Asking {name}", { name })}</p>
-        {pairing.code ? <Code code={pairing.code} /> : null}
+        <p>{pairing.name === NOT_TOLD ? t("Asking {name}", { name }) : t("Waiting for {name} to accept", { name })}</p>
+        {pairing.code === NOT_TOLD ? null : <Code code={pairing.code} />}
         <div className={styles.buttons}>
           <ActionButton onClick={onClose}>{t("Cancel pairing")}</ActionButton>
         </div>

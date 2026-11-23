@@ -4,7 +4,11 @@
 // 1 本だけ選んだ線は、端・途中の区間・キャプションの札をドラッグしてじかに直せる（useLineEdit.ts）。
 // 形にポインタを乗せると四辺に〇を出し（PortOverlay）、〇から引くドラッグ（useLinkDrag.ts）の間は、引ける相手と引き始めた形のほかを薄くする
 import { createContext, type ReactNode, useContext, useLayoutEffect, useRef } from "react"
+import { NO_PLACING, NO_STAGE } from "../../../plugin-api"
 import {
+  KEEP_ALL,
+  NO_TARGET,
+  type ShapeMarks,
   ShapeMarksProvider,
   type ShapeScene,
   useActions,
@@ -14,7 +18,7 @@ import {
   useStage,
 } from "../../../plugin-api/ui"
 import { type PortArea, portAreasOf, toggledSelection } from "../../base"
-import { modPressed, useDrawnMinimap } from "../../base/ui"
+import { KEEP_DRAWN, modPressed, useDrawnMinimap } from "../../base/ui"
 import { LINE_EDIT } from "./commands"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "./connect"
 import { DrawnLinesView } from "./DrawnLinesView"
@@ -44,8 +48,8 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
   const catalog = useCoreCatalog()
   // 選んでいる物と、置こうとしている物は、向け先のステージから読む（ステージの外で描くときは、どちらも無い）
   const stage = useStage()
-  const selection = stage?.selection ?? NO_SELECTION
-  const placing = stage?.placing ?? null
+  const selection = stage === NO_STAGE ? NO_SELECTION : stage.selection
+  const placing = stage === NO_STAGE ? NO_PLACING : stage.placing
   // 線は形のつながる範囲（つなぎ口で縮めた四角）につなぐ
   const rects = portAreasOf(catalog, page, scene.rects)
   // ページの線の既定が折れ線か（ページ → 設定の既定）
@@ -87,7 +91,7 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
   const editing = selectable && lineDrag.editable && only && drafted.some(l => l.id === only) ? only : null
 
   // ミニマップの線は、紙に描いた点の並びで描かせる（形を動かしている間は置き直さない。ミニマップの形も、離すまで動かないため）
-  useDrawnMinimap(LINE.id, page.id, scene.busy ? null : lines.map(d => ({ kind: "polyline", points: d.points })))
+  useDrawnMinimap(LINE.id, page.id, scene.busy ? KEEP_DRAWN : lines.map(d => ({ kind: "polyline", points: d.points })))
 
   // 描き終えたら、次に描くときのために、線の記憶と形の四角を覚える
   useLayoutEffect(() => {
@@ -112,9 +116,9 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
   }
   // 線を引いている間は引ける相手と引き始めた形のほかを、端を運んでいる間はつなぎ替えられる形と今の形のほかを薄くする
   const l = linkDrag.link
-  const marks = {
-    keep: l ? new Set([l.from, ...l.targets]) : lineDrag.dimming,
-    target: linkDrag.tip?.target ?? lineDrag.target ?? null,
+  const marks: ShapeMarks = {
+    keep: l ? new Set([l.from, ...l.targets]) : (lineDrag.dimming ?? KEEP_ALL),
+    target: linkDrag.tip?.target ?? lineDrag.target ?? NO_TARGET,
   }
   const from = l && rects.get(l.from)
   const zoom = scene.zoom
@@ -137,7 +141,7 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
             lineEdit.run({ item: id })
           }}
           onContextMenu={(e, id) => {
-            if (placing !== null) return
+            if (placing !== NO_PLACING) return
             if (!selection.includes(id)) select([id])
             openLineMenu(e, { item: id })
           }}

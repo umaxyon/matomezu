@@ -27,7 +27,7 @@ import { defineWidget } from "../../../ui/layout"
 import { useCatalog, useLayout, useUiCatalog } from "../../../ui/store-context"
 import { useSettings } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { StandAt, useStandAway } from "../stand/anchors"
+import { NOT_AWAY, StandAt, useStandAway } from "../stand/anchors"
 import { KEEP_INSIDE } from "../utils/keep-inside"
 import { type PlaceInSlot, placeIn } from "../utils/place-in"
 import styles from "./corner.module.css"
@@ -236,7 +236,7 @@ function Corner({ corners, group }: { corners: Corners; group: readonly PlacedCo
   }, [])
   // 縁の印に替わったときと、1 つに減ったときは閉じる
   useEffect(() => {
-    if (away || !many) hide()
+    if (away !== NOT_AWAY || !many) hide()
   }, [away, many, hide])
   useLayoutEffect(() => {
     const el = bubble.current
@@ -249,7 +249,7 @@ function Corner({ corners, group }: { corners: Corners; group: readonly PlacedCo
   // 乗せて開くのはマウスとペンだけ（タッチは押して開く）
   useEffect(() => {
     const el = ref.current
-    if (!el || !many || away) return
+    if (!el || !many || away !== NOT_AWAY) return
     const enter = (e: PointerEvent) => {
       if (e.pointerType === "mouse" || e.pointerType === "pen") show()
       else clearTimeout(leaving.current)
@@ -285,7 +285,7 @@ function Corner({ corners, group }: { corners: Corners; group: readonly PlacedCo
       document.removeEventListener("keydown", onKeyDown, true)
     }
   }, [open, hide])
-  if (away) return <>{group.find(g => g.entry.pointer)?.entry.pointer ?? null}</>
+  if (away !== NOT_AWAY) return <>{group.find(g => g.entry.pointer)?.entry.pointer ?? null}</>
   if (!many) {
     const only = group[0] as PlacedCorner
     return <div ref={corners.slotRef(only.id)} className={styles.single} data-corner-slot="single" />

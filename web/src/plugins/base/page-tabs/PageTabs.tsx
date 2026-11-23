@@ -5,9 +5,9 @@
 // 選ばれたタブ（ブックかタブが替わったとき）と、並びが出たときは、選ばれたタブが見える所まで並びを送る（どの道で開いても同じ）。
 // タブはドラッグで並べ替えられる（useTabDrag。アクション page-move・binder-move）。掴んだタブは元の所で薄くなり、写しがポインタに付き、落とす所に線が出る
 import { useLayoutEffect, useRef } from "react"
-import { lineupOf } from "../../../core/book"
+import { lineupOf, NO_BINDER } from "../../../core/book"
 import type { LineupEntry } from "../../../core/schema/book"
-import { binderOf, openedBook, shownPageId, shownType } from "../../../core/stage"
+import { binderOf, NO_PAGE_TYPE, NOTHING_OPENED, openedBook, shownPageId, shownType } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
@@ -50,7 +50,7 @@ function reveal(el: HTMLElement | null): void {
 const typeOf = (e: LineupEntry): string => (e.kind === "page" ? e.type : e.pageType)
 
 export function PageTabs() {
-  const opened = useStageHere(st => st?.opened)
+  const opened = useStageHere(st => st?.opened ?? NOTHING_OPENED)
   const book = useMatomezuState(s => openedBook(s.books, opened))
   const openPage = useCommand(PAGE_OPEN.id)
   const openBinder = useCommand(BINDER_OPEN.id)
@@ -66,9 +66,10 @@ export function PageTabs() {
     "x",
     new Set(lineup.flatMap(e => (e.kind === "binder" ? [e.id] : []))),
   )
-  const shown = shownPageId(opened ?? null)
-  const binder = book ? binderOf(book, opened ?? null) : null
-  const selected = book && openPage.enabled ? `${book.id}/${binder ?? shown}` : null
+  const shown = shownPageId(opened)
+  const binder = book ? binderOf(book, opened) : NO_BINDER
+  const firstType = shownType(opened)
+  const selected = book && openPage.enabled ? `${book.id}/${binder !== NO_BINDER ? binder : shown}` : null
   // biome-ignore lint/correctness/useExhaustiveDependencies: 選ばれたタブが替わったときと並びが出たときだけ送る（同じバインダの中でページを替えても、手で送った位置は戻さない）
   useLayoutEffect(() => reveal(list.current), [selected])
   if (!book || !openPage.enabled) return <div className={styles.tabs} data-page-tabs />
@@ -125,7 +126,7 @@ export function PageTabs() {
           </div>
         </GhostArea>
       )}
-      <AddPageMenu first={shownType(opened ?? null)} />
+      <AddPageMenu first={firstType === NO_PAGE_TYPE ? null : firstType} />
     </div>
   )
 }

@@ -1,16 +1,17 @@
 // ペアリングを解く確認: 解くホスト（名前と利用者名）と、キャンセル・解く。解くと相手にも知らせる。ホストが居なくなっていれば、すぐ閉じる
 import { useEffect } from "react"
 import { type DialogProps, useActions, useMessages, useRecords } from "../../plugin-api/ui"
-import { ActionButton, Dialog, useHostPeers } from "../base/ui"
+import { ActionButton, Dialog, NOT_TOLD, useHostPeers } from "../base/ui"
 import { hostRows, shownName } from "./hosts"
 import { kit } from "./kit"
+import { pairedOf } from "./OtherHosts"
 import styles from "./Pairing.module.css"
 import { PAIRED_HOST, PAIRED_HOST_REMOVE } from "./pairing"
 
 export function UnpairDialog({ args, onClose }: DialogProps<{ pairedHost: string }>) {
   const t = useMessages(kit)
   const { perform } = useActions()
-  const all = hostRows(useRecords(PAIRED_HOST.id, { where: [] }), useHostPeers()?.paired ?? [])
+  const all = hostRows(useRecords(PAIRED_HOST.id, { where: [] }), pairedOf(useHostPeers()), NOT_TOLD)
   const row = all.find(r => r.record.id === args.pairedHost)
   const gone = !row
   useEffect(() => {

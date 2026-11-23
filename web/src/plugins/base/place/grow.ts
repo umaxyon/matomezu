@@ -45,7 +45,11 @@ export type GrowRule =
 
 // 決め方 rule の種類: 利用者が選べる増やす向きの一覧（最初のものが既定）、タイプが向きを決める by-type、どのページもいつも可変ページの always、
 // 可変ページを作れない none（rule が無い）
-export const growKindOf = (rule: GrowRule | undefined): readonly GrowChoice[] | "by-type" | "always" | "none" =>
+export const growKindOf = ({
+  grow: rule,
+}: {
+  grow?: GrowRule
+}): readonly GrowChoice[] | "by-type" | "always" | "none" =>
   !rule ? "none" : "always" in rule ? "always" : "choices" in rule ? rule.choices : "by-type"
 
 // 可変ページの増やす向きの決め方（定義オブジェクトの拡張ポイントに書き足す。無ければ可変ページを作れない。ページを持つタイプだけが使う）
@@ -55,20 +59,23 @@ declare module "../../../core/catalog" {
   }
 }
 
+// ページに何も描かない（外枠が無い）
+export const NO_EXTENT = "none"
+
 // 紙の大きさ paper で区切った印刷区画を、中身の外枠 extent（紙の座標。無ければ中身が無い）が入るだけ、増やす向き sides に並べた数と、その広さ。
 // 増やさない向きは 1 つ。spare なら、右・下へ増やす向きに空きの印刷区画を 1 つずつ足す（ステージで、そこへ置けば増える）
 export function grownArea(
   paper: Size,
   sides: GrowSides,
-  extent: Rect | null,
+  extent: Rect | typeof NO_EXTENT,
   spare = false,
 ): { columns: number; rows: number; size: Size } {
   // 端がちょうど印刷区画の境目なら、次の印刷区画は要らない（割り算の誤差で 1 つ増やさない）。左（上）へ増やすページは、
   // 左（上）の空きの印刷区画をデータに持つ（alignPadding）ので、少なくとも 2 つ
   const count = (end: number, len: number, before: boolean, after: boolean) =>
     before || after ? Math.max(before ? 2 : 1, Math.ceil(end / len - 1e-9)) + (spare && after ? 1 : 0) : 1
-  const columns = count(extent ? extent.x + extent.w : 0, paper.w, sides.left, sides.right)
-  const rows = count(extent ? extent.y + extent.h : 0, paper.h, sides.up, sides.down)
+  const columns = count(extent !== NO_EXTENT ? extent.x + extent.w : 0, paper.w, sides.left, sides.right)
+  const rows = count(extent !== NO_EXTENT ? extent.y + extent.h : 0, paper.h, sides.up, sides.down)
   return { columns, rows, size: { w: columns * paper.w, h: rows * paper.h } }
 }
 
@@ -90,13 +97,13 @@ export function printAreaLines(
 
 // タイプ type のページを、可変ページにする・やめるを選べるか（いつも可変ページのタイプは選べない）
 export function canGrow(catalog: CoreCatalog, type: string): boolean {
-  const kind = growKindOf(pageType(catalog, type).grow)
+  const kind = growKindOf(pageType(catalog, type))
   return kind !== "none" && kind !== "always"
 }
 
 // タイプ type で利用者が選べる増やす向き（最初のものが既定）。タイプが決めるなら空
 export function growChoices(catalog: CoreCatalog, type: string): readonly GrowChoice[] {
-  const kind = growKindOf(pageType(catalog, type).grow)
+  const kind = growKindOf(pageType(catalog, type))
   return typeof kind === "string" ? [] : kind
 }
 
@@ -117,22 +124,30 @@ export const withGrows = <P extends Page>(page: P, grows: Page["grows"]): P =>
 // ページの紙の大きさ
 export const paperSize = (catalog: CoreCatalog, page: ItemPage): Size => resolvePaper(catalog, page).size
 
-// ページ page の増やす向き（可変ページでなければ undefined）。利用者が選ぶタイプは選んだ向き（選べない向きや true なら既定）、
+// 増やす向きが無い（可変ページでない）ときの値
+export const NO_GROW = "none"
+
+// ページ page の増やす向き（可変ページでなければ NO_GROW）。利用者が選ぶタイプは選んだ向き（選べない向きや true なら既定）、
 // タイプが決めるタイプは、そのページで効いている設定の値から。いつも可変ページのタイプは、どのページもタイプの向き
-export function growOf(catalog: CoreCatalog, page: ItemPage): GrowSides | undefined {
+export function growOf(catalog: CoreCatalog, page: ItemPage): GrowSides | typeof NO_GROW {
   const rule = catalog.pageTypes.get(page.type)?.grow
   if (rule && "always" in rule) return rule.always
-  if (!page.grows || !rule) return undefined
+  if (!page.grows || !rule) return NO_GROW
   if ("sides" in rule) return rule.sides(settingsAt(catalog, page))
   const chosen = page.grows === true || !rule.choices.includes(page.grows) ? rule.choices[0] : page.grows
-  return chosen && GROW_CHOICE_SIDES[chosen]
+  return chosen ? GROW_CHOICE_SIDES[chosen] : NO_GROW
 }
 
 declare module "../../../core/catalog" {
   interface PageTypeExtras {
     // 位置をデータに持たないプレゼンテーションが、可変ページで描く中身を右・下へずらした印刷区画の数（ページの slide の形も、同じだけずらして描く。無ければ 0）。
-    // page で効いている設定の値は setting、ページの増やす向きは grow（可変ページでなければ undefined。growOf）
-    contentOrigin?(catalog: CoreCatalog, page: ItemPage, setting: SettingReader, grow: GrowSides | undefined): Point
+    // page で効いている設定の値は setting、ページの増やす向きは grow（可変ページでなければ NO_GROW。growOf）
+    contentOrigin?(
+      catalog: CoreCatalog,
+      page: ItemPage,
+      setting: SettingReader,
+      grow: GrowSides | typeof NO_GROW,
+    ): Point
   }
 }
 
@@ -158,8 +173,9 @@ export function pageArea(
 ): { columns: number; rows: number; size: Size } {
   const paper = paperSize(catalog, page)
   const grow = growOf(catalog, page)
-  if (!grow) return { columns: 1, rows: 1, size: paper }
-  return grownArea(paper, grow, extentOf(catalog, page, settingsAt(catalog, page)), spare)
+  if (grow === NO_GROW) return { columns: 1, rows: 1, size: paper }
+  const extent = extentOf(catalog, page, settingsAt(catalog, page))
+  return grownArea(paper, grow, extent, spare)
 }
 
 // ページの形を置ける広さ（ページの Frame の大きさ）: 可変ページでなければ紙 1 枚。可変ページは、形の外枠が入るだけ並べた印刷区画に、
@@ -167,22 +183,22 @@ export function pageArea(
 export function roomOf(catalog: CoreCatalog, page: ItemPage): Size {
   const paper = paperSize(catalog, page)
   const grow = growOf(catalog, page)
-  if (!grow) return paper
+  if (grow === NO_GROW) return paper
   const rects = [...rectsOf(catalog, page).values()]
-  const extent = rects.length
+  const extent: Rect | typeof NO_EXTENT = rects.length
     ? {
         x: 0,
         y: 0,
         w: Math.max(...rects.map(r => r.x + r.w)),
         h: Math.max(...rects.map(r => r.y + r.h)),
       }
-    : null
+    : NO_EXTENT
   return grownArea(paper, grow, extent, true).size
 }
 
-// ページの形とつなぐものを、今の位置で描いたときの外枠（つなぐものは定義の bounds で測る）。何も描かなければ null。
+// ページの形とつなぐものを、今の位置で描いたときの外枠（つなぐものは定義の bounds で測る）。何も描かなければ NO_EXTENT。
 // setting はそのページで効いている設定の値
-export function extentOf(catalog: CoreCatalog, page: ItemPage, setting: SettingReader): Rect | null {
+export function extentOf(catalog: CoreCatalog, page: ItemPage, setting: SettingReader): Rect | typeof NO_EXTENT {
   const rects = rectsOf(catalog, page)
   const boxes: Rect[] = [...rects.values()]
   const areas = portAreasOf(catalog, page, rects)
@@ -190,7 +206,7 @@ export function extentOf(catalog: CoreCatalog, page: ItemPage, setting: SettingR
     const b = def.bounds?.(list as ConnectorData[], areas, setting)
     if (b) boxes.push(b)
   }
-  if (boxes.length === 0) return null
+  if (boxes.length === 0) return NO_EXTENT
   const x = Math.min(...boxes.map(b => b.x))
   const y = Math.min(...boxes.map(b => b.y))
   return { x, y, w: Math.max(...boxes.map(b => b.x + b.w)) - x, h: Math.max(...boxes.map(b => b.y + b.h)) - y }
@@ -251,9 +267,13 @@ export function shiftedConnectors(
 export function paddedFor<P extends ItemPage>(
   catalog: CoreCatalog,
   page: P,
-  sides: GrowSides | undefined,
-  was: GrowSides | undefined,
+  sides: GrowSides | typeof NO_GROW,
+  was: GrowSides | typeof NO_GROW,
 ): P {
-  const axis = (now: boolean | undefined, before: boolean | undefined) => (now ? 1 : before ? 0 : undefined)
-  return alignPadding(catalog, page, { x: axis(sides?.left, was?.left), y: axis(sides?.up, was?.up) })
+  const axis = (now: boolean, before: boolean) => (now ? 1 : before ? 0 : undefined)
+  const on = (s: GrowSides | typeof NO_GROW, side: "left" | "up") => s !== NO_GROW && s[side]
+  return alignPadding(catalog, page, {
+    x: axis(on(sides, "left"), on(was, "left")),
+    y: axis(on(sides, "up"), on(was, "up")),
+  })
 }

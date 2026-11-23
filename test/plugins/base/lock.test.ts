@@ -9,6 +9,7 @@ import { withChanges } from "../../../web/src/core/folders-changes"
 import { foldersOverIn } from "../../../web/src/core/folders-tree"
 import { type PerformedIn, performIn } from "../../../web/src/core/perform-world"
 import type { Book } from "../../../web/src/core/schema/book"
+import { NO_PLACING } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { refusalMessage } from "../../../web/src/plugins/base"
@@ -164,7 +165,8 @@ test("ロック中は、行うアクションをどれも認可ステップに�
   const enabled = (id: CommandId) => isEnabled(store, state.getState(), "s1", id)
   // 箱を置こうとしている（paper-place を出す）
   const placing = () => {
-    if (!screenOf(state.getState().window).stages[0]!.placing) actions.togglePlacing("s1", "@matomezu/box:shape-box")
+    if (screenOf(state.getState().window).stages[0]!.placing === NO_PLACING)
+      actions.togglePlacing("s1", "@matomezu/box:shape-box")
   }
   const first = pagesOf(state.getState().books.b1 as Drawing)[0]!.id
   actions.openPage("s1", first)

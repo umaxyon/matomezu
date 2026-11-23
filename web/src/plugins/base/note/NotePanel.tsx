@@ -5,15 +5,23 @@
 // 書いている間に付ける先の物がブックから消えたら（AI が消したなど）、閉じずにテキストFormの上に知らせ、書きかけはそのまま残す（付ける先が無い間は付けられない）。
 // 吹き出しを出すか（隠す・表示）・消すは、付けた伝言では押したときに変える。変えられなければ（認可ステップが止めたなど）、どれも始められない。
 // 付けた伝言は、文か付ける先を変えてから、再送するか閉じるまで編集ロックを掛ける（AI が変えも消しもしない。開いて見ているだけなら掛けない）。付けた伝言が無くなったら（利用者がほかの窓で消したなど）、黙って右サイドパネルを閉じる
+
 import { useCallback, useEffect, useRef, useState } from "react"
 import { type Annotation, anchorIds } from "../../../core/annotation"
+import { NO_STATE } from "../../../core/def/plugin-state"
+import { NO_PAGE } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
+import { usePluginState, useResetPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { useAllowed, usePage, useUserSetting } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
-import { useCloseRightSidePanel, useRightSidePanel, useSetRightSidePanelCurrent } from "../right-side-panel/hooks"
+import {
+  NO_RIGHT_SIDE_PANEL,
+  useCloseRightSidePanel,
+  useRightSidePanel,
+  useSetRightSidePanelCurrent,
+} from "../right-side-panel/hooks"
 import type { RightSidePanelOpen } from "../right-side-panel/state"
 import { clampChars } from "../text/text"
 import { useAnnotationsOf, usePerformOrToast } from "../utils/annotation-hooks"
@@ -42,12 +50,12 @@ export function NotePanel() {
   const open = useRightSidePanel()
   const notes = useAnnotationsOf(NOTE.id)
   const close = useCloseRightSidePanel()
-  const note = open ? notes.find(n => n.id === open.subject) : undefined
-  const gone = !!open && open.subject !== NEW_NOTE && !note
+  const note = open !== NO_RIGHT_SIDE_PANEL ? notes.find(n => n.id === open.subject) : undefined
+  const gone = open !== NO_RIGHT_SIDE_PANEL && open.subject !== NEW_NOTE && !note
   useEffect(() => {
     if (gone) close()
   }, [gone, close])
-  if (!open || (open.subject !== NEW_NOTE && !note)) return null
+  if (open === NO_RIGHT_SIDE_PANEL || (open.subject !== NEW_NOTE && !note)) return null
   return (
     <div className={styles.panel}>
       <Badges open={open} />
@@ -92,7 +100,7 @@ function Lost({ anchors }: { anchors: readonly string[] }) {
   const [lost, setLost] = useState(false)
   const before = useRef(anchors)
   useEffect(() => {
-    const ids = page ? anchorIds(page) : new Set<string>()
+    const ids = page === NO_PAGE ? new Set<string>() : anchorIds(page)
     if (before.current.some(id => !anchors.includes(id) && !ids.has(id))) setLost(true)
     before.current = anchors
   }, [anchors, page])
@@ -108,9 +116,10 @@ function Lost({ anchors }: { anchors: readonly string[] }) {
 function useNoteDraft(subject: string, initial: string): [string, (text: string) => void] {
   const draft = usePluginState(kit, NOTE_DRAFT)
   const setDraft = useSetPluginState(kit, NOTE_DRAFT)
-  useEffect(() => () => setDraft(undefined), [setDraft])
+  const resetDraft = useResetPluginState(kit, NOTE_DRAFT)
+  useEffect(() => () => resetDraft(), [resetDraft])
   const write = useCallback((text: string) => setDraft({ target: subject, text }), [setDraft, subject])
-  return [draft?.target === subject ? draft.text : initial, write]
+  return [draft !== NO_STATE && draft.target === subject ? draft.text : initial, write]
 }
 
 // 新しく書く伝言: 文を書いて「付ける」（付ける先が無い間は付けられない）。付けるのは送るコマンド（Mod+Enter と同じ）
@@ -150,7 +159,8 @@ function NoteEditor({ note, open }: { note: Annotation; open: RightSidePanelOpen
   useEffect(() => {
     if (editing) setEdited(true)
   }, [editing])
-  useEditLock(open.page, edited || editing ? [id] : [])
+  // ページを開いていなければ掛けない
+  useEditLock(open.page, open.page !== NO_PAGE && (edited || editing) ? [id] : [])
   const changed = updatable && noteSendOf(open, text, note) !== null
   return (
     <>

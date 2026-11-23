@@ -8,10 +8,12 @@ import {
   connectorDef,
   type ItemPage,
   isShape,
+  PAGE_ITSELF,
   type PlacedConnector,
   type PlacedItem,
   type PlacedShape,
   pageItemsOf,
+  type ShapeParent,
   shapesOf,
   walkShapes,
 } from "../../../core/placed"
@@ -55,21 +57,27 @@ declare module "../../../core/catalog" {
 // 機能台帳に無いアイテム（プラグインを外したなど）の形の大きさ（データに w・h が無いとき）
 export const UNKNOWN_SIZE: Size = { w: 64, h: 64 }
 
-// 置いた形の定義（表に無い形は null）
-export function shapeDefOf(catalog: CoreCatalog, item: string): ShapeItemDef | null {
+// 形の定義が無い（機能台帳に無いか、形でないアイテム）
+export const NO_SHAPE_DEF = "none"
+
+// 置いた形の定義（表に無い形は NO_SHAPE_DEF）
+export function shapeDefOf(catalog: CoreCatalog, item: string): ShapeItemDef | typeof NO_SHAPE_DEF {
   const def = catalog.items.get(item)
-  return def?.kind === "shape" ? def : null
+  return def?.kind === "shape" ? def : NO_SHAPE_DEF
 }
+
+// 大きさが無い（形でないアイテム・大きさを変えられないアイテム）
+export const NO_SIZE = "none"
 
 // 子の形を持つ形の、右と下の端から子までの間（下は、形が childBottom で変えられる）
 export const NEST_PADDING = 8
 
-// 置いた形の大きさ（機能台帳に無いアイテムは、データの w・h か UNKNOWN_SIZE。形でないアイテムは null）。
+// 置いた形の大きさ（機能台帳に無いアイテムは、データの w・h か UNKNOWN_SIZE。形でないアイテムは NO_SIZE）。
 // 子の形を持つ形は、自分の大きさ（w・h は下限）と、子がみな入る大きさ（childrenSize）の大きい方
-export function placedSize(catalog: CoreCatalog, item: PlacedShape): Size | null {
+export function placedSize(catalog: CoreCatalog, item: PlacedShape): Size | typeof NO_SIZE {
   if (!catalog.items.has(item.item)) return { w: item.w ?? UNKNOWN_SIZE.w, h: item.h ?? UNKNOWN_SIZE.h }
   const def = shapeDefOf(catalog, item.item)
-  if (!def) return null
+  if (def === NO_SHAPE_DEF) return NO_SIZE
   const own = def.sizeOf?.(item as ShapeData) ?? { w: item.w ?? def.size.w, h: item.h ?? def.size.h }
   const children = childrenSize(catalog, item)
   return children ? { w: Math.max(own.w, children.w), h: Math.max(own.h, children.h) } : own
@@ -78,12 +86,12 @@ export function placedSize(catalog: CoreCatalog, item: PlacedShape): Size | null
 // 子の形を持つ形の、子がみな入る大きさ（子の右と下に間を取る。子を持たない形は null）。縮めても、これより小さくは描かない
 export function childrenSize(catalog: CoreCatalog, item: PlacedShape): Size | null {
   const def = shapeDefOf(catalog, item.item)
-  if (!def?.capabilities.includes("nests") || !item.shapes) return null
+  if (def === NO_SHAPE_DEF || !def.capabilities.includes("nests") || !item.shapes) return null
   const bottom = def.childBottom?.(item as ShapeData) ?? NEST_PADDING
   return item.shapes.reduce<Size>(
     (size, child) => {
       const c = placedSize(catalog, child as PlacedShape)
-      if (!c) return size
+      if (c === NO_SIZE) return size
       return { w: Math.max(size.w, child.x + c.w + NEST_PADDING), h: Math.max(size.h, child.y + c.h + bottom) }
     },
     { w: 0, h: 0 },
@@ -95,7 +103,7 @@ export function rectsOf(catalog: CoreCatalog, page: ItemPage): Map<string, Rect>
   const rects = new Map<string, Rect>()
   for (const i of shapesOf(page)) {
     const size = placedSize(catalog, i)
-    if (size) rects.set(i.id, { x: i.x, y: i.y, ...size })
+    if (size !== NO_SIZE) rects.set(i.id, { x: i.x, y: i.y, ...size })
   }
   return rects
 }
@@ -105,7 +113,7 @@ export function allRectsOf(catalog: CoreCatalog, page: ItemPage): Map<string, Re
   const rects = new Map<string, Rect>()
   for (const { shape, at } of walkShapes(page)) {
     const size = placedSize(catalog, shape)
-    if (size) rects.set(shape.id, { ...at, ...size })
+    if (size !== NO_SIZE) rects.set(shape.id, { ...at, ...size })
   }
   return rects
 }
@@ -113,7 +121,8 @@ export function allRectsOf(catalog: CoreCatalog, page: ItemPage): Map<string, Re
 // 置いた形 item のつなぎ口（形の定義の portsOf があればそれ、無ければ ports）
 function portsOf(catalog: CoreCatalog, item: PlacedShape): Ports | undefined {
   const def = shapeDefOf(catalog, item.item)
-  return def?.portsOf ? def.portsOf(item as ShapeData) : def?.ports
+  if (def === NO_SHAPE_DEF) return undefined
+  return def.portsOf ? def.portsOf(item as ShapeData) : def.ports
 }
 
 // ページの形のつながる範囲: 形の四角 rects（無ければ子の形までの、紙の上の位置と大きさ）を、形の定義のつなぎ口で縮めたもの。
@@ -125,10 +134,10 @@ export function portAreasOf(
 ): Map<string, PortArea> {
   const walked = walkShapes(page)
   const items = new Map(walked.map(({ shape }) => [shape.id, shape]))
-  const parents = new Map(walked.map(({ shape, parent }) => [shape.id, parent]))
+  const parents = new Map<string, ShapeParent>(walked.map(({ shape, parent }) => [shape.id, parent]))
   const ancestorsOf = (id: string): string[] => {
     const parent = parents.get(id)
-    return parent ? [parent, ...ancestorsOf(parent)] : []
+    return parent !== undefined && parent !== PAGE_ITSELF ? [parent, ...ancestorsOf(parent)] : []
   }
   const areas = new Map<string, PortArea>()
   for (const [id, r] of rects) {

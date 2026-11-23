@@ -9,8 +9,8 @@ import { slideIsBackground } from "../../../core/def/page-type"
 import type { Rect, Size } from "../../../core/geom"
 import { byConnector, type ItemPage, type PlacedShape, shapesOf, slideOf } from "../../../core/placed"
 import { settingsAt } from "../book-settings"
-import { type GrowSides, grownArea, paperSize } from "../place/grow"
-import { placedSize, portAreasOf, rectsOf } from "../place/placed"
+import { type GrowSides, grownArea, type NO_EXTENT, NO_GROW, paperSize } from "../place/grow"
+import { NO_SIZE, placedSize, portAreasOf, rectsOf } from "../place/placed"
 import { placeableIn } from "../toolbox/toolbox"
 import type { PrintSheets } from "."
 
@@ -41,23 +41,23 @@ export function crossingShapes(
   if (!paper) return { crossing, oversized }
   for (const item of shapesOf(page)) {
     const size = placedSize(catalog, item)
-    if (!size || sheetsOfShape({ x: item.x, y: item.y, ...size }, paper).length < 2) continue
+    if (size === NO_SIZE || sheetsOfShape({ x: item.x, y: item.y, ...size }, paper).length < 2) continue
     if (size.w > paper.w || size.h > paper.h) oversized.push(item.id)
     else crossing.push(item.id)
   }
   return { crossing, oversized }
 }
 
-// 中身の四角 rects（紙の座標）を並べたページの印刷区画（プレゼンテーションの printSheets が返す形）: 可変ページ（増やす向き grow）なら、中身の外枠 extent が
+// 中身の四角 rects（紙の座標）を並べたページの印刷区画（プレゼンテーションの printSheets が返す形）: 可変ページ（増やす向き grow）なら、中身の外枠 extent（中身が無ければ NO_EXTENT）が
 // 入るだけ印刷区画を並べた数、そうでなければ 1 つ。中身の四角が載る印刷区画（形と同じ決まり。sheetsOfShape）を、載っている印刷区画にする
 export function printSheetsOf(
   paper: Size,
   rects: readonly Rect[],
-  grow: GrowSides | undefined,
-  extent: Rect | null,
+  grow: GrowSides | typeof NO_GROW,
+  extent: Rect | typeof NO_EXTENT,
 ): PrintSheets {
   const filled = new Set(rects.flatMap(r => sheetsOfShape(r, paper).map(c => sheetKey(c.column, c.row))))
-  if (!grow) return { columns: 1, rows: 1, filled }
+  if (grow === NO_GROW) return { columns: 1, rows: 1, filled }
   const { columns, rows } = grownArea(paper, grow, extent, false)
   return { columns, rows, filled }
 }
@@ -75,7 +75,8 @@ export function sheetShapes(
   const on = (item: PlacedShape) => {
     const size = placedSize(catalog, item)
     return (
-      !!size && sheetsOfShape({ x: item.x, y: item.y, ...size }, paper).some(c => c.column === column && c.row === row)
+      size !== NO_SIZE &&
+      sheetsOfShape({ x: item.x, y: item.y, ...size }, paper).some(c => c.column === column && c.row === row)
     )
   }
   return { shapes, here: shapes.filter(on) }
@@ -92,7 +93,8 @@ export function filledSheets(catalog: CoreCatalog, page: ItemPage): ReadonlySet<
   // ページの slide の形は、ページの本体のタイプでだけ、掛かっている印刷区画に載る（背景は、中身の載った印刷区画に敷くだけ。背景だけの印刷区画は載らない）
   for (const s of slideIsBackground(type) ? [] : slideOf(page)) {
     const size = placedSize(catalog, s)
-    if (size) for (const c of sheetsOfShape({ x: s.x, y: s.y, ...size }, paper)) filled.add(sheetKey(c.column, c.row))
+    if (size !== NO_SIZE)
+      for (const c of sheetsOfShape({ x: s.x, y: s.y, ...size }, paper)) filled.add(sheetKey(c.column, c.row))
   }
   const areas = portAreasOf(catalog, page, rects)
   const setting = settingsAt(catalog, page)

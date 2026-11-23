@@ -4,31 +4,40 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { pagesOf } from "../../web/src/core/book"
+import { NO_STATE } from "../../web/src/core/def/plugin-state"
 import type { Book, PageOf } from "../../web/src/core/schema/book"
+import { NO_PAGE, NO_PAPER, NO_STAGE } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
+import type { StageView } from "../../web/src/core/workspace"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { usePageLookStyle } from "../../web/src/plugins/base/book-look/use-page-look-style"
 import { kit as baseKit } from "../../web/src/plugins/base/kit"
-import { PRINT_MEASURES } from "../../web/src/plugins/base/print-preview/measures-state"
+import { useAddPage } from "../../web/src/plugins/base/page-tabs/useAddPage"
+import { NOT_MEASURED, PRINT_MEASURES } from "../../web/src/plugins/base/print-preview/measures-state"
 import { Printing } from "../../web/src/plugins/base/print-preview/printing"
 import { SheetLayers } from "../../web/src/plugins/base/print-preview/SheetLayers"
 import { WIDE_SEARCH_MODE } from "../../web/src/plugins/base/wide-search/state"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
+import { NO_BOOK } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
 import { useCommand } from "../../web/src/ui/commands"
 import { useContextMenu } from "../../web/src/ui/context-menu"
-import { useMenuCommand } from "../../web/src/ui/menu"
+import { NO_MENU_COMMAND, useMenuCommand } from "../../web/src/ui/menu"
 import { usePluginState, useSetPluginState } from "../../web/src/ui/plugin-state-hooks"
-import { ActsOnScope, PageScope, StageScope } from "../../web/src/ui/scope"
+import { ActsOnScope, PageScope, StageScope, useStageId } from "../../web/src/ui/scope"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import {
+  NO_PERMISSION,
+  PAN_NOT_WATCHED,
   useActions,
   useAllowed,
+  useBook,
   usePage,
   usePerform,
   useStage,
   useStageArea,
   useStagePan,
+  useToPaper,
 } from "../../web/src/ui/view-hooks"
 import { type DRAWING, drawingPage, testBook } from "../lineup"
 import { savedRows, showFirstBook } from "../support"
@@ -89,7 +98,7 @@ function Sheet({ book }: { book: ReturnType<ReturnType<typeof setup>["bookOf"]> 
   return (
     <div data-sheet style={look}>
       <Printing>
-        <SheetLayers page={pagesOf(book)[0]!} column={0} row={0} paper={SIZE} />
+        <SheetLayers page={pagesOf(book)[0]!} column={0} row={0} paper={SIZE} measured={NOT_MEASURED} />
       </Printing>
     </div>
   )
@@ -134,7 +143,7 @@ interface Seen {
   done: unknown
   command: boolean
   screenCommand: boolean
-  menu: string | null
+  menu: string
   state: unknown
   pan: unknown
 }
@@ -210,15 +219,15 @@ test("ステージの中に置いたステージの外で見るだけに描く�
     ),
   )
   expect(seen.now).toEqual({
-    stage: null,
+    stage: NO_STAGE,
     page: "px", // 読む物は、置いたページ
-    allowed: { ok: false, permission: null },
+    allowed: { ok: false, permission: NO_PERMISSION },
     done: { ok: false, reason: "no-book" },
     command: false,
     screenCommand: false,
-    menu: null,
-    state: undefined,
-    pan: null,
+    menu: NO_MENU_COMMAND,
+    state: NO_STATE,
+    pan: NO_STAGE,
   })
   const before = instance.state.getState()
   press(container)
@@ -244,7 +253,7 @@ test("同じ物をステージの中に置けば、ステージが開いてい�
     ),
   )
   expect(seen.now).toMatchObject({ page: "py", command: true, screenCommand: true })
-  expect(seen.now?.stage?.opened).toMatchObject({ outermost: { kind: "book", id: "y" }, page: "py" })
+  expect((seen.now!.stage as StageView).opened).toMatchObject({ outermost: { kind: "book", id: "y" }, page: "py" })
   act(() => container.querySelector<HTMLElement>("[data-probe]")!.click())
   const stage = screenOf(instance.state.getState().window).stages[0]!
   expect(stage.selection).toEqual(["a"])
@@ -274,9 +283,9 @@ test("ダイアログなどを開いた場所を置くと、中のフックは�
     ),
   )
   expect(gone.now).toMatchObject({
-    stage: null,
+    stage: NO_STAGE,
     page: undefined,
-    allowed: { ok: false, permission: null },
+    allowed: { ok: false, permission: NO_PERMISSION },
     done: { ok: false, reason: "no-book" },
     command: false,
     screenCommand: false,
@@ -296,7 +305,7 @@ test("ダイアログなどを開いた場所を置くと、中のフックは�
       </ActsOnScope>,
     ),
   )
-  expect(closed.now).toMatchObject({ stage: null, page: undefined, command: false, screenCommand: false })
+  expect(closed.now).toMatchObject({ stage: NO_STAGE, page: undefined, command: false, screenCommand: false })
   expect(closed.now?.done).toEqual({ ok: false, reason: "no-book" })
 })
 
@@ -312,5 +321,56 @@ test("スクリーンを開いた場所に置くと、スクリーンのコマ�
       </ActsOnScope>,
     ),
   )
-  expect(seen.now).toMatchObject({ stage: null, page: undefined, command: false, screenCommand: true })
+  expect(seen.now).toMatchObject({ stage: NO_STAGE, page: undefined, command: false, screenCommand: true })
+})
+
+test("何も置いていない窓の根では、ステージ・ブック・ページ・紙・紙をずらす量・メニューのコマンド・止めた認可ステップは、どれも none の値", () => {
+  const { instance, wrap } = setup()
+  const seen: { now: Record<string, unknown> } = { now: {} }
+  function Probe() {
+    const toPaper = useToPaper()
+    seen.now = {
+      stage: useStage(),
+      stageId: useStageId(),
+      book: useBook(),
+      page: usePage(),
+      paper: toPaper({ x: 0, y: 0 }),
+      pan: useStagePan(),
+      unwatched: useStagePan(false),
+      menu: useMenuCommand("@matomezu/base:zoom-fit" as never),
+      allowed: useAllowed("@matomezu/paper:item-update"),
+    }
+    return null
+  }
+  render(wrap(<Probe />))
+  expect(seen.now).toEqual({
+    stage: NO_STAGE,
+    stageId: NO_STAGE,
+    book: NO_BOOK,
+    page: NO_PAGE,
+    paper: NO_PAPER,
+    pan: NO_STAGE,
+    unwatched: PAN_NOT_WATCHED,
+    menu: NO_MENU_COMMAND,
+    allowed: { ok: false, permission: NO_PERMISSION },
+  })
+  expect(instance.state.getState().window.screens.length).toBeGreaterThan(0) // 窓にスクリーンはあるが、ここはその外
+})
+
+test("useStageId が NO_STAGE の所（窓の根）からページを足しても、何も起きない（窓を指す NO_STAGE をステージの id として使わない）", () => {
+  const { instance, wrap } = setup()
+  let add: ReturnType<typeof useAddPage> = () => true
+  function Probe() {
+    add = useAddPage()
+    return null
+  }
+  render(wrap(<Probe />))
+  const before = instance.state.getState()
+  let done = true
+  act(() => {
+    done = add({ type: "@matomezu/drawing:drawing", title: "足す" } as never)
+  })
+  expect(done).toBe(false)
+  expect(instance.state.getState().books).toBe(before.books)
+  expect(instance.state.getState().window).toBe(before.window)
 })

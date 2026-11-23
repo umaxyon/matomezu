@@ -71,9 +71,13 @@ export const isOnPage = (target: ActionTarget | undefined): boolean => target ==
 // ステージエントリの中の物を変える対象か（ブック・ページ・ページのアノテーション。使えるかを、ページのタイプと認可ステップが、開いているステージエントリで決める）
 export const isInStageEntry = (target: ActionTarget | undefined): boolean => target === "book" || isOnPage(target)
 
+// インスタンスにコントロールセンターが無いときの、controlCenter の値
+export const NO_CONTROL_CENTER = "none"
+
 export interface ActionContext {
   catalog: CoreCatalog // 使う機能台帳（アクション・ページのタイプ・紙など）
-  controlCenter: string | null // インスタンスのコントロールセンターの定義の id（書庫と設定が対象のアクションを許すかは、これが決める）。無ければ断る
+  // インスタンスのコントロールセンターの定義の id（書庫と設定が対象のアクションを許すかは、これが決める）。無ければ NO_CONTROL_CENTER で、断る
+  controlCenter: string | typeof NO_CONTROL_CENTER
   lang: Lang
   newId(): string // ブック・ページ・アイテムの id のもとを振る（重ならない値。行い直すときは、先に行ったときと同じ値を同じ順に返す）
   // 行った時点（UTC の ISO 8601。例 2026-10-26T03:04:05.678Z）。最初に行った所（画面、AI ならホスト）が 1 回だけ決め、行い直しでも同じ値。

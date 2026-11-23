@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { HOME_ID } from "../../web/src/core/folders"
-import { shownPageId } from "../../web/src/core/stage"
+import { openedEntry, shownPageId } from "../../web/src/core/stage"
 import { warningText } from "../../web/src/core/warnings"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
@@ -112,11 +112,11 @@ test("線を置けないタイプが line-connect を足していても、線を
   })
   showFirstBook(instance)
   expect(createBookIn(instance, "s1", { into: HOME_ID, title: "B" })).toBe(true)
-  const id = screenOf(instance.state.getState().window).stages[0]!.opened!.outermost.id
+  const id = openedEntry(screenOf(instance.state.getState().window).stages[0]!.opened)!.id
   expect(
     instance.actions.perform("@matomezu/base:page-add", { type: "boards:board", title: "P" }, { book: id }).ok,
   ).toBe(true)
-  const p = shownPageId(screenOf(instance.state.getState().window).stages[0]!.opened ?? null)!
+  const p = shownPageId(screenOf(instance.state.getState().window).stages[0]!.opened)!
   const place = (x: number) =>
     instance.actions.perform(
       "@matomezu/paper:item-place",

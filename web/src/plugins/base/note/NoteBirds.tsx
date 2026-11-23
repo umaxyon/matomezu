@@ -6,14 +6,19 @@
 // 付ける先がいくつかあるときは、カレントの物に明るい色の枠を重ねて、どれがカレントかを示す
 import { useEffect, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
-import { useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
+import { useReadPluginState, useResetPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import type { Bird } from "../birds"
 import { assignBirds } from "../birds/assign"
 import { BirdWalk, birdClass } from "../birds/BirdWalk"
 import { LEAVE } from "../birds/flight"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
-import { useRightSidePanel, useSetRightSidePanelCurrent, useTakeOffAnchor } from "../right-side-panel/hooks"
+import {
+  NO_RIGHT_SIDE_PANEL,
+  useRightSidePanel,
+  useSetRightSidePanelCurrent,
+  useTakeOffAnchor,
+} from "../right-side-panel/hooks"
 import { Ask, useRemoveAsk } from "../stand/Ask"
 import { AnchorFrame, StandAt, useAnchorElement } from "../stand/anchors"
 import { NOTE_BIRDS } from "./birds-state"
@@ -32,15 +37,18 @@ interface Shown {
 
 export function NoteBirds() {
   const open = useRightSidePanel()
-  const anchors = open?.widget === NOTE_PANEL_ID ? open.anchors : NONE
+  const noted = open !== NO_RIGHT_SIDE_PANEL && open.widget === NOTE_PANEL_ID
+  const anchors = noted ? open.anchors : NONE
   const [shown, setShown] = useState<readonly Shown[]>([])
   const readBirds = useReadPluginState(kit, NOTE_BIRDS)
   const setBirds = useSetPluginState(kit, NOTE_BIRDS)
+  const resetBirds = useResetPluginState(kit, NOTE_BIRDS)
   const key = anchors.join(" ")
   // biome-ignore lint/correctness/useExhaustiveDependencies: 付ける先の並びが替わったときだけ割り当て直す
   useEffect(() => {
-    const next = assignBirds(readBirds() ?? {}, anchors, Math.random)
-    setBirds(Object.keys(next.birds).length === 0 ? undefined : next.birds)
+    const next = assignBirds(readBirds(), anchors, Math.random)
+    if (Object.keys(next.birds).length === 0) resetBirds()
+    else setBirds(next.birds)
     setShown(now => [
       ...now.filter(s => s.leaving && !anchors.includes(s.anchor)),
       ...next.left.map(l => ({ ...l, leaving: true })),
@@ -52,7 +60,7 @@ export function NoteBirds() {
     ])
   }, [key])
   const gone = (s: Shown) => setShown(now => now.filter(x => x !== s))
-  const current = open?.widget === NOTE_PANEL_ID && anchors.length > 1 ? (open.current ?? null) : null
+  const current = noted && anchors.length > 1 ? (open.current ?? null) : null
   return (
     <>
       {current && <AnchorFrame anchor={current} className={styles.current} />}

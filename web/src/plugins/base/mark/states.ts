@@ -5,6 +5,13 @@ import { kit } from "../kit"
 
 export const MARK_PICKER = anchorTargetState("mark-picker")
 
-export const MARK_ARRIVING = kit.definePluginStateOf<readonly string[]>()({ id: "mark-arriving", scope: "window" })
+// 付けたばかりのマークが無いときの値
+const NONE_ARRIVING: readonly string[] = []
+
+export const MARK_ARRIVING = kit.definePluginStateOf<readonly string[]>()({
+  id: "mark-arriving",
+  scope: "window",
+  default: NONE_ARRIVING,
+})
 
 export const MARK_STATES = [MARK_PICKER, MARK_ARRIVING] as const

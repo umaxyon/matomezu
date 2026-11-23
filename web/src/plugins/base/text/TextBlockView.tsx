@@ -3,9 +3,9 @@
 // grips なら、本文の列の動かせる端（bodySides）につまみを出す。つまみを横にドラッグすると本文の列の幅を描き直し、離したら onBodyWidth に本文の幅を渡す
 // （中いっぱいになれば null。変わっていなければ呼ばない）。区切り線の色は lineColor（CSS の値）
 import { type CSSProperties, type PointerEvent, useRef, useState } from "react"
-import { toPaperDelta } from "../../../core/stage"
+import { NO_STAGE, toPaperDelta } from "../../../core/stage"
 import { useStage } from "../../../ui/view-hooks"
-import { type BlockProps, bodySides, bodyWidthAfter, textBlock } from "./block"
+import { type BlockProps, bodySides, bodyWidthAfter, FULL_WIDTH, textBlock } from "./block"
 import { RichText } from "./RichText"
 import styles from "./TextBlockView.module.css"
 
@@ -24,17 +24,21 @@ export function TextBlockView({
   maxH: number // 塊に使える高さ
   grips: boolean
   lineColor: string
-  onBodyWidth: (width: number | null) => void
+  onBodyWidth: (width: number | typeof FULL_WIDTH) => void
 }) {
   const at = useStage()
-  // 本文の列の端をつかんでいるドラッグ（つかんだ側と、画面の上の始めの x）と、今の本文の幅（動かしていなければ undefined）
+  // 本文の列の端をつかんでいるドラッグ（つかんだ側と、画面の上の始めの x）と、今の本文の幅（動かしていなければ undefined。中いっぱいなら FULL_WIDTH）
   const grab = useRef<{ pointer: number; side: "left" | "right"; start: number } | null>(null)
-  const [dragged, setDragged] = useState<number | null | undefined>(undefined)
-  const shown: BlockProps = dragged === undefined ? props : { ...props, bodyWidth: dragged ?? undefined }
+  const [dragged, setDragged] = useState<number | typeof FULL_WIDTH | undefined>(undefined)
+  const shown: BlockProps =
+    dragged === undefined ? props : { ...props, bodyWidth: dragged === FULL_WIDTH ? undefined : dragged }
   const { body, rule, column } = textBlock(shown, inner, least, maxH)
   const hasBody = body.length > 0
-  const widthAt = (side: "left" | "right", clientX: number, start: number) =>
-    at ? bodyWidthAfter(props, inner, least, side, toPaperDelta(at, { x: clientX - start, y: 0 }).x) : null
+  // 本文の幅（中いっぱいなら FULL_WIDTH。本文の幅を消す）
+  const widthAt = (side: "left" | "right", clientX: number, start: number) => {
+    if (at === NO_STAGE) return FULL_WIDTH
+    return bodyWidthAfter(props, inner, least, side, toPaperDelta(at, { x: clientX - start, y: 0 }).x)
+  }
   const grip = (side: "left" | "right") => ({
     onPointerDown: (e: PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0) return
@@ -52,7 +56,7 @@ export function TextBlockView({
       grab.current = null
       setDragged(undefined)
       const next = widthAt(g.side, e.clientX, g.start)
-      if (next !== (props.bodyWidth ?? null)) onBodyWidth(next)
+      if (next !== (props.bodyWidth ?? FULL_WIDTH)) onBodyWidth(next)
     },
     onPointerCancel: () => {
       grab.current = null

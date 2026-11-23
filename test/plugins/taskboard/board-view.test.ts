@@ -1,5 +1,7 @@
 // タスクボードの見せ方の決め事（taskboard/board の shown.ts・sort.ts・maximize.ts）・カレントチケットの判定（current-work の isCurrentFor と、作業の様子の workroomActivity）・チケットの番号と担当（ticket/label.ts・assignees.ts）と、利用者の設定 2 つ（board/user-settings.ts）
+
 import { expect, test } from "bun:test"
+import { NO_STATE } from "../../../web/src/core/def/plugin-state"
 import { workroomActivityOf } from "../../../web/src/plugins/base/participant/activity"
 import { autoInputOf } from "../../../web/src/plugins/base/settings/user-settings"
 import { laneKeyOf, movedLanes } from "../../../web/src/plugins/taskboard/board/lane-order"
@@ -148,23 +150,23 @@ test("番号の見せ方は、プレフィクスに 4 桁まで 0 で埋めた�
 })
 
 test("タスクボードの最大化は 1 つだけ。レーンを最大化するとタスクボードも最大化し、元に戻すと前のタスクボードの最大化に戻る。出ていくタスクボードの最大化は解く", () => {
-  expect(toggleBoard(undefined, "a")).toEqual({ board: "a" })
-  expect(toggleBoard({ board: "a" }, "a")).toBeUndefined()
+  expect(toggleBoard(NO_STATE, "a")).toEqual({ board: "a" })
+  expect(toggleBoard({ board: "a" }, "a")).toBe(NO_STATE)
   expect(toggleBoard({ board: "a" }, "b")).toEqual({ board: "b" })
-  expect(toggleBoard({ board: "a", lane: "x", boardWasMax: true }, "a")).toBeUndefined()
+  expect(toggleBoard({ board: "a", lane: "x", boardWasMax: true }, "a")).toBe(NO_STATE)
   // タスクボードを最大化していて、そのレーンを最大化・戻す → タスクボードの最大化に戻る
   const lane = toggleLane({ board: "a" }, "a", "x")
   expect(lane).toEqual({ board: "a", lane: "x", boardWasMax: true })
   expect(toggleLane(lane, "a", "x")).toEqual({ board: "a" })
   // 何も最大化していなくて、レーンを最大化・戻す → 何も最大化しない
-  const alone = toggleLane(undefined, "a", "x")
+  const alone = toggleLane(NO_STATE, "a", "x")
   expect(alone).toEqual({ board: "a", lane: "x", boardWasMax: false })
-  expect(toggleLane(alone, "a", "x")).toBeUndefined()
+  expect(toggleLane(alone, "a", "x")).toBe(NO_STATE)
   expect(toggleLane({ board: "a", lane: "x", boardWasMax: false }, "a", "y")).toMatchObject({ lane: "y" })
-  expect(released({ board: "a" }, "a")).toBeUndefined()
+  expect(released({ board: "a" }, "a")).toBe(NO_STATE)
   expect(released({ board: "a" }, "b")).toEqual({ board: "a" })
   expect(maximizedAmong({ board: "a" }, ["a", "b"])).toEqual({ board: "a" })
-  expect(maximizedAmong({ board: "a" }, ["b"])).toBeUndefined()
+  expect(maximizedAmong({ board: "a" }, ["b"])).toBe(NO_STATE)
 })
 
 test("チケット履歴は新しい順", () => {

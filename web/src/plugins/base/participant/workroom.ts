@@ -26,7 +26,10 @@ export const WORKROOM = kit.defineSubject({
   },
 })
 
-type IsAlive = (calledAt: string | undefined, nowMs: number) => boolean
+// 参加者が呼ばれていないときの、最後に呼ばれた時刻の値
+export const NOT_CALLED = "none"
+
+type IsAlive = (calledAt: string | typeof NOT_CALLED, nowMs: number) => boolean
 
 // ワークルームにいる受け入れ済みの参加者（いなければ空室）
 export const occupantOf = (participants: readonly Participant[], room: Workroom): Participant | undefined =>
@@ -42,7 +45,7 @@ export function takeable(
 ): Workroom[] {
   return rooms.filter(r => {
     const who = occupantOf(participants, r)
-    return who === undefined || !isAlive(calls[who.id], nowMs)
+    return who === undefined || !isAlive(calls[who.id] ?? NOT_CALLED, nowMs)
   })
 }
 

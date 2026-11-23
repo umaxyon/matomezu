@@ -3,7 +3,7 @@
 // AI が読んだかは readAt で持ち、読まれていないマークは AI の応えを待つ物に数える（フックが知らせる）。会話で用が済んだら AI が外す
 // 右クリックのメニューのコマンド mark-new（押した物のそばに種類を選ぶスタンドを出す）もここ
 import { z } from "zod"
-import { type Annotation, anchorsOf } from "../../../core/annotation"
+import { type Annotation, anchorsOf, NO_ANCHORS } from "../../../core/annotation"
 import { BIRD_TITLES, type Bird } from "../birds"
 import { startAnchorTarget } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
@@ -66,7 +66,7 @@ export const MARK_ADD = kit.defineAction({
     const kept = annotations.flatMap(a => {
       if (!isMark(a) || !a.anchors.some(id => anchors.includes(id))) return [a]
       const rest = anchorsOf(a.anchors.filter(id => !anchors.includes(id)))
-      return rest ? [{ ...a, anchors: rest }] : []
+      return rest !== NO_ANCHORS ? [{ ...a, anchors: rest }] : []
     })
     const id = freshId(
       ctx.newId,

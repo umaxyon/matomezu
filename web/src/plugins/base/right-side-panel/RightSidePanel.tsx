@@ -5,7 +5,10 @@
 // 開いたステージで開いているブックかページが替わったとき、分けたり分けるのをやめたりしたときも閉じる。
 // 選択に従う中身（ウィジェットの定義の rightSidePanel.followsSelection）を出している間は、開いたステージの中を押しても閉じず、付いた先をステージの選択に合わせる
 // （ポインタを押している間は、離してから。state.ts の followSelection）。付いた先が空になっても閉じない
+
 import { type ReactNode, useContext, useEffect, useRef, useState } from "react"
+import { NO_STATE } from "../../../core/def/plugin-state"
+import { NO_STAGE } from "../../../core/stage"
 import { screenOf, stageIn, workspaceOf } from "../../../core/window"
 import { stageView, toolOf } from "../../../core/workspace"
 import { useReadPluginStateAt, useSetPluginStateAt, useStageAt } from "../../../ui/at-hooks"
@@ -100,7 +103,8 @@ function useFollowSelection(stage: string | null) {
   const readPanel = useReadPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
   const set = useSetPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
   const opened = useOpenedRightSidePanel()
-  const selection = useStageAt(stage)?.selection
+  const view = useStageAt(stage ?? NO_STAGE)
+  const selection = view === NO_STAGE ? undefined : view.selection
   const following = useRef<string | null>(null)
   useEffect(() => {
     const was = following.current
@@ -145,7 +149,7 @@ function useFollowSelection(stage: string | null) {
   useEffect(() => {
     if (!stage || pressing.current || shown !== synced.current) return
     const open = readPanel(stage)
-    if (!open) return
+    if (open === NO_STATE) return
     // 開いたときに選択を変えたばかりのこともあるので、選択はストアから今の値を読む
     const current = stageIn(read().window, stage)?.selection ?? []
     const next = followSelection(open, current)
@@ -165,7 +169,7 @@ function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpe
   }, [])
   // 開いたときのブックかページから替わったか、ステージの数が変わったら閉じる
   const first = useRef(stages)
-  const moved = !!view && !stillOn(open, view)
+  const moved = view !== NO_STAGE && !stillOn(open, view)
   useEffect(() => {
     if (moved || stages !== first.current) close(stage)
   }, [moved, stages, stage, close])

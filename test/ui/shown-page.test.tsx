@@ -3,7 +3,8 @@
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, render } from "@testing-library/react"
 import { pagesOf } from "../../web/src/core/book"
-import { findShape, type ItemPage } from "../../web/src/core/placed"
+import type { ItemPage } from "../../web/src/core/placed"
+import { NO_PAGE } from "../../web/src/core/stage"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -11,7 +12,7 @@ import { StageScope } from "../../web/src/ui/scope"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { useShownPage } from "../../web/src/ui/view-hooks"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { sequence, showFirstBook } from "../support"
+import { sequence, shapeOf, showFirstBook } from "../support"
 
 afterEach(cleanup)
 
@@ -39,7 +40,7 @@ test("内包ボックスの中のリストの設定ダイアログの下書き�
   const child = place({ item: LIST, at: { x: 0, y: 0 }, parent, w: 240, h: 120, props: { caption: "前" } })
   instance.actions.openDialog("s1", "@matomezu/list:list-edit" as never, { page: "p1", item: child } as never)
   instance.actions.previewDialog({ outermost: "b1", item: child, props: { caption: "下書き" } })
-  let shown: ItemPage | null = null
+  let shown: ItemPage | typeof NO_PAGE = NO_PAGE
   function Probe() {
     shown = useShownPage()
     return null
@@ -51,7 +52,8 @@ test("内包ボックスの中のリストの設定ダイアログの下書き�
       </StageScope>
     </MatomezuProvider>,
   )
-  const caption = (page: ItemPage | null) => (findShape(page!, child)!.shape.props as { caption: string }).caption
+  const caption = (page: ItemPage | typeof NO_PAGE) =>
+    (shapeOf(page as ItemPage, child).shape.props as { caption: string }).caption
   expect(caption(shown)).toBe("下書き")
   expect(caption(pagesOf(instance.state.getState().books.b1!)[0]!)).toBe("前")
 })

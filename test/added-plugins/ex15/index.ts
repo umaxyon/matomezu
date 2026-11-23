@@ -15,13 +15,12 @@ export const SHELF_KEEP = kit.defineSystemFolder({
 // たたんでいるか（スクリーン 1 枚ごと。読み直すと消える。値が無ければ、ひらいている）
 export const SHELF_FOLDED = kit.definePluginStateOf<true>()({ id: "shelf-folded", scope: "screen" })
 // 見せているフォルダの id（スクリーン 1 枚ごと。読み直すと消える。値が無ければ、書庫ホーム）
-export const SHELF_FOLDER = kit.definePluginStateOf<string>()({ id: "shelf-folder", scope: "screen" })
-export const shelfFolderOf = (folder: string | undefined): string => folder ?? HOME_ID
+export const SHELF_FOLDER = kit.definePluginStateOf<string>()({ id: "shelf-folder", scope: "screen", default: HOME_ID })
 
-// たなの書庫アピアランス: フォルダ 1 つの中身を見せている。答えは、ビューが描く物と同じ所（shelfFolderOf）から出す
+// たなの書庫アピアランス: フォルダ 1 つの中身を見せている。答えは、ビューが描く物と同じ所（SHELF_FOLDER）から出す
 export const SHELF = kit.defineLibraryAppearance({
   id: "shelf",
-  shownFolders: (_, read) => [shelfFolderOf(read(SHELF_FOLDER))],
+  shownFolders: (_, read) => [read(SHELF_FOLDER)],
 })
 
 // たなのスクリーン（渡す値は無い）。たたんでいる間は、描いたまま隠しているので、見せていると答えない
@@ -31,7 +30,7 @@ export const SHELF_SCREEN = kit.defineScreen({
   aiDescription: "The entries right under one folder of the library.",
   props: z.strictObject({}),
   libraryAppearances: [SHELF.id],
-  shownLibraryAppearances: read => (read(SHELF_FOLDED) ? [] : [SHELF.id]),
+  shownLibraryAppearances: read => (read(SHELF_FOLDED) === true ? [] : [SHELF.id]),
 })
 
 export const EX15 = definePlugin(

@@ -1,4 +1,5 @@
 // 土台が読む利用者の設定の項目のビュー: 言語（言語パックの名前）・スキン（スキンの名前と自動）
+import { settingOr } from "../../../core/def/setting"
 import { useMessages } from "../../../ui/i18n"
 import type { UserSettingControlProps } from "../../../ui/plugin"
 import { useCatalog } from "../../../ui/store-context"
@@ -33,7 +34,7 @@ export function SkinSetting({ label, value, onChange }: UserSettingControlProps<
   const catalog = useCatalog().core
   return (
     <SettingRow label={label} as="label">
-      <select className={styles.control} value={value} onChange={e => onChange(e.target.value)}>
+      <select className={styles.control} value={settingOr(value, undefined)} onChange={e => onChange(e.target.value)}>
         <option value="auto">{t("Auto")}</option>
         {[...catalog.skins.values()].map(s => (
           <option key={s.id} value={s.id}>

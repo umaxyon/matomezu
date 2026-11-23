@@ -3,12 +3,20 @@
 // プロジェクトの画面は上にタスクボードの置き場、下にワークルーム。書庫は最大化できる。最大化の間（書庫の最大化と、中身が名乗った最大化）は、枠が出ていく（retreatOf）。
 // コンテンツエリアに出す画面は、このスクリーンの値として画面の場所に入る（CONTENT_AREA。値が無ければプロジェクト）。選んでいる物（ワークルーム・ビジター・ほかの種類のどれか 1 つ）も画面の場所に入る（PICKED。履歴には積まない）。書庫の最大化は、このスクリーンの中だけ
 import { useState } from "react"
-import { Slot, useKindView, usePluginState, useRecord, useSetPluginState } from "../../plugin-api/ui"
+import { NO_RECORD, NO_STATE } from "../../plugin-api"
+import {
+  NO_KIND,
+  NO_KIND_VIEW,
+  Slot,
+  useKindView,
+  usePluginState,
+  useRecord,
+  useSetPluginState,
+} from "../../plugin-api/ui"
 import { Panel, useControlCenterMaximized, useVisitorRows, useWorkroomRows } from "../base/ui"
 import {
   CONTENT_AREA,
   type ContentArea,
-  contentAreaOf,
   LIBRARY_MAXIMIZED,
   PARTICIPANT_KIND,
   PICKED,
@@ -26,7 +34,7 @@ import { UserPanel } from "./UserPanel"
 import { WorkroomView } from "./WorkroomView"
 
 export function ControlCenterScreen() {
-  const screen = contentAreaOf(usePluginState(kit, CONTENT_AREA))
+  const screen = usePluginState(kit, CONTENT_AREA)
   const setContentArea = useSetPluginState(kit, CONTENT_AREA)
   const setScreen = (to: ContentArea) => setContentArea(to)
   const maximized = usePluginState(kit, LIBRARY_MAXIMIZED) === true
@@ -36,7 +44,7 @@ export function ControlCenterScreen() {
   const chosen = usePluginState(kit, PICKED)
   const rows = useWorkroomRows()
   const visitors = useVisitorRows()
-  const pickedOf = (kind: string) => (chosen?.kind === kind ? chosen.id : undefined)
+  const pickedOf = (kind: string) => (chosen !== NO_STATE && chosen.kind === kind ? chosen.id : NO_STATE)
   const picked = pickedRow(rows, pickedOf(WORKROOM_KIND))
   const visitor = visitors.find(v => v.participant.id === pickedOf(PARTICIPANT_KIND))
   const detail = useOtherPicked(chosen)
@@ -75,10 +83,11 @@ export function ControlCenterScreen() {
 }
 
 // ワークルーム・ビジターのほかの種類を選んでいれば、その物。そのレコードが在り、その種類を名乗るウィジェットがスロット picked-detail に在るときだけ（無ければ選んでいないのと同じ）
-function useOtherPicked(chosen: Picked | undefined): Picked | undefined {
-  const other = chosen && chosen.kind !== WORKROOM_KIND && chosen.kind !== PARTICIPANT_KIND ? chosen : undefined
+function useOtherPicked(chosen: Picked | typeof NO_STATE): Picked | undefined {
+  const other =
+    chosen !== NO_STATE && chosen.kind !== WORKROOM_KIND && chosen.kind !== PARTICIPANT_KIND ? chosen : undefined
   // 種類が無いときも、フックを同じ順で呼ぶため、在る種類（ワークルーム）を空の id で問う
   const record = useRecord((other?.kind ?? WORKROOM_KIND) as Parameters<typeof useRecord>[0], other?.id ?? "")
-  const view = useKindView(PICKED_DETAIL, other?.kind)
-  return other && record && view ? other : undefined
+  const view = useKindView(PICKED_DETAIL, other ? other.kind : NO_KIND)
+  return other && record !== NO_RECORD && view !== NO_KIND_VIEW ? other : undefined
 }

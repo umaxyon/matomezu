@@ -1,6 +1,6 @@
 // リストの行の操作（データを書き換えず、新しい値を返す）。リストはページに置いたアイテムで、行は children に順に並ぶ
 
-import { findShape, type ItemPage, replaceShape } from "../../../plugin-api"
+import { findShape, type ItemPage, NO_ITEM, replaceShape } from "../../../plugin-api"
 import { LIST, type ListRow, type RowProps } from "./list"
 import type { PlacedList } from "./placed"
 import { placedListWidth, type RowsLines, rewrittenLines } from "./size"
@@ -23,13 +23,14 @@ export function rowPress(
 
 // ページのリスト list（どの深さの子の形も探す。無いか、リストでなければ null）
 export function findList(page: ItemPage, list: string): PlacedList | null {
-  const found = findShape(page, list)?.shape
-  return found?.item === LIST.id ? (found as PlacedList) : null
+  const found = findShape(page, list)
+  return found !== NO_ITEM && found.shape.item === LIST.id ? (found.shape as PlacedList) : null
 }
 
 // ページのリストを next に置き換えたページ（どの深さの子の形も置き換える）
 export function withList(page: ItemPage, next: PlacedList): ItemPage {
-  return replaceShape(page, next.id, () => next) ?? page
+  const replaced = replaceShape(page, next.id, () => next)
+  return replaced === NO_ITEM ? page : replaced
 }
 
 // 行を見せる順（行の番号の並び）: チェックリストでチェック済みの行を先頭か最後に寄せる（checkedOrder。ほかの順はデータのまま。データの順は変えない）

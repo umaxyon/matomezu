@@ -6,10 +6,12 @@ import { useEffect, useRef } from "react"
 
 export const CLICK_WAIT_MS = 250
 
-// 押された物 el と、押した点 at（キーで押したなら undefined）
+// キーで押したときの、押した点 at の値（押した点が無い）
+export const BY_KEY = "key"
+// 押された物 el と、押した点 at（キーで押したなら BY_KEY）
 export interface Clicked {
   el: HTMLElement
-  at: { x: number; y: number } | undefined
+  at: { x: number; y: number } | typeof BY_KEY
 }
 
 export function useClickOrDouble(
@@ -25,7 +27,7 @@ export function useClickOrDouble(
     timer.current = undefined
     if (e.detail > 2) return
     if (e.detail === 2) return latest.current.onDouble()
-    const c: Clicked = { el: e.currentTarget, at: e.detail === 0 ? undefined : { x: e.clientX, y: e.clientY } }
+    const c: Clicked = { el: e.currentTarget, at: e.detail === 0 ? BY_KEY : { x: e.clientX, y: e.clientY } }
     if (e.detail === 0) return latest.current.onClick(c)
     timer.current = setTimeout(() => {
       timer.current = undefined

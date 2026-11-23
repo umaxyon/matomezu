@@ -4,15 +4,17 @@
 // 読まれたあと、利用者トリガートークがあると会話の時点 talkedAt を持ち、そこから伝言期限（利用者の設定 note-expiry）が過ぎると消える。
 // ロック中のブックにも付けられる（ロックはアノテーションを止めない）
 // 右クリックのメニューのコマンド note-new（押した物に伝言を書き始める）と、右サイドパネルで書いた伝言を送るコマンド note-send（Mod+Enter）もここ
+
 import { z } from "zod"
 import type { Annotation } from "../../../core/annotation"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { type CommandContext, NO_PAGE } from "../../../store/commands/def"
 import { anchorsFor } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
 import { openRightSidePanelIn, RIGHT_SIDE_PANEL_STATE, type RightSidePanelOpen } from "../right-side-panel/state"
 import { AnchorsArg } from "../utils/anchors"
 import { freshId } from "../utils/ids"
-import { type InPlaceDraft, inPlaceText } from "../utils/in-place"
+import { type InPlaceDraft, inPlaceText, NO_DRAFT } from "../utils/in-place"
 import { hasOpenedPage } from "../utils/opened-page"
 import { refusalMessage } from "../utils/refusal"
 import { expiryFrom, NOTE_EXPIRY } from "./expiry"
@@ -243,10 +245,11 @@ export function noteSendOf(
 // ctx のステージの右サイドパネルで書いている伝言を、送るときの物（伝言を出していないか、送れなければ null）
 function sendIn(ctx: CommandContext) {
   const open = ctx.pluginState(RIGHT_SIDE_PANEL_STATE)
-  if (!open || open.widget !== NOTE_PANEL_ID) return null
+  if (open === NO_STATE || open.widget !== NOTE_PANEL_ID) return null
   const note = ctx.annotations.find(a => a.id === open.subject && a.annotation === NOTE.id)
   if (!note && open.subject !== NEW_NOTE) return null
-  const text = inPlaceText(ctx, NOTE_DRAFT, open.subject) ?? (note ? (note.props as NoteProps).text : "")
+  const draft = inPlaceText(ctx, NOTE_DRAFT, open.subject)
+  const text = draft !== NO_DRAFT ? draft : note ? (note.props as NoteProps).text : ""
   return noteSendOf(open, text, note)
 }
 
@@ -263,8 +266,8 @@ export const NOTE_SEND = kit.defineCommand({
       a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("The note was refused")) })
       return
     }
-    a.updatePluginState(NOTE_DRAFT, () => undefined)
-    a.updatePluginState(RIGHT_SIDE_PANEL_STATE, () => undefined)
+    a.resetPluginState(NOTE_DRAFT)
+    a.resetPluginState(RIGHT_SIDE_PANEL_STATE)
   },
   when: ctx => sendIn(ctx) !== null,
 })

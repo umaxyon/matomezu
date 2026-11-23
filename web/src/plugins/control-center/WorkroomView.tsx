@@ -2,7 +2,7 @@
 // 情報の列の右下に退室のアイコン。情報の列の右には、スロット workroom-columnsに置かれたウィジェットの列（カレントチケット・チケット履歴など）が並ぶ。
 // ワークルームとビジターのほかの種類を選んでいれば、スロット picked-detail のその種類の物が枠の中を描く。ビジターを選んでいれば、ビジターの印・呼び名・（ビジター（読むだけ））・情報と、右下に外すアイコン（確かめのダイアログを開く）
 import { KindSlot, Slot, useActions, useAllowedOn, useMessages } from "../../plugin-api/ui"
-import { type VisitorRow, visitorName, type WorkroomRow } from "../base"
+import { NO_BRANCH, NO_MODEL, NO_OCCUPANT, NOT_CALLED, type VisitorRow, visitorName, type WorkroomRow } from "../base"
 import { CrownIcon, Elapsed, IconButton, Panel, Tip, useWorkroomActions, VisitorIcon } from "../base/ui"
 import { BIRD_SIZE, Bird } from "./Bird"
 import { type Picked, VISITOR_LEAVE_DIALOG, WORKROOM_LEAVE_DIALOG } from "./control-center"
@@ -100,7 +100,7 @@ function Occupied({ row }: { row: WorkroomRow }) {
         <dl className={styles.facts}>
           <dt>{t("Last access:")}</dt>
           <dd>
-            {access === "called" && row.calledAt ? (
+            {access === "called" && row.calledAt !== NOT_CALLED ? (
               <Elapsed at={row.calledAt} />
             ) : access === "preparing" ? (
               t("Preparing")
@@ -109,18 +109,18 @@ function Occupied({ row }: { row: WorkroomRow }) {
             )}
           </dd>
           {/* ブランチは git を使っている参加者だけが持つ（git は必須でない）。無ければ行ごと出さない */}
-          {row.branch ? (
+          {row.branch !== NO_BRANCH ? (
             <>
               <dt>{t("Branch:")}</dt>
               <dd>{row.branch}</dd>
             </>
           ) : null}
           <dt>{t("Model:")}</dt>
-          <dd>{row.model}</dd>
+          <dd>{row.model !== NO_MODEL ? row.model : ""}</dd>
           <dt>{t("Environment:")}</dt>
-          <dd>{participant?.env}</dd>
+          <dd>{participant !== NO_OCCUPANT ? participant.env : ""}</dd>
         </dl>
-        {participant ? (
+        {participant !== NO_OCCUPANT ? (
           <LeaveButton workroom={row.room.id} participant={participant.id} />
         ) : (
           <LeaveIconButton workroom={row.room.id} enabled={false} />
@@ -175,7 +175,7 @@ function Visitor({ row }: { row: VisitorRow }) {
         <dl className={styles.facts}>
           <dt>{t("Last access:")}</dt>
           <dd>
-            {access === "called" && row.calledAt ? (
+            {access === "called" && row.calledAt !== NOT_CALLED ? (
               <Elapsed at={row.calledAt} />
             ) : access === "preparing" ? (
               t("Preparing")
@@ -183,7 +183,7 @@ function Visitor({ row }: { row: VisitorRow }) {
               t("None")
             )}
           </dd>
-          {row.branch ? (
+          {row.branch !== NO_BRANCH ? (
             <>
               <dt>{t("Branch:")}</dt>
               <dd>{row.branch}</dd>

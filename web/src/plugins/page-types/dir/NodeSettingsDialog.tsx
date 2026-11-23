@@ -1,7 +1,7 @@
 // ノードの設定のダイアログ（フォルダもファイルも、根も同じ形）: 名前と説明（どちらも上に装飾のボックス）と、アイコン（フォルダは folder・book、ファイルは file とそれ以外）を選ぶ。
 // 確定でアクション node-update を行う。断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に入らない）
 import { useId, useRef, useState } from "react"
-import type { MessageKey } from "../../../plugin-api"
+import { type MessageKey, NO_PAGE } from "../../../plugin-api"
 import { type DialogProps, useCoreCatalog, useMessages, usePageById, usePerform, useT } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -37,7 +37,7 @@ export function NodeSettingsDialog({ args, onClose }: DialogProps<{ page: string
   const catalog = useCoreCatalog()
   const tr = useT() // ほかのプラグインが足したアイコンの名前も引く
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
-  if (!page || !node) return null
+  if (page === NO_PAGE || !node) return null
   const submit = () => {
     const done = perform(
       NODE_UPDATE.id,

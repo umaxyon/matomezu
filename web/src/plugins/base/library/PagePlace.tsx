@@ -2,8 +2,10 @@
 // そのページの入っているフォルダまでの名前を小さい薄い字で出す（書庫ホームに直に在れば書庫。フォルダの中なら、書庫ホームの下から）。
 // 全体が 1 つのボタンで、押すと書庫でそのフォルダを開く（コマンド library-place-open）。入り切らなければ頭の側を省き、入っているフォルダの名前は残す。乗せると全部を出す。
 // ブックを開いているステージ・何も開いていないステージには出さない
+
 import { useShallow } from "zustand/react/shallow"
 import { namingOf, titleOf } from "../../../core/entries"
+import { NO_PAGE } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { defineWidget } from "../../../ui/layout"
@@ -21,7 +23,8 @@ const NO_PLACE: readonly string[] = []
 
 function PagePlace() {
   const t = useMessages(kit)
-  const outside = usePage()?.id
+  const page = usePage()
+  const outside = page === NO_PAGE ? undefined : page.id
   const catalog = useCatalog().core
   const nameOf = useNameOf()
   const open = useCommand(LIBRARY_PLACE_OPEN.id)

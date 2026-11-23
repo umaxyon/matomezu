@@ -5,7 +5,7 @@ import { kit } from "./kit"
 
 export function Ex10Tabs() {
   const t = useMessages(kit)
-  const tab = usePluginState(kit, EX10_TAB) ?? "one"
+  const tab = usePluginState(kit, EX10_TAB)
   const setTab = useSetPluginState(kit, EX10_TAB)
   return (
     <div data-ex10-tabs data-tab={tab}>

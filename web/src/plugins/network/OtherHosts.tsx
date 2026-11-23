@@ -2,8 +2,20 @@
 // ペアリングしたホストの行（● つながっている・○ つながっていない、ホスト名）。行を押すと、コントロールセンターの選んでいる物にし、右の下の枠に詳しい所が出る。
 // 節を出したときに、ペアリングしたホストとつながっているかを常駐に確かめてもらう（間を置いて確かめ続けない）
 import { useEffect } from "react"
+import { NO_STATE } from "../../plugin-api"
 import { useActions, useMessages, useRecords, useSetPluginStateById, useSettings } from "../../plugin-api/ui"
-import { Band, IconButton, LineIcon, Panel, useAskHosts, useHostPeers } from "../base/ui"
+import {
+  Band,
+  type HostPeers,
+  IconButton,
+  LineIcon,
+  NO_HOST_PEERS,
+  NOT_TOLD,
+  Panel,
+  type PeerLive,
+  useAskHosts,
+  useHostPeers,
+} from "../base/ui"
 import { PICKED_STATE } from "./control-center-ids"
 import { PAIRING_DIALOG } from "./dialogs"
 import { hostRows, shownName } from "./hosts"
@@ -12,18 +24,22 @@ import styles from "./OtherHosts.module.css"
 import { PAIRED_HOST } from "./pairing"
 import { CONNECT_HOSTS } from "./settings"
 
-export function OtherHosts({ picked }: { picked: { kind: string; id: string } | undefined }) {
+// ペアリングしたホストの様子（まだ届いていなければ空）
+export const pairedOf = (peers: HostPeers | typeof NO_HOST_PEERS): readonly PeerLive[] =>
+  peers === NO_HOST_PEERS ? [] : peers.paired
+
+export function OtherHosts({ picked }: { picked: { kind: string; id: string } | typeof NO_STATE }) {
   const on = useSettings().values[CONNECT_HOSTS.id] === true
   return on ? <Section picked={picked} /> : null
 }
 
-function Section({ picked }: { picked: { kind: string; id: string } | undefined }) {
+function Section({ picked }: { picked: { kind: string; id: string } | typeof NO_STATE }) {
   const t = useMessages(kit)
   const ask = useAskHosts()
   const { openDialog } = useActions()
   const setById = useSetPluginStateById()
   const records = useRecords(PAIRED_HOST.id, { where: [] })
-  const rows = hostRows(records, useHostPeers()?.paired ?? [])
+  const rows = hostRows(records, pairedOf(useHostPeers()), NOT_TOLD)
   useEffect(() => {
     void ask({ kind: "check" }).catch(() => {})
   }, [ask])
@@ -43,7 +59,7 @@ function Section({ picked }: { picked: { kind: string; id: string } | undefined 
           <li
             key={row.record.id}
             className={styles.row}
-            data-selected={picked?.kind === PAIRED_HOST.id && picked.id === row.record.id}
+            data-selected={picked !== NO_STATE && picked.kind === PAIRED_HOST.id && picked.id === row.record.id}
             data-paired-host={row.record.hostId}
           >
             <button

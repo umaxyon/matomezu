@@ -3,4 +3,4 @@ import { usePluginState } from "../../../ui/plugin-state-hooks"
 import { kit } from "../kit"
 import { CONTENT_HIDDEN } from "./states"
 
-export const useContentHidden = (): boolean => usePluginState(kit, CONTENT_HIDDEN) ?? false
+export const useContentHidden = (): boolean => usePluginState(kit, CONTENT_HIDDEN)

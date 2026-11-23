@@ -7,7 +7,7 @@ import type { MessageKey } from "../../../core/i18n/i18n"
 import type { ItemPage } from "../../../core/placed"
 import type { StageLineup } from "../../../core/schema/book"
 import { type SettingReader, settingsAt } from "../book-settings"
-import { type GrowSides, growOf } from "../place/grow"
+import { type GrowSides, growOf, type NO_GROW } from "../place/grow"
 
 export interface PageProblem {
   message?: MessageKey
@@ -16,12 +16,12 @@ export interface PageProblem {
 declare module "../../../core/catalog" {
   interface PageTypeExtras {
     // page で効いている設定の値は setting で読む（ページの設定の項目を、ページ → 既定の順に）。
-    // grow はページの増やす向き（可変ページでなければ undefined。place/grow の growOf）
+    // grow はページの増やす向き（可変ページでなければ NO_GROW。place/grow の growOf）
     pageProblem?(
       catalog: CoreCatalog,
       page: ItemPage,
       setting: SettingReader,
-      grow: GrowSides | undefined,
+      grow: GrowSides | typeof NO_GROW,
     ): PageProblem | null
   }
 }

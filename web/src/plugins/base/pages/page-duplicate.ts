@@ -4,7 +4,7 @@
 // 写しの名前は、同じブックかバインダのほかのページと重ならない名前にする（渡した名前が重なれば断る。渡さなければ、元の名前に番号を付ける）
 
 import { z } from "zod"
-import { addPage, findPage, siblingsOf } from "../../../core/book"
+import { addPage, findPage, NO_BINDER, NO_PAGE, siblingsOf } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Declined } from "../../../core/def/action"
 import { freeTitle } from "../../../core/entries"
@@ -56,16 +56,16 @@ export function duplicatedPage<B extends StageLineup>(
   newId: () => string,
 ): { book: B; page: string } | Declined | null {
   const at = findPage(book, page)
-  if (!at) return null
+  if (at === NO_PAGE) return null
   const problem = duplicateProblem(catalog, at.page)
   if (problem === "content") return UNRENEWABLE_DECLINED
   if (problem) return null
-  const siblings = siblingsOf(book, page) ?? []
+  const siblings = siblingsOf(book, page)
   const titles = siblings.map(e => e.title)
   if (title !== undefined && titles.includes(title)) return null
   const { id: _id, locked: _locked, ...content } = at.page
   const copy = { ...renewedIds(at.page, content, newId), title: title ?? freeTitle(at.page.title, titles) }
   const index = siblings.findIndex(e => e.id === page) + 1
-  const added = addPage(book, copy, at.binder ? { binder: at.binder.id, index } : { index }, newId)
-  return added ? { book: added.book, page: added.page } : null
+  const added = addPage(book, copy, at.binder !== NO_BINDER ? { binder: at.binder.id, index } : { index }, newId)
+  return added !== NO_BINDER ? { book: added.book, page: added.page } : null
 }

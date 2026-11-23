@@ -12,11 +12,10 @@ import { pageIn } from "../core/folders"
 import { outsideBinderIn } from "../core/folders-tree"
 import type { ItemPage } from "../core/placed"
 import type { BinderEntry, Book } from "../core/schema/book"
-import { type Stage, shownPageId } from "../core/stage"
+import { NO_PAGE, NO_STAGE, NOTHING_OPENED, type Stage, shownPageId } from "../core/stage"
 import { stageIn } from "../core/window"
-import { NO_STAGE } from "../store/dialogs"
 import type { MatomezuState } from "../store/state"
-import { useScreenContext } from "./screen-context"
+import { useScreenIdHere } from "./screen-context"
 import { useMatomezuState, useReadState } from "./store-context"
 
 // 操作の向け先: ステージ・スクリーン・窓（スクリーンの外の、何も置いていない所）・無し（見るだけ）
@@ -81,7 +80,7 @@ export function ActsOnScope({ at, children }: { at: string; children: ReactNode 
 // 描いている場所（何も置いていなければ、描いているスクリーン。その外なら窓）
 export function useScope(): Scope {
   const placed = useContext(ScopeContext)
-  const screen = useScreenContext()?.id
+  const screen = useScreenIdHere()
   return useMemo<Scope>(
     () =>
       placed ??
@@ -90,19 +89,19 @@ export function useScope(): Scope {
   )
 }
 
-// 向け先のステージの id（向け先がステージでないか、そのステージがもう無ければ null）
-export function useStageId(): string | null {
+// 向け先のステージの id（向け先がステージでないか、そのステージがもう無ければ NO_STAGE）
+export function useStageId(): string {
   const { actsOn } = useScope()
-  const stage = actsOn.kind === "stage" ? actsOn.stage : null
-  const there = useMatomezuState(s => stage !== null && stageIn(s.window, stage) !== undefined)
-  return there ? stage : null
+  const stage = actsOn.kind === "stage" ? actsOn.stage : NO_STAGE
+  const there = useMatomezuState(s => stage !== NO_STAGE && stageIn(s.window, stage) !== undefined)
+  return there ? stage : NO_STAGE
 }
 
 // store の操作・コマンドに渡す、呼ぶ場所の値（ステージの id・スクリーンの id・窓は NO_STAGE）。向け先が無いか、向け先のステージがもう無ければ null
 export function useAt(): string | null {
   const { actsOn } = useScope()
   const stage = useStageId() // 向け先がステージで、まだあるときだけ id
-  if (actsOn.kind === "stage") return stage
+  if (actsOn.kind === "stage") return stage === NO_STAGE ? null : stage
   return actsOn.kind === "screen" ? actsOn.screen : actsOn.kind === "window" ? NO_STAGE : null
 }
 
@@ -112,7 +111,9 @@ export function openedOf(s: MatomezuState, scope: Scope): { outermost: string; p
   if (!ref) return null
   if (ref.from === "page") return { outermost: ref.outermost, page: ref.page }
   const opened = stageIn(s.window, ref.stage)?.opened
-  return opened ? { outermost: opened.outermost.id, page: shownPageId(opened) } : null
+  if (opened === undefined || opened === NOTHING_OPENED) return null
+  const page = shownPageId(opened)
+  return { outermost: opened.outermost.id, page: page === NO_PAGE ? null : page }
 }
 
 // 描くページのブック（無ければ null）
@@ -155,12 +156,12 @@ export function useZoomHere(): number {
 // 土台と base だけが使う（プラグイン API には出さない。プラグインのビューは ui/view-hooks.ts などのフックで約束の物だけを引く）
 export function useStageHere<T>(pick: (stage: Stage | null, s: MatomezuState) => T): T {
   const id = useStageId()
-  return useMatomezuState(s => pick(id === null ? null : (stageIn(s.window, id) ?? null), s))
+  return useMatomezuState(s => pick(id === NO_STAGE ? null : (stageIn(s.window, id) ?? null), s))
 }
 
 // 向け先のステージの今の素の状態を返す関数（描き直さない。イベントや effect の中で使う）
 export function useReadStageHere(): () => Stage | null {
   const id = useStageId()
   const read = useReadState()
-  return useCallback(() => (id === null ? null : (stageIn(read().window, id) ?? null)), [read, id])
+  return useCallback(() => (id === NO_STAGE ? null : (stageIn(read().window, id) ?? null)), [read, id])
 }

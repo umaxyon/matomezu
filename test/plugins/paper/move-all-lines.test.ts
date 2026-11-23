@@ -3,6 +3,7 @@
 
 import { expect, test } from "bun:test"
 import { pagesOf, restoreBooks } from "../../../web/src/core/book"
+import { CANNOT_PLACE } from "../../../web/src/plugins/base"
 import { moveItems } from "../../../web/src/plugins/paper/placing/items"
 import { drawingPage, testBook } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
@@ -113,8 +114,8 @@ test("全部を右へ動かしても、via は動いた量だけずれる（動�
   ]
   for (let dx = 1; dx <= 170; dx++) {
     const next = moveItems(CORE_CATALOG, pagesOf(book!)[0]!, ids, { x: dx, y: 0 })
-    expect(next).not.toBeNull()
-    const items = (next?.items ?? []) as unknown as {
+    if (next === CANNOT_PLACE) throw new Error("動かせない")
+    const items = next.items as unknown as {
       id: string
       props: { via?: number[] }
     }[]

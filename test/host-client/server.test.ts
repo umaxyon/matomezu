@@ -5,6 +5,7 @@ import { BROKEN, HOME_ID, TRASH_ID } from "../../web/src/core/folders"
 import { recordsOf } from "../../web/src/core/folders-books"
 import { rawBooksOf } from "../../web/src/core/folders-unreadable"
 import type { Book } from "../../web/src/core/schema/book"
+import { openedEntry } from "../../web/src/core/stage"
 import { NOT_INSIDE, PURGED } from "../../web/src/core/unreadable"
 import { screenOf } from "../../web/src/core/window"
 import { OFFLINE_MS, QUIET_MS } from "../../web/src/host-client/link-watch"
@@ -810,7 +811,7 @@ test("show が届いたら、言われたステージでブックを開き、カ
   s.emit("show", { to: "book", book: "b1", stage: "s2" })
   const ws = screenOf(s.store.state.getState().window)
   expect(ws.current).toBe("s2")
-  expect(ws.stages.map(st => st.opened?.outermost.id ?? null)).toEqual(["b1", "b1"])
+  expect(ws.stages.map(st => openedEntry(st.opened)?.id ?? null)).toEqual(["b1", "b1"])
 })
 
 test("show の mode が print-preview なら、印刷プレビューで開く", async () => {
@@ -826,7 +827,7 @@ test("show の split は、そのステージを分けて右にできたステ�
   const ws = screenOf(s.store.state.getState().window)
   expect(ws.stages.map(st => st.id)).toEqual(["s1", "s2"])
   expect(ws.current).toBe("s2")
-  expect(ws.stages[1]?.opened?.outermost.id).toBe("b1")
+  expect(openedEntry(ws.stages[1]?.opened)?.id).toBe("b1")
 })
 
 test("show の to が binder なら、ブックの外のバインダを名指したページで出す。常駐に知らせる view の entry はそのバインダ", async () => {
@@ -855,7 +856,7 @@ test("show の to が page なら、ブックの外のページを出す（窓�
     s.store.state
       .getState()
       .window.screens.flatMap(sc => ("stages" in sc ? (sc.stages?.stages ?? []) : []))
-      .map(st => st.opened?.outermost ?? null)
+      .map(st => openedEntry(st.opened) ?? null)
   s.emit("show", { to: "page", page: "h1" })
   expect(outermosts()).toContainEqual({ kind: "page", id: "h1" })
   expect(s.sent.at(-1)?.view).toMatchObject({ entry: { kind: "page", id: "h1" }, page: "h1" })

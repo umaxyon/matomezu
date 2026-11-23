@@ -6,9 +6,10 @@
 // 色（color）があれば、塗りと文字のテーマキーをその色で上書きする（paint.ts）
 
 import type { CSSProperties } from "react"
-import { type ItemProps, shownPageId } from "../../../plugin-api"
+import { type ItemProps, NO_PAGE } from "../../../plugin-api"
 import { type ItemViewProps, usePerform, useStage } from "../../../plugin-api/ui"
-import { TextBlockView, useBodyGrips, useThemeVars } from "../../base/ui"
+import { FULL_WIDTH, stagePageId } from "../../base"
+import { NO_THEME, TextBlockView, useBodyGrips, useThemeVars } from "../../base/ui"
 import styles from "./BoxView.module.css"
 import { type BOX, BOX_TOKENS } from "./box"
 import { paintVars } from "./paint"
@@ -18,9 +19,9 @@ type BoxProps = ItemProps<typeof BOX.id>
 
 export function BoxView({ props, size, hasChildren, id }: ItemViewProps<BoxProps>) {
   const theme = props.theme
-  const vars = useThemeVars(theme, BOX_TOKENS)
+  const vars = useThemeVars(theme ?? NO_THEME, BOX_TOKENS)
   const at = useStage()
-  const page = shownPageId(at?.opened ?? null) ?? undefined
+  const page = stagePageId(at)
   const perform = usePerform()
   const grips = useBodyGrips(id, "@matomezu/paper:item-update")
   return (
@@ -37,7 +38,12 @@ export function BoxView({ props, size, hasChildren, id }: ItemViewProps<BoxProps
           grips={grips}
           lineColor="var(--box-line)"
           onBodyWidth={bodyWidth => {
-            if (page) perform("@matomezu/paper:item-update", { item: id, props: { bodyWidth } }, { page })
+            if (page !== NO_PAGE)
+              perform(
+                "@matomezu/paper:item-update",
+                { item: id, props: { bodyWidth: bodyWidth === FULL_WIDTH ? null : bodyWidth } },
+                { page },
+              )
           }}
         />
       </div>

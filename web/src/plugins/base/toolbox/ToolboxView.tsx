@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import type { ItemId } from "../../../core/core-catalog"
-import { shownType } from "../../../core/stage"
+import { NO_PAGE_TYPE, NO_PLACING, NO_STAGE, NOTHING_OPENED, shownType } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import { useStageHere } from "../../../ui/scope"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
@@ -17,15 +17,15 @@ import styles from "./ToolboxView.module.css"
 import { panelOf, toolboxOf } from "./toolbox"
 
 export function ToolboxView() {
-  const placing = useStageHere(st => st?.placing?.item ?? null)
+  const placing = useStageHere(st => (st && st.placing !== NO_PLACING ? st.placing.item : null))
   const { togglePlacing } = useActions()
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const stage = useStage()
-  const edits = stage?.edits ?? "items"
-  const type = shownType(stage?.opened ?? null) // 開いているページのタイプ（ページを開いていなければ、何も出さない）
-  const tools = type ? toolboxOf(catalog, type, edits) : []
-  const panel = type ? panelOf(catalog, type, edits) : []
+  const edits = stage === NO_STAGE ? "items" : stage.edits
+  const type = shownType(stage === NO_STAGE ? NOTHING_OPENED : stage.opened) // 開いているページのタイプ（ページを開いていなければ、何も出さない）
+  const tools = type !== NO_PAGE_TYPE ? toolboxOf(catalog, type, edits) : []
+  const panel = type !== NO_PAGE_TYPE ? panelOf(catalog, type, edits) : []
   if (tools.length === 0 && panel.length === 0) return null
   return (
     <div className={styles.toolbox} role="toolbar" aria-label={t("Tools")}>

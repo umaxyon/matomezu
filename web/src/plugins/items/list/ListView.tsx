@@ -16,7 +16,7 @@
 // 行は台紙の上の 1 枚ずつのカードで、カードの地・角・影・折り返しはテーマが決める（付箋紙のテーマでは付箋）。色はリストの台紙と見出しに塗る（paint.ts）
 
 import { type CSSProperties, type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { type ItemProps, toPaperDelta } from "../../../plugin-api"
+import { type ItemProps, NO_STAGE, toPaperDelta } from "../../../plugin-api"
 import {
   type ItemViewProps,
   themeVars,
@@ -28,7 +28,15 @@ import {
   useStage,
 } from "../../../plugin-api/ui"
 import { DRAG_START, resolveTokens } from "../../base"
-import { GhostArea, modPressed, useAnchorRef, useFollowsSelection, useRevealable, useThemeVars } from "../../base/ui"
+import {
+  GhostArea,
+  modPressed,
+  NO_THEME,
+  useAnchorRef,
+  useFollowsSelection,
+  useRevealable,
+  useThemeVars,
+} from "../../base/ui"
 import { LIST_ADD_ROW, LIST_CHECK, LIST_EDIT_ROW, LIST_MOVE_ROW, LIST_STRETCH_ROW } from "./commands"
 import { edgeScroller } from "./edge-scroll"
 import { kit } from "./kit"
@@ -94,7 +102,7 @@ export function ListView({
   const catalog = useCoreCatalog()
   const rows: readonly ListRow[] = content.children ?? []
   const theme = props.theme
-  const vars = useThemeVars(theme, LOOK_TOKENS)
+  const vars = useThemeVars(theme ?? NO_THEME, LOOK_TOKENS)
   const add = useCommand(LIST_ADD_ROW.id)
   const edit = useCommand(LIST_EDIT_ROW.id)
   const check = useCommand(LIST_CHECK.id)
@@ -166,17 +174,17 @@ export function ListView({
   })
   const { select } = useActions()
   const at = useStage()
-  const selection = at?.selection ?? []
+  const selection = at === NO_STAGE ? [] : at.selection
   const followed = useFollowsSelection()
   // 紙をずらす道具（ハンドなど）の間は、行を運ぶことも行の高さを変えることも、ダブルクリックで行の編集を開くこともしない（つまみも出さない）
-  const pans = at?.pans === true
+  const pans = at !== NO_STAGE && at.pans
   const stretch = useRef<Stretch | null>(null)
   const [moved, setMoved] = useState(0) // 行の高さを変えているドラッグの、画面の上で動いた量
   const layout = listLayout(rows, size.w, props.checklist)
   // 高さを変えている途中の行は、一番近い行数の高さで描く
   const heightOf = (row: string, height: number) => {
     const st = stretch.current
-    if (!st || st.row !== row || !at) return height
+    if (!st || st.row !== row || at === NO_STAGE) return height
     return rowHeight(linesFor(st.height + toPaperDelta(at, { x: 0, y: moved }).y))
   }
   const grip = (row: string, height: number) => ({

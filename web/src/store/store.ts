@@ -8,8 +8,8 @@ import { restoreAllAnnotations, withAnnotations } from "../core/annotation"
 import { readLibrary } from "../core/book"
 import { bulkActionOf, entersLibraryHistory, laterThan, localDateOf, performBulk } from "../core/bulk"
 import type { CoreCatalog } from "../core/core-catalog"
-import type { ActionContext, ActionOn } from "../core/def/action"
-import type { PluginStateDef } from "../core/def/plugin-state"
+import { type ActionContext, type ActionOn, NO_CONTROL_CENTER } from "../core/def/action"
+import { type PluginStateDef, stateRead, storedOf } from "../core/def/plugin-state"
 import { fail, matomezuError, type Problem, problem } from "../core/errors"
 import { type Folder, homeOver, type Library, type PageRow, type TableChanges } from "../core/folders"
 import { recordsOf } from "../core/folders-books"
@@ -39,8 +39,11 @@ import {
   closePicker,
   closePrintPreview,
   endBackground,
+  NO_PAGE,
+  NOTHING_OPENED,
   openBook,
   openedBook,
+  openedEntry,
   openedPage,
   openOutsideBinder,
   openOutsidePage,
@@ -104,11 +107,13 @@ import {
   type CommandActions,
   calledScreenIdOf,
   givenActions,
+  givenScreenResets,
   givenScreenWrites,
   givenWindowReads,
+  type ResetPluginStateAt,
   type UpdatePluginStateAt,
 } from "./commands/def"
-import { NO_STAGE, type OpenedPlace, openedAt } from "./dialogs"
+import { NO_DIALOG_PREVIEW, NO_STAGE, type OpenedPlace, openedAt } from "./dialogs"
 import { findKey, type KeyTable, keyScopes, keyTable } from "./keys"
 import { assemble, type Plugin } from "./plugin"
 import {
@@ -173,7 +178,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   options: StoreOptions<Ps>,
 ): MatomezuInstance<Ps> {
   const { plugins } = options
-  let defs = assemble(plugins, options.controlCenter ?? null, options.autoSkin)
+  let defs = assemble(plugins, options.controlCenter ?? NO_CONTROL_CENTER, options.autoSkin)
   let { controlCenter } = defs
   let catalog = defs.catalog.core
   // 設定の言語の項目が選んでいないときの言語
@@ -601,29 +606,50 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const pending: [string, PluginPlace, unknown][] = []
       const working = () =>
         pending.reduce((v, [id, st, value]) => withPluginValue(v, id, st, value), getState().pluginValues)
-      const updatePluginState = <S>(stateDef: PluginStateDef<S>, change: (now: S | undefined) => S | undefined) => {
+      // 呼ばれた場所の、宣言 stateDef の値を next にする（undefined なら消す）
+      const writeHere = (
+        stateDef: PluginStateDef<unknown>,
+        next: (own: PluginStateDef<unknown>, at: PluginPlace) => unknown,
+      ) => {
         const own = ownedPluginState(owner, stateDef)
         // スクリーンごとの宣言は、呼ばれた場所のスクリーンの値
         const at = placeOf(own.scope, { stage, screen: calledScreenIdOf(call.ctx) })
-        const next = change(pluginValueOf(working(), at, own))
-        withPluginValue(working(), own.id, at, next) // 書く前に、範囲と形を確かめる
-        pending.push([own.id, at, next])
+        const value = next(own, at)
+        withPluginValue(working(), own.id, at, value) // 書く前に、範囲と形を確かめる
+        pending.push([own.id, at, value])
       }
+      const updatePluginState: CommandActions["updatePluginState"] = (stateDef, change) =>
+        writeHere(stateDef, (own, at) => storedOf(change(stateRead(stateDef, pluginValueOf(working(), at, own)))))
+      const resetPluginState = (stateDef: PluginStateDef<unknown>) => writeHere(stateDef, () => undefined)
       // ほかのスクリーン screen の、スクリーンごとの宣言の値（base のコマンドだけが updatePluginStateAtOf で使う）
       const updatePluginStateAt: UpdatePluginStateAt = (screen, stateDef, change) => {
         const own = ownedPluginState(owner, stateDef)
         // 渡したスクリーンに書くのはスクリーンごとの宣言だけ（ステージ・窓の範囲の宣言を、呼ばれた場所に黙って書かない）
         if (own.scope !== "screen") fail("E124", { id: own.id, scope: own.scope, need: "use updatePluginState" })
         const at = placeOf(own.scope, { stage, screen })
-        const next = change(pluginValueOf(working(), at, own))
+        const next = storedOf(change(stateRead(stateDef, pluginValueOf(working(), at, own))))
         withPluginValue(working(), own.id, at, next)
         pending.push([own.id, at, next])
       }
+      // ほかのスクリーン screen の、スクリーンごとの宣言の値を消す（base のコマンドだけが resetPluginStateAtOf で使う）
+      const resetPluginStateAt: ResetPluginStateAt = (screen, stateDef) => {
+        const own = ownedPluginState(owner, stateDef)
+        if (own.scope !== "screen") fail("E124", { id: own.id, scope: own.scope, need: "use resetPluginState" })
+        const at = placeOf(own.scope, { stage, screen })
+        withPluginValue(working(), own.id, at, undefined)
+        pending.push([own.id, at, undefined])
+      }
       const run = call.def.run as (ctx: unknown, actions: CommandActions, args: never) => void
       // 呼ばれた場所（ステージか、スクリーン）に向けた操作
-      const given: CommandActions = { ...windowActionsOf(actions), ...boundActions(actions, stage), updatePluginState }
+      const given: CommandActions = {
+        ...windowActionsOf(actions),
+        ...boundActions(actions, stage),
+        updatePluginState,
+        resetPluginState,
+      }
       givenActions.set(given, actions)
       givenScreenWrites.set(given, updatePluginStateAt)
+      givenScreenResets.set(given, resetPluginStateAt)
       givenWindowReads.set(given, () => getState().window)
       run(call.ctx, given, args[0] as never)
       if (pending.length > 0) {
@@ -636,14 +662,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     openDialog: (at, id, ...args) => {
       if (!defs.catalog.store.dialogs.has(id)) fail("E108", { id })
       const place = placeOpenedFrom(at)
-      if (place) setState({ dialog: { id, ...place, args: args[0], submitted: 0, preview: null } })
+      if (place) setState({ dialog: { id, ...place, args: args[0], submitted: 0, preview: NO_DIALOG_PREVIEW } })
     },
     closeDialog: () => {
       if (getState().dialog) setState({ dialog: null })
     },
     previewDialog: preview => {
       const { dialog } = getState()
-      if (dialog && (dialog.preview !== null || preview !== null)) setState({ dialog: { ...dialog, preview } })
+      if (dialog && (dialog.preview !== NO_DIALOG_PREVIEW || preview !== NO_DIALOG_PREVIEW))
+        setState({ dialog: { ...dialog, preview } })
     },
     submitDialog: () => {
       const { dialog } = getState()
@@ -662,7 +689,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const stage =
         (contextMenu ? openedAt(contextMenu) : undefined) ?? picker ?? opener ?? current.stages?.current ?? current.id
       // プレゼンテーションのキーの範囲は、ページを開いているときだけ（空のバインダでは、プレゼンテーションのビューを描かない）
-      const type = openedPage(stageIn(window, stage)?.opened ?? null)?.type
+      const shownPage = openedPage(stageIn(window, stage)?.opened ?? NOTHING_OPENED)
+      const type = shownPage === NO_PAGE ? undefined : shownPage.type
       const presentation = type && catalog.pageTypes.get(type)?.presentation
       const shown = presentation ? catalog.presentations.get(presentation)?.keyScope : undefined
       const openNow = {
@@ -836,19 +864,20 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     openPage: (stage, page) => {
       const { books, window, pages, folders } = getState()
-      const at = stageIn(window, stage)?.opened
+      const opened = stageIn(window, stage)?.opened
+      const at = openedEntry(opened)
       // ブックの外のバインダを開いたステージでは、そのバインダの中のページへ替える
-      if (at?.outermost.kind === "binder") {
-        const binder = outsideBinderIn({ pages, folders }, at.outermost.id)
+      if (at?.kind === "binder") {
+        const binder = outsideBinderIn({ pages, folders }, at.id)
         if (binder?.lineup.some(p => p.id === page)) actions.openOutsideBinder(stage, binder.id, page)
         return
       }
       // ブックの外のページ 1 枚を開いたステージでは、そのページを名指せば印刷プレビューを閉じる
-      if (at?.outermost.kind === "page") {
-        if (at.outermost.id === page) actions.closePrintPreview(stage)
+      if (at?.kind === "page") {
+        if (at.id === page) actions.closePrintPreview(stage)
         return
       }
-      const book = openedBook(books, at)
+      const book = openedBook(books, opened)
       // ページを開くと、そのブックスクリーンをカレントスクリーンにする
       if (book && inWindow(stage))
         withWindow(win =>
@@ -874,7 +903,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const at = openablePage(getState(), page)
       if (!at) return
       const { kind, id } = at.outermost
-      if (stageIn(getState().window, stage)?.opened?.outermost.id === id) actions.openPage(stage, page)
+      if (openedEntry(stageIn(getState().window, stage)?.opened)?.id === id) actions.openPage(stage, page)
       else
         actions.openToStage(
           kind === "book"
@@ -1165,11 +1194,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     use: (added, check) => {
       const failed: Problem[] = []
       let used: Plugin[] = []
-      let next = assemble(plugins, options.controlCenter ?? null, options.autoSkin)
+      let next = assemble(plugins, options.controlCenter ?? NO_CONTROL_CENTER, options.autoSkin)
       for (const p of added) {
         try {
           const all = [...plugins, ...used, p]
-          const tried = assemble(all, options.controlCenter ?? null, options.autoSkin)
+          const tried = assemble(all, options.controlCenter ?? NO_CONTROL_CENTER, options.autoSkin)
           check?.(all)
           used = [...used, p]
           next = tried
@@ -1201,7 +1230,9 @@ export const openedIn = (
   stage = "s1",
 ): { book: string; page: string | null } | null => {
   const opened = stageIn(instance.state.getState().window, stage)?.opened
-  return opened ? { book: opened.outermost.id, page: shownPageId(opened) } : null
+  if (opened === undefined || opened === NOTHING_OPENED) return null
+  const page = shownPageId(opened)
+  return { book: opened.outermost.id, page: page === NO_PAGE ? null : page }
 }
 
 // 作ったときに読む行: 残した行 saved と、books を分けた行（core/folders-books.ts の recordsOf）。

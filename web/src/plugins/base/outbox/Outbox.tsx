@@ -6,9 +6,9 @@
 import { useMemo } from "react"
 import type { AiAnnotation, Annotation } from "../../../core/annotation"
 import type { ActionId } from "../../../core/catalog"
-import { shownPageId } from "../../../core/stage"
+import { NO_STAGE, NOTHING_OPENED, shownPageId } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
-import { useKindView } from "../../../ui/Slot"
+import { NO_KIND_VIEW, useKindView } from "../../../ui/Slot"
 import { useActions, useAllowed, useCoreCatalog, useStage } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
@@ -101,18 +101,23 @@ function RowWithdraw({
 // 行の左の絵: 種類ごとに、スロット annotation-icon に置いたウィジェットのうち、その種類の物が描く（無ければ点）
 function Icon({ annotation: a }: { annotation: Annotation }) {
   const View = useKindView(ANNOTATION_ICON, a.annotation)
-  return <span className={styles.icon}>{View ? <View annotation={a} /> : <span className={styles.dot} />}</span>
+  return (
+    <span className={styles.icon}>
+      {View === NO_KIND_VIEW ? <span className={styles.dot} /> : <View annotation={a} />}
+    </span>
+  )
 }
 
 // 行を押したときの動き: ほかのページならそのページを開いてから、種類が右サイドパネルの中身 panel を答えていればそこで開き、
 // 無ければ付けた物を倍率そのままで見せる
 function useGo(): (a: AiAnnotation, panel: string | undefined) => void {
-  const opened = useStage()?.opened
+  const stage = useStage()
+  const opened = stage === NO_STAGE ? NOTHING_OPENED : stage.opened
   const { openPage } = useActions()
   const openPanel = useOpenRightSidePanel()
   const reveal = useRevealHere()
   return (a, panel) => {
-    if (a.page && shownPageId(opened ?? null) !== a.page) openPage(a.page)
+    if (a.page && shownPageId(opened) !== a.page) openPage(a.page)
     if (panel) {
       openPanel({ widget: panel, subject: a.id, anchors: a.anchors, current: lastAnchor(a.anchors) })
       return

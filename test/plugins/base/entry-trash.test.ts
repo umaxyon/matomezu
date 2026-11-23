@@ -1,10 +1,12 @@
 // ゴミ箱: 戻す先の選びと、entry-trash（入っていたフォルダから外してゴミ箱の並びへ。開いていたステージは何も開かない）・entry-restore・entry-purge・trash-empty。
 // ロック中は入れない。ゴミ箱のブックはブックが対象のアクションで変えられない
+
 import { expect, test } from "bun:test"
 import { USER } from "../../../web/src/core/actor"
 import { pagesOf } from "../../../web/src/core/book"
 import { type Folders, HOME_ID, type PlainFolder, TRASH_ID } from "../../../web/src/core/folders"
 import { permittedIn } from "../../../web/src/core/perform-world"
+import { openedEntry } from "../../../web/src/core/stage"
 import { recentBookScreen, screenOf } from "../../../web/src/core/window"
 import { createBookIn } from "../../../web/src/plugins/base/book-new/create-book"
 import { restoreTargetOf } from "../../../web/src/plugins/base/library/entries"
@@ -60,9 +62,9 @@ test("分けたステージの片方のブックが無くなると、そのス�
   const right = screenOf(state.getState().window).stages[1]?.id ?? ""
   actions.openBook(right, "b2")
   expect(actions.perform("@matomezu/base:entry-trash", { entry: "b2" }).ok).toBe(true)
-  expect(screenOf(state.getState().window).stages.map(s => s.opened?.outermost.id)).toEqual(["b1"])
+  expect(screenOf(state.getState().window).stages.map(s => openedEntry(s.opened)?.id)).toEqual(["b1"])
   expect(actions.perform("@matomezu/base:entry-restore", { entry: "b2" }).ok).toBe(true)
-  expect(screenOf(state.getState().window).stages.map(s => s.opened?.outermost.id)).toEqual(["b1"])
+  expect(screenOf(state.getState().window).stages.map(s => openedEntry(s.opened)?.id)).toEqual(["b1"])
 })
 
 test("ゴミ箱のブックは、ブックが対象のアクションでは無いものとして断る", () => {

@@ -2,26 +2,30 @@
 import {
   definePluginUi,
   defineWidget,
+  NO_FOLDER,
   useFolderEntries,
   useMessages,
   usePluginState,
+  useResetPluginState,
   useSetPluginState,
 } from "matomezu/ui"
-import { EX15, SHELF_FOLDED, SHELF_FOLDER, SHELF_SCREEN, shelfFolderOf } from "."
+import { EX15, SHELF_FOLDED, SHELF_FOLDER, SHELF_SCREEN } from "."
 import { kit } from "./kit"
 
 function ShelfScreenView() {
   const t = useMessages(kit)
   const folded = usePluginState(kit, SHELF_FOLDED) === true
   const setFolded = useSetPluginState(kit, SHELF_FOLDED)
-  const folder = shelfFolderOf(usePluginState(kit, SHELF_FOLDER))
+  const resetFolded = useResetPluginState(kit, SHELF_FOLDED)
+  const folder = usePluginState(kit, SHELF_FOLDER)
   const setFolder = useSetPluginState(kit, SHELF_FOLDER)
-  // 読む: このフォルダの直下のエントリ（並びの順。フォルダが無ければ undefined）
-  const entries = useFolderEntries(folder) ?? []
+  // 読む: このフォルダの直下のエントリ（並びの順。フォルダが無ければ NO_FOLDER）
+  const found = useFolderEntries(folder)
+  const entries = found === NO_FOLDER ? [] : found
   return (
     <section>
       <h1>{t("shelf")}</h1>
-      <button type="button" onClick={() => setFolded(folded ? undefined : true)}>
+      <button type="button" onClick={() => (folded ? resetFolded() : setFolded(true))}>
         {t(folded ? "unfold" : "fold")}
       </button>
       {/* たたんでも描いたまま隠す（スクリーンの定義の shownLibraryAppearances が、見せていないと答える） */}

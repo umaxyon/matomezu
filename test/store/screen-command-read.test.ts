@@ -1,5 +1,7 @@
 // スクリーンから呼ぶコマンドの文脈の read: コマンドの定義が readsSubjects に書いた種類のレコードだけを読む（ほかの種類は none と空）
+
 import { expect, test } from "bun:test"
+import { NO_CONTROL_CENTER } from "../../web/src/core/def/action"
 import { NO_RECORD } from "../../web/src/core/records"
 import { WORKROOM } from "../../web/src/plugins/base/participant/workroom"
 import { screenCommandContext } from "../../web/src/store/commands"
@@ -11,7 +13,7 @@ test("宣言した種類だけを読み、書かなければどの種類も読�
   const state = { ...store.state.getState(), records: { [WORKROOM.id]: { r1 } } }
   const at = state.window.screens[0]?.id ?? ""
   const read = (reads?: readonly string[]) =>
-    screenCommandContext(store.catalog.core, null, state, at, "@matomezu/base:library-open", reads).read
+    screenCommandContext(store.catalog.core, NO_CONTROL_CENTER, state, at, "@matomezu/base:library-open", reads).read
   expect(read([WORKROOM.id]).record(WORKROOM.id, "r1")).toEqual(r1)
   expect(read().record(WORKROOM.id, "r1")).toBe(NO_RECORD)
   expect(read([]).find(WORKROOM.id, [])).toEqual([])

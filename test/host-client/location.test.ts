@@ -1,10 +1,12 @@
 // URL と画面の場所の行き来（host-client/location.ts）: 開いたときに URL の場所を当てはめ、移動はブラウザの履歴に積み、ほかは待ってまとめて書き換え、
 // 戻る・進むはその場所を当てはめる
+
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { type Address, currentIn, recentStagesIn } from "../../web/src/core/address"
 import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
 import { defineMessages } from "../../web/src/core/i18n/messages"
+import { openedEntry } from "../../web/src/core/stage"
 import { currentKindOf, screenOf } from "../../web/src/core/window"
 import { followLocation, type Place, parseSearch, searchOf } from "../../web/src/host-client/location"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
@@ -158,7 +160,7 @@ test("開いたときは URL の場所を当てはめる（読み直しても同
   const store = newStore()
   const f = fakePlace(bookUrl("b3", "p1"))
   followLocation(store, f.place)
-  expect(screenOf(store.state.getState().window).stages[0]!.opened?.outermost.id).toBe("b3")
+  expect(openedEntry(screenOf(store.state.getState().window).stages[0]!.opened)?.id).toBe("b3")
 })
 
 // 同じ同期の処理が終わるのを待つ
@@ -182,7 +184,7 @@ test("ブック・ページの移動と分割はブラウザの履歴に積み�
   // 戻る: 1 つ前の場所（b2 を開いた 1 つのステージ）
   f.back(f.pushed[0]!)
   const ws = screenOf(store.state.getState().window)
-  expect(ws.stages.map(s => s.opened?.outermost.id)).toEqual(["b2"])
+  expect(ws.stages.map(s => openedEntry(s.opened)?.id)).toEqual(["b2"])
   expect(f.pushed).toHaveLength(2)
 })
 

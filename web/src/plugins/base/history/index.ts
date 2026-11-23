@@ -4,12 +4,13 @@
 
 import { pagesOf } from "../../../core/book"
 import { CREATES_NOTHING, type LibraryTargets } from "../../../core/def/action"
+import { NO_NAME } from "../../../core/entries"
 import type { Folders } from "../../../core/folders"
 import { foldersOver } from "../../../core/folders-tree"
 import type { HistoryStep } from "../../../core/history"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import type { Books } from "../../../core/library"
-import { shownPageId } from "../../../core/stage"
+import { NOTHING_OPENED, shownPageId } from "../../../core/stage"
 import {
   booksOf,
   type CommandActions,
@@ -147,7 +148,7 @@ export function dropClashing(
 // 認可ステップが止めた物は動かさない。ぶつかって断られたら、続けてぶつかる画面の履歴の段もまとめて捨てる（dropClashing。トーストは 1 つ）
 function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"): void {
   const opened = ctx.stage.opened
-  if (!opened) return
+  if (opened === NOTHING_OPENED) return
   const to = from === "undo" ? "before" : "after"
   const argsOf = (step: HistoryStep) => ({
     outermosts: step.outermosts.map(id => ({ kind: kindOf(ctx.folders, id), id })),
@@ -169,8 +170,9 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
     if (result && !result.ok && !isRevertUnchanged(result)) {
       const denied = result.reason === "denied" ? result : undefined
       const book = denied?.book ? booksOf(ctx)[denied.book]?.title : undefined
+      const page = denied?.page ? ctx.pageTitle(denied.page) : NO_NAME
       notRestored(ctx, a, opened.outermost.id, from, result, {
-        name: book ?? (denied?.page ? ctx.pageTitle(denied.page) : undefined),
+        name: book ?? (page === NO_NAME ? undefined : page),
         clash: kit.message("Clashes with other changes"),
       })
       if (result.reason === "refused")
@@ -196,7 +198,7 @@ export const UNDO = kit.defineCommand({
   performs: [HISTORY_RESTORE.id],
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "undo"),
-  when: ctx => ctx.stage.opened !== null,
+  when: ctx => ctx.stage.opened !== NOTHING_OPENED,
   enabled: ctx => hasSteps(ctx, "undo"),
 })
 
@@ -206,7 +208,7 @@ export const REDO = kit.defineCommand({
   performs: [HISTORY_RESTORE.id],
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "redo"),
-  when: ctx => ctx.stage.opened !== null,
+  when: ctx => ctx.stage.opened !== NOTHING_OPENED,
   enabled: ctx => hasSteps(ctx, "redo"),
 })
 

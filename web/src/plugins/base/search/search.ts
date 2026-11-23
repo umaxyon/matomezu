@@ -28,13 +28,13 @@ export function searchableOf(
 }
 
 // 探せるページの全部 within（開いているブックのページ。ブックの外のページを開いていれば、そのページだけ）のうち、探す範囲のページごとの当たり
-// （page なら開いているページ opened だけ。正規表現が読めなければ bad-pattern）
+// （page なら開いているページ opened だけ。opened はページを開いていなければ NO_PAGE。正規表現が読めなければ bad-pattern）
 export function hitsIn(
   catalog: CoreCatalog,
   within: readonly Page[],
   query: SearchQuery,
   scope: "page" | "book",
-  opened: string | null,
+  opened: string,
 ): { page: Page; hits: SearchHit[] }[] | "bad-pattern" {
   const pages = within.filter(p => scope === "book" || p.id === opened)
   const out: { page: Page; hits: SearchHit[] }[] = []
@@ -110,7 +110,7 @@ export function searchCount(
   catalog: CoreCatalog,
   within: readonly Page[],
   search: SearchOpen,
-  opened: string | null,
+  opened: string,
 ): SearchCount {
   const pages = hitsIn(catalog, within, search.query, search.scope, opened)
   if (pages === "bad-pattern") return { kind: "bad-pattern" }
@@ -132,13 +132,13 @@ export function changedSearch(
   within: readonly Page[],
   search: SearchOpen,
   change: Partial<SearchOpen>,
-  opened: string | null,
+  opened: string,
 ): SearchOpen {
   const next = { ...search, ...change }
   const requery = change.query !== undefined || (change.scope !== undefined && change.scope !== search.scope)
   if (!requery) return next
   const pages = hitsIn(catalog, within, next.query, next.scope, opened)
-  return { ...next, current: pages === "bad-pattern" ? "none" : firstHitFrom(pages, search.current, opened ?? "") }
+  return { ...next, current: pages === "bad-pattern" ? "none" : firstHitFrom(pages, search.current, opened) }
 }
 
 // 今の当たりを置き換える: page-update の引数と、置き換えたあとの次の当たり（置き換えた字の後ろから先。置き換えた字の中は探さない）。
@@ -147,7 +147,7 @@ export function replaceOneStep(
   catalog: CoreCatalog,
   within: readonly Page[],
   search: SearchOpen,
-  opened: string | null,
+  opened: string,
 ): { args: { page: string; fields: Readonly<Record<string, unknown>> } | "none"; next: SearchSpot | "none" } {
   const pages = hitsIn(catalog, within, search.query, search.scope, opened)
   if (pages === "bad-pattern") return { args: "none", next: "none" }
@@ -156,9 +156,7 @@ export function replaceOneStep(
   const searchable = searchableOf(catalog, page)
   if (cur === "none" || !page || searchable === "none") {
     const from =
-      search.current === "none"
-        ? { page: opened ?? "", at: 0 }
-        : { page: search.current.page, at: search.current.start }
+      search.current === "none" ? { page: opened, at: 0 } : { page: search.current.page, at: search.current.start }
     return { args: "none", next: stepHit(pages, from, "forward", search.wrap) }
   }
   const before = searchable.textOf(page)

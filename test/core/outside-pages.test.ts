@@ -3,7 +3,7 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { USER } from "../../web/src/core/actor"
-import { type ActionDef, defineAction } from "../../web/src/core/def/action"
+import { type ActionDef, defineAction, NO_CONTROL_CENTER } from "../../web/src/core/def/action"
 import type { PermissionQuery } from "../../web/src/core/def/permission"
 import {
   type BinderFolder,
@@ -33,7 +33,7 @@ const MOVE = "@matomezu/base:entry-move"
 const ctxOf = () =>
   ({
     catalog: CORE_CATALOG,
-    controlCenter: null,
+    controlCenter: NO_CONTROL_CENTER,
     lang: "en" as const,
     newId: sequence(),
     now: "2026-01-01T00:00:00.000Z",

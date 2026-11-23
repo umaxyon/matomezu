@@ -1,5 +1,7 @@
 // 「開いている物のページの全部」（plugins/base/utils/opened-page.ts の openedPagesOf）
+
 import { expect, test } from "bun:test"
+import { NO_CONTROL_CENTER } from "../../../web/src/core/def/action"
 import { openedPagesOf } from "../../../web/src/plugins/base/utils/opened-page"
 import { commandContext } from "../../../web/src/store/commands"
 import { SLIDE, testBinder, testPage } from "../../lineup"
@@ -11,7 +13,13 @@ test("ブックの外のバインダを開いたステージの「開いてい�
   const n1 = testBinder("n1", "発表", SLIDE, testPage(SLIDE, "s1", { title: "表紙" }), testPage(SLIDE, "s2"))
   store.receive({ ...worldRows(books, [n1]), settings: {} }, [])
   const stage = store.actions.showOutsideBinderStage("n1", "s2")
-  const ctx = commandContext(store.catalog.core, null, store.state.getState(), stage, "@matomezu/base:page-open")
+  const ctx = commandContext(
+    store.catalog.core,
+    NO_CONTROL_CENTER,
+    store.state.getState(),
+    stage,
+    "@matomezu/base:page-open",
+  )
   expect(ctx?.outsideBinder).toMatchObject({ kind: "binder", id: "n1" })
   expect(ctx && openedPagesOf(ctx).map(p => p.id)).toEqual(["s1", "s2"])
 })

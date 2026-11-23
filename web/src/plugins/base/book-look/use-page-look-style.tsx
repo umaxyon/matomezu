@@ -1,7 +1,9 @@
 // ページを描く所に付ける CSS 変数: 描いているページ（ui/scope.tsx の描いている場所）のテーマの値と文字の色の値（どちらも設定のダイアログの下書きを重ねる）と、
 // ページのタイプのプラグインのテーマキー（--<名前>）。テーマはページごとなので、ページを描く所ごとに置く:
 // ステージは開いているページ、ステージの外で見るだけに描くページ（印刷区画・サムネイル・スクラップ）は、そのページ（PageLook で包む）
+
 import { type CSSProperties, type ReactNode, useMemo } from "react"
+import { NO_PAGE } from "../../../core/stage"
 import { useCatalog } from "../../../ui/store-context"
 import { tokenScopeOf } from "../../../ui/theme-vars"
 import { useShownPage } from "../../../ui/view-hooks"
@@ -13,7 +15,8 @@ import { usePageThemeVars } from "./use-page-theme-vars"
 export function usePageLookStyle(): CSSProperties {
   const theme = usePageThemeVars()
   const colors = useTextColors()
-  const type = useShownPage()?.type
+  const page = useShownPage()
+  const type = page === NO_PAGE ? undefined : page.type
   const catalog = useCatalog().core
   return useMemo(
     () =>

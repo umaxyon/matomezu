@@ -8,7 +8,7 @@
 // 見える所の縁（囲む物が画面の外なら画面の縁）を歩き、びっくりマークは縁に寄って薄くなる。どちらも押すと、囲む物の中のスクロールと紙をずらして付けた物を見せる
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
-import { useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
+import { useReadPluginState, useResetPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import type { Bird } from "../birds"
 import { BirdWalk, birdClass, FRONT, frameStyle } from "../birds/BirdWalk"
 import type { Arrival } from "../birds/flight"
@@ -116,13 +116,17 @@ function MarkBird({
 }) {
   const readArriving = useReadPluginState(kit, MARK_ARRIVING)
   const setArriving = useSetPluginState(kit, MARK_ARRIVING)
+  const resetArriving = useResetPluginState(kit, MARK_ARRIVING)
   // この窓で付けたばかりなら、最初に描くときだけ飛んでくるか顔を出し、付けたばかりの印を外す
   const [arrival] = useState<Arrival>(() =>
-    readArriving()?.includes(id) ? (Math.random() < 0.5 ? "fly" : "peek") : "none",
+    readArriving().includes(id) ? (Math.random() < 0.5 ? "fly" : "peek") : "none",
   )
   // biome-ignore lint/correctness/useExhaustiveDependencies: 最初に描いたときに一度だけ
   useEffect(() => {
-    if (arrival !== "none") setArriving(withoutArriving(readArriving(), id))
+    if (arrival === "none") return
+    const rest = readArriving().filter(m => m !== id)
+    if (rest.length > 0) setArriving(rest)
+    else resetArriving()
   }, [])
   const [asking, setAsking] = useState(false)
   const ask = useRemoveAsk(onRemove)
@@ -150,7 +154,7 @@ function PickerStand({ picker }: { picker: AnchorTargets }) {
     const done = run(MARK_ADD.id, { anchors: [...picker.anchors], kind })
     if (done) {
       const mark = (done as { mark?: string }).mark
-      if (mark) setArriving([...(readArriving() ?? []), mark])
+      if (mark) setArriving([...readArriving(), mark])
       end()
     }
   }
@@ -208,10 +212,4 @@ function PickFrame({ bird }: { bird: Bird }) {
   const sheet = useBirdSheet(bird)
   if (sheet === null) return null
   return <span className={`${birdClass} ${styles.pickFrame}`} style={frameStyle(sheet, FRONT, PICK_SIZE)} />
-}
-
-// 付けたばかりのマークの id の並び now から id を外した物（空になれば無し）
-function withoutArriving(now: readonly string[] | undefined, id: string): readonly string[] | undefined {
-  const rest = now?.filter(m => m !== id) ?? []
-  return rest.length > 0 ? rest : undefined
 }

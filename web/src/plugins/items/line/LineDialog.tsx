@@ -5,7 +5,7 @@
 // キャプションで間隔が広がって押した形が紙に収まらなければ、閉じずに理由を出す
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { findShape, type MessageKey } from "../../../plugin-api"
+import { findShape, type MessageKey, NO_DIALOG_PREVIEW, NO_ITEM, NO_OUTERMOST, NO_PAGE } from "../../../plugin-api"
 import {
   type DialogProps,
   useActions,
@@ -67,8 +67,10 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
   const form = useId()
   const catalog = useCoreCatalog()
   const outermost = useOutermostOf()
-  const page = usePageById(args.page) ?? undefined
-  const line = useItem(args.page, args.item, LINE.id)
+  const found = usePageById(args.page)
+  const page = found === NO_PAGE ? undefined : found
+  const item = useItem(args.page, args.item, LINE.id)
+  const line = item === NO_ITEM ? undefined : item
   const { previewDialog } = useActions()
   const perform = usePerform()
   const elbow = page ? elbowAt(catalog, page) : true
@@ -86,7 +88,10 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
     startHead !== (line?.props.startHead ?? "") ||
     endHead !== (line?.props.endHead ?? "")
   const preview = useCallback(
-    (look: Look | null) => previewDialog(look && outermost ? { outermost, item: args.item, props: look } : null),
+    (look: Look | null) =>
+      previewDialog(
+        look && outermost !== NO_OUTERMOST ? { outermost, item: args.item, props: look } : NO_DIALOG_PREVIEW,
+      ),
     [outermost, args.item, previewDialog],
   )
   useEffect(() => {
@@ -101,11 +106,11 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
         : null,
     )
   }, [changed, route, dash, startHead, endHead, preview])
-  if (!outermost || !page || !line) return null
+  if (outermost === NO_OUTERMOST || !page || !line) return null
   const self = line.from === line.to
   // キャプションの候補: ページのタイプが、始点のアイテムに決めたもの
-  const fromItem = findShape(page, line.from)?.shape.item
-  const words = !self && fromItem ? captionWordsOf(catalog, page, fromItem) : []
+  const from = findShape(page, line.from)
+  const words = !self && from !== NO_ITEM ? captionWordsOf(catalog, page, from.shape.item) : []
   const rects = portAreasOf(catalog, page)
   const p = line.props
   const fixed = p.exitAt !== undefined || p.enterAt !== undefined

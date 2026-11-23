@@ -15,17 +15,18 @@ export const EX12_STACK = kit.defineScreenArrangement({
 })
 
 // スクリーン 1 枚の高さ（px。無ければ既定の高さ）
+const EX12_DEFAULT_HEIGHT = 240
+
 export const EX12_HEIGHT = kit.definePluginState({
   id: "height",
   scope: "screen",
   schema: z.number().int().min(80).max(2000),
   address: "replace",
+  default: EX12_DEFAULT_HEIGHT,
 })
 
-export const EX12_DEFAULT_HEIGHT = 240
-
 // 足したパネルの数（窓の範囲。パネルのラベルの番号に使う）
-export const EX12_ADDED = kit.definePluginStateOf<number>()({ id: "added", scope: "window" })
+export const EX12_ADDED = kit.definePluginStateOf<number>()({ id: "added", scope: "window", default: 0 })
 
 // ラベルを見せるだけのスクリーン
 export const EX12_PANEL = kit.defineScreen({

@@ -39,6 +39,11 @@ export interface SettingDef<S extends z.ZodType = z.ZodType, Tt extends string =
 
 // 設定の項目の値を持つ所: ページ（タイプが選ぶ）か、ステージエントリ（どのステージエントリも持てる）
 export type SettingHolder = "page" | "outermost"
+
+// 設定の項目に値が無いときの値（項目を変えるコンポーネントに渡す。どの値とも重ならないよう、値の形の物にしない）
+export const NOT_SET: unique symbol = Symbol("not set")
+// 設定の項目の値 value（NOT_SET なら or）
+export const settingOr = <V, O>(value: V | typeof NOT_SET, or: O): V | O => (value === NOT_SET ? or : value)
 // ページの設定の項目・ステージエントリが持つ設定の項目・利用者の設定の項目（holder で分かれる。読む関数は、合う holder の項目だけを受ける）
 export type PageSettingDef<S extends z.ZodType = z.ZodType> = SettingDef<S> & { holder: "page" }
 export type OutermostSettingDef<S extends z.ZodType = z.ZodType> = SettingDef<S> & { holder: "outermost" }

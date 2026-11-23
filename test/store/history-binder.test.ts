@@ -4,7 +4,7 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
 import type { Book } from "../../web/src/core/schema/book"
-import { shownPageId } from "../../web/src/core/stage"
+import { NOTHING_OPENED, shownPageId } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import type { AIEditTicketOutcome } from "../../web/src/store/state"
 import { drawingPage, SLIDE, testBinder, testBook, testPage, withSlide } from "../lineup"
@@ -29,7 +29,7 @@ function ready(book: Book, aiEditTicket?: (c: AIEditTicketOutcome) => void) {
 const confirm = (store: Store) => store.receive({ ...worldRows([bookOf(store)]), settings: {} }, [])
 const foreign = (store: Store, book: Book, action: string, act = "1", by: "ai" | "host" = "ai") =>
   store.receive({ ...worldRows([book]), settings: {} }, [], { by, act, actions: [action] })
-const shown = (store: Store) => shownPageId(screenOf(store.state.getState().window).stages[0]?.opened ?? null)
+const shown = (store: Store) => shownPageId(screenOf(store.state.getState().window).stages[0]?.opened ?? NOTHING_OPENED)
 
 test("バインダからページを消した画面の履歴の段は、よそでバインダごと無くなっていたら、戻してもページは戻らない", async () => {
   const store = ready(slides("p1", "p2"))

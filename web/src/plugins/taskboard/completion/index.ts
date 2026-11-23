@@ -3,7 +3,7 @@
 // 完了かどうかは、チケットのレーンが完了のレーンかで決まる（完了のレーンへ入れる道はこのアクションだけで、ほかの書き手は断る）。
 // AI が完了したら、管理者のワークルーム（自分でないとき）の AI に AI 間メッセージで知らせる（利用者が完了したときは知らせない）
 import { z as zod } from "zod"
-import { type Actor, type AIMessage, workroomOfActor } from "../../../plugin-api"
+import { type Actor, type AIMessage, NO_WORKROOM, workroomOfActor } from "../../../plugin-api"
 import { adminWorkroom, READS_ADMIN, READS_WORKROOM_KEYS } from "../../base"
 import { byOf, type Records, readsBy, workroomsOf } from "../by"
 import { kit } from "../kit"
@@ -16,9 +16,9 @@ import { HISTORY, TOPIC_COMPLETE } from "../ticket-history"
 // 管理者のワークルームの AI への知らせ（行う者がワークルームの AI で、管理者のワークルームが自分でないときだけ。宛先に AI がいなければ送らないだけ）
 function completedMessages(actor: Actor, ctx: Records, ticket: Ticket, project: Project): AIMessage[] {
   const own = workroomOfActor(actor)
-  if (own === undefined) return []
+  if (own === NO_WORKROOM) return []
   const admin = adminWorkroom(ctx)
-  if (admin === undefined || admin === own) return []
+  if (admin === NO_WORKROOM || admin === own) return []
   const names = new Map(workroomsOf(ctx).map(w => [w.id, w.name]))
   const released = ticket.assignees.map(w => names.get(w) ?? w)
   return [
@@ -42,7 +42,7 @@ export const TICKET_COMPLETE = kit.defineAction({
   // AI が行うときは、知らせる先（管理者の印と全部のワークルームの索引キー）も
   reads: (_args, actor) => [
     ...readsBy(actor),
-    ...(workroomOfActor(actor) === undefined ? [] : [READS_ADMIN, READS_WORKROOM_KEYS]),
+    ...(workroomOfActor(actor) === NO_WORKROOM ? [] : [READS_ADMIN, READS_WORKROOM_KEYS]),
   ],
   args: zod.strictObject({}),
   run: (now, _args, ctx) => {

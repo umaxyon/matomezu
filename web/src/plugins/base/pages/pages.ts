@@ -1,6 +1,6 @@
 // 次のページ（と、あとで変えるページ）に選べる紙と向きと、次のページの題名の案（可変ページにできるか・増やす向きの選び方は place/grow.ts）（ページを足す・消すのは土台の core/book.ts）
 
-import { findBinder, findPage, lineupOf, pagesIn } from "../../../core/book"
+import { findBinder, findPage, lineupOf, NO_BINDER, NO_PAGE, pagesIn } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ORIENTATIONS, type Orientation } from "../../../core/def/paper"
 import type { MessageKey, Params } from "../../../core/i18n/i18n"
@@ -9,7 +9,7 @@ import type { ItemPage } from "../../../core/placed"
 import type { Page, StageLineup } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
 import { kit } from "../kit"
-import { extentOf, growOf, paddedFor, pageArea } from "../place/grow"
+import { extentOf, growOf, NO_EXTENT, NO_GROW, paddedFor, pageArea } from "../place/grow"
 
 // タイプ type のページの、紙の規定
 const paperRule = (catalog: CoreCatalog, type: string): PaperRule => pageType(catalog, type).paper
@@ -51,32 +51,33 @@ export const typePaperChoices = (catalog: CoreCatalog, type: string): PaperOptio
 
 // ページ page の紙と向きを変えるときに選べるもの（そのページ自身は、そろえる相手にしない）
 export function paperChoicesFor(catalog: CoreCatalog, book: StageLineup, page: Page): PaperOptions {
-  const binder = findPage(book, page.id)?.binder
+  const at = findPage(book, page.id)
+  const binder = at === NO_PAGE ? NO_BINDER : at.binder
   return choosablePapers(
     paperRule(catalog, page.type),
-    mates(book, binder ? { binder: binder.id } : "lineup").filter(p => p.id !== page.id),
+    mates(book, binder !== NO_BINDER ? { binder: binder.id } : "lineup").filter(p => p.id !== page.id),
   )
 }
 
 // バインダ binder（id）のページの紙と向きを、まとめて choice にできるか: choice が、バインダに入るタイプの規定の紙と向きのとき
 export function canPaperBinder(catalog: CoreCatalog, book: StageLineup, binder: string, choice: PaperChoice): boolean {
-  const type = findBinder(book, binder)?.pageType
-  if (type === undefined) return false
-  return canChoose({ papers: paperRule(catalog, type).allowed, orientations: ORIENTATIONS }, choice)
+  const found = findBinder(book, binder)
+  if (found === NO_BINDER) return false
+  return canChoose({ papers: paperRule(catalog, found.pageType).allowed, orientations: ORIENTATIONS }, choice)
 }
 
 // アクションのあとのページ page を、増やす向きに合わせて整えたもの: 左・上へ増やすなら空きの印刷区画を持たせ、アクションの前のページ before では
-// 増やしていたが増やさなくなった向きは空きを詰める（中身を印刷区画の単位でずらし、ページの shift に足す。作ったページなら before は undefined）。
+// 増やしていたが増やさなくなった向きは空きを詰める（中身を印刷区画の単位でずらし、ページの shift に足す。作ったページなら before は NO_PAGE）。
 // 紙・向き・可変ページかを変えたか、中身をずらしたページの形が、増やさない向きで紙からはみ出すなら null（ノーマライズステップ variable-pages.ts と、ページの設定のダイアログが使う）
 export function normalizedPage<P extends ItemPage>(
   catalog: CoreCatalog,
-  before: ItemPage | undefined,
+  before: ItemPage | typeof NO_PAGE,
   page: P,
 ): P | null {
-  const was = before && growOf(catalog, before)
+  const was = before !== NO_PAGE ? growOf(catalog, before) : NO_GROW
   const padded = paddedFor(catalog, page, growOf(catalog, page), was)
   const papered =
-    before !== undefined &&
+    before !== NO_PAGE &&
     (before.paper !== page.paper || before.orientation !== page.orientation || before.grows !== page.grows)
   if (padded === page && !papered) return page
   return shapesFit(catalog, padded) ? padded : null
@@ -125,5 +126,8 @@ export const nextPageTitle = (
 export function shapesFit(catalog: CoreCatalog, page: ItemPage): boolean {
   const area = pageArea(catalog, page).size
   const extent = extentOf(catalog, page, settingsAt(catalog, page))
-  return !extent || (extent.x >= 0 && extent.y >= 0 && extent.x + extent.w <= area.w && extent.y + extent.h <= area.h)
+  return (
+    extent === NO_EXTENT ||
+    (extent.x >= 0 && extent.y >= 0 && extent.x + extent.w <= area.w && extent.y + extent.h <= area.h)
+  )
 }

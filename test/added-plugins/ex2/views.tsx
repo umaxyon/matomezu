@@ -1,5 +1,5 @@
 // 判断のひし形のビュー・追加と編集のダイアログ・流れの向きのコンポーネント
-import type { MessageKey, ShapeAddArgs, z } from "matomezu"
+import { type MessageKey, NO_ITEM, NO_PAGE, type ShapeAddArgs, settingOr, type z } from "matomezu"
 import {
   Dialog,
   type DialogProps,
@@ -64,7 +64,8 @@ export function AddDiamondDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
 // 今の答えのボタンを押された見た目にする（useItem で開いた判断のひし形を読む）。どのページの判断かを、usePageById で引いたページの名前で添える
 export function EditDiamondDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const t = useMessages(kit)
-  const diamond = useItem(args.page, args.item, DIAMOND.id)
+  const found = useItem(args.page, args.item, DIAMOND.id)
+  const diamond = found === NO_ITEM ? undefined : found
   const page = usePageById(args.page)
   const perform = usePerform()
   const answer = (value: "yes" | "no") => {
@@ -72,7 +73,7 @@ export function EditDiamondDialog({ args, onClose }: DialogProps<{ page: string;
   }
   return (
     <Dialog title={t("editDecision")} onClose={onClose}>
-      <p data-ex2-page>{page?.title}</p>
+      <p data-ex2-page>{page === NO_PAGE ? undefined : page.title}</p>
       <p>{diamond?.props.caption}</p>
       <button type="button" aria-pressed={diamond?.props.answer === "yes"} onClick={() => answer("yes")}>
         {t("yes")}
@@ -89,7 +90,10 @@ export function DirectionSetting({ label, value, inherited, onChange }: SettingC
   return (
     <label>
       {label}
-      <select value={value ?? inherited} onChange={e => onChange(e.target.value as "down" | "right")}>
+      <select
+        value={settingOr(value, settingOr(inherited, undefined))}
+        onChange={e => onChange(e.target.value as "down" | "right")}
+      >
         <option value="down">{t("down")}</option>
         <option value="right">{t("right")}</option>
       </select>

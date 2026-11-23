@@ -5,9 +5,13 @@ import type { SortRules } from "./sort"
 import type { CardVisit } from "./visit"
 
 // レーンごとの並べ方: プロジェクトの id → レーンの id（未分類は unsorted）→ 並べ方（無ければ既定）
-export const LANE_SORTS = kit.definePluginStateOf<Readonly<Record<string, Readonly<Record<string, SortRules>>>>>()({
+type LaneSorts = Readonly<Record<string, Readonly<Record<string, SortRules>>>>
+// 並べ方を変えたレーンが無いときの値
+const NO_LANE_SORTS: LaneSorts = {}
+export const LANE_SORTS = kit.definePluginStateOf<LaneSorts>()({
   id: "lane-sorts",
   scope: "window",
+  default: NO_LANE_SORTS,
 })
 
 // 最大化しているタスクボードとレーン（無ければ何も最大化していない）

@@ -2,7 +2,7 @@
 // 大きさ size の丸を、縁に寄せて出すボタン。押すと付けた物を見せる（onPress を渡せば、その代わりに onPress）。外に出ていなければ何も出さない（マークのびっくりマーク・伝言で使う）
 import type { MouseEvent, ReactNode } from "react"
 import type { Point } from "../../../core/geom"
-import { useStandAway } from "./anchors"
+import { NOT_AWAY, useStandAway } from "./anchors"
 import { STAND_MARGIN } from "./stand-place"
 
 export function StandPointer({
@@ -21,7 +21,7 @@ export function StandPointer({
   children: ReactNode
 }) {
   const away = useStandAway()
-  if (!away) return null
+  if (away === NOT_AWAY) return null
   const at = away.pin(center, size / 2 + STAND_MARGIN)
   return (
     <div

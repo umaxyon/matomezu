@@ -5,7 +5,7 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
-import { useOpenRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
+import { NO_RIGHT_SIDE_PANEL, useOpenRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
 import { PRINT_PREVIEW_OPEN } from "."
 import { entryCrossings } from "./entry-sheets"
 import styles from "./PrintPreviewPanel.module.css"
@@ -20,7 +20,7 @@ export function PrintCheckPanel() {
   const open = useRightSidePanel()
   const reopen = useOpenRightSidePanel()
   const preview = useCommand(PRINT_PREVIEW_OPEN.id)
-  if (!previewed || open?.widget !== PRINT_CHECK_PANEL_ID) return null
+  if (!previewed || open === NO_RIGHT_SIDE_PANEL || open.widget !== PRINT_CHECK_PANEL_ID) return null
   const found = entryCrossings(catalog, previewed)
   const crossing = found.flatMap(f => f.crossing.map(id => ({ page: f.page, id })))
   const oversized = found.flatMap(f => f.oversized.map(id => ({ page: f.page, id })))

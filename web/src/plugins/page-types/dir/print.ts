@@ -6,6 +6,7 @@ import {
   breakShift,
   type GrowSides,
   grownArea,
+  NO_GROW,
   type PrintSheets,
   paperSize,
   printSheetsOf,
@@ -21,11 +22,11 @@ import { NOTES } from "./notes"
 export function laidPage(
   catalog: CoreCatalog,
   page: ItemPage,
-  { setting, grow }: { setting: SettingReader; grow: GrowSides | undefined },
+  { setting, grow }: { setting: SettingReader; grow: GrowSides | typeof NO_GROW },
   root: DirFolder | undefined = dirRootOf(page),
 ): DirLayout | null {
   const paper = paperSize(catalog, page)
-  return root ? layoutDir(root, paper, setting(NOTES), grow !== undefined) : null
+  return root ? layoutDir(root, paper, setting(NOTES), grow !== NO_GROW) : null
 }
 
 // 可変ページで、並べた行と説明 laid が入るだけ印刷区画を並べた数と広さ（spare なら、増やす向きに空きの印刷区画を足す。ビューがステージに知らせる広さ）
@@ -39,11 +40,11 @@ const laidExtentOf = (laid: DirLayout): Rect => ({ x: 0, y: 0, w: laidRight(laid
 export function printLaid(
   catalog: CoreCatalog,
   page: ItemPage,
-  on: { setting: SettingReader; grow: GrowSides | undefined },
+  on: { setting: SettingReader; grow: GrowSides | typeof NO_GROW },
 ): DirLayout | null {
   const laid = laidPage(catalog, page, on)
   const paper = paperSize(catalog, page)
-  if (!laid || !on.grow) return laid
+  if (!laid || on.grow === NO_GROW) return laid
   const dy = breakShift(
     laid.rows.map(r => ({ at: r.y, size: r.h })),
     paper.h,
@@ -64,7 +65,7 @@ export function printLaid(
 export function dirPrintSheets(
   catalog: CoreCatalog,
   page: ItemPage,
-  on: { setting: SettingReader; grow: GrowSides | undefined; purpose: SheetPurpose },
+  on: { setting: SettingReader; grow: GrowSides | typeof NO_GROW; purpose: SheetPurpose },
 ): PrintSheets {
   const laid = on.purpose === "print" ? printLaid(catalog, page, on) : laidPage(catalog, page, on)
   const paper = paperSize(catalog, page)

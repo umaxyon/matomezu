@@ -3,14 +3,14 @@
 // - 行き先のある、まだ行き先を見ていない郵便の行き先が、どれかのステージに出たら（そのブックのそのページを開き、物があればその物が表示領域に入ったら）、行き先を見たことにする
 
 import { useEffect } from "react"
-import { shownPageId } from "../../../core/stage"
+import { NOTHING_OPENED, shownPageId } from "../../../core/stage"
 import { shownBookScreens } from "../../../core/window"
 import { useT } from "../../../ui/i18n"
 import { useReadState, useStoreActions } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { anchorElementIn } from "../stand/anchors"
-import { useArrivalMarquee } from "../utils/arrival-marquee"
+import { NO_MARQUEE, useArrivalMarquee } from "../utils/arrival-marquee"
 import { MAIL_VISITED, mailboxOf } from "."
 import { useMailbox } from "./hooks"
 import { shownOf } from "./shown"
@@ -25,7 +25,7 @@ export function MailWatch() {
     const last = came.filter(m => !m.seenAt).at(-1)
     return last
       ? { message: kit.message("Mail arrived: {title}"), params: { title: shownOf(catalog, last, t)?.title ?? "" } }
-      : undefined
+      : NO_MARQUEE
   })
   useVisited()
   return null
@@ -48,7 +48,10 @@ function useVisited() {
         if (!m.to || m.visitedAt) continue
         const stages = shown
           .flatMap(x => x.stages.stages)
-          .flatMap(st => (st.opened ? [{ id: st.id, book: st.opened.outermost.id, page: shownPageId(st.opened) }] : []))
+          .flatMap(st => {
+            if (st.opened === NOTHING_OPENED) return []
+            return [{ id: st.id, book: st.opened.outermost.id, page: shownPageId(st.opened) }]
+          })
         if (placeShown(m, stages, onScreen)) perform(MAIL_VISITED.id, {}, { record: m.id })
       }
     }

@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import { stagePlacesOf } from "../../web/src/core/address"
 import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
-import { shownPageId } from "../../web/src/core/stage"
+import { openedEntry, shownPageId } from "../../web/src/core/stage"
 import { stageIn } from "../../web/src/core/window"
 import { isShown } from "../../web/src/store/commands"
 import { NO_STAGE } from "../../web/src/store/dialogs"
@@ -98,7 +98,7 @@ test("ブックの外のバインダを開いた画面の場所は、ブック�
   const opens = (s: Store) =>
     s.state
       .getState()
-      .window.screens.flatMap(c => c.stages?.stages.map(t => [t.opened?.outermost, shownPageId(t.opened)]) ?? [])
+      .window.screens.flatMap(c => c.stages?.stages.map(t => [openedEntry(t.opened), shownPageId(t.opened)]) ?? [])
   const again = withBinder()
   again.locate(address)
   expect(opens(again)).toContainEqual([{ kind: "binder", id: "n1" }, "s2"])

@@ -1,5 +1,7 @@
 // 右サイドパネルの持ち方（base のプラグイン状態 right-side-panel）。開いたときのブックかページから替われば閉じる
+
 import { expect, test } from "bun:test"
+import { NOTHING_OPENED } from "../../../web/src/core/stage"
 import {
   columnGrow,
   followSelection,
@@ -22,7 +24,7 @@ test("開いたときのブックとページを開いている間だけ、開�
   expect(stillOn(OPEN, { opened: { kind: "page", outermost: { kind: "book", id: "b2" }, page: "p1" } as never })).toBe(
     false,
   )
-  expect(stillOn(OPEN, { opened: null })).toBe(false)
+  expect(stillOn(OPEN, { opened: NOTHING_OPENED })).toBe(false)
 })
 
 test("開いている間は、開いたステージの列が 1・もう片方が 0。閉じていれば分けた割合", () => {

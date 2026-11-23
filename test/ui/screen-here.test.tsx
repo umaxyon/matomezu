@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, renderHook } from "@testing-library/react"
 import type { ReactNode } from "react"
-import { ScreenProvider } from "../../web/src/ui/screen-context"
+import { NO_SCREEN, ScreenProvider } from "../../web/src/ui/screen-context"
 import { useScreenHere } from "../../web/src/ui/screen-hooks"
 
 afterEach(cleanup)
@@ -21,7 +21,7 @@ test("useScreenHere は、描いている場所のスクリーンの見えてい
   expect(result.current).toEqual({ shown: true, current: true })
 })
 
-test("useScreenHere は、スクリーンの外では null", () => {
+test("useScreenHere は、スクリーンの外では NO_SCREEN", () => {
   const { result } = renderHook(() => useScreenHere())
-  expect(result.current).toBeNull()
+  expect(result.current).toBe(NO_SCREEN)
 })

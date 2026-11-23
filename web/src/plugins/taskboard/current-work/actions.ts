@@ -2,7 +2,7 @@
 // どちらもチケットが対象（チケットは番号を振る種類なので、ほかの種類のアクションからは書けない）で、カレントワークは others で書く。
 // AI は自分のワークルームだけを動かす（workroom を受けない）。利用者は workroom でワークルームを選ぶ
 import { z as zod } from "zod"
-import { type Actor, isAI, workroomOfActor } from "../../../plugin-api"
+import { type Actor, isAI, NO_WORKROOM, workroomOfActor } from "../../../plugin-api"
 import { READS_WORKROOM_KEYS } from "../../base"
 import { type Records, workroomsOf } from "../by"
 import { kit } from "../kit"
@@ -20,7 +20,7 @@ function workroomFor(actor: Actor, ref: string | undefined, ctx: Records): { id:
   if (isAI(actor)) {
     if (ref !== undefined) return { declined: "an AI works for its own workroom only: leave workroom out" }
     const own = workroomOfActor(actor)
-    return own === undefined ? { declined: "the workroom of the AI is not there" } : { id: own }
+    return own === NO_WORKROOM ? { declined: "the workroom of the AI is not there" } : { id: own }
   }
   if (ref === undefined) return { declined: "choose the workroom with workroom" }
   return resolve(ref, workroomsOf(ctx), "workroom")
