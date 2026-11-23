@@ -1,5 +1,6 @@
 // 節の大きさの選び方のコンポーネント（設定の項目 node-size のビュー）: 伸びる・N 字で折り返す・N 字で固定から選ぶ。
 // 既定を選べば値を消す
+import { settingOr } from "../../../core/def/setting"
 import { type SettingControlProps, useMessages } from "../../../plugin-api/ui"
 import { controlClass, rowClass } from "../../base/ui"
 import { kit } from "./kit"
@@ -50,15 +51,15 @@ export function NodeSizeSelect({
   )
 }
 
-export function NodeSizeSetting({ label, value, inherited: given, onChange }: SettingControlProps<NodeSize>) {
-  const inherited = given ?? DEFAULT_NODE_SIZE
+export function NodeSizeSetting({ label, value, inherited: given, onChange, onReset }: SettingControlProps<NodeSize>) {
+  const inherited = settingOr(given, DEFAULT_NODE_SIZE)
   return (
     <div className={rowClass}>
       <span>{label}</span>
       <NodeSizeSelect
         label={label}
-        value={value ?? inherited}
-        onChange={v => onChange(v === inherited ? undefined : v)}
+        value={settingOr(value, inherited)}
+        onChange={v => (v === undefined || v === inherited ? onReset() : onChange(v))}
       />
     </div>
   )

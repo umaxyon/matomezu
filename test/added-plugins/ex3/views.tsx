@@ -1,5 +1,5 @@
 // 星のビュー・ダイアログ、方眼のコンポーネント、ミントにするボタン
-import type { ShapeAddArgs, z } from "matomezu"
+import { type ShapeAddArgs, settingOr, type z } from "matomezu"
 import {
   Dialog,
   type DialogProps,
@@ -59,7 +59,11 @@ export function EditStarDialog({ onClose }: DialogProps<{ page: string; item: st
 export function GridSetting({ label, value, inherited, onChange }: SettingControlProps<boolean>) {
   return (
     <label>
-      <input type="checkbox" checked={value ?? inherited} onChange={e => onChange(e.target.checked)} />
+      <input
+        type="checkbox"
+        checked={settingOr(value, settingOr(inherited, false))}
+        onChange={e => onChange(e.target.checked)}
+      />
       {label}
     </label>
   )

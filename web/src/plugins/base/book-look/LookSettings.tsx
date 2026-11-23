@@ -4,6 +4,7 @@
 import { useMemo } from "react"
 import { withSettings } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
+import { NOT_SET, settingOr } from "../../../core/def/setting"
 import { NO_PAGE } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import type { SettingControlProps } from "../../../ui/plugin"
@@ -18,7 +19,7 @@ import { shadeOf, useDarkScheme } from "./use-dark-scheme"
 // 紙の色の見本（白・淡い灰・淡い黄・淡い緑・淡い青・濃い灰・濃い紺・濃い茶）
 const PAPER_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"]
 
-export function ThemeSetting({ label, value, page, onChange }: SettingControlProps<string>) {
+export function ThemeSetting({ label, value, page, onChange, onReset }: SettingControlProps<string>) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   if (page === NO_PAGE) return null
@@ -29,8 +30,8 @@ export function ThemeSetting({ label, value, page, onChange }: SettingControlPro
         <select
           id={id}
           className={controlClass}
-          value={value !== undefined && themeFits(catalog, page.type, value) ? value : typeTheme}
-          onChange={e => onChange(e.target.value === typeTheme ? undefined : e.target.value)}
+          value={value !== NOT_SET && themeFits(catalog, page.type, value) ? value : typeTheme}
+          onChange={e => (e.target.value === typeTheme ? onReset() : onChange(e.target.value))}
         >
           {themesFor(catalog, page.type).map(th => (
             <option key={th.id} value={th.id}>
@@ -43,7 +44,7 @@ export function ThemeSetting({ label, value, page, onChange }: SettingControlPro
   )
 }
 
-export function PaperColorSetting({ label, value, page, onChange }: SettingControlProps<string>) {
+export function PaperColorSetting({ label, value, page, onChange, onReset }: SettingControlProps<string>) {
   const catalog = useCatalog().core
   const dark = useDarkScheme()
   // 「なし」のときの紙の色: 選んでいるテーマの紙の色
@@ -56,7 +57,13 @@ export function PaperColorSetting({ label, value, page, onChange }: SettingContr
   return (
     <div className={rowClass}>
       <span>{label}</span>
-      <ColorPicker label={label} value={value} palette={swatches} none={none} onChange={onChange} />
+      <ColorPicker
+        label={label}
+        value={settingOr(value, undefined)}
+        palette={swatches}
+        none={none}
+        onChange={hex => (hex === undefined ? onReset() : onChange(hex))}
+      />
     </div>
   )
 }

@@ -3,8 +3,10 @@
 // （base の項目が先で見出しなし、ほかは見出しにプラグインの id）。
 // 項目のビューがあればそれを、無ければ値の形から作った入力Form（真偽はスイッチ、選択肢はセレクトForm、数と文字はテキストForm）を出し、どちらも作れない項目は出さない。
 // 変えるとコマンド settings-set を呼ぶ。コマンドが押せないときと、アクション settings-set がその項目で使えないとき（コントロールセンターが変えさせない項目）は、灰色で押せない
+
 import { type ReactNode, useState } from "react"
 import type { SettingDef } from "../../../core/def/setting"
+import { NOT_SET, settingOr } from "../../../core/def/setting"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import { splitId } from "../../../core/names"
 import { userSetting } from "../../../core/settings"
@@ -40,6 +42,7 @@ export function UserSettings({ settings }: { settings?: readonly string[] | unde
     const label = t(def.title)
     const value = userSetting(catalog, values, def.id)
     const onChange = (v: unknown) => set.run({ [def.id]: v === undefined ? null : v })
+    const onReset = () => set.run({ [def.id]: null })
     const View = views.get(def.id)?.control
     const input = View ? null : autoInputOf(catalog, def)
     if (!View && !input) continue
@@ -48,7 +51,7 @@ export function UserSettings({ settings }: { settings?: readonly string[] | unde
       ...(groups.get(owner) ?? []),
       <SettingItem key={def.id} id={def.id} enabled={set.enabled}>
         {View ? (
-          <View label={label} value={value} onChange={onChange} />
+          <View label={label} value={value === undefined ? NOT_SET : value} onChange={onChange} onReset={onReset} />
         ) : (
           <SettingRow label={label}>
             {input && <AutoControl input={input} def={def} label={label} value={value} onChange={onChange} />}
@@ -154,6 +157,7 @@ export function TextSettingControl({
   label,
   value,
   onChange,
+  onReset,
   placeholder,
 }: UserSettingControlProps<string> & { placeholder?: string }) {
   return (
@@ -161,9 +165,9 @@ export function TextSettingControl({
       <TextInput
         type="text"
         label={label}
-        value={value}
+        value={settingOr(value, undefined)}
         placeholder={placeholder}
-        onCommit={text => onChange(text.trim() === "" ? undefined : text.trim())}
+        onCommit={text => (text.trim() === "" ? onReset() : onChange(text.trim()))}
       />
     </SettingRow>
   )

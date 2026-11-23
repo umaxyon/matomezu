@@ -3,7 +3,9 @@
 // 紙に入れる名前の無い物（ブックの外のページ 1 枚）には、ブック名を入れる項目を出さない）、印刷区画より大きくて紙の境目で切れる形のバッジ（押すとその形のページの編集へ）。
 // 項目を変えるとすぐに print-preview-update で変える。ロック中なら先に書き換えてよいかを確かめ、よければロックを外して変え、掛け直す。
 // 右サイドパネルの閉じるボタン（と Esc）で閉じると、印刷プレビューも閉じる（PrintPreviewView）。ステージが印刷プレビューでなくなったら、右サイドパネルを閉じる
+
 import { useEffect, useState } from "react"
+import { NOT_SET } from "../../../core/def/setting"
 import { NO_NAME } from "../../../core/entries"
 import { previewing as isPreviewing, NO_PAGE } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
@@ -80,10 +82,11 @@ function PrintPreviewPanelBody({ previewed }: { previewed: PreviewedEntry }) {
               key={id}
               of="outermost"
               label={t(def.title)}
-              value={own[id]}
-              inherited={def.default}
+              value={own[id] ?? NOT_SET}
+              inherited={def.default ?? NOT_SET}
               page={NO_PAGE}
-              onChange={(v: string | undefined) => change({ [id]: v ?? null })}
+              onChange={(v: string) => change({ [id]: v })}
+              onReset={() => change({ [id]: null })}
             />
           )
         })}

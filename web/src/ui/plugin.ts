@@ -14,7 +14,7 @@ import type {
   WidgetId,
   WidgetTable,
 } from "../core/catalog"
-import type { SettingHolder } from "../core/def/setting"
+import type { NOT_SET, SettingHolder } from "../core/def/setting"
 import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
 import { isOwnedBy } from "../core/names"
@@ -60,19 +60,20 @@ export interface ItemUi<Props = never, Content = never> {
   contextMenus?: readonly ContextMenuId[] // ビューが開く右クリックのメニュー
 }
 
-// 利用者の設定の項目を変えるコンポーネントに渡す値。value は今の値（値が無いか形に合わなければ既定）、onChange の undefined は値を消す（既定に戻す）。
+// 利用者の設定の項目を変えるコンポーネントに渡す値。value は今の値（値が無いか形に合わなければ既定。既定も無ければ NOT_SET）、onChange は値を書き、onReset は値を消す（既定に戻す）。
 // 変えさせないときは、並べる側がまとめて押せなくする（コンポーネントは見なくてよい）
 export interface UserSettingControlProps<V = unknown> {
   label: string
-  value: V | undefined
-  onChange(value: V | undefined): void
+  value: V | typeof NOT_SET
+  onChange(value: V): void
+  onReset(): void
 }
-// 設定の項目（core/def/setting.ts）を変えるコンポーネントに渡す値。of は項目を持つ所（ステージエントリかページか。定義の holder と同じ言葉）、value はその所の値（無ければ undefined）、
-// inherited は値が無いときに効く値（定義の既定。既定の無い項目なら undefined のことがある）。onChange の undefined は値を消す（既定に戻す）。
+// 設定の項目（core/def/setting.ts）を変えるコンポーネントに渡す値。of は項目を持つ所（ステージエントリかページか。定義の holder と同じ言葉）、value はその所の値（無ければ NOT_SET）、
+// inherited は値が無いときに効く値（定義の既定。既定の無い項目なら NOT_SET）。onReset は値を消す（既定に戻す）。
 // page は、ページの項目なら変えている項目を重ねたそのページ（ステージエントリの項目なら NO_PAGE）。ほかの項目の値やページのタイプで見せ方が変わるコンポーネントが読む
 export interface SettingControlProps<V = unknown> extends UserSettingControlProps<V> {
   of: SettingHolder
-  inherited: V | undefined
+  inherited: V | typeof NOT_SET
   page: Page | typeof NO_PAGE
 }
 // 設定の項目のビュー: 設定のダイアログに並べるコンポーネント

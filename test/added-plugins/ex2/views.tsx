@@ -1,5 +1,5 @@
 // 判断のひし形のビュー・追加と編集のダイアログ・流れの向きのコンポーネント
-import { type MessageKey, NO_ITEM, NO_PAGE, type ShapeAddArgs, type z } from "matomezu"
+import { type MessageKey, NO_ITEM, NO_PAGE, type ShapeAddArgs, settingOr, type z } from "matomezu"
 import {
   Dialog,
   type DialogProps,
@@ -90,7 +90,10 @@ export function DirectionSetting({ label, value, inherited, onChange }: SettingC
   return (
     <label>
       {label}
-      <select value={value ?? inherited} onChange={e => onChange(e.target.value as "down" | "right")}>
+      <select
+        value={settingOr(value, settingOr(inherited, undefined))}
+        onChange={e => onChange(e.target.value as "down" | "right")}
+      >
         <option value="down">{t("down")}</option>
         <option value="right">{t("right")}</option>
       </select>

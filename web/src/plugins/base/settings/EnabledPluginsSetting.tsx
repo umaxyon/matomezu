@@ -2,6 +2,7 @@
 // 無効にするとき、そのプラグインが無いと読めなくなる物が在れば、件数と在る所（ブック・フォルダごと。多ければ先頭の 5 か所と、ほかの数）を出して確かめる
 
 import { useState } from "react"
+import { settingOr } from "../../../core/def/setting"
 import { BROKEN } from "../../../core/folders"
 import { useMessages } from "../../../ui/i18n"
 import type { UserSettingControlProps } from "../../../ui/plugin"
@@ -16,6 +17,8 @@ import { addedPluginsOf, pluginLabel, withPluginEnabled } from "./enabled-plugin
 
 // 確かめに名前を出す在る所の数（ほかは数だけ）
 const SHOWN_PLACES = 5
+// 値が無いときの有効なプラグイン（無し）
+const NO_PLUGINS: readonly string[] = []
 
 // 確かめている事: 設定を next に変えると、在る所 places の物（合わせて count 件）が読めない物のフォルダへ移る
 interface Asking {
@@ -29,7 +32,7 @@ interface Asking {
 export function EnabledPluginsSetting({ label, value, onChange }: UserSettingControlProps<readonly string[]>) {
   const t = useMessages(kit)
   const added = addedPluginsOf(useInstance().plugins)
-  const enabled = value ?? []
+  const enabled = settingOr(value, NO_PLUGINS)
   const movedIfOff = useMovedIfOff()
   const read = useReadState()
   const naming = useReadNaming()

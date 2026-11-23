@@ -3,6 +3,7 @@
 
 import { useState } from "react"
 import { withSettings } from "../../../core/book"
+import { NOT_SET } from "../../../core/def/setting"
 import type { Book, Page } from "../../../core/schema/book"
 import { NO_PAGE } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
@@ -37,7 +38,7 @@ export function useSettingControls(at: SettingsAt, only?: readonly string[]) {
     const view = ui.settingViews.get(def.id)
     if (!view) return []
     const own = ownSettings(holder ?? null)[def.id]
-    const value = def.id in patch ? (patch[def.id] ?? undefined) : own
+    const value = def.id in patch ? (patch[def.id] ?? NOT_SET) : (own ?? NOT_SET)
     const Control = view.control
     return [
       <Control
@@ -45,9 +46,10 @@ export function useSettingControls(at: SettingsAt, only?: readonly string[]) {
         of={at.of}
         label={t(def.title)}
         value={value}
-        inherited={def.default}
+        inherited={def.default ?? NOT_SET}
         page={draftPage}
-        onChange={(v: unknown) => setPatch(p => ({ ...p, [def.id]: v === undefined ? null : v }))}
+        onChange={(v: unknown) => setPatch(p => ({ ...p, [def.id]: v }))}
+        onReset={() => setPatch(p => ({ ...p, [def.id]: null }))}
       />,
     ]
   })
