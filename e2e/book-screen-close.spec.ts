@@ -54,7 +54,7 @@ test("分割で開いたブックスクリーンの下の行に閉じると □ 
   await memberWithPage(page, "しらべ", "作業のメモ")
   const line = page.locator("[data-workroom]").filter({ hasText: "しらべ" }).locator("[data-current-line]")
   const close = page.locator("[data-footer-close]").locator("visible=true")
-  const maximize = page.locator("[data-footer-maximize]").locator("visible=true")
+  const maximize = page.locator("[data-footer-widen]").locator("visible=true")
 
   // 分割で開くと、下の段のブックスクリーンの下の行に、閉じると □
   await line.click()
@@ -94,7 +94,7 @@ test("ブックスクリーンを 2 枚分割で開くと 2 段で見え、そ�
   const lineOf = (name: string) =>
     page.locator("[data-workroom]").filter({ hasText: name }).locator("[data-current-line]")
   const close = page.locator("[data-footer-close]").locator("visible=true")
-  const maximize = page.locator("[data-footer-maximize]").locator("visible=true")
+  const maximize = page.locator("[data-footer-widen]").locator("visible=true")
 
   await lineOf("あお").click()
   await page.getByRole("menuitem", { name: "分割で開く" }).click()

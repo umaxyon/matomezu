@@ -4,7 +4,7 @@ import { defineMessages } from "../../../core/i18n/messages"
 export const STAGE_MESSAGES = defineMessages({
   "Split screen": { en: "Split screen", ja: "画面を分割" },
   "Close stage": { en: "Close stage", ja: "ステージを閉じる" },
-  "Maximize stage": { en: "Maximize stage", ja: "ステージを広げる" },
+  "Widen stage": { en: "Widen stage", ja: "ステージを広げる" },
   "Restore stage": { en: "Restore stage", ja: "ステージを戻す" },
   "Maximize screen": { en: "Maximize screen", ja: "スクリーンを広げる" },
   Unsplit: { en: "Unsplit", ja: "分割をやめる" },

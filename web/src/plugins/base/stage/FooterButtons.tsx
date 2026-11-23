@@ -33,12 +33,12 @@ export function FooterCloseButton() {
   )
 }
 
-export function FooterMaximizeButton() {
+export function FooterWidenButton() {
   const t = useMessages(kit)
   const widen = useCommand(STAGE_WIDEN.id)
   const split = useScreenSplit()
   if (!widen.shown && !split.inSplit) return null
-  const label = widen.shown ? t(widen.active ? "Restore stage" : "Maximize stage") : t("Maximize screen")
+  const label = widen.shown ? t(widen.active ? "Restore stage" : "Widen stage") : t("Maximize screen")
   return (
     <button
       type="button"
@@ -46,7 +46,7 @@ export function FooterMaximizeButton() {
       aria-label={label}
       aria-pressed={widen.shown ? widen.active : undefined}
       title={label}
-      data-footer-maximize
+      data-footer-widen
       onClick={() => (widen.shown ? widen.run() : split.expand())}
     >
       {widen.shown && widen.active ? (

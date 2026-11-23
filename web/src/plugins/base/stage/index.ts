@@ -52,7 +52,7 @@ export const STAGE_UNSPLIT = kit.defineCommand({
 // 分けたステージのうち、呼ばれたステージだけを広げて見せる（もう一度で戻す）
 export const STAGE_WIDEN = kit.defineCommand({
   id: "stage-widen",
-  title: "Maximize stage",
+  title: "Widen stage",
   run: (ctx, a) => {
     const here = calledStageOf(ctx)
     const other = workspaceOf(ctx).stages.find(st => st.id !== here?.id)

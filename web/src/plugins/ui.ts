@@ -89,7 +89,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:book-name",
       "@matomezu/base:page-place",
       "@matomezu/base:page-tabs",
-      "@matomezu/base:footer-maximize-button",
+      "@matomezu/base:footer-widen-button",
     ],
     "@matomezu/base:stage-corner": [],
     "@matomezu/base:footer-menu-map": ["@matomezu/base:footer-menu-minimap"],
