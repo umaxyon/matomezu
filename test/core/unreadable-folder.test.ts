@@ -611,6 +611,54 @@ describe("バックヤードに在った物", () => {
   })
 })
 
+describe("バックヤードに在った物の持ち主", () => {
+  const TICKETS = "@matomezu/base:tickets-history"
+  const YARD = backyardIdOf(TICKETS)
+  const WORKROOM = "@matomezu/base:workroom"
+  const rows = (subject: string): Rows => {
+    const r = worldRows([testBook("b5", "B5", [drawingPage("p5")])])
+    return {
+      pages: r.pages,
+      folders: [
+        ...r.folders.map(f => ((f as { id: string }).id === HOME_ID ? { ...(f as object), lineup: [] } : f)),
+        { folderRole: "backyard", id: YARD, backyard: TICKETS, lineup: [] },
+        {
+          folderRole: "unreadable",
+          id: UNREADABLE_ID,
+          lineup: [
+            {
+              entry: { kind: "book", id: "b5", workKey: { subject, id: "r1" } },
+              from: [YARD],
+              after: FIRST,
+              code: "W005",
+              moved: NOW,
+            },
+          ],
+        },
+      ],
+    }
+  }
+  const with_ = (x: Rows, has: boolean | undefined) =>
+    settleLibrary(bare(CORE_CATALOG), x.pages, x.folders, {
+      naming: NAMING,
+      now: NOW,
+      newId: () => "new",
+      hasRecord: () => has,
+    }) as Settled
+
+  test("workKey が指すレコードがもう無ければ、戻さずに中の物ごと完全に消す", () => {
+    const done = with_(rows(WORKROOM), false)
+    expect([done.returned, done.purged]).toEqual([[], ["b5"]])
+    expect([done.writes.removedFolders, done.writes.removedPages]).toEqual([["b5"], ["p5"]])
+  })
+
+  test("レコードが在るか、在るか分からないか、種類が機能台帳に無ければ戻す", () => {
+    expect(with_(rows(WORKROOM), true).returned).toEqual(["b5"])
+    expect(with_(rows(WORKROOM), undefined).returned).toEqual(["b5"])
+    expect(with_(rows("@ex/none:none"), false).returned).toEqual(["b5"])
+  })
+})
+
 describe("書庫を整える: 足りないシステムフォルダを足し、名前の重なりに番号を付ける", () => {
   const DOCUMENTS = "@matomezu/base:documents"
   const WORKROOMS = "@matomezu/base:workrooms"

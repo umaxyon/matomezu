@@ -58,6 +58,7 @@ type Engine struct {
 	joinedMsg    func(string, string) string
 	visitorMsg   func(string) string
 	workTitle    func(string, string, string) string
+	myWorkdesk   func(string, string) string
 	live         func(string, string, string, string) string
 	forAI        func(string) string
 	briefs       func(string) string
@@ -94,6 +95,10 @@ func New() (*Engine, error) {
 		}
 		return string(body)
 	}); err != nil {
+		return nil, err
+	}
+	// レコードを引く口を今渡されているか（渡されていない間の「無い」は、無いのか分からないのかを見分けられないので）
+	if err := vm.Set("matomezuHostReads", func() bool { return e.source != nil }); err != nil {
 		return nil, err
 	}
 	if err := vm.Set("matomezuHostFind", func(subject, where string, keysOnly bool) string {
@@ -152,6 +157,7 @@ func New() (*Engine, error) {
 		{"matomezuJoinedText", &e.joinedMsg},
 		{"matomezuVisitorJoinedText", &e.visitorMsg},
 		{"matomezuWorkTitle", &e.workTitle},
+		{"matomezuMyWorkdesk", &e.myWorkdesk},
 		{"matomezuUnexpired", &e.live},
 	} {
 		if err := vm.ExportTo(vm.Get(f.name), f.to); err != nil {

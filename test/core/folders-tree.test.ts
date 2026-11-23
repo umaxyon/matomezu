@@ -2,7 +2,7 @@
 
 import { describe, expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
-import { keepsPageTypesAcross } from "../../web/src/core/book"
+import { keepsTypesIn } from "../../web/src/core/book"
 import { trashedEntry } from "../../web/src/core/entries"
 import {
   type Folder,
@@ -26,7 +26,7 @@ import { REMOVED } from "../../web/src/core/records"
 import type { Book } from "../../web/src/core/schema/book"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
-import { CORE_CATALOG, sequence, worldTablesOf } from "../support"
+import { CORE_CATALOG, libraryWith, sequence, worldTablesOf } from "../support"
 
 const b1 = testBook("b1", "一", [drawingPage("p1"), testBinder("f1", "束", SLIDE, testPage(SLIDE, "s1"))])
 const b2 = testBook("b2", "二", [drawingPage("p2")])
@@ -439,8 +439,8 @@ describe("ページのタイプを変えさせない確かめ", () => {
     const moved = testPage(MARKDOWN, "p1")
     const from: Book = { ...b1, lineup: b1.lineup.filter(e => e.id !== "p1") }
     const to: Book = { ...b2, lineup: [...b2.lineup, moved] }
-    expect(keepsPageTypesAcross([b1, b2], [from, to])).toBe(false)
+    expect(keepsTypesIn(libraryWith([b1, b2]), libraryWith([from, to]))).toBe(false)
     const same: Book = { ...b2, lineup: [...b2.lineup, drawingPage("p1")] }
-    expect(keepsPageTypesAcross([b1, b2], [from, same])).toBe(true)
+    expect(keepsTypesIn(libraryWith([b1, b2]), libraryWith([from, same]))).toBe(true)
   })
 })

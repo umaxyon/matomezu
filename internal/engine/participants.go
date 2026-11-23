@@ -112,3 +112,29 @@ func (e *Engine) WorkTitle(settings json.RawMessage, workroom, name string, src 
 	}
 	return got.Title, got.Kind == "title", nil
 }
+
+// MyWorkdesk は、AI のワークルームの作業机（base の myWorkdeskIn）: ワークルームのフォルダの id（無ければ空）、ワーカーブックの id（まだ無ければ空）、参加の文に足す英語の文
+type MyWorkdesk struct {
+	Workrooms string `json:"workrooms"`
+	Book      string `json:"book"`
+	ForAI     string `json:"forAi"`
+}
+
+// MyWorkdesk は、ワークルーム workroom の作業机。folders は書庫のフォルダの行の全部。作業はレコードから決まるので、レコードを引く口 src を渡す
+func (e *Engine) MyWorkdesk(workroom string, folders []json.RawMessage, src Source) (out MyWorkdesk, err error) {
+	f, err := json.Marshal(append([]json.RawMessage{}, folders...))
+	if err != nil {
+		return out, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.source = src
+	defer func() { e.source = nil }()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.myWorkdesk(workroom, string(f))), &out)
+	return out, err
+}

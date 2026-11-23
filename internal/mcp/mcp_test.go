@@ -667,3 +667,13 @@ func TestARefusalIsNotAnErrorAndOnlyAFaultOfMatomezuIs(t *testing.T) {
 		}
 	}
 }
+
+// 常駐の答えが {"refused": 1 行} なら、その 1 行を返す（isError にしない）。ほかの答えは断りでない
+func TestRefusedLineAnswersTheRefusal(t *testing.T) {
+	if text, ok := refusedLine(json.RawMessage(`{"refused":"visitor: no workdesk"}`)); !ok || text != "visitor: no workdesk" {
+		t.Fatalf("refused = %q %v", text, ok)
+	}
+	if _, ok := refusedLine(json.RawMessage(`{"id":"home","lineup":[]}`)); ok {
+		t.Fatal("a folder was taken for a refusal")
+	}
+}

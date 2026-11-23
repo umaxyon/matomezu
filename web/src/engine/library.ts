@@ -11,6 +11,7 @@ import { restoreSettings, type Settings } from "../core/settings"
 import { purgedRows, type RowWrites, settleLibrary, unreadableWarning } from "../core/unreadable"
 import { type Warning, warning, warningText } from "../core/warnings"
 import type { Assembled } from "../store/plugin"
+import { hostSource } from "./records"
 import { type RowChange, rowChanges } from "./wire"
 
 declare const crypto: { randomUUID(): string }
@@ -48,6 +49,13 @@ export function systemFolderTitlesOf(of: Assembled): string {
   )
 }
 
+// ホストが置いたレコードを引く口で、種類 subject の id のレコードが在るか（口が無いか、今渡されていなければ分からない）
+function recordThere(subject: string, id: string): boolean | undefined {
+  const reads = (globalThis as { matomezuHostReads?: () => boolean }).matomezuHostReads
+  const source = hostSource({})
+  return source && reads?.() ? source.byId(subject, id) !== undefined : undefined
+}
+
 // engine.ts の matomezuSettleLibrary の中身
 export function settleLibraryOf(of: Assembled, pages: string, folders: string, settings: string, now: string): string {
   const catalog = of.catalog.core
@@ -55,6 +63,7 @@ export function settleLibraryOf(of: Assembled, pages: string, folders: string, s
     naming: namingOf(catalog, restoreSettings(JSON.parse(settings))),
     now,
     newId: () => crypto.randomUUID(),
+    hasRecord: recordThere,
   })
   if (done === BROKEN) return JSON.stringify({ broken: true })
   return JSON.stringify({

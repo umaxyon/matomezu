@@ -1,15 +1,16 @@
 // 作業机: 書庫の画面が、ワークルームのフォルダの下に映す、今参加者がいるワークルームごとの行。その下にワーカーブック（workerBookOf が引く、tickets-history の中の実のブック）を映す。
 // データには書かない（書庫の画面が、ワークルームと参加者のレコードと書庫の表から出す）
 import type { CoreCatalog } from "../../../core/core-catalog"
-import { backyardBookOf } from "../../../core/entries"
+import { backyardBookOf, rowsWithin } from "../../../core/entries"
 import type { Folders } from "../../../core/folders"
 import type { RecordReader } from "../../../core/record-source"
 import type { Bird } from "../birds"
 import { TICKETS_HISTORY } from "../library/backyards"
 import { ADMIN_MARK, PARTICIPANT, type Workroom } from "."
 import { originalPalette } from "./birds"
+import { workerBookIn } from "./my-workdesk"
 import { adminRoomOf } from "./rows"
-import { workerBookOf, workerBookReadsOf } from "./worker-book"
+import { workerBookReadsOf } from "./worker-book"
 import { WORKROOM } from "./workroom"
 
 // 作業机 1 つ: ワークルーム room の id・名前 title・鳥 bird と配色 palette、ワーカーブックの名前 bookTitle と、実のブックの id book（まだ無ければ undefined）
@@ -45,14 +46,21 @@ export function workdesksOf(catalog: CoreCatalog, read: RecordReader, folders: F
   const admin = adminRoomOf(read.record(ADMIN_MARK.id, "admin") as { workroom: string } | undefined, rooms)
   const ordered = [...rooms.filter(r => r.id === admin), ...rooms.filter(r => r.id !== admin)]
   return [...new Map(ordered.map(r => [r.id, r])).values()].map(room => {
-    const { workKey, title } = workerBookOf(catalog, read, room.id)
+    const { title, book } = workerBookIn(catalog, read, folders, room.id)
     return {
       room: room.id,
       title: room.name,
       bird: room.bird,
       palette: room.palette ?? originalPalette(room.bird),
       bookTitle: title,
-      book: backyardBookOf({ folders }, TICKETS_HISTORY.id, workKey),
+      book,
     }
   })
+}
+
+// ワークルーム room 自身のワーカーブック（tickets-history の中の、workKey がそのワークルームのブック）のページの数（ブックが無ければ 0）。
+// ワークルームを消す・引き継がずに入り直すと、このブックは完全に消える
+export function ownBookPagesOf(folders: Folders, room: string): number {
+  const book = backyardBookOf({ folders }, TICKETS_HISTORY.id, { subject: WORKROOM.id, id: room })
+  return book === undefined ? 0 : rowsWithin(folders, book).pages.length
 }

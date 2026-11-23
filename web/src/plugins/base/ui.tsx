@@ -163,6 +163,7 @@ export {
 } from "./page-tabs/ui"
 export {
   BirdFaceView,
+  useOwnBookPages,
   useVisitorRows,
   useWorkroomActions,
   useWorkroomRows,

@@ -36,10 +36,10 @@
 //	GET  /api/ai/books  {"books": [{"id", "title", "version", "warning", "awaiting"}]}（warning は機能台帳に無い物の W007 の 1 行、awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
 //	GET  /api/ai/pages/{page}  {"entry", "folder", "page", "version", "annotations", "placed"}（entry はそのページのステージエントリ {"kind", "id"}（そのページを持っているブックか、ブックの外のページならそのページ、ブックの外のバインダの中ならそのバインダ）、folder はそのページが入っているフォルダ（ブックの直下ならブック、バインダの中ならバインダ、ブックの外のページなら書庫のフォルダ）の id、version はそのページの版、annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
-//	GET  /api/ai/folder[?folder=ID]  書庫ホーム（folder が無いとき）かフォルダかブックの外のバインダ 1 つの {"id", "kind", "title", "path", "lineup"}（書庫ホームからの道筋と、直下のエントリを 1 段だけ。ai_folder.go）
+//	GET  /api/ai/folder[?folder=ID]  書庫ホーム（folder が無いとき）かフォルダかブックの外のバインダ 1 つの {"id", "kind", "title", "path", "lineup"}（書庫ホームからの道筋と、直下のエントリを 1 段だけ。folder が my-workdesk なら呼んだ AI の作業机。ai_folder.go）
 //	GET  /api/ai/records?kind=K[&id=ID | &ids=a&ids=b | &where.key=value&is.key=absent&limit=N&before=ID]  AI に見せる種類（対象の定義の aiBrief）のレコード（ai_records.go）。
 //	                      id はその 1 件の全文、ids は何件かの全文、どちらも無ければ一覧（索引キーで探す種類は {"kind","records","total","older"}）
-//	GET  /api/ai/awaiting    {"awaiting": [{"entry", "title", "annotation", "brief"}], "undone": [{"entry", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}], "removed": [{"book", "title", "key", "cause"}]}
+//	GET  /api/ai/awaiting[?session=S]    {"awaiting": [{"entry", "title", "annotation", "brief"}], "undone": [{"entry", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}], "removed": [{"book", "title", "key", "cause"}]}
 //	                         AI の応えを待つアノテーションの全部と、見られる前に利用者が戻した AI の変更の全部と、失敗にした AI 編集チケット（変更提案郵便など）の全部と、
 //	                         郵便が消えたと記した AI 編集チケット（cause は上限で消えた limit か、利用者が消した user）の全部
 //	                         （undone と failed と removed は、渡したら、次の利用者トリガートークのときに消える）

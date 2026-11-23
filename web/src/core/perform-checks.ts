@@ -111,15 +111,15 @@ type PageCheck = Omit<PagePermissionCheck, "kind" | "action" | "actor">
 const pagePlaceIn = (library: Library, id: string): "book" | "outside" | undefined =>
   !(id in library.pages) ? undefined : bookIdOf(library.folders, id) === undefined ? "outside" : "book"
 
-// 書庫が was から next に変わる間に、変わった・足したブックの外のページ（ゴミ箱の中も）が、どれもページの形と決まりに合い、タイプを変えていないか。
+// 書庫が was から next に変わる間に、変わった・足したブックの外のページ（ゴミ箱の中も）が、どれもページの形と決まりに合うか。
 // ステージエントリが持つ設定の項目の値を受けるのは、ブックの外のページ 1 枚だけ（ブックの外のバインダの中のページが持てば、形に合わない）
-// （ブックの中のページは、ブックの確かめ librarySettles と keepsPageTypesAcross が見る）
+// （ブックの中のページは、ブックの確かめ librarySettles が見る。タイプを変えていないかは、置き場所に依らず keepsTypesIn が見る）
 export function outsidePagesSettle(catalog: CoreCatalog, was: Library, next: Library): boolean {
   return Object.entries(next.pages).every(([id, page]) => {
     const before = was.pages[id]
     if (before === page || pagePlaceIn(next, id) !== "outside") return true
     const stageEntry = permissionFoldersOf(next.folders, id).length === 0
-    return (before === undefined || before.type === page.type) && pageSettles(catalog, page, stageEntry)
+    return pageSettles(catalog, page, stageEntry)
   })
 }
 

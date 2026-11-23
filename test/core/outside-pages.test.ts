@@ -24,7 +24,7 @@ import { performIn, permittedIn, type World } from "../../web/src/core/perform-w
 import type { ItemPage } from "../../web/src/core/placed"
 import type { Book } from "../../web/src/core/schema/book"
 import { pluginKit } from "../../web/src/store/kit"
-import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBook, testPage } from "../lineup"
+import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, libraryWith, sequence } from "../support"
 
 const LOCK = "@matomezu/base:lock"
@@ -380,4 +380,47 @@ test("書庫が対象のアクションが変えたブックの外のページ�
   }
   const done = performIn(world, SNEAK, {}, undefined, libraryCtx("test:center"))
   expect(done.ok && done.annotations).toEqual({ x1: [note("a1", ["a"])] })
+})
+
+test("書庫が対象のアクションの結果で、行う前から在るページとバインダのタイプが替わっていたら、ブックの中と外のどこへ動いても断る", () => {
+  const SWAP = "test:swap-library"
+  let target = libraryWith([])
+  const swap = defineAction({
+    id: SWAP,
+    title: "@matomezu/base:Change pages",
+    aiDescription: "",
+    target: "library",
+    permissionScope: "unknown",
+    args: z.strictObject({}),
+    run: () => ({ next: target, result: {} }),
+  })
+  const swapping = {
+    ...catalog,
+    actions: new Map<string, unknown>([...catalog.actions, [SWAP, swap]]),
+    controlCenters: new Map<string, unknown>([...catalog.controlCenters, [CENTER, { id: CENTER, actions: [SWAP] }]]),
+  } as unknown as typeof CORE_CATALOG
+  const run = (was: ReturnType<typeof libraryWith>, next: ReturnType<typeof libraryWith>) => {
+    target = next
+    const world: World = { ...was, settings: {}, annotations: {}, records: {}, counters: {} }
+    return performIn(world, SWAP, {}, undefined, { ...libraryCtx(CENTER), catalog: swapping } as never)
+  }
+  const md = (id: string) => testPage(MARKDOWN, id, { title: id })
+  const slide = (id: string) => testPage(SLIDE, id, { title: id, paper: "@matomezu/base:ratio-16x9" })
+  const p2 = drawingPage("p2", { title: "2" })
+  const refused = { ok: false, reason: "refused" } as const
+  const inBook = libraryWith([testBook("b1", "B", [drawingPage("p1", { title: "1" }), p2])])
+  const outside = libraryWith([testBook("b1", "B", [p2])], [drawingPage("x1", { title: "x1" })])
+  const outsideBinder = libraryWith([testBook("b1", "B", [p2])], [testBinder("f1", "S", SLIDE, slide("s1"))])
+  // ブックの中から外へ
+  expect(run(inBook, libraryWith([testBook("b1", "B", [p2])], [md("p1")]))).toEqual(refused)
+  // 外のまま
+  expect(run(outside, libraryWith([testBook("b1", "B", [p2])], [md("x1")]))).toEqual(refused)
+  // 外からブックの中へ
+  expect(run(outside, libraryWith([testBook("b1", "B", [md("x1"), p2])]))).toEqual(refused)
+  // 外のバインダの中のページが、別のタイプでブックの中へ
+  expect(run(outsideBinder, libraryWith([testBook("b1", "B", [p2, drawingPage("s1", { title: "s1" })])]))).toEqual(
+    refused,
+  )
+  // タイプを変えずに外からブックの中へ入れるのは通る
+  expect(run(outside, libraryWith([testBook("b1", "B", [drawingPage("x1", { title: "x1" }), p2])])).ok).toBe(true)
 })

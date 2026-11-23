@@ -2,7 +2,15 @@
 import { defineBuiltin } from "../../plugin-api/builtin"
 import { CARD_VISIT, LANE_SORTS, MAXIMIZED, PROJECT_ORDER, SHOWN_PROJECTS } from "./board"
 import { TICKET_COMPLETE } from "./completion"
-import { CURRENT_WORK, FOLLOW_PROJECT_LANES, FOLLOW_TICKETS, TICKET_LEAVE, TICKET_START } from "./current-work"
+import {
+  CURRENT_WORK,
+  FOLLOW_PROJECT_LANES,
+  FOLLOW_TICKETS,
+  NOTICE_CURRENT_TICKET,
+  NOTICE_OTHER_ASSIGNED,
+  TICKET_LEAVE,
+  TICKET_START,
+} from "./current-work"
 import { kit } from "./kit"
 import { PROJECT, PROJECT_ADD, PROJECT_CLOSE, PROJECT_REOPEN, PROJECT_UPDATE } from "./project"
 import { LIST_OPEN } from "./project-list"
@@ -42,7 +50,7 @@ export const TASKBOARD_PLUGIN = defineBuiltin(
       TICKET_LEAVE,
     ],
     permissions: [CLOSED_PROJECT],
-    followSteps: [FOLLOW_TICKETS, FOLLOW_PROJECT_LANES],
+    followSteps: [FOLLOW_TICKETS, FOLLOW_PROJECT_LANES, NOTICE_CURRENT_TICKET, NOTICE_OTHER_ASSIGNED],
     dialogs: [PROJECT_SETTINGS_DIALOG],
     screens: [TICKET_SCREEN],
     userSettings: [PROJECT_ORDER, SHOWN_PROJECTS],

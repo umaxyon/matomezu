@@ -2,11 +2,12 @@
 // 台帳アセンブルの結果（Assembled）は、呼ぶたびに引数で受ける
 
 import { z } from "zod"
+import { rowsLibraryOf } from "../core/folders-tree"
 import { translate } from "../core/i18n/i18n"
 import { sourceOf } from "../core/record-source"
 import { langOf, restoreSettings } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
-import { JOINED_MESSAGE, VISITOR_JOINED_MESSAGE, workTitleIn } from "../plugins/base"
+import { JOINED_MESSAGE, myWorkdeskIn, VISITOR_JOINED_MESSAGE, workTitleIn } from "../plugins/base"
 import type { Assembled } from "../store/plugin"
 import { hostSource } from "./records"
 
@@ -36,6 +37,13 @@ export function workTitle(of: Assembled, settings: string, workroom: string, nam
   return JSON.stringify(
     workTitleIn(of.catalog.core, restoreSettings(JSON.parse(settings)), source, { id: workroom, name }),
   )
+}
+
+// engine.ts の matomezuMyWorkdesk の中身: ワークルーム workroom の作業机（MyWorkdesk の JSON）。folders は書庫のフォルダの行の全部。レコードはホストの読み口から引く
+export function myWorkdesk(of: Assembled, workroom: string, folders: string): string {
+  const source = hostSource({}) ?? sourceOf({})
+  const { folders: table } = rowsLibraryOf(JSON.parse(folders) as unknown[], {})
+  return JSON.stringify(myWorkdeskIn(of.catalog.core, source, table, workroom))
 }
 
 const WindowWarningSchema = z.object({

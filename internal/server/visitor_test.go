@@ -51,9 +51,12 @@ func TestVisitorIsToldAndOnlyReads(t *testing.T) {
 	if got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-create","args":{"title":"x"}}`, visitor); !strings.Contains(got, `"detail":"visitor:`) {
 		t.Fatalf("perform = %s", got)
 	}
+	if got, _ := call(t, "GET", s.URL+"/api/ai/folder?folder="+myWorkdeskFolder, "", visitor); !strings.Contains(got, `"refused":"visitor:`) {
+		t.Fatalf("workdesk = %s", got)
+	}
 }
 
-// as visitor と workroom を一緒に頼むと、部屋を見回らずに要求のアクションが断る（部屋に生きた参加者がいても workroom-in-use にならず、誰も外れない）
+// as visitor と workroom を一緒に頼むと、ワークルームを見回らずに要求のアクションが断る（ワークルームに生きた参加者がいても workroom-in-use にならず、誰も外れない）
 func TestVisitorWithAWorkroomIsRefusedByTheRequest(t *testing.T) {
 	s, _ := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")

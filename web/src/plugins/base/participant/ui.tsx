@@ -27,5 +27,5 @@ export const PARTICIPANT_DIALOG_VIEWS = {
 }
 
 export { BirdFaceView } from "./BirdFaceView"
-export { useVisitorRows, useWorkroomActions, useWorkroomRows, type WorkroomActions } from "./hooks"
+export { useOwnBookPages, useVisitorRows, useWorkroomActions, useWorkroomRows, type WorkroomActions } from "./hooks"
 export { VisitorIcon } from "./VisitorIcon"

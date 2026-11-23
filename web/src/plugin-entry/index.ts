@@ -105,6 +105,7 @@ export {
   LEN,
   MARKDOWN_DOCUMENT_TOKENS,
   MARKDOWN_PANE_MODES,
+  MY_WORKDESK,
   minSize,
   NEST_PADDING,
   newClash,

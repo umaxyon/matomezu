@@ -276,8 +276,8 @@ const allowsSubject = (center: ControlCenterDef, target: string): boolean =>
 function allowsWrites(catalog: CoreCatalog, center: ControlCenterDef, def: ActionDef): boolean {
   const changed = new Set<string>([def.target, ...(def.writes ?? [])])
   const writes = new Set<string>(def.writes ?? [])
-  for (const { step } of catalog.followSteps)
-    if (changed.has(step.watches))
+  for (const { step, watched } of catalog.followSteps)
+    if (watched.some(w => changed.has(w)))
       for (const s of step.writes) {
         changed.add(s)
         writes.add(s)

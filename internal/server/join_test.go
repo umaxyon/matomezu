@@ -231,7 +231,8 @@ func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 		t.Fatalf("a notice without the participant's id = %q", h.Get(aiwire.NoticeHeader))
 	}
 	_, h := call(t, "GET", s.URL+"/api/ai/books", "", id)
-	if text, _ := url.QueryUnescape(h.Get(aiwire.NoticeHeader)); text != "You joined matomezu. Workroom name: ひよこ\n"+joinedAllowText {
+	if text, _ := url.QueryUnescape(h.Get(aiwire.NoticeHeader)); text != "You joined matomezu. Workroom name: ひよこ\n"+joinedAllowText+"\n"+
+		`Your worker book has no pages yet: add one with @matomezu/base:worker-page-add. It changes when your current work changes, so do not keep the book's id: write down the ids of pages. read_folder with folder "my-workdesk" shows it.` {
 		t.Fatalf("notice = %q", text)
 	}
 	hub.mu.Lock()
@@ -307,7 +308,7 @@ func TestCallsAreNotAnnouncedEveryTime(t *testing.T) {
 	}
 }
 
-// acceptRoom は、利用者が要求中の参加者 participant を、名前 room の新しい部屋に受け入れる（部屋を作って入れる）。入れるアクションの答えを返す
+// acceptRoom は、利用者が要求中の参加者 participant を、名前 room の新しいワークルームに受け入れる（ワークルームを作って入れる）。入れるアクションの答えを返す
 func acceptRoom(t *testing.T, url, participant, room string) string {
 	t.Helper()
 	_, made := postPerform(t, url, `{"action":"@matomezu/base:workroom-add","args":{"name":"`+room+`","bird":"inko"},"lang":"ja","now":"2026-11-08T00:59:00.000Z"}`)
@@ -318,7 +319,7 @@ func acceptRoom(t *testing.T, url, participant, room string) string {
 	return acceptIn(t, url, participant, out.Result.Workroom)
 }
 
-// acceptIn は、要求中の参加者 participant を、今ある部屋 room（id）に受け入れる。答えを返す
+// acceptIn は、要求中の参加者 participant を、今あるワークルーム room（id）に受け入れる。答えを返す
 func acceptIn(t *testing.T, url, participant, room string) string {
 	t.Helper()
 	_, got := postPerform(t, url, `{"action":"@matomezu/base:participant-accept","args":{"workroom":"`+room+`"},"on":{"record":"`+participant+`"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`)
@@ -390,7 +391,7 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 		t.Fatalf("ready while preparing = %v", ready)
 	}
 	r := talk(`{"sessionId":"S9"}`)
-	if len(r.Welcomes) != 1 || r.Welcomes[0].Workroom != "ひよこ" || r.Welcomes[0].ForAI != "You joined matomezu. Workroom name: ひよこ\n"+joinedAllowText ||
+	if len(r.Welcomes) != 1 || r.Welcomes[0].Workroom != "ひよこ" || !strings.HasPrefix(r.Welcomes[0].ForAI, "You joined matomezu. Workroom name: ひよこ\n"+joinedAllowText+"\nYour worker book ") ||
 		!strings.Contains(r.Welcomes[0].Message, "ひよこ") {
 		t.Fatalf("welcome = %+v", r)
 	}
@@ -484,7 +485,7 @@ type tableRow struct {
 	State      string `json:"state"`
 	Link       string `json:"link"`
 	Workroom   string `json:"workroom"`   // 入っているワークルームの id（受け入れ済みだけ）
-	WantedName string `json:"wantedName"` // 要求中が入りたい部屋の名前
+	WantedName string `json:"wantedName"` // 要求中が入りたいワークルームの名前
 	Room       string `json:"-"`          // 入っているワークルームの名前
 	Bird       string `json:"-"`          // 入っているワークルームの鳥
 }
@@ -577,7 +578,7 @@ func TestJoinWithAWorkroomOfAQuietParticipantCanBeAcceptedByTakingOver(t *testin
 	if out := acceptRoom(t, s.URL, second.Participant, "ひよこ"); !strings.Contains(out, `"ok":false`) {
 		t.Fatalf("accept with the same name = %s", out)
 	}
-	// 引き継ぎは、前の参加者を外してから、同じ部屋に受け入れる
+	// 引き継ぎは、前の参加者を外してから、同じワークルームに受け入れる
 	oldRows := table(t, s.URL)
 	room := oldRows[0].Workroom
 	if _, out := postPerform(t, s.URL, `{"action":"@matomezu/base:participant-remove","args":{},"on":{"record":"`+first.Participant+`"},"lang":"ja","now":"2026-11-08T02:00:00.000Z"}`); !strings.Contains(out, `"ok":true`) {
@@ -637,8 +638,8 @@ func deadPid(t *testing.T) string {
 	return strconv.Itoa(cmd.ProcessState.Pid())
 }
 
-// セッションと同じだけ生きるプロセスを名乗った参加者の部屋に、同じ名前で join すると、そのプロセスが居なくなっていれば、その参加者は退室して（部屋は空室になり）join が通る。
-// 名乗っていない・範囲の印が違う・プロセスが居る参加者の部屋には、生きているあいだ workroom-in-use で断る。
+// セッションと同じだけ生きるプロセスを名乗った参加者のワークルームに、同じ名前で join すると、そのプロセスが居なくなっていれば、その参加者は退室して（ワークルームは空室になり）join が通る。
+// 名乗っていない・範囲の印が違う・プロセスが居る参加者のワークルームには、生きているあいだ workroom-in-use で断る。
 // 名乗るプロセスは AI のプログラム（Host と同じ pid）でも、MCP 自身（Host と別の pid）でもよく、常駐は名乗られた pid だけを見る
 func TestJoinFreesTheRoomOfAParticipantWhoseSessionEnded(t *testing.T) {
 	me := strconv.Itoa(os.Getpid())

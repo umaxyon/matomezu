@@ -196,13 +196,25 @@ const pagesOutsideTrash = (library: Library): Library["pages"] =>
 
 // 書庫が対象のアクションの結果で、変わったブック・無くなったブック・増えたブックと、ブックの外で変わったページ・ブックとの間を出入りしたページ（pageChecksBetween）の
 // どれかが守っていなければ、守らせたステップの id と、そのブックの id（増えたブックとページなら無い）
-// was と now は、行う前と後の書庫（置き場所が変わったブックは、値が変わらなくても確かめる。フォルダごとゴミ箱に出入りしたときの、中のブックも）
+// was と now は、行う前と後の書庫（置き場所が変わったブックは、値が変わらなくても確かめる。フォルダごとゴミ箱に出入りしたときの、中のブックも）。
+// by が "follow" なら、フォローステップが応じた変わり（バックヤードの中に行う事）で、followed を持つステップだけをかける
 export function brokenIn(
-  ctx: ActionContext,
+  given: ActionContext,
   action: ActionDef,
   was: Library,
   now: Library,
+  by: "action" | "follow" = "action",
 ): { permission: string; book?: string; page?: string } | null {
+  const ctx =
+    by === "action"
+      ? given
+      : {
+          ...given,
+          catalog: {
+            ...given.catalog,
+            permissions: new Map([...given.catalog.permissions].filter(([, p]) => p.followed)),
+          },
+        }
   const before = libraryOf(was)
   const after = libraryOf(now)
   const binned = binnedBetween(was, now)

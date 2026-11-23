@@ -61,7 +61,7 @@ func (h *Hub) allRows() (pages, folders []json.RawMessage) {
 // （h.mu を持って呼ぶか、起動の途中で呼ぶ）
 func (h *Hub) settleLibrary(quiet bool) (moved []MovedCount, returned int) {
 	pages, folders := h.allRows()
-	done, err := h.engine.SettleLibrary(pages, folders, h.settings, stamp())
+	done, err := h.engine.SettleLibrary(pages, folders, h.settings, stamp(), recordSource{h})
 	if err != nil {
 		h.holdSettleFailure("engine", err)
 		return nil, 0

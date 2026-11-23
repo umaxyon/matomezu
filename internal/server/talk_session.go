@@ -53,12 +53,17 @@ func joinedText(workroom string) string {
 const visitorJoinedText = "You joined matomezu as a visitor: you only read (books, pages, annotations and records). " +
 	"Every action is refused (not-allowed, reason visitor), and you cannot send messages to other AIs or show books on the user's screen."
 
-// joinedText は、受け入れ済みの参加者 s に参加を伝える英語の文（ワークルームの名前は rooms から引く）
-func (s participantRecord) joinedText(rooms []workroomRecord) string {
+// joinedTextHeld は、受け入れ済みの参加者 s に参加を伝える英語の文（ワークルームの名前は rooms から引く）。
+// ワークルームに入っていれば、その作業机（ワーカーブック）の文を続ける（エンジンが答えなければ続けない）。h.mu を持って呼ぶ
+func (h *Hub) joinedTextHeld(s participantRecord, rooms []workroomRecord) string {
 	if s.State == stateVisitor {
 		return visitorJoinedText
 	}
-	return joinedText(roomName(rooms, s.Workroom))
+	text := joinedText(roomName(rooms, s.Workroom))
+	if d, ok := h.myWorkdeskHeld(s.Workroom); ok && d.ForAI != "" {
+		text += "\n" + d.ForAI
+	}
+	return text
 }
 
 // joinedAllowText は、参加した AI に、ほかの AI のメッセージに答えてよいと伝える文
@@ -123,7 +128,7 @@ func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk
 				h.participantNotes[s.ID] = n
 				changed = true
 				toldIDs = append(toldIDs, s.ID)
-				w := Welcome{Participant: s.ID, ForAI: s.joinedText(rooms)}
+				w := Welcome{Participant: s.ID, ForAI: h.joinedTextHeld(s, rooms)}
 				if s.State == stateVisitor {
 					w.As = stateVisitor
 				} else {

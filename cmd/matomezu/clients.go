@@ -242,9 +242,9 @@ func (c opencodeMCPCmd) Run() error {
 // hookPrompt は、話しかけのフック: 待つアノテーションの文を添えて、ターンの始まりを常駐に知らせ、フックの答えを出す（host は AI のプログラムのプロセス id、分からなければ空。
 // titled は、答えに会話の題名 sessionTitle を書くか。woken は、フックが --woken を渡せない AI のプログラムが、裏の知らせで始まったターンを入力から見分ける物。渡せるなら nil）
 func hookPrompt(host string, titled bool, woken func(prompt string) bool) {
-	var notes bytes.Buffer
-	writeAnnotations(&notes)
 	hook := stdinHook()
+	var notes bytes.Buffer
+	writeAnnotations(&notes, hook.SessionID)
 	hook.Host = host
 	hook.Titled = titled
 	hook.Woken = hook.Woken || (woken != nil && woken(hook.Prompt))

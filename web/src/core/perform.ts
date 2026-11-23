@@ -5,7 +5,7 @@
 import type { z } from "zod"
 import { workroomOfActor } from "./actor"
 import { type Annotation, annotationsSettle, type PageAnnotations } from "./annotation"
-import { findPage, keepsPageTypes, keepsPageTypesAcross, outsideHolds, pageSettles, putPage } from "./book"
+import { findPage, keepsPageTypes, keepsTypesIn, outsideHolds, pageSettles, putPage } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { pageChangeOf } from "./changes"
 import type { CoreCatalog } from "./core-catalog"
@@ -293,8 +293,8 @@ function libraryRefusal(ctx: ActionContext, action: ActionDef, was: Library, nex
   if (!systemFoldersKept(ctx.catalog, was, next)) return refused
   const breach = backyardBreach(action, was, next)
   if (breach) return inBackyard(breach)
-  // 行う前から在るページのタイプも、変えない（ページがブックの間を動いても）
-  const typesKept = keepsPageTypesAcross(Object.values(before), Object.values(after))
+  // 行う前から在るページとバインダのタイプも、変えない（ブックの中と外の間を動いても）
+  const typesKept = keepsTypesIn(was, next)
   // 同じ入れ物の中の名前の重なりは、ブックの決まりで断る前に、名前が重なる断りにする
   const clashes = titleClashes(next, ctx.naming)
   if (clashes.length > 0) return titleTaken(next, clashes, ctx.naming)

@@ -241,10 +241,10 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 			return Joined{OK: true, Participant: s.ID}, h.settleNotes()
 		}
 	}
-	continuing := false // 頼まれた名前の部屋に、生きていない参加者がいる（利用者が画面で引き継ぐかを選ぶ。同じセッション名でも「参加済み」にしない）
-	roomID := ""        // 頼まれた名前の部屋の id（無ければ空）
-	occupant := ""      // 頼まれた名前の部屋にいる、生きていない参加者の id
-	// ビジターとしての頼み（As）は、ワークルームを持たないので部屋を見回らない（ワークルームと一緒に頼めば、要求のアクションが断る）
+	continuing := false // 頼まれた名前のワークルームに、生きていない参加者がいる（利用者が画面で引き継ぐかを選ぶ。同じセッション名でも「参加済み」にしない）
+	roomID := ""        // 頼まれた名前のワークルームの id（無ければ空）
+	occupant := ""      // 頼まれた名前のワークルームにいる、生きていない参加者の id
+	// ビジターとしての頼み（As）は、ワークルームを持たないので見回らない（ワークルームと一緒に頼めば、要求のアクションが断る）
 	if req.Workroom != "" && req.As == "" {
 		rooms, err := h.workrooms()
 		if err != nil {
@@ -259,7 +259,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 				if s.State != stateJoined || s.Workroom != room.ID {
 					continue
 				}
-				// 居座っている参加者が名乗った、セッションと同じだけ生きるプロセスが居なくなっていれば、そのセッションは終わっている。退室させて、部屋を空ける
+				// 居座っている参加者が名乗った、セッションと同じだけ生きるプロセスが居なくなっていれば、そのセッションは終わっている。退室させて、ワークルームを空ける
 				if h.sessionEnded(s.ID) {
 					if err := h.leaveEnded(s.ID); err != nil {
 						return Joined{}, err
@@ -285,7 +285,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 			return Joined{}, err
 		}
 	}
-	// 開発用: 前もって承認した合言葉で、その部屋の続きを頼んだら、画面を通さずに受け入れる（rejoin_pass.go）
+	// 開発用: 前もって承認した合言葉で、そのワークルームの続きを頼んだら、画面を通さずに受け入れる（rejoin_pass.go）
 	if done, ok, err := h.joinByPass(req, ids, roomID, occupant); ok || err != nil {
 		return done, err
 	}

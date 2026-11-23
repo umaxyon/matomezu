@@ -134,7 +134,7 @@ test("ワークルームの一覧は管理者が先頭で、選ぶと枠に情�
   await expect(panel.getByRole("button", { name: "管理者" })).toHaveAttribute("aria-pressed", "true")
 })
 
-test("退室は、部屋を出ると空室が一覧に残り、部屋を削除すると一覧から消える。キャンセルは何も変えない", async ({
+test("退室は、「部屋を出る」を押すと空室が一覧に残り、「部屋を削除する」を押すと一覧から消える。キャンセルは何も変えない", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -149,13 +149,13 @@ test("退室は、部屋を出ると空室が一覧に残り、部屋を削除�
   await dialog.getByRole("button", { name: "キャンセル" }).click()
   await expect(dialog).toHaveCount(0)
   await expect(row(page, "sub_a")).not.toContainText("（空室）")
-  // 部屋を出る: 空室になって一覧に残り、枠には空室と出る
+  // 「部屋を出る」を押す: 空室になって一覧に残り、枠には空室と出る
   await roomPanel(page).getByRole("button", { name: "退室" }).click()
   await page.getByRole("dialog", { name: "退室" }).getByRole("button", { name: "部屋を出る" }).click()
   await expect(row(page, "sub_a")).toContainText("（空室）")
   await expect(roomPanel(page).getByRole("button", { name: "退室" })).toHaveCount(0)
   await expect(roomPanel(page)).toContainText("sub_a（空室）")
-  // 空室の枠にも同じアイコンのボタンがあり、押すと削除の確認（キャンセルと部屋を削除するだけ）が出る。キャンセルは何も変えず、削除すると一覧から消える
+  // 空室の枠にも同じアイコンのボタンがあり、押すと削除の確認（キャンセルと「部屋を削除する」だけ）が出る。キャンセルは何も変えず、削除すると一覧から消える
   await roomPanel(page).getByRole("button", { name: "部屋を削除する" }).click()
   const removing = page.getByRole("dialog", { name: "部屋を削除する" })
   await expect(removing).toContainText("sub_aを削除します。")
@@ -169,7 +169,7 @@ test("退室は、部屋を出ると空室が一覧に残り、部屋を削除�
   await removing.getByRole("button", { name: "部屋を削除する" }).click()
   await expect(row(page, "sub_a")).toHaveCount(0)
   await expect(rows(page)).toHaveCount(1)
-  // 部屋を削除する: 一覧から消える
+  // 「部屋を削除する」を押す: 一覧から消える
   await row(page, "sub_b").getByRole("button").click()
   await roomPanel(page).getByRole("button", { name: "退室" }).click()
   await page.getByRole("dialog", { name: "退室" }).getByRole("button", { name: "部屋を削除する" }).click()
