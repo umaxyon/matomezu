@@ -137,17 +137,7 @@ func (h *Hub) SessionParticipant(session, host string) string {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	found := ""
-	for _, s := range records {
-		n := h.participantNotes[s.ID]
-		if n.SessionID != session || !s.accepted() || !n.ready() {
-			continue
-		}
-		if found != "" {
-			return ""
-		}
-		found = s.ID
-	}
+	found := h.sessionParticipantHeld(records, session)
 	if found == "" {
 		return ""
 	}
@@ -159,6 +149,21 @@ func (h *Hub) SessionParticipant(session, host string) string {
 			fmt.Fprintln(os.Stderr, "could not save the wake target of participant", found, ":", err)
 		}
 		h.signalWakes(found)
+	}
+	return found
+}
+
+// sessionParticipantHeld は、参加者 records のうち、会話のセッション session に結んだ、受け入れ済みで準備中でない参加者の id（無いか、2 人以上なら空。h.mu を持って呼ぶ）
+func (h *Hub) sessionParticipantHeld(records []participantRecord, session string) string {
+	found := ""
+	for _, s := range records {
+		if n := h.participantNotes[s.ID]; n.SessionID != session || !s.accepted() || !n.ready() {
+			continue
+		}
+		if found != "" {
+			return ""
+		}
+		found = s.ID
 	}
 	return found
 }

@@ -189,16 +189,21 @@ func (h *Hub) foldersAbove(id string) []string {
 // checkLibrary は、フォルダとページの行の全部が木の決まりを守るかを確かめ、warning の一覧を直す。変わった warning は常駐のログに書く
 // （確かめられなければ、ログに書いて一覧はそのまま。h.mu を持って呼ぶ）
 func (h *Hub) checkLibrary() {
-	rows := make([]json.RawMessage, 0, len(h.folders))
-	for _, id := range slices.Sorted(maps.Keys(h.folders)) {
-		rows = append(rows, h.folders[id].body)
-	}
-	line, err := h.engine.CheckLibrary(rows, slices.Sorted(maps.Keys(h.pages)))
+	line, err := h.engine.CheckLibrary(h.folderRowsHeld(), slices.Sorted(maps.Keys(h.pages)))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "engine: could not check the library:", err)
 		return
 	}
 	holdLine(&h.libraryWarning, line)
+}
+
+// folderRowsHeld は、フォルダの行の本文の全部（id の順。h.mu を持って呼ぶ）
+func (h *Hub) folderRowsHeld() []json.RawMessage {
+	rows := make([]json.RawMessage, 0, len(h.folders))
+	for _, id := range slices.Sorted(maps.Keys(h.folders)) {
+		rows = append(rows, h.folders[id].body)
+	}
+	return rows
 }
 
 // openIDs は、書庫ホーム・ゴミ箱・フォルダの id の全部（書庫ホームを先に、ゴミ箱を次に、ほかは id の順。h.mu を持って呼ぶ）

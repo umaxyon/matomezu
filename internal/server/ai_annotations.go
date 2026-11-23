@@ -408,7 +408,7 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, done)
 }
 
-// joinedOfSession は、会話のセッション session に結んだ、参加が確定した参加者の id（無いか、2 人以上なら空）。呼んだことにはしない
+// joinedOfSession は、会話のセッション session に結んだ、参加が確定した参加者の id（無いか、2 人以上なら空）。呼んだことにはしない（SessionParticipant と違い、起こす宛て先も残さない）
 func (h *Hub) joinedOfSession(session string) string {
 	if session == "" {
 		return ""
@@ -419,15 +419,5 @@ func (h *Hub) joinedOfSession(session string) string {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	found := ""
-	for _, s := range records {
-		if n := h.participantNotes[s.ID]; n.SessionID != session || !s.accepted() || !n.ready() {
-			continue
-		}
-		if found != "" {
-			return ""
-		}
-		found = s.ID
-	}
-	return found
+	return h.sessionParticipantHeld(records, session)
 }

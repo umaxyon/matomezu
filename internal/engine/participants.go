@@ -113,11 +113,10 @@ func (e *Engine) WorkTitle(settings json.RawMessage, workroom, name string, src 
 	return got.Title, got.Kind == "title", nil
 }
 
-// MyWorkdesk は、AI のワークルームの作業机（base の myWorkdeskIn）: ワークルームのフォルダの id（無ければ空）、ワーカーブックの id（まだ無ければ空）とそのページの数、参加の文に足す英語の文
+// MyWorkdesk は、AI のワークルームの作業机（base の myWorkdeskIn）: ワークルームのフォルダの id（無ければ空）、ワーカーブックの id（まだ無ければ空）、参加の文に足す英語の文
 type MyWorkdesk struct {
 	Workrooms string `json:"workrooms"`
 	Book      string `json:"book"`
-	Pages     int    `json:"pages"`
 	ForAI     string `json:"forAi"`
 }
 

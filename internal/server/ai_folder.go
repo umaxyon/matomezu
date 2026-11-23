@@ -13,12 +13,11 @@ package server
 //	                                              folder が "my-workdesk" なら、呼んだ AI のワークルームの作業机（kind "workdesk"。データに無い物。id は "my-workdesk"、title はワークルームの名前、
 //	                                              path は書庫ホーム・ワークルームのフォルダ・作業机、lineup はワーカーブック〈バックヤードの中のブック〉1 つか、まだ無ければ空）。
 //	                                              ワークルームのフォルダを読めば、lineup に呼んだ AI の作業机 {"kind": "workdesk", "id": "my-workdesk", "title"} を 1 つ出す。
-//	                                              ワークルームに入っていない AI（ビジターと参加していない者）の "my-workdesk" は {"refused": 断りの 1 行}
+//	                                              ビジターと、参加が確定していない AI の "my-workdesk" は {"refused": 断りの 1 行（理由 visitor か not-joined）}
 
 import (
 	"encoding/json"
 	"fmt"
-	"maps"
 	"net/http"
 	"os"
 	"slices"
@@ -33,8 +32,11 @@ const myWorkdeskFolder = "my-workdesk"
 // kindWorkdesk は、AI に見せる作業机の kind（データに無い物なので、フォルダと分ける）
 const kindWorkdesk = "workdesk"
 
-// notInWorkroomText は、ワークルームに入っていない AI が作業机を読んだときの断り
-const notInWorkroomText = `not-joined: "` + myWorkdeskFolder + `" is the workdesk of your workroom, so it is only for an AI that joined a workroom (a visitor has none).`
+// notJoinedWorkdeskText・visitorWorkdeskText は、参加が確定していない AI・ビジターが作業机を読んだときの断り（理由はアクションの断りと同じ not-joined・visitor）
+const (
+	notJoinedWorkdeskText = `not-joined: "` + myWorkdeskFolder + `" is the workdesk of your workroom; you have not joined a workroom yet.`
+	visitorWorkdeskText   = `visitor: "` + myWorkdeskFolder + `" is the workdesk of your workroom; a visitor has no workroom.`
+)
 
 // folderStep は、書庫ホームからフォルダまでの道筋の 1 つ（書庫ホームは名前を持たない）
 type folderStep struct {
@@ -95,19 +97,12 @@ func (h *Hub) folderTitle(body json.RawMessage) (title, systemFolder string) {
 	return row.Title, ""
 }
 
-// AIFolder は、AI の MCP 公開ツールに出すフォルダ id（空なら書庫ホーム。ブックの外のバインダの id も受ける）と、その直下のエントリ。participant は呼んだ参加者。
-// id が myWorkdeskFolder なら、その参加者の作業机（ワークルームに入っていなければ nil）。
+// AIFolder は、AI の MCP 公開ツールに出すフォルダ id（空なら書庫ホーム。ブックの外のバインダの id も受ける）と、その直下のエントリ。participant は呼んだ参加者（ワークルームのフォルダに、その作業机を出す）。
 // それでない id（ブック・ブックの中のバインダ・ページ・無い id）と、ゴミ箱と、ゴミ箱の中・読めない物のフォルダとバインダなら nil
 func (h *Hub) AIFolder(id, participant string) *AIFolder {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	room := h.actorOfParticipantHeld(participant).Workroom
-	if id == myWorkdeskFolder {
-		if room == "" {
-			return nil
-		}
-		return h.myWorkdeskFolderHeld(room)
-	}
 	if id == "" {
 		id = storage.HomeID
 	}
@@ -164,11 +159,22 @@ func (h *Hub) AIFolder(id, participant string) *AIFolder {
 	return out
 }
 
-// InWorkroom は、参加者 participant が、参加が確定してワークルームに入っているか
-func (h *Hub) InWorkroom(participant string) bool {
+// AIWorkdesk は、参加者 participant のワークルームの作業机（read_folder の myWorkdeskFolder）。
+// ビジターと、参加が確定していない AI には、作業机でなく断りの 1 行 refused。エンジンが答えなければ error
+func (h *Hub) AIWorkdesk(participant string) (out *AIFolder, refused string, err error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return h.actorOfParticipantHeld(participant).Workroom != ""
+	actor := h.actorOfParticipantHeld(participant)
+	switch {
+	case actor.As == stateVisitor:
+		return nil, visitorWorkdeskText, nil
+	case actor.Workroom == "":
+		return nil, notJoinedWorkdeskText, nil
+	}
+	if out = h.myWorkdeskFolderHeld(actor.Workroom); out == nil {
+		return nil, "", fmt.Errorf("could not read the workdesk of workroom %s", actor.Workroom)
+	}
+	return out, "", nil
 }
 
 // myWorkdeskFolderHeld は、ワークルーム room の作業机を AI に見せる形（エンジンが答えなければ nil。h.mu を持って呼ぶ）
@@ -212,11 +218,7 @@ func (h *Hub) myWorkdeskHeld(room string) (engine.MyWorkdesk, bool) {
 	if room == "" {
 		return engine.MyWorkdesk{}, false
 	}
-	folders := make([]json.RawMessage, 0, len(h.folders))
-	for _, id := range slices.Sorted(maps.Keys(h.folders)) {
-		folders = append(folders, h.folders[id].body)
-	}
-	d, err := h.engine.MyWorkdesk(room, folders, recordSource{h})
+	d, err := h.engine.MyWorkdesk(room, h.folderRowsHeld(), recordSource{h})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "could not read the workdesk of workroom", room, ":", err)
 		return engine.MyWorkdesk{}, false
@@ -242,11 +244,21 @@ func (h *Hub) FolderOfPage(page string) string {
 
 func (o Options) aiFolder(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("folder")
-	if id == myWorkdeskFolder && !o.Hub.InWorkroom(participantOf(r)) {
-		writeJSON(w, map[string]string{"refused": notInWorkroomText})
-		return
+	var f *AIFolder
+	if id == myWorkdeskFolder {
+		desk, refused, err := o.Hub.AIWorkdesk(participantOf(r))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if refused != "" {
+			writeJSON(w, map[string]string{"refused": refused})
+			return
+		}
+		f = desk
+	} else {
+		f = o.Hub.AIFolder(id, participantOf(r))
 	}
-	f := o.Hub.AIFolder(id, participantOf(r))
 	if f == nil {
 		http.Error(w, "no such folder", http.StatusNotFound)
 		return

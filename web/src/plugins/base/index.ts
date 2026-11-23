@@ -346,7 +346,6 @@ export {
   adminWorkroom,
   isAdminActor,
   JOINED_MESSAGE,
-  type MyWorkdesk,
   myWorkdeskIn,
   participantCategory,
   READS_ADMIN,

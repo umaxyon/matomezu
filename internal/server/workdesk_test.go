@@ -9,7 +9,7 @@ import (
 )
 
 // AI の作業机の読み: ワーカーブックがまだ無ければ空、ページを足すとそのブック（応えを待つ付箋の数も）。ワークルームのフォルダはその作業机を出す。
-// 参加していない AI は断る（エラーにしない）。待つ物の一覧は、話しかけた会話のセッションの AI のワーカーブックの付箋も出す
+// 参加していない AI は断る（エラーにしない。ビジターの断りは visitor_test.go）。待つ物の一覧は、話しかけた会話のセッションの AI のワーカーブックの付箋も出す
 func TestTheAIReadsItsWorkdesk(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
@@ -45,6 +45,13 @@ func TestTheAIReadsItsWorkdesk(t *testing.T) {
 	}
 	if other := read(empty.Path[1].ID, nil); len(other.Lineup) != 0 {
 		t.Fatalf("workrooms folder for an AI that has not joined = %+v", other)
+	}
+	// 常駐の myWorkdeskFolder と base の MY_WORKDESK（エンジンが作る文が指す名前）が同じ
+	hub.mu.Lock()
+	engineDesk, _ := hub.myWorkdeskHeld(hub.actorOfParticipantHeld(a).Workroom)
+	hub.mu.Unlock()
+	if !strings.Contains(engineDesk.ForAI, `"`+myWorkdeskFolder+`"`) {
+		t.Fatalf("the workdesk's sentence %q does not name %s", engineDesk.ForAI, myWorkdeskFolder)
 	}
 	if refused := read(myWorkdeskFolder, nil); !strings.HasPrefix(refused.Refused, "not-joined:") {
 		t.Fatalf("workdesk for an AI that has not joined = %+v", refused)

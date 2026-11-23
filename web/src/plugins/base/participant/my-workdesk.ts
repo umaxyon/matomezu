@@ -44,6 +44,6 @@ export function myWorkdeskIn(catalog: CoreCatalog, source: RecordSource, folders
     workrooms,
     book,
     pages,
-    forAi: `${where} It changes when your current work changes, so write down the ids of pages, not of the book. read_folder with folder "${MY_WORKDESK}" shows it.`,
+    forAi: `${where} It changes when your current work changes, so do not keep the book's id: write down the ids of pages. read_folder with folder "${MY_WORKDESK}" shows it.`,
   }
 }
