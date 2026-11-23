@@ -9,6 +9,7 @@ import { LIST_PLUGIN } from "./items/list"
 import { SCRAP_BOX_PLUGIN } from "./items/scrap"
 import { SHAPE_PLUGIN } from "./items/shape"
 import { SLIDE_PLUGIN } from "./items/slide"
+import { NETWORK_PLUGIN } from "./network"
 import { DIR_PLUGIN } from "./page-types/dir"
 import { DRAWING_PLUGIN } from "./page-types/drawing"
 import { FLOWCHART_PLUGIN } from "./page-types/flowchart"
@@ -37,6 +38,7 @@ export const BUILTIN = [
   MARKDOWN_PLUGIN,
   SLIDE_PAGE_PLUGIN,
   TASKBOARD_PLUGIN,
+  NETWORK_PLUGIN,
 ] as const
 
 // ビルトインのインスタンスの、コントロールセンター（画面とエンジンが同じものを使う）

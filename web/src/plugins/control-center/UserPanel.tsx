@@ -11,6 +11,7 @@ import {
   useMailboxPanel,
   useOpenSettings,
   useUpdateStatus,
+  useUserName,
   useWideSearchPanel,
 } from "../base/ui"
 import type { ContentArea } from "./control-center"
@@ -27,6 +28,7 @@ type Tile = { label: string; icon: ReactNode; onClick: () => void; pressed: bool
 
 export function UserPanel({ screen, onShow }: { screen: ContentArea; onShow: (to: ContentArea) => void }) {
   const t = useMessages(kit)
+  const userName = useUserName()
   const mailbox = useMailboxPanel()
   const wideSearch = useWideSearchPanel()
   const settings = useCommand("@matomezu/base:settings-open")
@@ -67,7 +69,7 @@ export function UserPanel({ screen, onShow }: { screen: ContentArea; onShow: (to
       </Band>
       <div className={styles.me}>
         <AvatarIcon />
-        <span className={styles.meName}>{t("You")}</span>
+        <span className={styles.meName}>{userName ?? t("You")}</span>
       </div>
       <div className={styles.tiles}>
         {tiles.map(tile => (

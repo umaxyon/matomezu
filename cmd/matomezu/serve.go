@@ -137,6 +137,10 @@ func (c *serveCmd) Run() error {
 			fmt.Fprintf(os.Stderr, "plugin %s is not added: %v\n", dir, err)
 		}
 	}
+	if err := setHost(hub, h); err != nil {
+		return err
+	}
+	defer hub.CloseHostEntrance()
 	port, err := listenPort(h, c.Port)
 	if err != nil {
 		return err

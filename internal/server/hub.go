@@ -24,6 +24,7 @@ package server
 //	participant-live {"participant", "model", "branch"} 参加者のモデルかブランチが変わった（そのときの両方。空は省く。join.go・model.go）
 //	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
 //	update-status {"state", "version", "latest"?, "checkedAt"?, "askedAt"?} 新しい版の確かめの結果が変わった（update.go）
+//	host-status {"hostId", "name", "osHostName", "open", "port"?, "addrs"?, "wsl"?, "failed"?} ホストどうしの入口の様子が変わった（hosts.go）
 //	keep      {} keepAlive ごとに送る。窓は、これも含めて知らせが QUIET_MS（host-client/server.ts）届かなければ、黙って切れたとみてつなぎ直す
 
 import (
@@ -84,11 +85,12 @@ func (h *Hub) BookOn(on *engine.On) string {
 // Hub は世界と窓をまとめる
 type Hub struct {
 	mu               sync.Mutex
-	updateMu         sync.Mutex             // 新しい版の確かめ（update・latest）の鍵。聞いている間は持たない
-	update           UpdateStatus           // 新しい版の確かめの結果（update.go）
-	latest           LatestFunc             // 新しい版を聞く口（無ければ確かめない）
-	build            *Build                 // 常駐の版とデータの形（hello で窓に知らせる。SetBuild）
-	command          atomic.Pointer[string] // 利用者が端末で打つ matomezu の名前（command.go）
+	updateMu         sync.Mutex                   // 新しい版の確かめ（update・latest）の鍵。聞いている間は持たない
+	update           UpdateStatus                 // 新しい版の確かめの結果（update.go）
+	latest           LatestFunc                   // 新しい版を聞く口（無ければ確かめない）
+	entrance         atomic.Pointer[hostEntrance] // ホストどうしの入口（hosts.go。SetHostEntrance の前は nil）
+	build            *Build                       // 常駐の版とデータの形（hello で窓に知らせる。SetBuild）
+	command          atomic.Pointer[string]       // 利用者が端末で打つ matomezu の名前（command.go）
 	store            storage.Storage
 	engine           *engine.Engine
 	pages            map[string]row       // ページの id → 本文と版（tables.go）

@@ -1135,6 +1135,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     setStaleBuild: staleBuild => setState({ staleBuild }),
     setUpdateStatus: updateStatus => setState({ updateStatus }),
+    setHostStatus: hostStatus => setState({ hostStatus }),
     checkUpdate: async () => {
       if (!options.updateHost) fail("E409")
       await options.updateHost.check()

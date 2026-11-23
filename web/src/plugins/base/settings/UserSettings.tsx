@@ -10,6 +10,7 @@ import { splitId } from "../../../core/names"
 import { userSetting } from "../../../core/settings"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
+import type { UserSettingControlProps } from "../../../ui/plugin"
 import { useCatalog, useLayout, useUiCatalog } from "../../../ui/store-context"
 import { useAllowed, useSettings } from "../../../ui/view-hooks"
 import { Switch } from "../dialog-host/FormParts"
@@ -148,16 +149,38 @@ function EnumSelect({
   )
 }
 
+// 文字の項目のビュー: 行に、空のときに placeholder（値が無いときに効く物）を薄く出すテキストForm（空にすると値を消す）
+export function TextSettingControl({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: UserSettingControlProps<string> & { placeholder?: string }) {
+  return (
+    <SettingRow label={label}>
+      <TextInput
+        type="text"
+        label={label}
+        value={value}
+        placeholder={placeholder}
+        onCommit={text => onChange(text.trim() === "" ? undefined : text.trim())}
+      />
+    </SettingRow>
+  )
+}
+
 // 文字と数のテキストForm: 打っている間は書き留め、離れるか Enter で変える（断られれば今の値に戻る）。空にすると既定に戻す
 function TextInput({
   type,
   label,
   value,
+  placeholder,
   onCommit,
 }: {
   type: "text" | "number"
   label: string
   value: unknown
+  placeholder?: string | undefined
   onCommit: (text: string) => void
 }) {
   const [draft, setDraft] = useState<string | null>(null)
@@ -170,6 +193,7 @@ function TextInput({
       className={styles.control}
       type={type}
       aria-label={label}
+      placeholder={placeholder}
       value={draft ?? (value === undefined ? "" : String(value))}
       onChange={e => setDraft(e.target.value)}
       onBlur={commit}

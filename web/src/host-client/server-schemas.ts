@@ -61,6 +61,16 @@ export const UpdateStatusSchema = z.object({
   checkedAt: z.string().optional(),
   askedAt: z.string().optional(),
 })
+export const HostStatusSchema = z.object({
+  hostId: z.string(),
+  name: z.string(),
+  osHostName: z.string(),
+  open: z.boolean(),
+  port: z.number().int().optional(),
+  addrs: z.array(z.string()).optional(),
+  wsl: z.boolean().optional(),
+  failed: z.enum(["port-in-use", "listen"]).optional(),
+})
 export const DataSchema = z.object({
   pages: z.array(z.object({ id: z.string(), page: z.unknown(), version: z.number().int() })),
   folders: z.array(z.object({ id: z.string(), folder: z.unknown(), version: z.number().int() })),
@@ -75,6 +85,7 @@ export const DataSchema = z.object({
   participantCalls: z.record(z.string(), z.string()).optional(),
   participantReady: z.array(z.string()).optional(),
   update: UpdateStatusSchema.optional(),
+  host: HostStatusSchema.optional(),
   participantLive: z
     .record(z.string(), z.object({ model: z.string().optional(), branch: z.string().optional() }))
     .optional(),
