@@ -15,6 +15,12 @@ export const NETWORK_MESSAGES = defineMessages({
     en: "Port {port} is used by another program",
     ja: "ポート {port} がほかのプログラムに使われていて開けません",
   },
+  "Use another port": { en: "Use another port", ja: "別のポートにする" },
+  "With another port, firewall rules for port {port} and addresses typed in on other hosts stop working": {
+    en: "With another port, firewall rules for port {port} and addresses typed in on other hosts stop working",
+    ja: "別のポートにすると、ポート {port} に足したファイアウォールの規則と、ほかのホストで手で入れた待っている所が効かなくなります",
+  },
+  Cancel: { en: "Cancel", ja: "キャンセル" },
   Copy: { en: "Copy", ja: "コピー" },
   Copied: { en: "Copied", ja: "コピーしました" },
   "Could not copy": { en: "Could not copy", ja: "コピーできませんでした" },

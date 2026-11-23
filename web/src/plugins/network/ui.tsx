@@ -2,8 +2,10 @@
 import { definePluginUi } from "../../plugin-api/ui"
 import { defineSettingsCategory } from "../base/ui"
 import { NETWORK_PLUGIN } from "."
+import { PORT_REPICK_DIALOG } from "./dialogs"
 import { kit } from "./kit"
 import { HostNameSetting, NetworkCategory } from "./NetworkCategory"
+import { PortRepickDialog } from "./PortRepickDialog"
 import { CONNECT_HOSTS, HOST_NAME } from "./settings"
 
 export const NETWORK_CATEGORY = defineSettingsCategory({
@@ -16,6 +18,7 @@ export const NETWORK_CATEGORY = defineSettingsCategory({
 export const NETWORK_UI = definePluginUi(NETWORK_PLUGIN, {
   userSettingViews: { [HOST_NAME.id]: { control: HostNameSetting } },
   widgets: [NETWORK_CATEGORY],
+  dialogViews: { [PORT_REPICK_DIALOG.id]: PortRepickDialog },
 })
 
 declare module "../../core/catalog" {
