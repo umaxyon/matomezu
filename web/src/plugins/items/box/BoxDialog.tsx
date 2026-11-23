@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
+import { NO_ITEM } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -71,8 +72,8 @@ export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; ite
   // 編集するのは箱か内包ボックス（項目は同じ）
   const box = useItem(args.page, args.item, BOX.id)
   const nestBox = useItem(args.page, args.item, NEST_BOX.id)
-  const start = (box ?? nestBox)?.props
-  const hasChildren = (nestBox?.shapes?.length ?? 0) > 0
+  const start = box !== NO_ITEM ? box.props : nestBox !== NO_ITEM ? nestBox.props : undefined
+  const hasChildren = nestBox !== NO_ITEM && (nestBox.shapes?.length ?? 0) > 0
   const { previewDialog } = useActions()
   const perform = usePerform()
   const preview = useCallback(

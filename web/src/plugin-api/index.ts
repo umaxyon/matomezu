@@ -15,6 +15,7 @@ export {
   lineupOf,
   moveEntry,
   NO_BINDER,
+  NO_ITEM,
   pagesIn,
   pagesOf,
   putBinder,

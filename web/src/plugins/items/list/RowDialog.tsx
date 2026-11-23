@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useId, useState } from "react"
 import type { MessageKey } from "../../../plugin-api"
+import { NO_ITEM } from "../../../plugin-api"
 import { type DialogProps, useActions, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import {
   ActionButton,
@@ -45,7 +46,8 @@ export function AddRowDialog({ args, onClose }: DialogProps<{ page: string; list
 
 export function EditRowDialog({ args, onClose }: DialogProps<{ page: string; list: string; row: string }>) {
   const outermost = useOutermostOf()
-  const rows = useItem(args.page, args.list, LIST.id)?.children
+  const list = useItem(args.page, args.list, LIST.id)
+  const rows = list === NO_ITEM ? undefined : list.children
   const start = rows?.find(r => r.id === args.row)?.props
   const perform = usePerform()
   const { previewDialog } = useActions()

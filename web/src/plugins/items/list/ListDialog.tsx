@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
+import { NO_ITEM } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -87,7 +88,8 @@ export function EditListDialog({ args, onClose }: DialogProps<{ page: string; it
   const catalog = useCoreCatalog()
   const outermost = useOutermostOf()
   const pageTheme = usePageTheme()
-  const found = useItem(args.page, args.item, LIST.id)
+  const item = useItem(args.page, args.item, LIST.id)
+  const found = item === NO_ITEM ? undefined : item
   const { previewDialog } = useActions()
   const perform = usePerform()
   // 行の高さの下書き（rowLines）は、行の行数を書き換えた行の並びとして見せる（項目の下書きを当てたリストで数える）

@@ -2,6 +2,7 @@
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
+import { NO_ITEM } from "../../web/src/core/book"
 import { NO_PAGE } from "../../web/src/core/stage"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
@@ -87,7 +88,8 @@ test("useItem も、引けるのは開いている物の中のページのアイ
   })
   const got: (string | null)[] = []
   function Probe({ page, id }: { page: string; id: string }) {
-    got.push(useItem(page, id)?.id ?? null)
+    const item = useItem(page, id)
+    got.push(item === NO_ITEM ? null : item.id)
     const found = usePageById(page)
     got.push(found === NO_PAGE ? null : found.id)
     return null

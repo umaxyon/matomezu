@@ -5,7 +5,7 @@
 // 追加は決めた項目の値を、開いた側が渡した置き方（ShapeAddArgs の place）に渡す（置く・選ぶ・断りの文は開いた側が持つ）。編集は形の項目を書き換える（アクション item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { type ItemProps, type MessageKey, NO_PAGE, type ShapeAddArgs } from "../../../plugin-api"
+import { type ItemProps, type MessageKey, NO_ITEM, NO_PAGE, type ShapeAddArgs } from "../../../plugin-api"
 import {
   type DialogProps,
   useActions,
@@ -73,8 +73,9 @@ export function EditShapeDialog({ args, onClose }: DialogProps<{ page: string; i
   const pageTheme = usePageTheme()
   const placed = useItem(args.page, args.item)
   // 回せる形は、向きの切り替えを出す（向きを書いていないデータは縦向き）
-  const props = placed?.props as ShapeProps | undefined
-  const start = props && placed && TURNABLE.includes(placed.item) ? { ...props, turned: props.turned ?? false } : props
+  const props = placed === NO_ITEM ? undefined : (placed.props as ShapeProps)
+  const start =
+    props && placed !== NO_ITEM && TURNABLE.includes(placed.item) ? { ...props, turned: props.turned ?? false } : props
   const { previewDialog } = useActions()
   const perform = usePerform()
   const preview = useCallback(

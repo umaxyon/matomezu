@@ -4,7 +4,7 @@
 
 import { useCallback, useLayoutEffect, useMemo } from "react"
 import { USER } from "../core/actor"
-import { withSettings } from "../core/book"
+import { NO_ITEM, withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, isInStageEntry, isOnPage, type PageTarget, type Where } from "../core/def/action"
@@ -87,15 +87,15 @@ export function usePageById(id: string): ItemPage | typeof NO_PAGE {
   })
 }
 
-// 描くページのステージが開いている物の中の、ページ page のアイテム item（どの深さの子の形も。無いか、id が Id のアイテムでなければ undefined）
-export function useItem<Id extends ItemId>(page: string, item: string, id?: Id): PlacedOf<Id> | undefined {
+// 描くページのステージが開いている物の中の、ページ page のアイテム item（どの深さの子の形も。無いか、id が Id のアイテムでなければ NO_ITEM）
+export function useItem<Id extends ItemId>(page: string, item: string, id?: Id): PlacedOf<Id> | typeof NO_ITEM {
   const scope = useScope()
   return useMatomezuState(s => {
     const opened = openedOf(s, scope)
     const p = opened ? openedPageById(s, opened, page) : null
     // ページのアイテムか、どの深さの子の形も
     const found = p && (p.items?.find(i => i.id === item) ?? findShape(p, item)?.shape)
-    return found && (id === undefined || found.item === id) ? (found as unknown as PlacedOf<Id>) : undefined
+    return found && (id === undefined || found.item === id) ? (found as unknown as PlacedOf<Id>) : NO_ITEM
   })
 }
 

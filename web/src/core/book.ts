@@ -430,6 +430,8 @@ export const NO_BINDER = "none"
 
 // ページが無いときの値（開いているページが無い・ページを開いていない・id のページが無い）
 export const NO_PAGE = "none"
+// アイテムが無いときの値（ページに id のアイテムが無い）
+export const NO_ITEM = "none"
 
 // id のページと、それが入っているバインダ（並びに直に入っているページは binder が NO_BINDER。無ければ NO_PAGE）
 export function findPage(
