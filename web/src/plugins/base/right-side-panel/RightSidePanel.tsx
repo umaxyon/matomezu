@@ -4,7 +4,7 @@
 // 外を左ボタンで押したら閉じる（ステージの道具がずらす道具のときと、ダイアログ・メニュー・トースト・ツールバー・左サイドパネルを押したときは閉じない。右ボタンはメニューと道具のアイコンを出すので閉じない）。
 // 開いたステージで開いているブックかページが替わったとき、分けたり分けるのをやめたりしたときも閉じる。
 // 選択に従う中身（ウィジェットの定義の rightSidePanel.followsSelection）を出している間は、開いたステージの中を押しても閉じず、付いた先をステージの選択に合わせる
-// （ポインタを押している間は、離してから。state.ts の followSelection）。開いたステージの中を押して離したあとに付いた先が空なら閉じる（AI が物を消すなど、押さずに空になったときは閉じない）
+// （ポインタを押している間は、離してから。state.ts の followSelection）。付いた先が空になっても閉じない
 import { type ReactNode, useContext, useEffect, useRef, useState } from "react"
 import { screenOf, stageIn, workspaceOf } from "../../../core/window"
 import { stageView, toolOf } from "../../../core/workspace"

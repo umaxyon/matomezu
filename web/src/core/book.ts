@@ -710,16 +710,29 @@ function sharesPaper(binder: Pick<BinderEntry, "lineup">): boolean {
 }
 
 // ブックを変えた前と後で、同じ id のページのタイプと、同じ id のバインダが入れるタイプが同じか（どちらも、作ったあと変えない）
-export const keepsPageTypes = (before: Book, after: Book): boolean => keepsPageTypesAcross([before], [after])
-
-// ブックの並びを変えた前と後で、同じ id のページのタイプと、同じ id のバインダが入れるタイプが同じか（ページやバインダが、ブックの間を動いていても）
-export function keepsPageTypesAcross(before: readonly Book[], after: readonly Book[]): boolean {
+export function keepsPageTypes(before: Book, after: Book): boolean {
   const typed = (book: Book) => [
     ...pagesOf(book).map(p => [p.id, p.type] as const),
     ...bindersOf(book).map(f => [f.id, f.pageType] as const),
   ]
-  const was = new Map(before.flatMap(typed))
-  return after.flatMap(typed).every(([id, type]) => !was.has(id) || was.get(id) === type)
+  const was = new Map(typed(before))
+  return typed(after).every(([id, type]) => !was.has(id) || was.get(id) === type)
+}
+
+// 書庫を was から next に変えた前と後で、同じ id のページのタイプと、同じ id のバインダが入れるタイプが同じか
+// （ブックの中・外・ゴミ箱のどこに在っても、その間を動いても）
+export function keepsTypesIn(was: Library, next: Library): boolean {
+  const pagesKept = Object.entries(next.pages).every(([id, page]) => {
+    const before = was.pages[id]
+    return before === undefined || before.type === page.type
+  })
+  return (
+    pagesKept &&
+    Object.values(next.folders).every(f => {
+      const before = was.folders[f.id]
+      return f.folderRole !== "binder" || before?.folderRole !== "binder" || before.pageType === f.pageType
+    })
+  )
 }
 
 // ページの id から、そのページと、今それを持っているブック（ページの id はブックをまたいでも重ならない。同じ id のページが 2 冊にあれば、どちらとも決めずに無いとする）

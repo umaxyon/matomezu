@@ -21,6 +21,7 @@ func (h *Hub) noteJoinHost(id string, req JoinRequest) {
 	if req.Host != "" || req.HostSession != "" {
 		n.WakeHost = req.Host
 		n.WakeSession = req.HostSession
+		logWake("participant %s is reached at host %q, session %q (join)", id, req.Host, req.HostSession)
 	}
 	if req.SessionPid != "" {
 		n.SessionPid, n.SessionPidSpace = req.SessionPid, req.SessionPidSpace
@@ -144,6 +145,7 @@ func (h *Hub) SessionParticipant(session, host string) string {
 	n := h.participantNotes[found]
 	if n.WakeHost != host || n.WakeSession != session {
 		n.WakeHost, n.WakeSession = host, session
+		logWake("participant %s is reached at host %q, session %q (hook)", found, host, session)
 		h.participantNotes[found] = n
 		if err := h.putParticipantNotes(); err != nil {
 			fmt.Fprintln(os.Stderr, "could not save the wake target of participant", found, ":", err)

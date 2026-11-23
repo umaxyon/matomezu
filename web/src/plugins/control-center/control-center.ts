@@ -34,6 +34,7 @@ export const CONTROL_CENTER_SCREEN = kit.defineScreen({
     "The control center: the user's one entry that is not a book (the user panel, the workrooms and participants, the projects and the library).",
   props: z.strictObject({}),
   atStart: true,
+  wideSearchToggle: true,
   // 書庫の画面を出している間だけ、base の書庫（LibraryView）を見せている（プロジェクトの画面の間は、描いたまま隠している）
   libraryAppearances: ["@matomezu/base:library"],
   shownLibraryAppearances: read => (contentAreaOf(read(CONTENT_AREA)) === "library" ? ["@matomezu/base:library"] : []),
@@ -60,7 +61,7 @@ export const PICKED_VISITOR = kit.definePluginStateOf<string>()({ id: "picked-vi
 // 書庫の画面を最大化しているか（スクリーン 1 枚ごとの状態。読み直すと消える）
 export const LIBRARY_MAXIMIZED = kit.definePluginStateOf<boolean>()({ id: "library-maximized", scope: "screen" })
 
-// 退室の確認のダイアログ（部屋を出る・部屋を削除する）。退室するワークルームの id を受け取る
+// 退室の確認のダイアログ（「部屋を出る」・「部屋を削除する」）。退室するワークルームの id を受け取る
 export const WORKROOM_LEAVE_DIALOG = kit.defineDialogWith<{ workroom: string }>()({ id: "workroom-leave" })
 
 // ビジターを外す確認のダイアログ。外すビジターの参加者の id を受け取る
