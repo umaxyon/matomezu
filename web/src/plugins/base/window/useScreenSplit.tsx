@@ -132,12 +132,14 @@ export function useScreenSplit(): ScreenSplit {
       if (added !== SCREEN_REFUSED && tallNow()) apply(planOpen(split, here.id, added, how, max))
     },
     showBook: (book, page, how, max) => {
+      // 出したブックスクリーンがカレントになると、並びに入る前は「分けて見せていない」と読めるので、並びは出す前の物を使う
+      const before = splitIn(read().window)
       const stage = actions.showBookStage(book, page)
       if (stage === NO_STAGE) return false
-      // 出すときに上限を超えたブックスクリーンが閉じることがあるので、並びは出したあとの窓から読み直す
+      // 出すときに上限を超えたブックスクリーンが閉じることがあるので、出したあとの窓に残っている物だけにする
       const win = read().window
       const added = screenOfStage(win, stage)?.id
-      const now = splitIn(win)
+      const now = before.filter(id => win.screens.some(s => s.id === id))
       if (added === undefined || !tallNow()) return true
       if (now.includes(added)) {
         flash(was => ({ screen: added, n: (was?.n ?? 0) + 1 }))

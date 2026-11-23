@@ -67,7 +67,8 @@ import {
   BACKGROUND_PRINT_CONTROL,
   BOOK_CONTENT,
   BOOK_VIEW,
-  CLOSE_BUTTON,
+  FOOTER_CLOSE_BUTTON,
+  FOOTER_WIDEN_BUTTON,
   PAPER_LAYER,
   PRINT_AREA_LAYER,
   PRINT_AREA_TOGGLE,
@@ -342,7 +343,8 @@ export const BASE_UI = definePluginUi(BASE, {
     STAGE_MENU_BUTTONS,
     PAGE_TABS,
     PAGE_LIST,
-    CLOSE_BUTTON,
+    FOOTER_CLOSE_BUTTON,
+    FOOTER_WIDEN_BUTTON,
     GENERAL_CATEGORY,
     KEYS_CATEGORY,
     PLUGINS_CATEGORY,
@@ -471,7 +473,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:stage-menu-buttons": typeof STAGE_MENU_BUTTONS
     "@matomezu/base:page-tabs": typeof PAGE_TABS
     "@matomezu/base:page-list": typeof PAGE_LIST
-    "@matomezu/base:close-button": typeof CLOSE_BUTTON
+    "@matomezu/base:footer-close-button": typeof FOOTER_CLOSE_BUTTON
+    "@matomezu/base:footer-widen-button": typeof FOOTER_WIDEN_BUTTON
     "@matomezu/base:settings-general": typeof GENERAL_CATEGORY
     "@matomezu/base:settings-keys": typeof KEYS_CATEGORY
     "@matomezu/base:settings-plugins": typeof PLUGINS_CATEGORY

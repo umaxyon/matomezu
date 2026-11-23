@@ -42,6 +42,27 @@
     transition: none;
   }
 }
+/* ブックスクリーンを閉じた直後は、滑らせずに出す（閉じた物の写しが、上から右へ出ていく） */
+.center[data-instant="true"] {
+  transition: none;
+}
+/* 閉じたブックスクリーンの写し: 閉じたときの位置から右へ滑り出る */
+.bookScreen[data-leaving] {
+  z-index: 1;
+  pointer-events: none;
+  animation-name: book-leave;
+  animation-duration: var(--screen-slide);
+  animation-timing-function: ease;
+  animation-fill-mode: forwards;
+}
+@keyframes book-leave {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
 /* いちばん最近カレントスクリーンにした物でないブックスクリーンは、描いたまま出さない */
 .bookScreen[data-shown="false"] {
   display: none;
@@ -91,11 +112,21 @@
   top: var(--row-top);
   height: var(--row-height);
 }
-/* 上下に分けた並びに入ったブックスクリーン: 下の行の上の残りを、並びの枚数で等分した位置と高さに置く（ステージを並べないスクリーンの行と同じ動き） */
+/* 上下に分けた並びに入ったブックスクリーン: 下の行の上の残りを、並びの枚数で等分した位置と高さに置く（ステージを並べないスクリーンの行と同じ動き）。
+   並びに新しく入る物は、右から滑り込む（分け始めは、上の物が縮み終えてから） */
 .bookScreen {
+  transform: translateX(0);
   transition:
+    transform var(--screen-slide) ease,
     top var(--screen-slide) ease,
     height var(--screen-slide) ease;
+}
+.bookScreen[data-in="false"] {
+  transform: translateX(100%);
+  transition: none;
+}
+.bookScreen[data-late="true"] {
+  transition-delay: var(--screen-slide);
 }
 @media (prefers-reduced-motion: reduce) {
   .bookScreen {
