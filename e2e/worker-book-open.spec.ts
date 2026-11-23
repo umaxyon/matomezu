@@ -1,0 +1,114 @@
+// ワーカーブックを開く口（M-0177）: 参加者一覧の行の、本を頭に付けたチケット番号の行と、チケットのナレッジの作業履歴。
+// ページが無い間は押せない。番号の行はクリックで「開く／分割で開く」を出し、分割で開くとコントロールセンターの下にブックスクリーンが入る。
+// 作業履歴はクリックで右にページの一覧を出し、ダブルクリックで全画面で開く（書庫のワーカーブックの行は workdesk.spec.ts）
+import { aiAuth, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
+import { aiPerform } from "./helpers/ai"
+
+const NOW = "2026-11-23T00:00:00.000Z"
+
+async function perform(page: Page, action: string, args: object, on?: object) {
+  const res = await page.request.post("/api/perform", {
+    data: { actions: [{ action, args, ...(on ? { on } : {}), lang: "ja", now: NOW }] },
+  })
+  return (await res.json()) as { ok: boolean; result?: Record<string, string> }
+}
+
+// AI を 1 人参加させ、ワークルーム name に受け入れる（セッション id を運ぶ AI なので、受け入れた直後から準備中でない）。AI の入口に付けるヘッダを返す
+async function member(page: Page, name: string) {
+  const joined = (await (
+    await page.request.post("/api/ai/join", {
+      headers: aiAuth(),
+      data: {
+        ai: "claude",
+        model: "opus-5",
+        env: "wsl-linux",
+        sessionName: name,
+        link: `link-${name}`,
+        sessionId: `s-${name}`,
+      },
+    })
+  ).json()) as { participant: string }
+  const made = await perform(page, "@matomezu/base:workroom-add", { name, bird: "buncho" })
+  await perform(
+    page,
+    "@matomezu/base:participant-accept",
+    { workroom: made.result?.workroom ?? "" },
+    { record: joined.participant },
+  )
+  return { ...aiAuth(), "X-Matomezu-Participant": joined.participant }
+}
+
+// 画面の動き（スクリーンや枠が入ってくるなど）が止まるのを待つ（見た目を撮る前）
+const settled = (page: Page) =>
+  expect.poll(() => page.evaluate(() => document.getAnimations().filter(a => a.playState === "running").length)).toBe(0)
+
+// チケット ticket のチケットスクリーンを開いた場所の URL（後ろにコントロールセンター）
+const ticketUrl = (ticket: string) =>
+  `/?sc=${encodeURIComponent(
+    JSON.stringify({
+      s: [
+        { i: "c1", d: "@matomezu/control-center:screen" },
+        { i: "c3", d: "@matomezu/taskboard:ticket-screen", p: { ticket } },
+      ],
+      o: ["c1", "c3"],
+    }),
+  )}`
+
+test("チケットのワーカーブックは、ページが足されると参加者一覧の番号の行と作業履歴から開ける", async ({ page }) => {
+  await page.goto(CONTROL_CENTER_URL)
+  const made = await perform(page, "@matomezu/taskboard:project-add", { prefix: "W-" })
+  const added = await perform(page, "@matomezu/taskboard:ticket-add", {
+    project: made.result?.project ?? "",
+    name: "資料を見る口",
+    body: "",
+  })
+  const ticket = added.result?.ticket ?? ""
+  const ai = await member(page, "しらべ")
+  const started = await aiPerform(
+    page,
+    { action: "@matomezu/taskboard:ticket-start", args: {}, on: { record: ticket } },
+    ai,
+  )
+  expect(started, JSON.stringify(started)).toMatchObject({ ok: true })
+
+  // ページが無い間は、番号の行を押せない
+  const row = page.locator("[data-workroom]").filter({ hasText: "しらべ" })
+  const line = row.locator("[data-current-line]")
+  await expect(line).toContainText("W-")
+  await expect(line).toBeDisabled()
+
+  const page1 = await aiPerform(
+    page,
+    {
+      action: "@matomezu/base:worker-page-add",
+      args: { type: "@matomezu/drawing:drawing", title: "作業のメモ" },
+    },
+    ai,
+  )
+  expect(page1, JSON.stringify(page1)).toMatchObject({ ok: true })
+  await expect(line).toBeEnabled()
+
+  // クリックで 2 択。分割で開くと、コントロールセンターの下にブックスクリーンが入る（参加者一覧は見えたまま）
+  await line.click()
+  await page.getByRole("menuitem", { name: "分割で開く" }).click()
+  await expect(page.getByText("作業のメモ").first()).toBeVisible()
+  await expect(line).toBeVisible()
+  await settled(page)
+  await page.screenshot({ path: "test-results/worker-book-split.png" })
+
+  // チケットのナレッジの作業履歴: クリックで右にページの一覧、ダブルクリックで全画面で開く
+  await page.goto(ticketUrl(ticket))
+  const history = page.locator("[data-work-history]")
+  await expect(history).toBeEnabled()
+  await history.click()
+  const list = page.getByRole("region", { name: "作業履歴" })
+  await expect(list.locator("[data-worker-page]")).toHaveText("作業のメモ")
+  await settled(page)
+  await page.screenshot({ path: "test-results/worker-book-history.png" })
+  await list.locator("[data-worker-page]").click()
+  await expect(page.getByRole("menuitem", { name: "開く", exact: true })).toBeVisible()
+  await page.keyboard.press("Escape")
+  await history.dblclick()
+  await expect(page.locator("[data-work-history]")).toBeHidden()
+  await expect(page.getByText("作業のメモ").first()).toBeVisible()
+})

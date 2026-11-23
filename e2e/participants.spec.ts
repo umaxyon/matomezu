@@ -118,7 +118,7 @@ test("参加要求のしおりで受け入れるを押すと、名前・鳥・�
   // フックが参加を伝えると準備中でなくなり、選ぶとワークルームの枠に model・os・最終アクセスが出る
   await talk(page, "S-e2e-1", "e2e-link-1")
   await expect(row).not.toContainText("準備中")
-  await row.getByRole("button").click()
+  await row.getByRole("button", { name: "ひよこ", exact: true }).click()
   const room = page.locator("[data-workroom-panel]")
   await expect(room).toContainText("opus-5")
   await expect(room).toContainText("wsl")
@@ -137,7 +137,7 @@ test("セッション id を join で運ぶ AI（フックの無い AI）は、�
   await (await fromMenu(page, "コントロールセンター")).click()
   const row = page.getByRole("listitem").filter({ hasText: "codex" })
   await expect(row).toContainText("（空き）")
-  await row.getByRole("button").click()
+  await row.getByRole("button", { name: "codex", exact: true }).click()
   const room = page.locator("[data-workroom-panel]")
   await expect(room).toContainText("最終アクセス:なし")
   const told = await call(page, made.participant)

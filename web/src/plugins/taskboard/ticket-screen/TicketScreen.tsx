@@ -14,7 +14,14 @@ import {
   useUpdatePluginState,
 } from "../../../plugin-api/ui"
 import { NO_WORKER_BOOK } from "../../base"
-import { LockToggle, useRecordEditLock, useShowBook, useWorkerBook, WorkerBookPages } from "../../base/ui"
+import {
+  LockToggle,
+  useRecordEditLock,
+  useShowBook,
+  useWorkerBook,
+  BookIcon as WorkerBookIcon,
+  WorkerBookPages,
+} from "../../base/ui"
 import { WORKROOM_SUBJECT } from "../by"
 import { useWorkingOn } from "../current-ticket/useCurrentTickets"
 import { BookIcon } from "../icons"
@@ -168,7 +175,7 @@ function TicketBody({ ticket }: { ticket: Ticket }) {
                 }}
               >
                 <span className={styles.itemIcon}>
-                  <BookIcon />
+                  <WorkerBookIcon />
                 </span>
                 <span className={styles.itemName}>{t("Work history")}</span>
               </button>
