@@ -24,8 +24,10 @@ type procTable func(pid int) (procInfo, bool)
 var relayNames = map[string]bool{
 	"sh": true, "bash": true, "dash": true, "zsh": true,
 	"cmd": true, "powershell": true, "pwsh": true,
-	"volta":    true,
-	"matomezu": true, // 開発の版を起動し直したときの、起動し直した側
+	"volta": true,
+	// Volta の shim。macOS の名前（P_comm）は、shim の置き場の名前（matomezu）でなく、指す先の実行ファイルの名前
+	"volta-shim": true,
+	"matomezu":   true, // 開発の版を起動し直したときの、起動し直した側
 }
 
 // entryPIDEnv は、matomezu の npm の入口（node）が、自分のプロセス id を子の実行ファイルに伝える環境変数

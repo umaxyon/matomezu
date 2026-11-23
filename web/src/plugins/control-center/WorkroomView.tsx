@@ -38,7 +38,7 @@ export function WorkroomView({
   )
 }
 
-// 空室: 名前と（空室）、右下に部屋を削除するボタン（ごみ箱のアイコン。ダイアログは削除だけを選べる）
+// 空室: 名前と（空室）、右下に「部屋を削除する」のボタン（ごみ箱のアイコン。ダイアログは削除だけを選べる）
 function Empty({ row }: { row: WorkroomRow }) {
   const t = useMessages(kit)
   const { openDialog } = useActions()

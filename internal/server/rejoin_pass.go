@@ -14,7 +14,7 @@ import (
 	"github.com/umaxyon/matomezu/internal/engine"
 )
 
-// acceptAction は、要求中の参加者を部屋に受け入れるアクション（開発用だけなので、役を通さずに名指す）
+// acceptAction は、要求中の参加者をワークルームに受け入れるアクション（開発用だけなので、役を通さずに名指す）
 const acceptAction = "@matomezu/base:participant-accept"
 
 // rejoinPasses は、ワークルームの名前 → 前もって承認した合言葉（join の link）。1 回使えば消える。常駐のメモリにだけ持つ
@@ -59,8 +59,8 @@ func (p *rejoinPasses) takePass(room, link string) bool {
 	return true
 }
 
-// joinByPass は、前もって承認した合言葉で、今ある部屋 roomID の続きを頼んだ join を、参加者を作るのと受け入れるのを 1 つのバルクで、利用者として行う。
-// occupant は部屋にいる生きていない参加者（いれば受け入れで外す）。承認が無い・合わない・ビジターの頼み・部屋が無いときは ok が false（参加の要求として、利用者が画面で受け入れる）。
+// joinByPass は、前もって承認した合言葉で、今あるワークルーム roomID の続きを頼んだ join を、参加者を作るのと受け入れるのを 1 つのバルクで、利用者として行う。
+// occupant はワークルームにいる生きていない参加者（いれば受け入れで外す）。承認が無い・合わない・ビジターの頼み・ワークルームが無いときは ok が false（参加の要求として、利用者が画面で受け入れる）。
 // h.joinMu を持って呼ぶ
 func (h *Hub) joinByPass(req JoinRequest, ids *engine.JoinActions, roomID, occupant string) (Joined, bool, error) {
 	if req.As != "" || roomID == "" || !h.rejoin.takePass(req.Workroom, req.Link) {

@@ -18,7 +18,7 @@ func passFor(t *testing.T, url, room, link string) {
 	}
 }
 
-// 前もって承認した合言葉で部屋の続きを頼むと、画面を通さずに受け入れ、前の参加者を外す。承認は 1 回で消える
+// 前もって承認した合言葉でワークルームの続きを頼むと、画面を通さずに受け入れ、前の参加者を外す。承認は 1 回で消える
 func TestJoinWithARejoinPassIsAcceptedWithoutTheScreen(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "work", `,"sessionId":"S1"`), nil)
@@ -46,7 +46,7 @@ func TestJoinWithARejoinPassIsAcceptedWithoutTheScreen(t *testing.T) {
 	}
 }
 
-// 合言葉が違う・部屋の参加者が生きている・承認が無い部屋の名前は、参加の要求（画面で受け入れる）になるか、断る
+// 合言葉が違う・ワークルームの参加者が生きている・承認が無いワークルームの名前は、参加の要求（画面で受け入れる）になるか、断る
 func TestJoinWithoutAMatchingRejoinPassGoesThroughTheScreen(t *testing.T) {
 	s, _ := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "", `,"sessionId":"S1"`), nil)
