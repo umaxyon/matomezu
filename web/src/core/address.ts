@@ -181,7 +181,7 @@ function inBookNow(library: Library, place: StagePlace): StagePlace {
 }
 
 // ステージ stage に、場所 place を当てはめる（ブックもページも名指さない場所は何も開かず、ブックを名指さずページを名指す場所は、ブックの外のページか、そのページを入れているブックの外のバインダを開く。
-// ブックの無いページは開かず、開けたものに倍率とずらす量を戻す）
+// ブックの無いページは開かず、開けたものに倍率とずらす量を戻す。ステージが開いていたページをそのまま開くなら、広さ area と origin は保つ）
 function placed(
   catalog: CoreCatalog,
   books: Readonly<Record<string, Book>>,
@@ -201,6 +201,13 @@ function placed(
     else if (place.binder !== null) next = openBinder(catalog, next, book, place.binder)
   } else if (outside?.kind === "page") next = openOutsidePage(catalog, next, outside)
   else if (outside) next = openOutsideBinder(catalog, next, outside, place.page ?? undefined)
+  // 開いていたページをそのまま開くなら、プレゼンテーションが知らせた広さとずらした量を保つ（同じ値は知らせ直されない）
+  const [was, now] = [stage.opened, next.opened]
+  if (was?.kind === "page" && now?.kind === "page" && was.page === now.page && was.outermost.id === now.outermost.id)
+    next = {
+      ...next,
+      opened: { ...now, ...(was.area ? { area: was.area } : {}), ...(was.origin ? { origin: was.origin } : {}) },
+    }
   // ずらす量は、ほかの操作と同じく範囲に収める（表示領域を測るまでは収めない）。初めの位置には合わせない（場所のずらす量が 0 のときも）
   const zoomed = { ...stopStart(next), zoom: zoomInRange(place.zoom) }
   return panBy(zoomed, place.pan.x - zoomed.pan.x, place.pan.y - zoomed.pan.y)
