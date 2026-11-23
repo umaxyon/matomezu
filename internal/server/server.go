@@ -156,6 +156,13 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/screen-plugins/remove", o.screen(o.unlinkPluginsFromScreen))
 	mux.Handle("POST /api/unreadable/purge", o.screen(o.purgeUnreadable))
 	mux.Handle("POST /api/update/check", o.screen(o.checkUpdate))
+	mux.Handle("POST /api/hosts/port", o.screen(func(w http.ResponseWriter, _ *http.Request) {
+		if err := o.Hub.RepickHostPort(); err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
 	mux.Handle("POST /api/hosts/pair", o.screen(o.startPairing))
 	mux.Handle("POST /api/hosts/pair/end", o.screen(func(w http.ResponseWriter, _ *http.Request) { o.Hub.EndPairing(); writeJSON(w, map[string]bool{"ok": true}) }))
 	mux.Handle("POST /api/hosts/check", o.screen(func(w http.ResponseWriter, _ *http.Request) { o.Hub.CheckPeers(); writeJSON(w, map[string]bool{"ok": true}) }))

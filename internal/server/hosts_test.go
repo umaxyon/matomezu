@@ -209,3 +209,28 @@ func TestTheHostEntranceStaysClosedAfterCloseHostEntrance(t *testing.T) {
 		t.Fatal("the entrance opened again after CloseHostEntrance")
 	}
 }
+
+// 覚えたポートが使われているとき、利用者が選び直すと、空いている番号で開いてその番号を覚える。使われていなければ断る
+func TestRepickingTheHostPortOpensOnAFreeOne(t *testing.T) {
+	taken, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer taken.Close()
+	kept := taken.Addr().(*net.TCPAddr).Port
+	h := emptyHub(t)
+	saved := 0
+	testHost(t, h, kept, &saved)
+	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":true}`)
+	waitHost(t, h, func(s HostStatus) bool { return s.Failed == HostPortInUse })
+	if err := h.RepickHostPort(); err != nil {
+		t.Fatal(err)
+	}
+	s := waitHost(t, h, func(s HostStatus) bool { return s.Open })
+	if s.Port == kept || saved != s.Port || s.Failed != "" {
+		t.Fatalf("repicked = %+v, saved %d, kept %d", s, saved, kept)
+	}
+	if err := h.RepickHostPort(); err == nil {
+		t.Fatal("repicked an open entrance")
+	}
+}

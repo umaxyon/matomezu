@@ -171,6 +171,26 @@ func (h *Hub) applyHostEntrance(e *hostEntrance) {
 	h.tellHostStatus(was, now)
 }
 
+// RepickHostPort は、覚えたポートがほかに使われているとき、空いている番号を取り直して開き、その番号を覚える（利用者が［別のポートにする］を確かめたとき）
+func (h *Hub) RepickHostPort() error {
+	e := h.entrance.Load()
+	if e == nil {
+		return errors.New("there is no entrance for other hosts")
+	}
+	e.mu.Lock()
+	if e.closed || e.status.Failed != HostPortInUse {
+		e.mu.Unlock()
+		return errors.New("the kept port is not taken")
+	}
+	was := e.status
+	e.config.Port = 0
+	e.open(h)
+	now := e.status
+	e.mu.Unlock()
+	h.tellHostStatus(was, now)
+	return nil
+}
+
 func (h *Hub) tellHostStatus(was, now HostStatus) {
 	if sameHostStatus(was, now) {
 		return
