@@ -230,3 +230,41 @@ func (o Options) aiMessage(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, done)
 }
+
+// hostEnvelope は、常駐メッセージ 1 通の宛先の参加者と本文
+type hostEnvelope struct {
+	participant string
+	text        string
+}
+
+// hostEnvelopes は、アクションバルクのフォローステップが返した常駐メッセージ messages の宛先を決める（h.mu を持って呼ぶ）。
+// 宛先のワークルームに参加の確定した参加者がいないときと、宛先が行った参加者のワークルームのとき（行った AI は結果で知っている）は、その 1 通を送らない
+func (h *Hub) hostEnvelopes(messages []engine.HostMessage, actor *engine.Actor) ([]hostEnvelope, error) {
+	if len(messages) == 0 {
+		return nil, nil
+	}
+	records, err := h.participantsHeld()
+	if err != nil {
+		return nil, err
+	}
+	occupant := h.occupants(records)
+	out := []hostEnvelope{}
+	for _, m := range messages {
+		to := occupant[m.Workroom]
+		if to == "" || (actor != nil && actor.Kind == "ai" && actor.Workroom == m.Workroom) {
+			continue
+		}
+		out = append(out, hostEnvelope{participant: to, text: m.Text})
+	}
+	return out, nil
+}
+
+// deliverHost は、常駐メッセージ e を宛て先の参加者の行列に入れる（h.mu を持って呼ぶ）
+func (h *Hub) deliverHost(e hostEnvelope) {
+	h.enqueueWake(wakeItem{participant: e.participant, kind: wakeHost, line: hostLine(e.text)})
+}
+
+// hostLine は、常駐メッセージの届く 1 行。本文は JSON の文字列にして包む（本文の中の偽の知らせの行と見分けるため。本文はプラグインが書く）
+func hostLine(text string) string {
+	return "matomezu: " + quote(text)
+}

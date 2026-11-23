@@ -7,6 +7,7 @@ import { findPage, pageById, pagesOf, readLibrary } from "../core/book"
 import { bulkActionOf, type LibraryRows, performBulk } from "../core/bulk"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, type AIMessage, stopsOnEditLock } from "../core/def/action"
+import type { HostMessage } from "../core/def/follow-step"
 import { binnedBetween } from "../core/entries"
 import { type Library, NO_CHANGES, pageIn } from "../core/folders"
 import { bookOf, libraryOf } from "../core/folders-books"
@@ -70,6 +71,7 @@ type Output =
       notice?: string
       aiEditTickets?: readonly (AIEditTicketChange & { subject: string })[] // subject は、その変え方を返したアクションの対象の種類
       aiMessages?: readonly AIMessage[] // 送る AI 間メッセージ（常駐が、宛先に参加の確定した参加者がいるかを確かめ、書き込みと一緒に送る）
+      hostMessages?: readonly HostMessage[] // 送る常駐メッセージ（常駐が、宛先に参加の確定した参加者がいて、行った参加者のワークルームでなければ送る）
     }
   | {
       ok: false
@@ -79,6 +81,7 @@ type Output =
       systemFolder?: string // 名前が重なる断り（title-taken）で、重なった相手がシステムフォルダのときの、その印
       detail?: string
       at?: number
+      needs?: readonly string[] // needs-rows のとき、常駐が行を足して行い直すブックの id
     } // at は断られたアクションが何番目か
 
 declare const crypto: { randomUUID(): string }
@@ -95,10 +98,12 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
     "there is no book with that id, nor a binder that is not in a book (see list_books and read_folder); an action that needs the book itself (its name, its settings, its lock) is not done on such a binder",
   "no-page": "there is no page with that id (on.page is the id of a page; read_book and read_folder list pages)",
   "no-record": "there is no record with that id (on.record is the id of a record of the action's subject)",
+  "needs-rows": "matomezu could not read what the action changes; try again",
 }
 
 // 断りに、AI への説明を添える
 function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>): Extract<Output, { ok: false }> {
+  if (done.reason === "needs-rows") return { ok: false, reason: done.reason, needs: done.books }
   if ("permission" in done)
     return {
       ...done,
@@ -163,6 +168,8 @@ export function perform(of: Assembled, input: Input): Output {
     (i, before, after, one) => {
       const edited = (c: { subject: string; id: string }) => (input.watchedRecords?.[c.subject] ?? []).includes(c.id)
       if ((one.followed ?? []).some(edited)) return { ok: false as const, reason: "being-edited" as const }
+      if ((one.followedRows ?? []).some(id => id in (input.watched ?? {})))
+        return { ok: false as const, reason: "being-edited" as const }
       if (!stopsOnEditLock(catalog.actions.get(input.actions[i]?.action ?? ""), actor)) return undefined
       const editedRecord = (one.records ?? []).some(edited)
       return editedRecord || touchedIn(before, after, one.annotations, input.watched).length > 0
@@ -212,6 +219,7 @@ export function perform(of: Assembled, input: Input): Output {
       ? { aiEditTickets: done.aiEditTickets.map(t => ({ ...t.change, subject: t.subject })) }
       : {}),
     ...(done.aiMessages ? { aiMessages: done.aiMessages } : {}),
+    ...(done.hostMessages ? { hostMessages: done.hostMessages } : {}),
   }
 }
 

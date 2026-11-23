@@ -29,6 +29,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -77,7 +78,7 @@ func (lim WakeLimits) fits(line string) bool {
 type wakeItem struct {
 	seq         int64     // 行列の中で見分ける番号
 	participant string    // 宛て先の参加者の id
-	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage・wakeUpdate
+	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage・wakeUpdate・wakeHost
 	line        string    // 流す 1 行
 	from        string    // AI 間メッセージの送り手のワークルーム名
 	body        string    // AI 間メッセージの本文（JSON の文字列にした物。改行を受ける通り道には、送り手の行のあとの行で流す）
@@ -102,7 +103,13 @@ const (
 	wakeCancelled = "cancelled" // 参加の要求を利用者がキャンセルした
 	wakeMessage   = "message"   // AI 間メッセージ
 	wakeUpdate    = "update"    // 利用者が、matomezu の版を上げるよう頼んだ（update.go）
+	wakeHost      = "host"      // 常駐メッセージ（フォローステップが返した、常駐からの知らせ。message.go）
 )
+
+// logWake は、起こす知らせが通り道に届いたかを調べるための 1 行を常駐のログに書く
+func logWake(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, "%s wake: %s\n", stamp(), fmt.Sprintf(format, args...))
+}
 
 // goneState は、表に無い参加の id を、断り・キャンセルとしてどう伝えるか（無ければ断り）
 type goneState string
@@ -140,6 +147,7 @@ func (h *Hub) OpenWakesWith(host, session string, limits WakeLimits) *wakeLine {
 	}
 	h.wakeLines[w] = struct{}{}
 	w.ready <- struct{}{}
+	logWake("line %d opened: host %q, session %q", w.id, host, session)
 	return w
 }
 
@@ -156,6 +164,7 @@ func (h *Hub) closeWakesLocked(w *wakeLine) {
 	}
 	delete(h.wakeLines, w)
 	close(w.closed)
+	logWake("line %d closed", w.id)
 	for id, q := range h.wakeQueue {
 		for i := range q {
 			if q[i].lentTo == w.id {
@@ -201,6 +210,14 @@ func (h *Hub) enqueueWake(it wakeItem) {
 		q = q[len(q)-wakeQueueMax:]
 	}
 	h.wakeQueue[it.participant] = q
+	n := h.participantNotes[it.participant]
+	var lines []int64
+	for l := range h.wakeLines {
+		if l.reaches(n) {
+			lines = append(lines, l.id)
+		}
+	}
+	logWake("%d (%s) queued for participant %s (host %q, session %q): lines that reach it %v", it.seq, it.kind, it.participant, n.WakeHost, n.WakeSession, lines)
 	h.signalWakes(it.participant)
 }
 
@@ -287,6 +304,7 @@ func (h *Hub) nextWake(l *wakeLine, now time.Time) (WakeOut, bool) {
 	}
 	text = l.limits.shape(text)
 	h.rememberLent(text)
+	logWake("%d (%s) lent to line %d", pick.seq, pick.kind, l.id)
 	return WakeOut{Line: l.id, ID: strconv.FormatInt(pick.seq, 10), Session: h.participantNotes[pick.participant].SessionID, Text: text}, true
 }
 
@@ -296,6 +314,7 @@ func (h *Hub) AckWake(line int64, id, result string, now time.Time) {
 	if err != nil {
 		return
 	}
+	logWake("%d on line %d: %s", seq, line, result)
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for participant, q := range h.wakeQueue {
@@ -399,7 +418,7 @@ func lentCover(prompt string, lent []string, used map[int]bool) map[int]bool {
 	return nil
 }
 
-// takeCallLines は、参加者 id の行列から、呼び出しの返事で渡す行（AI 間メッセージと更新の頼み）を取り出す。通り道に貸している物は残す（結果を待つ）。
+// takeCallLines は、参加者 id の行列から、呼び出しの返事で渡す行（AI 間メッセージと常駐メッセージと更新の頼み）を取り出す。通り道に貸している物は残す（結果を待つ）。
 // 参加の知らせは、呼び出しの返事の「参加しました」が兼ねるので捨てる（h.mu を持って呼ぶ）
 func (h *Hub) takeCallLines(id string) []string {
 	var lines []string
@@ -408,7 +427,7 @@ func (h *Hub) takeCallLines(id string) []string {
 		switch {
 		case it.lentTo != 0:
 			kept = append(kept, it)
-		case it.kind == wakeMessage || it.kind == wakeUpdate:
+		case it.kind == wakeMessage || it.kind == wakeUpdate || it.kind == wakeHost:
 			lines = append(lines, it.line)
 		}
 	}

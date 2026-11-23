@@ -53,13 +53,14 @@ export const SEAL_ON_CLOSE: FollowStepDef = {
   watches: SHELF,
   writes: [STAMP.id],
   reads: c => (closedNow(c.before, c.after) ? [{ subject: STAMP.id, where: [{ key: "shelf", eq: c.id }] }] : []),
-  follow: (c, ctx) =>
-    closedNow(c.before, c.after)
+  follow: (c, ctx) => ({
+    records: closedNow(c.before, c.after)
       ? Object.values(ctx.records[STAMP.id] ?? {}).flatMap(r => {
           const stamp = r as z.output<typeof STAMP.record>
           return stamp.sealed ? [] : [{ subject: STAMP.id, id: stamp.id, record: { ...stamp, sealed: true as const } }]
         })
       : [],
+  }),
 }
 
 export const EX14 = definePlugin(kit.plugin({ subjects: [STAMP], actions: [STAMP_ADD], followSteps: [SEAL_ON_CLOSE] }))

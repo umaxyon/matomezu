@@ -21,7 +21,14 @@ import { PARTICIPANT_ACCEPT, PARTICIPANT_CANCEL, WORKROOM_NAME_MAX, type Workroo
 import { BirdFaceView } from "./BirdFaceView"
 import { asBird, originalPalette } from "./birds"
 import { PARTICIPANT_WELCOME_DIALOG } from "./dialogs"
-import { useIsAlive, useParticipantCalls, useParticipantLive, useParticipants, useWorkrooms } from "./hooks"
+import {
+  useIsAlive,
+  useOwnBookPages,
+  useParticipantCalls,
+  useParticipantLive,
+  useParticipants,
+  useWorkrooms,
+} from "./hooks"
 import { shownModel } from "./live"
 import styles from "./Participant.module.css"
 import { nameInUse, occupantOf, takeable } from "./workroom"
@@ -78,6 +85,8 @@ function JoinForm({
   const [pick, setPick] = useState<string | undefined>(asked?.id)
   // 確かめている途中の、引き継ぐワークルーム（無ければ、まだ確かめていない）
   const [confirming, setConfirming] = useState<{ target: Workroom; discardable: boolean } | undefined>(undefined)
+  // 引き継がずに入り直すと、前のワークルーム自身のワーカーブックが完全に消える
+  const discardedPages = useOwnBookPages(confirming?.target.id ?? "")
   const [name, setName] = useState(first?.wantedName ?? first?.sessionName ?? "")
   const [bird, setBird] = useState<Bird>(BIRD_IDS[0])
   const [palette, setPalette] = useState<string | undefined>(undefined)
@@ -153,6 +162,9 @@ function JoinForm({
               : "Taking over keeps its name, bird and palette.",
           )}
         </p>
+        {discardable && discardedPages > 0 ? (
+          <p className={styles.paletteName}>{t("Pages to be removed: {n}", { n: discardedPages })}</p>
+        ) : null}
         <div className={styles.buttons}>
           <ActionButton onClick={() => setConfirming(undefined)}>{t("Back")}</ActionButton>
           {discardable && (

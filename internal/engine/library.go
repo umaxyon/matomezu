@@ -112,8 +112,9 @@ type Settled struct {
 
 // SettleLibrary は、置き場所の行の全部（pages・folders）で、書庫を今の機能台帳に合わせて整える行の変わり: 読めない物を読めない物のフォルダへ移し、読めるようになった物を在った所へ戻し、
 // 足りないシステムフォルダを足して、名前の重なりに番号を付ける
-// （名前は利用者の設定 settings の言語で比べる。移した時刻は now。core/unreadable.ts の settleLibrary）
-func (e *Engine) SettleLibrary(pages, folders []json.RawMessage, settings json.RawMessage, now string) (out Settled, err error) {
+// （名前は利用者の設定 settings の言語で比べる。移した時刻は now。core/unreadable.ts の settleLibrary）。
+// src はレコードを引く口（バックヤードに戻す物の workKey が指すレコードが在るかを見る。nil なら見ない）
+func (e *Engine) SettleLibrary(pages, folders []json.RawMessage, settings json.RawMessage, now string, src Source) (out Settled, err error) {
 	p, err := json.Marshal(append([]json.RawMessage{}, pages...))
 	if err != nil {
 		return out, err
@@ -127,6 +128,8 @@ func (e *Engine) SettleLibrary(pages, folders []json.RawMessage, settings json.R
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	e.source = src
+	defer func() { e.source = nil }()
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("engine: %v", r)
