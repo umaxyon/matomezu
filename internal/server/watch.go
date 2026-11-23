@@ -107,7 +107,7 @@ const (
 
 // logWake は、起こす知らせが通り道に届いたかを調べるための 1 行を常駐のログに書く
 func logWake(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, "%s wake: %s\n", time.Now().Format("15:04:05"), fmt.Sprintf(format, args...))
+	fmt.Fprintf(os.Stderr, "%s wake: %s\n", stamp(), fmt.Sprintf(format, args...))
 }
 
 // goneState は、表に無い参加の id を、断り・キャンセルとしてどう伝えるか（無ければ断り）
