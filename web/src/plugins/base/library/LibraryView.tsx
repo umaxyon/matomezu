@@ -1,9 +1,10 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
-// 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。ページの在るワーカーブックの行は、1 回押すと選んで「開く／分割で開く」を出し、2 回押すと全画面で開く。
+// 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
+// ブックスクリーンに開く行（ページの在るブック・ワーカーブックと、ブックの中のページ）は、1 回押すと選んで「開く／分割で開く」を出し、2 回押すと全画面で開く（ブックスクリーンと分けた並びの中では出さない）。
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
-import { type CSSProperties, type MouseEvent, type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react"
+import { type CSSProperties, type MouseEvent, type ReactNode, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { type Naming, namingOf, rowsWithin, titleOf } from "../../../core/entries"
+import { type Naming, namingOf, titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
 import type { MatomezuState } from "../../../store/state"
 import { useCommand } from "../../../ui/commands"
@@ -43,13 +44,13 @@ import styles from "./LibraryView.module.css"
 import { MoveClashConfirm } from "./MoveClashConfirm"
 import {
   arrivedAt,
+  type BookOpened,
+  bookOpenedFrom,
   holdsRows,
   type LibraryRow,
   NO_TITLE,
   NO_TYPE,
-  NOT_OPENED,
   openedFolderOf,
-  openTargetOf,
   pathTo,
   rowsIn,
   tabStopOf,
@@ -68,7 +69,7 @@ import { TrashView } from "./TrashView"
 import { CONTENT_MIN_WIDTH, DEFAULT_TREE_WIDTH, TREE_MIN_WIDTH, treeWidthAt } from "./tree-width"
 import { UnreadableView } from "./UnreadableView"
 import { type LibraryDrag, useLibraryDrag } from "./useLibraryDrag"
-import { createdIn, deskPlaceOf, deskTitleOf, GONE, isDeskRow } from "./workdesk-rows"
+import { createdIn, deskTitleOf, isDeskRow } from "./workdesk-rows"
 
 // 一番上に並ぶフォルダの行（書庫ホームとゴミ箱と、設定がオンなら読めない物のフォルダ。名前は画面が付ける）
 const topRowsOf = (unreadableShown: boolean): readonly LibraryRow[] =>
@@ -464,36 +465,13 @@ function ContentEntry({
   )
 }
 
-// 行を開くと出すブックと、そのページ
-interface BookOpened {
-  book: string
-  page?: string
-}
-
-// 書庫の行 row を、ブックスクリーンに開くなら、開くブックとページ（ページの無いブック・ブックの外の物・フォルダは undefined）。
-// 書庫の画面が、ブックスクリーンと分けた並びにいる間は、開く先が上の段に決まっているので答えない（「分割で開く」と重なる）
+// 書庫の行 row を開くと出すブックとページ（bookOpenedFrom）。書庫の画面が、ブックスクリーンと分けた並びにいる間は、開く先が上の段に決まっているので答えない
+// （「分割で開く」と重なる）
 function useBookOpenedFrom(row: LibraryRow): BookOpened | undefined {
   const desks = useWorkdesks()
   const split = useScreenSplit()
   const besideBook = split.inSplit && split.defs.includes(BOOK_SCREEN_DEF.id)
-  const opened = useMatomezuState(s => {
-    if (besideBook) return undefined
-    // ワーカーブックの行は、実のブックで開く
-    if (isDeskRow(row.id)) {
-      const place = deskPlaceOf(desks, s.folders, row.id)
-      if (place === undefined || place === GONE || place.at !== "book" || place.real === undefined) return undefined
-      return rowsWithin(s.folders, place.real).pages.length > 0 ? place.real : undefined
-    }
-    const target = openTargetOf(s.folders, row, desks)
-    if (target === NOT_OPENED || target.to !== "book" || target.binder !== undefined) return undefined
-    if (target.page === undefined && rowsWithin(s.folders, target.book).pages.length === 0) return undefined
-    return target.page === undefined ? target.book : `${target.book}\n${target.page}`
-  })
-  return useMemo(() => {
-    if (opened === undefined) return undefined
-    const [book = "", page] = opened.split("\n")
-    return page === undefined ? { book } : { book, page }
-  }, [opened])
+  return useMatomezuState(useShallow(s => (besideBook ? undefined : bookOpenedFrom(s.folders, row, desks))))
 }
 
 // 行の押し方 press（クリック・ダブルクリック・「開く／分割で開く」の吹き出し）

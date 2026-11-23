@@ -46,7 +46,7 @@
     transition: none;
   }
 }
-/* ブックスクリーンを窓いっぱいに見せ始めたときは、それが上から滑り込み終えるまで、コントロールセンターの側を動かさずに残す */
+/* ブックスクリーンを窓いっぱいに見せ始めたときは、それがほかのスクリーンの上を右から滑り込み終えるまで、コントロールセンターの側を動かさずに残す */
 .center[data-current="book-screen"][data-held="true"] {
   transform: translateX(0);
   visibility: visible;

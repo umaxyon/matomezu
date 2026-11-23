@@ -38,7 +38,8 @@ export function ChoiceBubble({
       document.removeEventListener("pointerdown", outside, true)
       // 焦点が吹き出しの中に残っていれば、開く前の所（押した行など）へ戻す
       const now = document.activeElement
-      if (before instanceof HTMLElement && (now === null || now === document.body || here?.contains(now))) before.focus()
+      if (before instanceof HTMLElement && (now === null || now === document.body || here?.contains(now)))
+        before.focus()
     }
   }, [onClose])
   return createPortal(

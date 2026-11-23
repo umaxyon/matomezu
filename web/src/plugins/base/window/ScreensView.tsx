@@ -98,7 +98,7 @@ export function ScreensView() {
   if (gone.length > 0)
     setLeaving([...leaving, ...gone.map(screen => ({ screen, row: last.current.rows.get(screen.id) ?? null }))])
   last.current = { screens: opened, rows: new Map(plainScreens.map(id => [id, rowOf(id)])) }
-  // 窓いっぱいに見せるブックスクリーンが替わったら、新しく見せる物を、上から右から滑り込ませる（over。その間、コントロールセンターの側は動かさずに残す）。
+  // 窓いっぱいに見せるブックスクリーンが替わったら、新しく見せる物を、ほかのスクリーンの上を右から滑り込ませる（over。その間、コントロールセンターの側は動かさずに残す）。
   // 閉じたスクリーンの後ろから出てきたときは、滑らせない
   const wholeBook = !mixed && currentKind === "book-screen" ? book : undefined
   const lastWhole = useRef(wholeBook)
