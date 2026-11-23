@@ -3,6 +3,7 @@
 export * from "../plugin-api/ui"
 export {
   ActionButton,
+  AdminCrown,
   ALIGN_ICONS,
   ANNOTATION_ICON,
   type AnnotationIconProps,
@@ -26,6 +27,7 @@ export {
   ColorPicker,
   Confirm,
   type CornerStatusProps,
+  CrownIcon,
   controlClass,
   Dialog,
   DividerField,

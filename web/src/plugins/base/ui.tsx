@@ -162,7 +162,9 @@ export {
   usePaperControls,
 } from "./page-tabs/ui"
 export {
+  AdminCrown,
   BirdFaceView,
+  CrownIcon,
   useOwnBookPages,
   useVisitorRows,
   useWorkroomActions,
