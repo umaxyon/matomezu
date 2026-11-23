@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { sameData } from "../../../core/same"
-import { currentScreen, screenOfStage, type WindowState } from "../../../core/window"
+import { currentScreen, recentPlainScreen, screenOfStage, type WindowState } from "../../../core/window"
 import { type Actions, SCREEN_REFUSED } from "../../../store/actions"
 import { NO_STAGE } from "../../../store/dialogs"
 import type { MatomezuState } from "../../../store/state"
@@ -97,6 +97,8 @@ export interface ScreenSplit {
   wide: boolean // 起点のスクリーンを、並びを覚えたまま窓いっぱいに広げているか
   widen(): void // 起点のスクリーンを、並びを覚えたまま窓いっぱいに広げる（ブックスクリーンの下の行の □）
   unwiden(): void // 広げていた並びに戻す
+  rowsShown: boolean // 起点のスクリーンを、後ろのステージを並べないスクリーン（コントロールセンターなど）と上下に分けられるか（分けていない・広げていない・窓が高い）
+  toRows(): void // 後ろのステージを並べないスクリーンを上、起点のスクリーンを下に分ける（最初から窓いっぱいに開いたブックスクリーンの下の行の □）
   closeBooks(): void // 並びの中のブックスクリーンを閉じて、1 枚ずつに戻す（並びの中のステージを並べないスクリーンから、ブックを全画面で開くとき）
   closeAll(): void // 分けて並べている物を全部閉じて、1 枚ずつに戻す（閉じられない物は残る）
 }
@@ -109,6 +111,7 @@ export function useScreenSplit(): ScreenSplit {
   const currentDef = useMatomezuState(s => currentScreen(s.window).def)
   const split = useMatomezuState(useShallow(s => splitIn(s.window)))
   const wideHere = useMatomezuState(s => wideIn(s.window) === (inside?.id ?? currentScreen(s.window).id))
+  const behindHere = useMatomezuState(s => recentPlainScreen(s.window)?.id)
   const members = useMatomezuState(useShallow(s => split.map(id => s.window.screens.find(x => x.id === id) ?? null)))
   const tall = useTallEnough()
   const actions = useStoreActions()
@@ -185,6 +188,12 @@ export function useScreenSplit(): ScreenSplit {
     },
     unwiden: () => {
       actions.setScreenArrangement(SPLIT_ROWS.id, withWide(read().window.arrangementValue, undefined))
+      actions.makeScreenCurrent(here.id)
+    },
+    rowsShown: tall && !split.includes(here.id) && !wideHere && behindHere !== undefined && behindHere !== here.id,
+    toRows: () => {
+      if (behindHere === undefined || !tallNow()) return
+      apply(planOpen([], here.id, behindHere, "before", 2))
       actions.makeScreenCurrent(here.id)
     },
     closeBooks: () => {

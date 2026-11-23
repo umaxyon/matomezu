@@ -15,6 +15,11 @@ import {
 import { NO_STAGE } from "../../../store/dialogs"
 import { LIBRARY_SCREEN, leaveLibrary, stageBeside } from "./screen"
 
+// 呼ばれたのが、ブックスクリーンと上下に並んだ書庫のスクリーンか（開く先が、並びのブックスクリーンに決まっている）
+export const opensBeside = (ctx: ScreenCommandContext): boolean =>
+  ctx.screen.def === LIBRARY_SCREEN.id &&
+  stageBeside(screensOf(ctx), arrangementValueIn(ctx), calledScreenIdOf(ctx)) !== NO_STAGE
+
 export function openFromLibrary(ctx: ScreenCommandContext, a: CommandActions, to: OpenTo): void {
   const store = storeActionsOf(a)
   const here = calledScreenIdOf(ctx)

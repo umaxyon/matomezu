@@ -44,6 +44,7 @@ import {
   LIBRARY_ENTRY_DUPLICATE,
   LIBRARY_ENTRY_MOVE,
   LIBRARY_ENTRY_OPEN,
+  LIBRARY_ENTRY_OPEN_SPLIT,
   LIBRARY_ENTRY_RENAME,
   LIBRARY_ENTRY_TRASH,
   LIBRARY_FOLDER,
@@ -66,6 +67,7 @@ import {
   LIBRARY_SCREEN_CLOSE,
   LIBRARY_SCREEN_EXPAND,
   LIBRARY_SCREEN_KEYS,
+  LIBRARY_SPLIT_OPENING,
   LIBRARY_TREE_AROUND_KEY_SCOPE,
   LIBRARY_TREE_FOLD_OR_PARENT,
   LIBRARY_TREE_KEY_SCOPE,
@@ -630,6 +632,7 @@ export const BASE = defineBuiltin(
       LIBRARY_UNDO,
       LIBRARY_REDO,
       LIBRARY_ENTRY_OPEN,
+      LIBRARY_ENTRY_OPEN_SPLIT,
       LIBRARY_BOOK_NEW,
       LIBRARY_OPEN,
       LIBRARY_SCREEN_CLOSE,
@@ -685,6 +688,7 @@ export const BASE = defineBuiltin(
       SCREEN_FLASH,
       LIBRARY_FOLDER,
       LIBRARY_PICKED,
+      LIBRARY_SPLIT_OPENING,
       LIBRARY_COLUMNS,
       LIBRARY_UNFOLDED,
       LIBRARY_QUERY,
@@ -897,6 +901,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-undo": typeof LIBRARY_UNDO
     "@matomezu/base:library-redo": typeof LIBRARY_REDO
     "@matomezu/base:library-entry-open": typeof LIBRARY_ENTRY_OPEN
+    "@matomezu/base:library-entry-open-split": typeof LIBRARY_ENTRY_OPEN_SPLIT
     "@matomezu/base:library-book-new": typeof LIBRARY_BOOK_NEW
     "@matomezu/base:library-open": typeof LIBRARY_OPEN
     "@matomezu/base:library-screen-close": typeof LIBRARY_SCREEN_CLOSE
@@ -988,6 +993,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:screen-flash": typeof SCREEN_FLASH
     "@matomezu/base:library-folder": typeof LIBRARY_FOLDER
     "@matomezu/base:library-picked": typeof LIBRARY_PICKED
+    "@matomezu/base:library-split-opening": typeof LIBRARY_SPLIT_OPENING
     "@matomezu/base:unreadable-notice-closed": typeof UNREADABLE_NOTICE_CLOSED
     "@matomezu/base:library-columns": typeof LIBRARY_COLUMNS
     "@matomezu/base:library-unfolded": typeof LIBRARY_UNFOLDED

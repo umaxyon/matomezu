@@ -16,6 +16,12 @@ export const LIBRARY_FOLDER = kit.definePluginState({
 // 選んでいる行の id（読み直すと消える。画面の場所には入れない）
 export const LIBRARY_PICKED = kit.definePluginStateOf<string>()({ id: "library-picked", scope: "screen" })
 
+// 分割で開いてほしいブックとページ（コマンド LIBRARY_ENTRY_OPEN_SPLIT の頼み。書庫の画面が受けて、吹き出しの「分割で開く」と同じに開く。n は頼んだ回数で、同じ物を続けて頼んでも開き直す）
+export const LIBRARY_SPLIT_OPENING = kit.definePluginStateOf<{ book: string; page?: string; n: number }>()({
+  id: "library-split-opening",
+  scope: "screen",
+})
+
 // 検索している言葉（「検索」を押したときの入力Formの中身。読み直すと消える。値が無ければ、検索していない）
 export const LIBRARY_QUERY = kit.definePluginStateOf<string>()({ id: "library-query", scope: "screen" })
 

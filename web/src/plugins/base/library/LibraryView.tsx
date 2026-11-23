@@ -20,6 +20,7 @@ import { SplitHandle } from "../utils/SplitHandle"
 import { BOOK_SCREEN_DEF } from "../window"
 import { useBookOpenChoice } from "../window/useBookOpenChoice"
 import { useScreenSplit } from "../window/useScreenSplit"
+import { useShowBook } from "../window/useShowBook"
 import {
   LIBRARY_ADD_PAGE_MENU,
   LIBRARY_BOOK_NEW,
@@ -65,7 +66,14 @@ import { SettingsClearConfirm } from "./SettingsClearConfirm"
 import { LIBRARY_SCREEN } from "./screen"
 import { type FoundRow, NO_SEARCH, searchWord } from "./search"
 import { SHOW_UNREADABLE_FOLDER } from "./show-unreadable"
-import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_TREE_WIDTH, LIBRARY_UNFOLDED } from "./state"
+import {
+  LIBRARY_FOLDER,
+  LIBRARY_PICKED,
+  LIBRARY_QUERY,
+  LIBRARY_SPLIT_OPENING,
+  LIBRARY_TREE_WIDTH,
+  LIBRARY_UNFOLDED,
+} from "./state"
 import { TrashView } from "./TrashView"
 import { CONTENT_MIN_WIDTH, DEFAULT_TREE_WIDTH, TREE_MIN_WIDTH, treeWidthAt } from "./tree-width"
 import { UnreadableView } from "./UnreadableView"
@@ -112,6 +120,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const read = useReadState()
   const openEntry = useCommand(LIBRARY_ENTRY_OPEN.id).run
   const value = usePluginState(kit, LIBRARY_FOLDER)
+  useSplitOpening()
   const setFolder = useSetPluginState(kit, LIBRARY_FOLDER)
   const picked = usePluginState(kit, LIBRARY_PICKED)
   const setPicked = useSetPluginState(kit, LIBRARY_PICKED)
@@ -468,6 +477,18 @@ function ContentEntry({
 
 // 書庫の行 row を開くと出すブックとページ（bookOpenedFrom）と、ブックスクリーンと上下に並んでいるか（beside）。
 // 「画面を分割」で出した書庫のスクリーンでは答えない（開く先が上の段の空のステージに決まっていて、「分割で開く」と重なる）
+// 分割で開く頼み（コマンド LIBRARY_ENTRY_OPEN_SPLIT）を受けて、吹き出しの「分割で開く」と同じに開く
+function useSplitOpening() {
+  const asked = usePluginState(kit, LIBRARY_SPLIT_OPENING)
+  const shower = useShowBook()
+  const done = useRef(asked?.n)
+  useEffect(() => {
+    if (asked === undefined || asked.n === done.current) return
+    done.current = asked.n
+    shower.split(asked.book, asked.page)
+  })
+}
+
 function useBookOpenedFrom(row: LibraryRow): { opens: BookOpened; beside: boolean } | undefined {
   const desks = useWorkdesks()
   const split = useScreenSplit()

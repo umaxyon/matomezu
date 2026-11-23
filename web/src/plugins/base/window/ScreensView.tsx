@@ -79,6 +79,8 @@ export function ScreensView() {
   const [instant, setInstant] = useState(false)
   const bookClosed = lastBooks.current.some(id => !stageScreens.includes(id))
   if (bookClosed && !instant) setInstant(true)
+  // 新しく開いたブックスクリーン（並びのブックスクリーンを閉じて、別のブックを窓いっぱいに開いたときも、閉じた物の上を滑り込む）
+  const newBooks = stageScreens.filter(id => !lastBooks.current.includes(id))
   lastBooks.current = stageScreens
   useEffect(() => {
     if (!instant) return
@@ -99,24 +101,33 @@ export function ScreensView() {
     setLeaving([...leaving, ...gone.map(screen => ({ screen, row: last.current.rows.get(screen.id) ?? null }))])
   last.current = { screens: opened, rows: new Map(plainScreens.map(id => [id, rowOf(id)])) }
   // 窓いっぱいに見せるブックスクリーンが替わったら、新しく見せる物を、ほかのスクリーンの上に出す（over。その間、コントロールセンターの側は動かさずに残す）。
-  // 並びの外から来た物は右から滑り込み、並びの中にいた物（下の行の □ で広げた）はその場から伸びる。閉じたスクリーンの後ろから出てきたときは、動かさない。
-  // 窓いっぱいだった物が並びに戻るとき（もう一度 □）も、ほかの物の上で、その場から縮む
+  // 並びの外から来た物は右から滑り込み、並びの中にいた物（下の行の □ で広げた）はその場から伸びる。閉じたスクリーンの後ろから出てきたときは、動かさない
+  // （閉じたのと一緒に新しく開いた物は、閉じた物の上を滑り込む）。
+  // 窓いっぱいだった物が並びに戻るとき（もう一度 □）と、もう開いていた物と上下に分かれたとき（最初から窓いっぱいの物の □）も、ほかの物の上で、その場から縮む
   const wholeBook = !mixed && currentKind === "book-screen" ? book : undefined
   const lastWhole = useRef(wholeBook)
   const lastSplit = useRef(split)
   // 並びのうち、窓いっぱいに広げている物（下の行の □）。戻すのは、前に描いたときに広げていた物だけ（「画面を分割」で並びに入った物は戻すのでない）
   const wide = useMatomezuState(s => wideIn(s.window))
   const lastWide = useRef(wide)
+  // 前に描いたときのステージを並べないスクリーン（窓いっぱいだった物が、もう開いていた物と上下に分かれたら、その場から縮む）
+  const lastPlain = useRef(plainScreens)
   const [over, setOver] = useState<{ id: string; slides: boolean } | undefined>(undefined)
   if (wholeBook !== lastWhole.current) {
     const was = lastWhole.current
     lastWhole.current = wholeBook
-    if (wholeBook !== undefined && !bookClosed && gone.length === 0 && over?.id !== wholeBook)
+    if (
+      wholeBook !== undefined &&
+      (!bookClosed || newBooks.includes(wholeBook)) &&
+      gone.length === 0 &&
+      over?.id !== wholeBook
+    )
       setOver({ id: wholeBook, slides: !lastSplit.current.includes(wholeBook) })
     else if (
       wholeBook === undefined &&
       was !== undefined &&
-      was === lastWide.current &&
+      (was === lastWide.current ||
+        (!lastSplit.current.includes(was) && split.every(id => id === was || lastPlain.current.includes(id)))) &&
       split.includes(was) &&
       over?.id !== was
     ) {
@@ -126,6 +137,7 @@ export function ScreensView() {
   }
   lastSplit.current = split
   lastWide.current = wide
+  lastPlain.current = plainScreens
   useEffect(() => {
     if (over === undefined) return
     // 滑り込み終えたら、残したコントロールセンターの側を、動かさずに消す
