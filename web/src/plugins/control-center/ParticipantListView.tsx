@@ -1,5 +1,5 @@
 // 左の列のワークルーム/参加者の一覧。管理者の行は高く、頭に王冠。空室の行は空の丸と（空室）、準備中は鳥を薄くして（準備中）。
-// 名前の下は、参加済みではスロット workroom-row-line に置かれたウィジェットが出す（今のタスクなど）。行を選ぶボタンは行の全体に敷き、
+// 名前の下は、参加済みと空室ではスロット workroom-row-line に置かれたウィジェットが出す（今のタスクなど。空室かも渡す）。行を選ぶボタンは行の全体に敷き、
 // その上に見た目を重ねる（スロットの物が自分のボタンを持てるように。見た目のうちボタンだけが押しを受け、ほかの所の押しは下の選ぶボタンへ通す）。
 // ワークルームの下に、ビジター（ワークルームを持たない、読むだけの参加者）の節を出す（いなければ節ごと出さない）。ワークルームとビジターは、どちらか一方だけを選ぶ
 import { useState } from "react"
@@ -37,7 +37,7 @@ export function ParticipantListView() {
     setPickedVisitor(participant)
     setPicked(undefined)
   }
-  const detailText = (d: RowDetail) => (d === "empty" ? t("(empty)") : d === "preparing" ? t("(preparing)") : null)
+  const detailText = (d: RowDetail) => (d === "preparing" ? t("(preparing)") : null)
   return (
     <Panel className={styles.list}>
       <Band>
@@ -70,8 +70,11 @@ export function ParticipantListView() {
                 <span className={styles.who}>
                   <span className={styles.name}>{row.room.name}</span>
                   {detail ? <span className={styles.detail}>{detail}</span> : null}
-                  {kind === "slot" ? (
-                    <Slot name={WORKROOM_ROW_LINE} props={{ workroom: row.room.id, admin: row.admin }} />
+                  {kind !== "preparing" ? (
+                    <Slot
+                      name={WORKROOM_ROW_LINE}
+                      props={{ workroom: row.room.id, admin: row.admin, empty: kind === "empty" }}
+                    />
                   ) : null}
                 </span>
               </div>

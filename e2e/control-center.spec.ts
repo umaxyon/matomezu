@@ -149,10 +149,10 @@ test("退室は、「部屋を出る」を押すと空室が一覧に残り、�
   await dialog.getByRole("button", { name: "キャンセル" }).click()
   await expect(dialog).toHaveCount(0)
   await expect(row(page, "sub_a")).not.toContainText("（空室）")
-  // 「部屋を出る」を押す: 空室になって一覧に残り、枠には空室と出る
+  // 「部屋を出る」を押す: 空室になって一覧に残り（本の行が（空室））、枠には空室と出る
   await roomPanel(page).getByRole("button", { name: "退室" }).click()
   await page.getByRole("dialog", { name: "退室" }).getByRole("button", { name: "部屋を出る" }).click()
-  await expect(row(page, "sub_a")).toContainText("（空室）")
+  await expect(row(page, "sub_a").locator("[data-current-line]")).toHaveText("（空室）")
   await expect(roomPanel(page).getByRole("button", { name: "退室" })).toHaveCount(0)
   await expect(roomPanel(page)).toContainText("sub_a（空室）")
   // 空室の枠にも同じアイコンのボタンがあり、押すと削除の確認（キャンセルと「部屋を削除する」だけ）が出る。キャンセルは何も変えず、削除すると一覧から消える

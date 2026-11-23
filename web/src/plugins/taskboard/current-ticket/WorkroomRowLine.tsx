@@ -1,4 +1,4 @@
-// 参加者の一覧の、参加済みの行の名前の下: 頭に本を付けたカレントチケットの番号の行と、その下にチケットの名前。無ければ本を付けた「（空き）」（当てられているだけのチケットは出さない）。
+// 参加者の一覧の、参加済みと空室の行の名前の下: 頭に本を付けたカレントチケットの番号の行と、その下にチケットの名前。無ければ本を付けた「（空き）」、空室なら「（空室）」（当てられているだけのチケットは出さない）。
 // 本は、そのワークルームのワーカーブック（カレントチケットの物。空きならワークルーム自身の物）。番号の行ごと押せて、クリックで「開く／分割で開く」、ダブルクリックで全画面で開く。
 // ワーカーブックにページが無ければ、本を薄くして押せない（押しは下の、行を選ぶボタンへ通る）
 import { useMessages } from "../../../plugin-api/ui"
@@ -9,11 +9,11 @@ import { ticketLabel } from "../ticket/label"
 import { useCurrentTickets } from "./useCurrentTickets"
 import styles from "./WorkroomColumns.module.css"
 
-export function WorkroomRowLine({ workroom }: { workroom: string; admin: boolean }) {
+export function WorkroomRowLine({ workroom, empty }: { workroom: string; admin: boolean; empty: boolean }) {
   const t = useMessages(kit)
   const { current } = useCurrentTickets(workroom)
   const found = useWorkroomWorkerBook(workroom)
-  const label = current ? ticketLabel(current.project.prefix, current.ticket.number) : t("(idle)")
+  const label = current ? ticketLabel(current.project.prefix, current.ticket.number) : t(empty ? "(empty)" : "(idle)")
   return (
     <>
       {found !== NO_WORKER_BOOK && found.pages.length > 0 ? (

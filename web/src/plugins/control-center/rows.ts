@@ -1,4 +1,4 @@
-// 参加者の一覧の行の名前の下（見た目でない所で決める）: 空室は（空室）、準備中は（準備中）、参加済みは スロット workroom-row-lineに置かれたウィジェットが出す
+// 参加者の一覧の行の名前の下（見た目でない所で決める）: 準備中は（準備中）、空室と参加済みは スロット workroom-row-line に置かれたウィジェットが出す（空室かを渡す）
 import type { WorkroomRow } from "../base"
 
 export type RowDetail = "empty" | "preparing" | "slot"
