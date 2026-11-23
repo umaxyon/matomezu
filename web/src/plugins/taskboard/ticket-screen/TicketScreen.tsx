@@ -78,7 +78,7 @@ function TicketBody({ ticket }: { ticket: Ticket }) {
   const canEdit = allowed.ok && !locked
   const markBodyEdited = useBodyUpdateLine(id)
   const working = useWorkingOn(ticket)
-  // このチケットのワーカーブック（ページが在るときだけ作業ブックを押せる）
+  // このチケットのワーカーブック（ページが在るときだけ「作業ブック」を押せる）
   const found = useWorkerBook(useMemo(() => ({ subject: TICKET.id, id }), [id]))
   const workPages = found === NO_WORKER_BOOK ? [] : found.pages
   const shower = useShowBook()
