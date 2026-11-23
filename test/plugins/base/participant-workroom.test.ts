@@ -36,7 +36,7 @@ test("画面に出すモデルは、フックが知らせたモデルを先に�
   expect(shownModel(p, undefined)).toBe("opus")
 })
 
-test("ビジターの行は、ワークルームを持たない受け入れ済みの参加者だけを参加した順に並べ、ワークルームの行には入れない。参加者区分は管理者・ワーカー・ビジター", () => {
+test("ビジターの行は、ワークルームを持たない受け入れ済みの参加者だけを参加した順に並べ、ワークルームの行には入れない。参加者区分はワーカー・ビジター（管理者の印が指すワークルームの参加者もワーカー）", () => {
   const visitor = (id: string, joinedAt: string, sessionName = "") =>
     ({ id, state: "visitor", ai: "claude", model: "opus", env: "e", sessionName, joinedAt }) as never
   const all = [...people, visitor("v2", "2", "D92"), visitor("v1", "1"), { id: "q", state: "requested" } as never]
@@ -49,8 +49,9 @@ test("ビジターの行は、ワークルームを持たない受け入れ済�
   expect(visitorName(rows[0]?.participant as never)).toBe("claude")
   const rooms3 = workroomRows({ rooms, participants: all, admin: "r1", ready: [], live: {}, calls: {}, activities: {} })
   expect(rooms3.map(r => r.participant?.id)).toEqual(["a", "b", undefined])
-  expect(participantCategory(people[0] as never, "r1")).toBe("admin")
-  expect(participantCategory(people[1] as never, "r1")).toBe("worker")
-  expect(participantCategory(all[2] as never, "r1")).toBe("visitor")
-  expect(participantCategory({ id: "q", state: "requested" } as never, "r1")).toBeUndefined()
+  expect(rooms3[0]?.admin).toBe(true)
+  expect(participantCategory(people[0] as never)).toBe("worker")
+  expect(participantCategory(people[1] as never)).toBe("worker")
+  expect(participantCategory(all[2] as never)).toBe("visitor")
+  expect(participantCategory({ id: "q", state: "requested" } as never)).toBeUndefined()
 })

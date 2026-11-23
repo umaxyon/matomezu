@@ -98,6 +98,8 @@ test("参加要求のしおりで受け入れるを押すと、名前・鳥・�
   await dialog.getByRole("radio", { name: "ピンク" }).check({ force: true })
   await dialog.getByRole("button", { name: "受け入れる" }).click()
   await expect(dialog).toHaveCount(0)
+  // 管理者がいないので管理者になる。区分はワーカーで、管理者と添える
+  await expect(page.getByRole("dialog", { name: "ようこそ" })).toContainText("ワーカー（管理者）")
   await closeWelcome(page)
 
   // 受け入れた参加者の表に、決めた名前・鳥・配色が入る

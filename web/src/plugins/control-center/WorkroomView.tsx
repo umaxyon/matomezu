@@ -3,10 +3,10 @@
 // ビジターを選んでいれば、ビジターの印・呼び名・（ビジター（読むだけ））・情報と、右下に外すアイコン（確かめのダイアログを開く）
 import { Slot, useActions, useAllowedOn, useMessages } from "../../plugin-api/ui"
 import { type VisitorRow, visitorName, type WorkroomRow } from "../base"
-import { Elapsed, IconButton, Panel, Tip, useWorkroomActions, VisitorIcon } from "../base/ui"
+import { CrownIcon, Elapsed, IconButton, Panel, Tip, useWorkroomActions, VisitorIcon } from "../base/ui"
 import { BIRD_SIZE, Bird } from "./Bird"
 import { VISITOR_LEAVE_DIALOG, WORKROOM_LEAVE_DIALOG } from "./control-center"
-import { CrownIcon, LeaveIcon, TrashIcon } from "./icons"
+import { LeaveIcon, TrashIcon } from "./icons"
 import { kit } from "./kit"
 import { lastAccessOf } from "./rows"
 import { WORKROOM_COLUMNS } from "./slots"
