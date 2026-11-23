@@ -23,6 +23,7 @@ import {
   useMessages,
   usePerform,
   usePluginState,
+  useResetPluginState,
   useSetPluginState,
   useShownPage,
   useStage,
@@ -380,8 +381,9 @@ export function NodeText({ node: n }: { node: LaidNode }) {
 // 節のフォーカスが付いているか。背景編集モードに入ると外し、ページ全体を収める（出ても外れたまま、見え方も変えない）。
 // 選びが空でなくなる（節を選ぶ）・節の書き換えを始める・ページが替わると、付いた状態に戻る
 function useFocus(stage: StageView, page: string | undefined): boolean {
-  const released = usePluginState(kit, TREE_FOCUS_RELEASED_STATE) === true
+  const released = usePluginState(kit, TREE_FOCUS_RELEASED_STATE)
   const writeFocus = useSetPluginState(kit, TREE_FOCUS_RELEASED_STATE)
+  const resetFocus = useResetPluginState(kit, TREE_FOCUS_RELEASED_STATE)
   const fit = useCommand("@matomezu/base:zoom-fit")
   const background = stage.edits === "slide"
   const items = stage.edits === "items"
@@ -394,7 +396,7 @@ function useFocus(stage: StageView, page: string | undefined): boolean {
   useEffect(() => {
     if (was.current === page) return
     was.current = page
-    writeFocus(undefined)
+    resetFocus()
   }, [page])
   // ページを替えて入るとき（ページの右クリックのメニュー）は、替えたあとに外すので、この順
   // biome-ignore lint/correctness/useExhaustiveDependencies: 入ったときだけ外す
@@ -404,8 +406,8 @@ function useFocus(stage: StageView, page: string | undefined): boolean {
     fitRef.current.run()
   }, [background])
   useEffect(() => {
-    if (items && released && (selecting || editing)) writeFocus(undefined)
-  }, [items, released, selecting, editing, writeFocus])
+    if (items && released && (selecting || editing)) resetFocus()
+  }, [items, released, selecting, editing, resetFocus])
   return !released && !background
 }
 

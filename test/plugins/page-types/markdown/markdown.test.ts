@@ -4,6 +4,7 @@
 import { expect, test } from "bun:test"
 import { stagePlacesOf, withStagePlaces } from "../../../../web/src/core/address"
 import { pagesOf } from "../../../../web/src/core/book"
+import { NO_STATE } from "../../../../web/src/core/def/plugin-state"
 import { HOME_ID } from "../../../../web/src/core/folders"
 import type { Book } from "../../../../web/src/core/schema/book"
 import { NO_PAPER, openedEntry, shownPageId } from "../../../../web/src/core/stage"
@@ -131,29 +132,29 @@ const WRITTEN = { id: "p1", text: "# 見出し" }
 
 test("ペインの並べ方: 選んだ並べ方があればそれ、形に合わなければ無いのと同じ。無ければ、空のページはソースを左に半分ずつ左右に並べる", () => {
   const even = { mode: "split-row", first: "source", share: 0.5 } as const
-  expect(paneLayoutOf(undefined, undefined, EMPTY)).toEqual(even)
-  expect(paneLayoutOf(undefined, undefined, null)).toEqual(even)
+  expect(paneLayoutOf(NO_STATE, NO_STATE, EMPTY)).toEqual(even)
+  expect(paneLayoutOf(NO_STATE, NO_STATE, null)).toEqual(even)
   const chosen = { mode: "split-column", first: "rendered", share: 0.3 } as const
-  expect(paneLayoutOf(chosen, undefined, WRITTEN)).toEqual(chosen)
+  expect(paneLayoutOf(chosen, NO_STATE, WRITTEN)).toEqual(chosen)
   // 形に合わない値は、宣言の形（schema）で落とされて無いのと同じ（場所から戻すときも、置くときも）
   expect(PANE_LAYOUT_STATE.schema!.safeParse({ mode: "diagonal", first: "source", share: 0.5 }).success).toBe(false)
   expect(PANE_LAYOUT_STATE.schema!.safeParse({ mode: "split-row", first: "source", share: 0.99 }).success).toBe(false)
 })
 
 test("選んだ並べ方が無いとき、本文が空白だけでなければ描いた文書だけで開く。空白だけは空と同じ", () => {
-  expect(paneLayoutOf(undefined, undefined, WRITTEN)).toEqual({ mode: "rendered-only", first: "source", share: 0.5 })
+  expect(paneLayoutOf(NO_STATE, NO_STATE, WRITTEN)).toEqual({ mode: "rendered-only", first: "source", share: 0.5 })
   expect(openingModeOf("")).toBe("split-row")
   expect(openingModeOf(" \n\t \n")).toBe("split-row")
   expect(openingModeOf("a")).toBe("rendered-only")
 })
 
 test("開いたときに決めた並べ方は、そのページを開いている間は本文が変わっても変わらず、ページが替われば本文から決め直す", () => {
-  const opened = openingFor(undefined, EMPTY)!
+  const opened = openingFor(NO_STATE, EMPTY)!
   expect(opened).toEqual({ page: "p1", mode: "split-row" })
-  expect(paneLayoutOf(undefined, opened, WRITTEN).mode).toBe("split-row")
+  expect(paneLayoutOf(NO_STATE, opened, WRITTEN).mode).toBe("split-row")
   expect(openingFor(opened, WRITTEN)).toBeUndefined()
   const other = { id: "p2", text: "x" }
-  expect(paneLayoutOf(undefined, opened, other).mode).toBe("rendered-only")
+  expect(paneLayoutOf(NO_STATE, opened, other).mode).toBe("rendered-only")
   expect(openingFor(opened, other)).toEqual({ page: "p2", mode: "rendered-only" })
 })
 
@@ -164,25 +165,25 @@ test("画面の場所に入るのは選んだ並べ方だけ（宣言した値�
 })
 
 test("入れ替えると、並べたときの左（上）のペインが替わる。1 つだけ見せている間はそのペインだけ", () => {
-  const layout = paneLayoutOf(undefined, undefined, EMPTY)
+  const layout = paneLayoutOf(NO_STATE, NO_STATE, EMPTY)
   expect(shownPanes(layout)).toEqual(["source", "rendered"])
   expect(shownPanes(swapPanes(layout))).toEqual(["rendered", "source"])
   expect(shownPanes({ ...swapPanes(layout), mode: "source-only" })).toEqual(["source"])
 })
 
 test("入れ替えていなければ、並べる向きの既定: 左右はソースが左、上下はプレビューが上。入れ替えたら向きを変えても守る", () => {
-  expect(shownPanes(paneLayoutOf({ mode: "split-row", share: 0.5 }, undefined, EMPTY))).toEqual(["source", "rendered"])
-  expect(shownPanes(paneLayoutOf({ mode: "split-column", share: 0.5 }, undefined, EMPTY))).toEqual([
+  expect(shownPanes(paneLayoutOf({ mode: "split-row", share: 0.5 }, NO_STATE, EMPTY))).toEqual(["source", "rendered"])
+  expect(shownPanes(paneLayoutOf({ mode: "split-column", share: 0.5 }, NO_STATE, EMPTY))).toEqual([
     "rendered",
     "source",
   ])
-  expect(shownPanes(paneLayoutOf({ mode: "split-column", first: "source", share: 0.5 }, undefined, EMPTY))).toEqual([
+  expect(shownPanes(paneLayoutOf({ mode: "split-column", first: "source", share: 0.5 }, NO_STATE, EMPTY))).toEqual([
     "source",
     "rendered",
   ])
   // 境目だけ動かしても first は書かず、向きを変えれば既定が向きに付いて行く
-  const layout = paneLayoutOf(undefined, undefined, EMPTY)
-  expect(chosenWith(undefined, layout, { share: 0.3 })).toEqual({ mode: "split-row", share: 0.3 })
+  const layout = paneLayoutOf(NO_STATE, NO_STATE, EMPTY)
+  expect(chosenWith(NO_STATE, layout, { share: 0.3 })).toEqual({ mode: "split-row", share: 0.3 })
   expect(chosenWith({ mode: "split-row", share: 0.3 }, layout, { mode: "split-column" })).toEqual({
     mode: "split-column",
     share: 0.3,
@@ -265,7 +266,7 @@ test("並べ方の 4 つのコマンドは、押すとその並べ方にし、�
   expect(
     paneLayoutOf(
       placedOf(store, "s1") as never,
-      state.getState().pluginValues.stages.s1?.["@matomezu/markdown:pane-opening"] as never,
+      (state.getState().pluginValues.stages.s1?.["@matomezu/markdown:pane-opening"] ?? NO_STATE) as never,
       EMPTY,
     ),
   ).toEqual({

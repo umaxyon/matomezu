@@ -2,8 +2,16 @@
 // プロジェクトのタスクボードを出し（出ていなければ。利用者の設定に残る）、チケットカードが止まるまで待ち、スクロールして見せ、また止まるまで待ってから、鳥を出す（visiting）。
 // 鳥はチケットカードの裏から顔を出し、上の辺に乗ってすぐ飛び去る。来ている間はチケットカードに色が当たる（TicketCardView）。
 // 置き場が変わったら（measure の 1 か所）鳥をすぐ消して終える。チケットカードが見つからない・止まらないときも黙って終える
+
 import { useEffect, useRef, useState } from "react"
-import { usePluginState, useRecord, useRecords, useSetPluginState, useUpdatePluginState } from "../../../plugin-api/ui"
+import { NO_STATE } from "../../../plugin-api"
+import {
+  usePluginState,
+  useRecord,
+  useRecords,
+  useResetPluginState,
+  useUpdatePluginState,
+} from "../../../plugin-api/ui"
 import { BirdWalk } from "../../base/ui"
 import { WORKROOM_SUBJECT } from "../by"
 import { kit } from "../kit"
@@ -85,12 +93,12 @@ function reveal(card: Element, root: HTMLElement, smooth: boolean) {
 
 export function CardVisitView({ root }: { root: HTMLElement | null }) {
   const visit = usePluginState(kit, CARD_VISIT)
-  return visit ? <Visiting visit={visit} root={root} /> : null
+  return visit !== NO_STATE ? <Visiting visit={visit} root={root} /> : null
 }
 
 // 立ち寄り visit の間だけある（終われば測った物ごと捨てる）
 function Visiting({ visit, root }: { visit: CardVisit; root: HTMLElement | null }) {
-  const setVisit = useSetPluginState(kit, CARD_VISIT)
+  const resetVisit = useResetPluginState(kit, CARD_VISIT)
   const updateVisit = useUpdatePluginState(kit, CARD_VISIT)
   const settings = useBoardSettings()
   const projects = useRecords(PROJECT.id, { where: [] })
@@ -109,7 +117,7 @@ function Visiting({ visit, root }: { visit: CardVisit; root: HTMLElement | null 
     if (phase !== "seeking" || !root) return
     let stop = false
     const cancelled = () => stop
-    const give = () => setVisit(undefined)
+    const give = () => resetVisit()
     void (async () => {
       const now = latest.current
       if (!now.ticket || !ready) return give()
@@ -132,7 +140,7 @@ function Visiting({ visit, root }: { visit: CardVisit; root: HTMLElement | null 
       const card = await settled(find, cancelled)
       if (!card) return cancelled() ? undefined : give()
       setBox({ card, at: rectOf(card), placed: rectOf(root) })
-      updateVisit(v => (v && v.seq === seq ? { ...v, phase: "visiting" } : v))
+      updateVisit(v => (v !== NO_STATE && v.seq === seq ? { ...v, phase: "visiting" } : v))
     })()
     return () => {
       stop = true
@@ -145,14 +153,14 @@ function Visiting({ visit, root }: { visit: CardVisit; root: HTMLElement | null 
     let frameId = 0
     const watch = () => {
       if (placementBroken(box.at, measure(box.card))) {
-        setVisit(undefined)
+        resetVisit()
         return
       }
       frameId = requestAnimationFrame(watch)
     }
     frameId = requestAnimationFrame(watch)
     return () => cancelAnimationFrame(frameId)
-  }, [phase, box, setVisit])
+  }, [phase, box, resetVisit])
 
   if (phase !== "visiting" || !box || !root || !room) return null
   const at = {
@@ -169,7 +177,7 @@ function Visiting({ visit, root }: { visit: CardVisit; root: HTMLElement | null 
         peekVisit
         pace={VISIT_PACE}
         awayLabel={room.name}
-        onGone={() => setVisit(undefined)}
+        onGone={() => resetVisit()}
       >
         {style => <span className={styles.bird} style={style} />}
       </BirdWalk>

@@ -1,7 +1,9 @@
 // スクリーンを上下に分けて並べる操作（SPLIT_ROWS）。描いている場所のスクリーン（スクリーンの外ならカレントスクリーン）を起点にし、ほかのスクリーンを id で名指さない。
 // 並びから外れたスクリーンは、ここで閉じる（開く側は閉じない）。窓が低い（SPLIT_MIN_HEIGHT 未満）ときは、分けずに 1 枚で開く
+
 import { useCallback, useMemo, useSyncExternalStore } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { sameData } from "../../../core/same"
 import { currentScreen, screenOfStage, type WindowState } from "../../../core/window"
 import { type Actions, SCREEN_REFUSED } from "../../../store/actions"
@@ -142,7 +144,7 @@ export function useScreenSplit(): ScreenSplit {
       const now = before.filter(id => win.screens.some(s => s.id === id))
       if (added === undefined || !tallNow()) return true
       if (now.includes(added)) {
-        flash(was => ({ screen: added, n: (was?.n ?? 0) + 1 }))
+        flash(was => ({ screen: added, n: (was === NO_STATE ? 0 : was.n) + 1 }))
         return true
       }
       apply(planOpen(now, here.id, added, how, max))
@@ -157,7 +159,7 @@ export function useScreenSplit(): ScreenSplit {
       const id = find(def, props)
       if (id === undefined) return
       actions.makeScreenCurrent(id)
-      flash(was => ({ screen: id, n: (was?.n ?? 0) + 1 }))
+      flash(was => ({ screen: id, n: (was === NO_STATE ? 0 : was.n) + 1 }))
     },
     expand: () => {
       apply(planExpand(split, here.id))

@@ -12,10 +12,10 @@ export function useControlCenterMaximize(active: boolean): void {
   const update = useUpdatePluginState(kit, MAXIMIZERS)
   useEffect(() => {
     if (!active) return
-    update(now => [...(now ?? []).filter(x => x !== id), id])
-    return () => update(now => (now ?? []).filter(x => x !== id))
+    update(now => [...now.filter(x => x !== id), id])
+    return () => update(now => now.filter(x => x !== id))
   }, [active, id, update])
 }
 
 // 画面いっぱいを使っている物があるか（枠が退くか）
-export const useControlCenterMaximized = (): boolean => (usePluginState(kit, MAXIMIZERS)?.length ?? 0) > 0
+export const useControlCenterMaximized = (): boolean => usePluginState(kit, MAXIMIZERS).length > 0

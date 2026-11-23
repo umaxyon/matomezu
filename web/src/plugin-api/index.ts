@@ -78,7 +78,14 @@ export type { PageTypeDef } from "../core/def/page-type"
 export { slideIsBackground } from "../core/def/page-type"
 export type { PaperDef } from "../core/def/paper"
 export type { PermissionDef, PermissionInput } from "../core/def/permission"
-export type { PluginStateDef, PluginStateRead } from "../core/def/plugin-state"
+export {
+  NO_STATE,
+  type PluginStateDef,
+  type PluginStateRead,
+  type StateChange,
+  type StateOf,
+  type StateRead,
+} from "../core/def/plugin-state"
 export type { PresentationDef } from "../core/def/presentation"
 export { NOT_SET, type SettingDef, settingOr } from "../core/def/setting"
 export type { SkinDef } from "../core/def/skin"

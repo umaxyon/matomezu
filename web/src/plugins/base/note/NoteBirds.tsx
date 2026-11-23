@@ -6,7 +6,7 @@
 // 付ける先がいくつかあるときは、カレントの物に明るい色の枠を重ねて、どれがカレントかを示す
 import { useEffect, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
-import { useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
+import { useReadPluginState, useResetPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import type { Bird } from "../birds"
 import { assignBirds } from "../birds/assign"
 import { BirdWalk, birdClass } from "../birds/BirdWalk"
@@ -36,11 +36,13 @@ export function NoteBirds() {
   const [shown, setShown] = useState<readonly Shown[]>([])
   const readBirds = useReadPluginState(kit, NOTE_BIRDS)
   const setBirds = useSetPluginState(kit, NOTE_BIRDS)
+  const resetBirds = useResetPluginState(kit, NOTE_BIRDS)
   const key = anchors.join(" ")
   // biome-ignore lint/correctness/useExhaustiveDependencies: 付ける先の並びが替わったときだけ割り当て直す
   useEffect(() => {
-    const next = assignBirds(readBirds() ?? {}, anchors, Math.random)
-    setBirds(Object.keys(next.birds).length === 0 ? undefined : next.birds)
+    const next = assignBirds(readBirds(), anchors, Math.random)
+    if (Object.keys(next.birds).length === 0) resetBirds()
+    else setBirds(next.birds)
     setShown(now => [
       ...now.filter(s => s.leaving && !anchors.includes(s.anchor)),
       ...next.left.map(l => ({ ...l, leaving: true })),

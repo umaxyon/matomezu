@@ -8,10 +8,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { type Annotation, anchorIds } from "../../../core/annotation"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { NO_PAGE } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
+import { usePluginState, useResetPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { useAllowed, usePage, useUserSetting } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
@@ -110,9 +111,10 @@ function Lost({ anchors }: { anchors: readonly string[] }) {
 function useNoteDraft(subject: string, initial: string): [string, (text: string) => void] {
   const draft = usePluginState(kit, NOTE_DRAFT)
   const setDraft = useSetPluginState(kit, NOTE_DRAFT)
-  useEffect(() => () => setDraft(undefined), [setDraft])
+  const resetDraft = useResetPluginState(kit, NOTE_DRAFT)
+  useEffect(() => () => resetDraft(), [resetDraft])
   const write = useCallback((text: string) => setDraft({ target: subject, text }), [setDraft, subject])
-  return [draft?.target === subject ? draft.text : initial, write]
+  return [draft !== NO_STATE && draft.target === subject ? draft.text : initial, write]
 }
 
 // 新しく書く伝言: 文を書いて「付ける」（付ける先が無い間は付けられない）。付けるのは送るコマンド（Mod+Enter と同じ）

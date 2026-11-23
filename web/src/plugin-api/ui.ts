@@ -25,6 +25,7 @@ export { definePluginUi } from "../ui/plugin"
 export {
   usePluginState,
   useReadPluginState,
+  useResetPluginState,
   useSetPluginState,
   useSetPluginStateById,
   useSetPluginStates,

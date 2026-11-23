@@ -55,8 +55,8 @@ test("書庫アピアランスは、kit が id に頭を付けて store 台帳�
 test("書庫アピアランスとスクリーンの定義のメソッドが受け取る read は、自分のプラグイン状態だけを読める（ほかのプラグインの宣言は E125）", () => {
   const kit = pluginKit("k", defineMessages({ Shelf: { en: "Shelf", ja: "たな" } }))
   const other = pluginKit("o", defineMessages({}))
-  const theirs = other.definePluginStateOf<string>()({ id: "theirs", scope: "screen" })
-  const appearance = kit.defineLibraryAppearance({ id: "shelf", shownFolders: (_, read) => [read(theirs) ?? HOME_ID] })
+  const theirs = other.definePluginStateOf<string>()({ id: "theirs", scope: "screen", default: HOME_ID })
+  const appearance = kit.defineLibraryAppearance({ id: "shelf", shownFolders: (_, read) => [read(theirs)] })
   const screen = kit.defineScreen({
     id: "shelf-screen",
     title: "Shelf",

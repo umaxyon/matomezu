@@ -1,6 +1,8 @@
 // コントロールセンターのプロジェクトの画面に置くタスクボード: 出しているプロジェクトのタスクボードを縦に並べる（1 枚ずつ、題の帯・歯車〈プロジェクト設定。直せないプロジェクトには出さない〉・最大化のボタン・レーンの横並び）。
 // タスクボードの出入りは useBoardPhases の様子（phase）で動かす。タスクボードかレーンを最大化すると、ほかのタスクボードは畳み、枠にも最大化を知らせる（左と下を退かせる）
+
 import { useState } from "react"
+import { NO_STATE } from "../../../plugin-api"
 import { useAllowedOn, useMessages, usePluginState, useRecords, useUpdatePluginState } from "../../../plugin-api/ui"
 import { GearIcon, IconButton, TitledArea, useControlCenterMaximize } from "../../base/ui"
 import { WORKROOM_SUBJECT } from "../by"
@@ -15,7 +17,7 @@ import { filterTickets } from "../wide-search/filter"
 import { MAXIMIZED } from "."
 import { BoardLanes } from "./BoardLanes"
 import { CardVisitView } from "./CardVisitView"
-import { maximizedAmong, released, toggleBoard, toggleLane } from "./maximize"
+import { maximizedAmong, maximizedBoard, released, toggleBoard, toggleLane } from "./maximize"
 import { orderedProjects, shownProjects, ticketsByLane } from "./shown"
 import styles from "./TaskboardView.module.css"
 import { useBoardPhases } from "./useBoardPhases"
@@ -36,7 +38,7 @@ export function TaskboardView() {
   const updateMaximized = useUpdatePluginState(kit, MAXIMIZED)
   const phases = useBoardPhases(shownIds, id => updateMaximized(now => released(now, id)))
   const maximized = maximizedAmong(maximizedNow, shownIds)
-  useControlCenterMaximize(maximized !== undefined)
+  useControlCenterMaximize(maximized !== NO_STATE)
   const rendered = ordered.filter(p => p.id in phases)
   const openSettings = useOpenProjectSettings()
 
@@ -45,9 +47,9 @@ export function TaskboardView() {
     <div ref={setRoot} className={styles.root}>
       {rendered.map(project => {
         const phase = phases[project.id] ?? "idle"
-        const hidden = maximized !== undefined && maximized.board !== project.id
+        const hidden = maximized !== NO_STATE && maximized.board !== project.id
         const byLane = ticketsByLane(tickets, project)
-        const laneMax = maximized?.board === project.id ? maximized.lane : undefined
+        const laneMax = maximized !== NO_STATE && maximized.board === project.id ? maximized.lane : undefined
         return (
           <div
             key={project.id}
@@ -64,7 +66,7 @@ export function TaskboardView() {
                   <FilterIndicator />
                 </>
               }
-              maximized={maximized?.board === project.id} // レーンの最大化の間も、タスクボードは最大化している（押すと全部を元に戻す）
+              maximized={maximizedBoard(maximized) === project.id} // レーンの最大化の間も、タスクボードは最大化している（押すと全部を元に戻す）
               onToggleMaximize={() => updateMaximized(now => toggleBoard(now, project.id))}
             >
               <BoardLanes

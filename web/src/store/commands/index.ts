@@ -4,7 +4,7 @@ import { USER } from "../../core/actor"
 import type { CommandId, CommandTable } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import type { NO_CONTROL_CENTER, Where } from "../../core/def/action"
-import type { PluginStateDef } from "../../core/def/plugin-state"
+import { stateRead } from "../../core/def/plugin-state"
 import { NO_NAME, namingOf, titleOf } from "../../core/entries"
 import { fail } from "../../core/errors"
 import { pageIn } from "../../core/folders"
@@ -111,11 +111,14 @@ export function screenCommandContext(
     folders: state.folders,
     pageTitle: page => titleOf(state, "page", page, namingOf(catalog, settings)) ?? NO_NAME,
     // スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値
-    pluginState: <S>(def: PluginStateDef<S>) =>
-      pluginValueOf(
-        state.pluginValues,
-        placeOf(def.scope, { stage: at, screen: screen.id }),
-        ownedPluginState(commandOwner(command), def),
+    pluginState: def =>
+      stateRead(
+        def,
+        pluginValueOf(
+          state.pluginValues,
+          placeOf(def.scope, { stage: at, screen: screen.id }),
+          ownedPluginState(commandOwner(command), def),
+        ),
       ),
     read: readerOf(catalog, sourceOf(state.records), reads),
   }

@@ -2,8 +2,10 @@
 // 名前の下は、参加済みと空室ではスロット workroom-row-line に置かれたウィジェットが出す（今のタスクなど。空室かも渡す）。行を選ぶボタンは行の全体に敷き、
 // その上に見た目を重ねる（スロットの物が自分のボタンを持てるように。見た目のうちボタンだけが押しを受け、ほかの所の押しは下の選ぶボタンへ通す）。
 // ワークルームの下に、ビジター（ワークルームを持たない、読むだけの参加者）の節を出す（いなければ節ごと出さない）。ワークルームとビジターは、どちらか一方だけを選ぶ
+
 import { useState } from "react"
-import { Slot, useMessages, usePluginState, useSetPluginState } from "../../plugin-api/ui"
+import { NO_STATE } from "../../plugin-api"
+import { Slot, useMessages, usePluginState, useResetPluginState, useSetPluginState } from "../../plugin-api/ui"
 import { visitorName } from "../base"
 import { Band, Panel, useRowSlide, useVisitorRows, useWorkroomRows, VisitorIcon } from "../base/ui"
 import { BIRD_SIZE, Bird } from "./Bird"
@@ -26,16 +28,19 @@ export function ParticipantListView() {
   const { register } = useRowSlide(rows.map(r => r.room.id))
   const picked = usePluginState(kit, PICKED_ROOM)
   const setPicked = useSetPluginState(kit, PICKED_ROOM)
+  const resetPicked = useResetPluginState(kit, PICKED_ROOM)
   const visitors = useVisitorRows()
   const pickedVisitor = usePluginState(kit, PICKED_VISITOR)
   const setPickedVisitor = useSetPluginState(kit, PICKED_VISITOR)
+  const resetPickedVisitor = useResetPluginState(kit, PICKED_VISITOR)
   const pick = (room: string | undefined) => {
-    setPicked(room)
-    setPickedVisitor(undefined)
+    if (room === undefined) resetPicked()
+    else setPicked(room)
+    resetPickedVisitor()
   }
   const pickVisitor = (participant: string) => {
     setPickedVisitor(participant)
-    setPicked(undefined)
+    resetPicked()
   }
   const detailText = (d: RowDetail) => (d === "preparing" ? t("(preparing)") : null)
   return (
@@ -53,7 +58,7 @@ export function ParticipantListView() {
               key={row.room.id}
               ref={register(row.room.id)}
               className={styles.row}
-              data-selected={picked === row.room.id && pickedVisitor === undefined}
+              data-selected={picked === row.room.id && pickedVisitor === NO_STATE}
               data-admin={row.admin}
               data-workroom={row.room.id}
             >

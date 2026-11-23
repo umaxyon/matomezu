@@ -2,13 +2,22 @@
 // ステージごとの宣言は向け先のステージ、スクリーンごとの宣言は描いているスクリーン
 
 import { useCallback } from "react"
-import type { PluginStateDef, PluginStateScope } from "../core/def/plugin-state"
+import {
+  type PluginStateDef,
+  type PluginStateScope,
+  type StateChange,
+  type StateOf,
+  type StateRead,
+  stateRead,
+  storedOf,
+} from "../core/def/plugin-state"
 import { NO_STAGE } from "../core/stage"
 import { ownedPluginState, type PluginPlace, placeOf } from "../store/plugin-state"
 import {
   type Owner,
   usePluginStateAt,
   useReadPluginStateAt,
+  useResetPluginStateAt,
   useSetPluginStateAt,
   useUpdatePluginStateAt,
 } from "./at-hooks"
@@ -37,45 +46,61 @@ function usePluginPlace(
   )
 }
 
-// プラグイン状態 def の今の値（無ければ undefined）。自分の kit を渡し、自分の宣言だけを読む（ほかのプラグインの宣言は E125）。置き直すたびに描き直す
-export function usePluginState<S, Sc extends PluginStateScope>(
+// プラグイン状態 def の今の値（無ければ、既定を持つ宣言は既定、持たない宣言は NO_STATE）。自分の kit を渡し、自分の宣言だけを読む（ほかのプラグインの宣言は E125）。置き直すたびに描き直す
+export function usePluginState<D extends PluginStateDef<unknown>>(
   kit: Owner,
-  def: PluginStateDef<S> & { scope: Sc },
-  ...at: At<Sc>
-): S | undefined {
+  def: D,
+  ...at: At<D["scope"]>
+): StateRead<D> {
   return usePluginStateAt(kit, def, usePluginPlace(def.scope)(at[0]))
 }
 
 // プラグイン状態 def を、描き直さずに読む関数（置いた側が、前に置いた値と比べるときなど）
-export function useReadPluginState<S, Sc extends PluginStateScope>(
+export function useReadPluginState<D extends PluginStateDef<unknown>>(
   kit: Owner,
-  def: PluginStateDef<S> & { scope: Sc },
-): (...at: At<Sc>) => S | undefined {
+  def: D,
+): (...at: At<D["scope"]>) => StateRead<D> {
   const read = useReadPluginStateAt(kit, def)
   const placeFor = usePluginPlace(def.scope)
   return useCallback(
     (...given: readonly (string | undefined)[]) => {
       const at = placeFor(given[0])
-      return at === null ? undefined : read(at)
+      return at === null ? stateRead(def, undefined) : read(at)
     },
-    [read, placeFor],
+    [read, placeFor, def],
   )
 }
 
-// プラグイン状態 def の値を変える関数（引数が新しい値。undefined なら消す。場所が無ければ置かない。画面の場所に入れる宣言の形に合わなければ E123）
-export function useSetPluginState<S, Sc extends PluginStateScope>(
+// プラグイン状態 def の値を変える関数（引数が新しい値。消すのは useResetPluginState。場所が無ければ置かない。画面の場所に入れる宣言の形に合わなければ E123）
+export function useSetPluginState<D extends PluginStateDef<unknown>>(
   kit: Owner,
-  def: PluginStateDef<S> & { scope: Sc },
-): (...args: [...At<Sc>, S | undefined] | [S | undefined]) => void {
+  def: D,
+): (...args: [...At<D["scope"]>, StateOf<D>] | [StateOf<D>]) => void {
   const set = useSetPluginStateAt(kit, def)
   const placeFor = usePluginPlace(def.scope, "write")
   const named = def.scope === "screen"
   return useCallback(
     (...args: unknown[]) => {
       const at = placeFor(named && args.length === 2 ? (args[0] as string) : undefined)
-      if (at !== null) set(at, args[args.length - 1] as S | undefined)
+      if (at !== null) set(at, args[args.length - 1] as StateOf<D>)
     },
     [set, placeFor, named],
+  )
+}
+
+// プラグイン状態 def の値を消す関数（既定を持つ宣言は既定を、持たない宣言は NO_STATE を読むようになる。スクリーンごとの宣言は、スクリーンの id を渡して名指せる。場所が無ければ何もしない）
+export function useResetPluginState<D extends PluginStateDef<unknown>>(
+  kit: Owner,
+  def: D,
+): (...at: At<D["scope"]>) => void {
+  const reset = useResetPluginStateAt(kit, def)
+  const placeFor = usePluginPlace(def.scope, "write")
+  return useCallback(
+    (...given: readonly (string | undefined)[]) => {
+      const at = placeFor(given[0])
+      if (at !== null) reset(at)
+    },
+    [reset, placeFor],
   )
 }
 
@@ -103,7 +128,7 @@ export function useSetPluginStateById(): (id: string, value: unknown, at?: { scr
 }
 
 // 複数のプラグイン状態の値を、1 回で書く関数（途中の、片方だけ変わった状態を知らせない）。自分の kit を渡し、自分の宣言だけを書く。
-// 変え方は [宣言, 新しい値] の並び（ステージごとの宣言は向け先のステージ、スクリーンごとの宣言は描いているスクリーンの値。その場所が無ければ、その変え方は捨てる）
+// 変え方は [宣言, 新しい値（NO_STATE なら消す）] の並び（ステージごとの宣言は向け先のステージ、スクリーンごとの宣言は描いているスクリーンの値。その場所が無ければ、その変え方は捨てる）
 export function useSetPluginStates(
   kit: Owner,
 ): (changes: readonly (readonly [def: PluginStateDef<unknown>, value: unknown])[]) => void {
@@ -120,25 +145,27 @@ export function useSetPluginStates(
       setPluginStates(
         changes.flatMap(([def, value]) => {
           const at = placeOf(def.scope, { stage, screen })
-          return at === null ? [] : [[ownedPluginState(id, def).id, at, value] as const]
+          return at === null ? [] : [[ownedPluginState(id, def).id, at, storedOf(value)] as const]
         }),
       ),
     [setPluginStates, id, stage, screen, nowhere],
   )
 }
 
-// プラグイン状態 def の値を、今の値から change が返す値にする関数（引数が change。場所が無ければ何もしない）
-export function useUpdatePluginState<S, Sc extends PluginStateScope>(
+// プラグイン状態 def の値を、今の値から change が返す値にする関数（引数が change。NO_STATE を返せば消す。場所が無ければ何もしない）
+export function useUpdatePluginState<D extends PluginStateDef<unknown>>(
   kit: Owner,
-  def: PluginStateDef<S> & { scope: Sc },
-): (...args: [...At<Sc>, (now: S | undefined) => S | undefined] | [(now: S | undefined) => S | undefined]) => void {
+  def: D,
+): (
+  ...args: [...At<D["scope"]>, (now: StateRead<D>) => StateChange<D>] | [(now: StateRead<D>) => StateChange<D>]
+) => void {
   const update = useUpdatePluginStateAt(kit, def)
   const placeFor = usePluginPlace(def.scope, "write")
   const named = def.scope === "screen"
   return useCallback(
     (...args: unknown[]) => {
       const at = placeFor(named && args.length === 2 ? (args[0] as string) : undefined)
-      if (at !== null) update(at, args[args.length - 1] as (now: S | undefined) => S | undefined)
+      if (at !== null) update(at, args[args.length - 1] as (now: StateRead<D>) => StateChange<D>)
     },
     [update, placeFor, named],
   )

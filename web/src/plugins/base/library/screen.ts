@@ -1,7 +1,9 @@
 // 書庫のスクリーン（書庫の画面だけを見せる、ステージを並べないスクリーン）と、それを窓いっぱいに出すコマンド「書庫を開く」と、書庫のスクリーンを閉じる・広げる操作。
 // 開く先は、置かれた所で決める（渡す値は無い）: ブックスクリーンと上下に並んでいれば、そのブックスクリーンの空のステージ（vacantStageBeside）、並んでいなければ新しいブックスクリーン。
 // 書庫のスクリーンを閉じる・広げる道（帯のボタン・書庫のスクリーンの外の操作・「書庫を開く」・選んで開いたあと）は、どれもここの関数を通り、ステージを分けて足した空のステージを閉じる
+
 import { z } from "zod"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { UNREADABLE_ID } from "../../../core/folders"
 import { type Actions, SCREEN_REFUSED } from "../../../store/actions"
 import {
@@ -55,8 +57,8 @@ export const LIBRARY_UNREADABLE_OPEN = kit.defineScreenCommand({
     // 検索をやめ、選んでいる行も外して、読めない物のフォルダを出す
     const write = updatePluginStateAtOf(a)
     write(library, LIBRARY_FOLDER, () => UNREADABLE_ID)
-    write(library, LIBRARY_PICKED, () => undefined)
-    write(library, LIBRARY_QUERY, () => undefined)
+    write(library, LIBRARY_PICKED, () => NO_STATE)
+    write(library, LIBRARY_QUERY, () => NO_STATE)
   },
   when: () => true,
 })
@@ -73,8 +75,8 @@ export const LIBRARY_PLACE_OPEN = kit.defineCommand({
     if (library === SCREEN_REFUSED) return
     const write = updatePluginStateAtOf(a)
     write(library, LIBRARY_FOLDER, () => holder)
-    write(library, LIBRARY_PICKED, () => undefined)
-    write(library, LIBRARY_QUERY, () => undefined)
+    write(library, LIBRARY_PICKED, () => NO_STATE)
+    write(library, LIBRARY_QUERY, () => NO_STATE)
   },
   when: ctx => hasOpenedPage(ctx) && outsidePagePlaceOf(ctx.folders, ctx.page.id).length > 0,
 })

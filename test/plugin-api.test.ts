@@ -58,6 +58,7 @@ test("matomezu が出す名前", () => {
     "NO_PAPER",
     "NO_PLACING",
     "NO_STAGE",
+    "NO_STATE",
     "NO_TOOL",
     "NO_WORKER_BOOK",
     "PAGE_PAPER_COLOR",
@@ -434,6 +435,7 @@ test("matomezu/ui が出す名前", () => {
     "useRecordEditLock",
     "useRecords",
     "useReplaceHistory",
+    "useResetPluginState",
     "useResize",
     "useRevealable",
     "useRightSidePanel",
@@ -585,7 +587,7 @@ test("何も開いていないステージのコマンドの文脈は、開い�
   expect(ctx.toPaper({ x: 0, y: 0 })).toBe(NO_PAPER)
 })
 
-test("コマンドの run が受け取る操作（CommandActions）は、useActions の操作と、自分のプラグイン状態を変える updatePluginState（インスタンスだけが持つ receive・locate・setOffline・setLastWindow・setCanGoBack・setPluginState・setPluginStates は渡さない）", () => {
+test("コマンドの run が受け取る操作（CommandActions）は、useActions の操作と、自分のプラグイン状態を変える updatePluginState・resetPluginState（インスタンスだけが持つ receive・locate・setOffline・setLastWindow・setCanGoBack・setPluginState・setPluginStates は渡さない）", () => {
   const store = newStore()
   const def = commandDef(store, "@matomezu/base:mark-new")
   const run = def.run
@@ -631,6 +633,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "replaceHistory",
     "requestBack",
     "requestPrint",
+    "resetPluginState",
     "resetStageView",
     "resizeStage",
     "select",
@@ -652,10 +655,10 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "updatePluginState",
     "zoomStage",
   ])
-  // useActions の操作は、そこから updatePluginState を除いた物（store の素の操作のうち、ほかのスクリーン・ステージを名指す FrameActions と、
+  // useActions の操作は、そこから updatePluginState と resetPluginState を除いた物（store の素の操作のうち、ほかのスクリーン・ステージを名指す FrameActions と、
   // 行わずに確かめる ProbeActions は渡さない）
   const given = { ...windowActionsOf(store.actions), ...boundActions(store.actions, "s1") }
-  expect(names(given)).toEqual(names(got).filter(n => n !== "updatePluginState"))
+  expect(names(given)).toEqual(names(got).filter(n => n !== "updatePluginState" && n !== "resetPluginState"))
   expect(names(store.actions).filter(n => !names(given).includes(n))).toEqual([
     "makeScreenCurrent",
     "openOutsideBinder",

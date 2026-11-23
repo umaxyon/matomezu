@@ -1,7 +1,9 @@
 // 横断検索のチケットモード: 入力の言葉（題名・番号・チケット履歴・本文）に当たったチケットと、プロジェクト・タグ・優先度の選びで、タスクボードのチケットを絞る。
 // 絞りは窓の状態に持ち、パネルを閉じても残る（パネルの印の × で外す）。絞りの状態が無い間は、ボードに出しているプロジェクトが選ばれた状態で始める。言葉は打つのを待ってから、チケットとチケット履歴の両方をホストで探す。
 // 言葉も選びも空なら絞らない
+
 import { useEffect, useRef, useState } from "react"
+import { NO_STATE } from "../../../plugin-api"
 import {
   useMessages,
   usePluginState,
@@ -50,14 +52,14 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
   // 出しているタスクボードのプロジェクト（絞りの状態が無い間、選びの初めの状態になる）
   const shownIds = shownProjects(orderedProjects(allProjects, settings.order), settings.shown).map(p => p.id)
   const change = (f: (now: TicketFilter) => TicketFilter) =>
-    update(now => f(now ?? { ...NO_FILTER, projects: shownIds }))
+    update(now => f(now === NO_STATE ? { ...NO_FILTER, projects: shownIds } : now))
   const latest = useRef(0) // 最後に頼んだ問い合わせの番号（それ以外の返りは捨てる）
   const first = useRef(true)
   const restored = useRef<string | null>(null) // 開き直したときに、絞りから入力に戻した言葉（それで問い合わせ直すまで）
   // biome-ignore lint/correctness/useExhaustiveDependencies: 言葉が変わったときだけ探す
   useEffect(() => {
     // 開き直したとき、絞りに言葉が残っていれば入力に戻す（言葉が空のまま、残っている絞りを消さない）
-    const kept = filter?.term ?? ""
+    const kept = filter === NO_STATE ? "" : filter.term
     if (first.current) {
       first.current = false
       if (term === "" && kept !== "") {
@@ -74,9 +76,9 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
       setFailed(false)
       // 言葉を消して、選びが初めの状態（出しているプロジェクトだけ）のままなら、絞りごと解く
       update(now => {
-        if (!now || (now.term === "" && now.hits === null)) return now
+        if (now === NO_STATE || (now.term === "" && now.hits === null)) return now
         const rest = { ...now, term: "", hits: null }
-        return isInitialChoice(rest, shownIds) ? undefined : rest
+        return isInitialChoice(rest, shownIds) ? NO_STATE : rest
       })
       return
     }
@@ -88,7 +90,7 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
           setFailed(false)
           const ids = ticketHits(found, terms, tickets, allProjects)
           // 戻した言葉で問い合わせ直した答えは、絞りがその言葉のまま残っているときだけ入れる（その間に解かれた絞りを戻さない）
-          if (again) update(now => (now?.term === words ? { ...now, hits: ids } : now))
+          if (again) update(now => (now !== NO_STATE && now.term === words ? { ...now, hits: ids } : now))
           else change(now => ({ ...now, term: words, hits: ids }))
         },
         () => {
@@ -99,14 +101,14 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
     return () => clearTimeout(timer)
   }, [term])
   // 絞りの言葉がよそで消されたら（ろうとのボタン・「検索中」の ×）、入力の言葉も消す
-  const keptTerm = filter?.term ?? ""
+  const keptTerm = filter === NO_STATE ? "" : filter.term
   const prevKept = useRef(keptTerm)
   // biome-ignore lint/correctness/useExhaustiveDependencies: 絞りの言葉が変わったときだけ見る
   useEffect(() => {
     if (prevKept.current !== "" && keptTerm === "" && term.trim() !== "") setTerm("")
     prevKept.current = keptTerm
   }, [keptTerm])
-  const f = filter ?? { ...NO_FILTER, projects: shownIds }
+  const f = filter === NO_STATE ? { ...NO_FILTER, projects: shownIds } : filter
   const active = isFiltering(filter)
   const matched = active ? filterTickets(tickets, f) : []
   const count = isFiltering(f) ? filterTickets(tickets, f).length : tickets.length
@@ -129,7 +131,7 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
   return (
     <div className={styles.panel}>
       <p className={styles.note}>{failed ? t("Could not search") : t("{n} tickets", { n: count })}</p>
-      {isFiltering(filter) && <FilterBanner filter={filter} onClear={() => update(() => undefined)} />}
+      {isFiltering(filter) && <FilterBanner filter={filter} onClear={() => update(() => NO_STATE)} />}
       <Group title={t("Filter projects")}>
         {projects.map(p => (
           <FilterChip

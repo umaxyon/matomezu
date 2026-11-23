@@ -1,6 +1,7 @@
 // 右サイドパネルで開いた物を見せる見え方（倍率の選び方と、真ん中に来ること。ずらす量の細かな決まりは stand-place.test.ts）、閉じたときに見え方を戻すかの覚え（state.ts・reveal.ts）。全体を収めるのと同じ移し方（moveView）
 
 import { expect, test } from "bun:test"
+import { NO_STATE } from "../../../web/src/core/def/plugin-state"
 import type { Rect } from "../../../web/src/core/geom"
 import { NOTHING_OPENED, newStage, openBook, panBy, resize, type Stage, zoomTo } from "../../../web/src/core/stage"
 import { paperRectOf, revealView } from "../../../web/src/plugins/base/right-side-panel/reveal"
@@ -18,7 +19,7 @@ const book = testBook("b1", "見本", [drawingPage("p1")])
 const stage = resize(openBook(CORE_CATALOG, newStage("s1"), book), { w: 400, h: 300 })
 
 test("開くと、開く前の見え方を覚え、物はまだ見せていない。閉じて戻す前に同じページで開き直しても、最初に開く前の見え方と、変えたかはそのまま", () => {
-  const opened = openedRestore(undefined, OPEN, PANNED)
+  const opened = openedRestore(NO_STATE, OPEN, PANNED)
   expect(opened).toEqual({
     before: { ...PANNED, book: "b1", page: "p1" },
     shown: null,
@@ -40,7 +41,7 @@ test("開くと、開く前の見え方を覚え、物はまだ見せていな�
 
 test("見せたあとに倍率かずらす量が変わったら、変えたことにする。開いている間の見せる前と、表示領域の大きさが変わって収め直されただけのときは数えない", () => {
   const panned = panBy(stage, -300, -200)
-  const restore = openedRestore(undefined, OPEN, PANNED)
+  const restore = openedRestore(NO_STATE, OPEN, PANNED)
   expect(movedFrom(restore, zoomTo(panned, 1.1), false)).toBe(false)
   const shown = { ...restore, shown: { zoom: panned.zoom, pan: panned.pan } }
   for (const closing of [false, true]) {
@@ -54,7 +55,7 @@ test("見せたあとに倍率かずらす量が変わったら、変えたこ�
 
 test("見せる前に閉じたら、閉じて幅を動かしている間は開く前の見え方と比べる（表示領域が広がって収め直されただけなら数えない）", () => {
   const before = { ...stage, ...PANNED }
-  const restore = openedRestore(undefined, OPEN, PANNED)
+  const restore = openedRestore(NO_STATE, OPEN, PANNED)
   expect(movedFrom(restore, before, true)).toBe(false)
   expect(movedFrom(restore, resize(before, { w: 900, h: 700 }), true)).toBe(false)
   expect(movedFrom(restore, zoomTo(before, 1.1), true)).toBe(true)
@@ -62,7 +63,7 @@ test("見せる前に閉じたら、閉じて幅を動かしている間は開�
 })
 
 test("閉じたら、変えていなければ開く前の見え方に戻す。変えたか、ほかのブックかページを開いているか、別のステージで開いていれば戻さない", () => {
-  const restore = { ...openedRestore(undefined, OPEN, PANNED), shown: HOME }
+  const restore = { ...openedRestore(NO_STATE, OPEN, PANNED), shown: HOME }
   const on = { opened: { kind: "page", outermost: { kind: "book", id: "b1" }, page: "p1" } as never }
   expect(restoreTo(restore, on)).toEqual(PANNED)
   expect(restoreTo(restore, on, true)).toBeNull()

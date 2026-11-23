@@ -5,7 +5,7 @@ import type { Annotation } from "../../core/annotation"
 import type { ActionId, ActionTable, CommandExtras, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import { ANY_PAGE_TYPE, type ArgsOfType, type NO_CONTROL_CENTER, type Where } from "../../core/def/action"
-import type { PluginStateDef, PluginStateRead } from "../../core/def/plugin-state"
+import type { NO_STATE, PluginStateDef, PluginStateRead, StateRead } from "../../core/def/plugin-state"
 import type { NO_NAME } from "../../core/entries"
 import { fail } from "../../core/errors"
 import type { Folders } from "../../core/folders"
@@ -97,7 +97,7 @@ export interface ScreenCommandContext {
   folders: Folders // 書庫のフォルダの表（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダの行と並び。読むだけ。ページの中身は持たない）
   pageTitle(page: string): string | typeof NO_NAME // ページ page の名前（名前の無いページ・表に無い物は NO_NAME。ページの中身は渡さない）
   // コマンドを持つプラグインが宣言したプラグイン状態 def の今の値（スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値。
-  // 無ければ undefined。ほかのプラグインの宣言は E125。変えるのは run が受け取る updatePluginState）
+  // 無ければ、既定を持つ宣言は既定、持たない宣言は NO_STATE。ほかのプラグインの宣言は E125。変えるのは run が受け取る updatePluginState と resetPluginState）
   pluginState: PluginStateRead
   // コマンドの定義の readsSubjects に書いた種類のレコードを読む（ほかの種類は none と空。ステージから呼ぶコマンドは、どの種類も読まない）
   read: RecordReader
@@ -215,8 +215,13 @@ export function calledStageOf(ctx: CommandContext): Stage | undefined {
 // コマンドが受け取る store の操作: 窓の操作と、呼ばれた場所（ステージから呼ぶコマンドはそのステージ、スクリーンから呼ぶコマンドはそのスクリーン）に向けた操作に、
 // そのコマンドを持つプラグインのプラグイン状態を変える操作を足したもの
 export interface CommandActions extends WindowActions, BoundPlaceActions {
-  // このコマンドを持つプラグインが宣言したプラグイン状態 def の値を、今の値から change が返す値にする（undefined なら消す。ステージごとの宣言は呼ばれた場所のステージの値）。1 回のコマンドで何度書いても、store には 1 回で書く。画面の場所に入れる宣言の形に合わなければ E123
-  updatePluginState<S>(def: PluginStateDef<S>, change: (now: S | undefined) => S | undefined): void
+  // このコマンドを持つプラグインが宣言したプラグイン状態 def の値を、今の値から change が返す値にする（NO_STATE を返せば消す。ステージごとの宣言は呼ばれた場所のステージの値）。1 回のコマンドで何度書いても、store には 1 回で書く。画面の場所に入れる宣言の形に合わなければ E123
+  updatePluginState<S, D extends PluginStateDef<S>>(
+    def: D & PluginStateDef<S>,
+    change: (now: StateRead<D>) => S | typeof NO_STATE,
+  ): void
+  // 同じく、def の値を消す（既定を持つ宣言は既定を、持たない宣言は NO_STATE を読むようになる）
+  resetPluginState(def: PluginStateDef<unknown>): void
 }
 
 // コマンドに渡した操作ごとの、store の素の操作（ほかのスクリーン・ステージを名指す操作も持つ。プラグイン API には出さない。base のコマンドが storeActionsOf で読む）
@@ -226,10 +231,10 @@ export const givenActions = new WeakMap<CommandActions, Actions>()
 export const storeActionsOf = (a: CommandActions): Actions => givenActions.get(a) ?? fail("E116")
 
 // コマンドを持つプラグインの、スクリーンごとの宣言 def の値を、呼ばれた場所でないスクリーン screen で、今の値から change が返す値にする（updatePluginState と同じく、1 回のコマンドの書き込みにまとめる）。スクリーンごとの宣言でなければ E124
-export type UpdatePluginStateAt = <S>(
+export type UpdatePluginStateAt = <S, D extends PluginStateDef<S>>(
   screen: string,
-  def: PluginStateDef<S>,
-  change: (now: S | undefined) => S | undefined,
+  def: D & PluginStateDef<S>,
+  change: (now: StateRead<D>) => S | typeof NO_STATE,
 ) => void
 // コマンドに渡した操作ごとの、ほかのスクリーンの自分の宣言の値を変える操作（プラグイン API には出さない。base のコマンドが updatePluginStateAtOf で読む）
 export const givenScreenWrites = new WeakMap<CommandActions, UpdatePluginStateAt>()

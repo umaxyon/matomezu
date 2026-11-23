@@ -1,6 +1,6 @@
 // Tab キーの設定の項目のビュー: [数 ▾](半角スペース)(Tab) の切り替え。選んでいる方のボタンを押した見た目にする。
 // 数を選び替えると、半角スペースを選んでいる間はすぐ効き、Tab 文字を選んでいる間は覚えておくだけ
-import { settingOr } from "../../../../core/def/setting"
+import { settingOr } from "../../../../plugin-api"
 import { type UserSettingControlProps, useMessages } from "../../../../plugin-api/ui"
 import { SelectButton, SettingRow } from "../../../base/ui"
 import { kit } from "../kit"

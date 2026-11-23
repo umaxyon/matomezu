@@ -7,6 +7,7 @@
 // （ポインタを押している間は、離してから。state.ts の followSelection）。付いた先が空になっても閉じない
 
 import { type ReactNode, useContext, useEffect, useRef, useState } from "react"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { NO_STAGE } from "../../../core/stage"
 import { screenOf, stageIn, workspaceOf } from "../../../core/window"
 import { stageView, toolOf } from "../../../core/workspace"
@@ -148,7 +149,7 @@ function useFollowSelection(stage: string | null) {
   useEffect(() => {
     if (!stage || pressing.current || shown !== synced.current) return
     const open = readPanel(stage)
-    if (!open) return
+    if (open === NO_STATE) return
     // 開いたときに選択を変えたばかりのこともあるので、選択はストアから今の値を読む
     const current = stageIn(read().window, stage)?.selection ?? []
     const next = followSelection(open, current)

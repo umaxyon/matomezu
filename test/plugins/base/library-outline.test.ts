@@ -66,7 +66,6 @@ test("パンくずは、一番上のフォルダからそのフォルダまで�
   expect(pathTo(library().folders, "b2", NO_DESKS)).toEqual([HOME_ID, folder, "b2"])
   expect(openedFolderOf(library().folders, folder, NO_DESKS)).toBe(folder)
   expect(openedFolderOf(library().folders, "nothing", NO_DESKS)).toBe(HOME_ID)
-  expect(openedFolderOf(library().folders, undefined, NO_DESKS)).toBe(HOME_ID)
 })
 
 test("行を開くと、フォルダは中へ入り、ブックとその中のページはブックを窓に出す。ゴミ箱の中の物は開かない", () => {

@@ -4,6 +4,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { pagesOf } from "../../web/src/core/book"
+import { NO_STATE } from "../../web/src/core/def/plugin-state"
 import type { Book, PageOf } from "../../web/src/core/schema/book"
 import { NO_PAGE, NO_PAPER, NO_STAGE } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
@@ -225,7 +226,7 @@ test("ステージの中に置いたステージの外で見るだけに描く�
     command: false,
     screenCommand: false,
     menu: NO_MENU_COMMAND,
-    state: undefined,
+    state: NO_STATE,
     pan: NO_STAGE,
   })
   const before = instance.state.getState()

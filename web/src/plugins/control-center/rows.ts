@@ -1,4 +1,5 @@
 // 参加者の一覧の行の名前の下（見た目でない所で決める）: 準備中は（準備中）、空室と参加済みは スロット workroom-row-line に置かれたウィジェットが出す（空室かを渡す）
+import type { NO_STATE } from "../../plugin-api"
 import type { WorkroomRow } from "../base"
 
 export type RowDetail = "empty" | "preparing" | "slot"
@@ -9,7 +10,7 @@ export function rowDetail(row: WorkroomRow): RowDetail {
 }
 
 // 選んでいるワークルームの行（選んだワークルームが無くなっていれば、選んでいないのと同じ）
-export const pickedRow = (rows: readonly WorkroomRow[], picked: string | undefined): WorkroomRow | undefined =>
+export const pickedRow = (rows: readonly WorkroomRow[], picked: string | typeof NO_STATE): WorkroomRow | undefined =>
   rows.find(r => r.room.id === picked)
 
 // 列の並び: 組の順に、1 管理者 2 作業中 3 空き（準備中も）4 空室。作業の様子を答える種類が無ければ、作業中と空きを分けない（2 に入れる）。

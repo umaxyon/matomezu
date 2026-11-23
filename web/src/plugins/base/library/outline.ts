@@ -308,15 +308,15 @@ export function unreadableRowsOf(
 // 行の中へ入れるか（右の枠にその中身を出せるか）: フォルダ・ブック・バインダで、表に在る物
 export const holdsRows = (row: LibraryRow): boolean => row.kind !== "page" && row.readable && row.nothingIn !== true
 
-// 書庫の画面で開いているフォルダ: 値 folder のフォルダが在ればそれ、無ければ（値が無いときも）書庫ホーム。ゴミ箱の中のフォルダは開けないので、ゴミ箱。
+// 書庫の画面で開いているフォルダ: 値 folder のフォルダが在ればそれ、無ければ書庫ホーム。ゴミ箱の中のフォルダは開けないので、ゴミ箱。
 // 読めない物のフォルダは、書庫の表に無くても開ける（ツリーに出していなくても、ツリーの下の「⚠ 読めない物」から開く）
 // 作業机とその下の行は、その行が今在れば、それ。無くなっていれば、残っている一番近い上の行（作業机も無ければ、ワークルームのフォルダ）
-export const openedFolderOf = (folders: Folders, folder: string | undefined, desks: readonly Workdesk[]): string =>
-  folder !== undefined && isDeskRow(folder)
+export const openedFolderOf = (folders: Folders, folder: string, desks: readonly Workdesk[]): string =>
+  isDeskRow(folder)
     ? openedDeskRow(folders, folder, desks)
     : folder === UNREADABLE_ID
       ? UNREADABLE_ID
-      : folder === undefined || !folders[folder]
+      : !folders[folder]
         ? HOME_ID
         : inTrash(folders, folder)
           ? TRASH_ID
@@ -330,8 +330,7 @@ function openedDeskRow(folders: Folders, folder: string, desks: readonly Workdes
 }
 
 // ツリーで中を出しているフォルダ: 値 unfolded が無ければ、書庫ホームだけ
-const AT_FIRST: readonly string[] = [HOME_ID]
-export const unfoldedOf = (unfolded: readonly string[] | undefined): readonly string[] => unfolded ?? AT_FIRST
+export const AT_FIRST: readonly string[] = [HOME_ID]
 
 // パンくず: 一番上（書庫ホームかゴミ箱）からフォルダ folder までの、フォルダの id の列
 // 作業机とその下の行なら、ワークルームのフォルダまでの道に、作業机からその行までを続ける

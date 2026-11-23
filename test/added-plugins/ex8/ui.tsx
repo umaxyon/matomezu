@@ -1,6 +1,6 @@
 // ex8 の見た目を結ぶ: カードのプレゼンテーションのビュー（開いたページのカードを並べ、自分でスクロールする。並べ替えるボタンと、押したカードを選ぶ）と、
 // 印刷区画 1 つのビュー（ページのカードを紙に並べる）
-import { NO_PAGE } from "matomezu"
+import { NO_PAGE, NO_STATE } from "matomezu"
 import {
   definePluginUi,
   type PrintSheetProps,
@@ -42,9 +42,10 @@ function Cards({
 function CardsView() {
   const t = useMessages(kit)
   const written = cardsOf(usePage())
-  const order = usePluginState(kit, DECK_ORDER) ?? "written"
+  const order = usePluginState(kit, DECK_ORDER)
   const setOrder = useSetPluginState(kit, DECK_ORDER)
-  const picked = usePluginState(kit, DECK_PICKED) ?? "none"
+  const pickedState = usePluginState(kit, DECK_PICKED)
+  const picked = pickedState === NO_STATE ? "none" : pickedState
   const setPicked = useSetPluginState(kit, DECK_PICKED)
   const cards = order === "sorted" ? [...written].sort() : written
   return (

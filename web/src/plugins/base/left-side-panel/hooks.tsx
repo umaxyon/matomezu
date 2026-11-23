@@ -3,8 +3,9 @@
 // ステージの物を見せるタブ（タブの定義の scope が "stage"）が組にあれば、開いた所のステージを一緒に持つ（タブの中身は、そのステージの中として描かれる）
 
 import { useCallback } from "react"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { NO_STAGE } from "../../../core/stage"
-import { usePluginState, useSetPluginState, useUpdatePluginState } from "../../../ui/plugin-state-hooks"
+import { usePluginState, useResetPluginState, useUpdatePluginState } from "../../../ui/plugin-state-hooks"
 import { useStageId } from "../../../ui/scope"
 import { useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
@@ -18,7 +19,10 @@ import {
 } from "./state"
 
 // 開いている左サイドパネル（渡されたタブの組と開いているタブ。閉じていれば null）
-export const useLeftSidePanel = (): LeftSidePanelOpen | null => usePluginState(kit, LEFT_SIDE_PANEL_STATE) ?? null
+export function useLeftSidePanel(): LeftSidePanelOpen | null {
+  const open = usePluginState(kit, LEFT_SIDE_PANEL_STATE)
+  return open === NO_STATE ? null : open
+}
 
 // タブの組 entries が見せるステージを決める関数: ステージの物を見せるタブが組にあれば stage、無ければ（stage が NO_STAGE でも）null
 function useShownStage(): (entries: readonly LeftSidePanelEntry[], stage: string) => string | null {
@@ -80,12 +84,15 @@ export const useLeftSidePanelShows = (entries: readonly LeftSidePanelEntry[]): b
 
 // 左サイドパネルを閉じる関数
 export function useCloseLeftSidePanel(): () => void {
-  const set = useSetPluginState(kit, LEFT_SIDE_PANEL_STATE)
-  return useCallback(() => set(undefined), [set])
+  const reset = useResetPluginState(kit, LEFT_SIDE_PANEL_STATE)
+  return useCallback(() => reset(), [reset])
 }
 
 // 開いているタブを tab にする関数（渡されたタブの組の中のタブだけ）
 export function useSetLeftSidePanelTab(): (tab: string) => void {
   const update = useUpdatePluginState(kit, LEFT_SIDE_PANEL_STATE)
-  return useCallback(tab => update(now => (now?.entries.some(e => e.tab === tab) ? { ...now, tab } : now)), [update])
+  return useCallback(
+    tab => update(now => (now !== NO_STATE && now.entries.some(e => e.tab === tab) ? { ...now, tab } : now)),
+    [update],
+  )
 }

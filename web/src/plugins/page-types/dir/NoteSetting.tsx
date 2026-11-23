@@ -1,6 +1,6 @@
 // 説明の見せ方の設定のコンポーネント（設定の項目 notes のビュー）: 説明を出すかのスイッチと、出すときだけその下に開く枠（base の SwitchPanel）に、
 // 「・・・」を付けるかと区切り線を引くかのスイッチ。既定の値に戻すと、ページに書いた値を消す
-import { settingOr } from "../../../core/def/setting"
+import { settingOr } from "../../../plugin-api"
 import { type SettingControlProps, useMessages } from "../../../plugin-api/ui"
 import { rowClass, Switch, SwitchPanel } from "../../base/ui"
 import { kit } from "./kit"

@@ -3,10 +3,16 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { NO_STAGE, NOTHING_OPENED } from "../../../core/stage"
 import { screenOf, stageIn } from "../../../core/window"
 import { type PluginValues, pluginValueOf } from "../../../store/plugin-state"
-import { useReadPluginStateAt, useSetPluginStateAt, useSetPluginStatesAt } from "../../../ui/at-hooks"
+import {
+  useReadPluginStateAt,
+  useResetPluginStateAt,
+  useSetPluginStateAt,
+  useSetPluginStatesAt,
+} from "../../../ui/at-hooks"
 import { useStageId } from "../../../ui/scope"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { useUiCatalog } from "../../../ui/view-hooks"
@@ -105,7 +111,7 @@ export function useTakeOffAnchorAt(): (stage: string, anchor: string) => void {
   return useCallback(
     (stage, anchor) => {
       const open = readPanel(stage)
-      if (!open) return
+      if (open === NO_STATE) return
       const next = withoutAnchor(open, anchor)
       if (next.anchors.length === 0) {
         close(stage)
@@ -125,7 +131,8 @@ export function useSetRightSidePanelCurrentAt(): (stage: string, anchor: string)
   return useCallback(
     (stage, anchor) => {
       const open = readPanel(stage)
-      if (open?.anchors.includes(anchor) && open.current !== anchor) set(stage, { ...open, current: anchor })
+      if (open !== NO_STATE && open.anchors.includes(anchor) && open.current !== anchor)
+        set(stage, { ...open, current: anchor })
     },
     [readPanel, set],
   )
@@ -133,8 +140,8 @@ export function useSetRightSidePanelCurrentAt(): (stage: string, anchor: string)
 
 // ステージ stage の右サイドパネルを閉じる関数
 export function useCloseRightSidePanelAt(): (stage: string) => void {
-  const set = useSetPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
-  return useCallback(stage => set(stage, undefined), [set])
+  const reset = useResetPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
+  return useCallback(stage => reset(stage), [reset])
 }
 
 // サイドパネル（右か左）を開いたステージが替わってから、幅を動かし終えるまで true（替わったのと同じ描き方で true にし、列の幅と一緒に動きを付ける）。

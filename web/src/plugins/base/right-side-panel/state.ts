@@ -2,6 +2,7 @@
 // 閉じたときに見え方を戻すための覚えは、right-side-panel-restore に持つ。
 // 窓に 1 つだけで、ブックのデータにも画面の場所にも入れない
 
+import { NO_STATE } from "../../../core/def/plugin-state"
 import {
   areaOf,
   NO_PAGE,
@@ -98,11 +99,11 @@ export const panelPageOf = (opened: Opened | typeof NOTHING_OPENED): string | nu
 }
 
 export function openedRestore(
-  kept: RightSidePanelRestore | undefined,
+  kept: RightSidePanelRestore | typeof NO_STATE,
   open: RightSidePanelOpen,
   now: ViewAt,
 ): RightSidePanelRestore {
-  return kept && kept.before.book === open.book && kept.before.page === open.page
+  return kept !== NO_STATE && kept.before.book === open.book && kept.before.page === open.page
     ? { before: kept.before, shown: null, seen: null, moved: kept.moved }
     : {
         before: { zoom: now.zoom, pan: now.pan, book: open.book, page: open.page },
@@ -128,9 +129,9 @@ export function openRightSidePanelIn(
 
 // 戻すための覚え restore を、change で変えたもの（覚えが無ければ無いまま）
 export const withRestore = (
-  restore: RightSidePanelRestore | undefined,
+  restore: RightSidePanelRestore | typeof NO_STATE,
   change: Partial<RightSidePanelRestore>,
-): RightSidePanelRestore | undefined => restore && { ...restore, ...change }
+): RightSidePanelRestore | typeof NO_STATE => (restore === NO_STATE ? NO_STATE : { ...restore, ...change })
 
 const sameView = (a: ViewAt, b: ViewAt): boolean => a.zoom === b.zoom && a.pan.x === b.pan.x && a.pan.y === b.pan.y
 

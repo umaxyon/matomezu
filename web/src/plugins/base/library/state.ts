@@ -1,9 +1,10 @@
 // 書庫の画面のプラグイン状態（描いているスクリーン 1 枚ごと。ツリーの幅と読めない物の知らせは窓ごと）
 import { z } from "zod"
+import { HOME_ID } from "../../../core/folders"
 import { kit } from "../kit"
 import { workdesksOf, workdesksReadsOf } from "../participant/workdesks"
-import { openedFolderOf, shownFoldersOf, unfoldedOf } from "./outline"
-import { TREE_MIN_WIDTH } from "./tree-width"
+import { AT_FIRST, openedFolderOf, shownFoldersOf } from "./outline"
+import { DEFAULT_TREE_WIDTH, TREE_MIN_WIDTH } from "./tree-width"
 
 // 開いているフォルダの id（右の枠に中身を出しているフォルダ）。画面の場所に入り、替えるたびにブラウザの履歴に積む（値が無ければ書庫ホーム）
 export const LIBRARY_FOLDER = kit.definePluginState({
@@ -11,6 +12,7 @@ export const LIBRARY_FOLDER = kit.definePluginState({
   scope: "screen",
   schema: z.string().min(1),
   address: "push",
+  default: HOME_ID,
 })
 
 // 選んでいる行の id（読み直すと消える。画面の場所には入れない）
@@ -21,12 +23,13 @@ export const LIBRARY_QUERY = kit.definePluginStateOf<string>()({ id: "library-qu
 
 // 右の枠の中身が 1 行に並べている列の数（ビューが描いた後に測り、窓や中身が変わったら測り直す。値が無ければ 1 列と見る）。
 // 右の枠の上下の矢印のコマンド library-pick-move が、列の数だけ前・後ろの行を選ぶ
-export const LIBRARY_COLUMNS = kit.definePluginStateOf<number>()({ id: "library-columns", scope: "screen" })
+export const LIBRARY_COLUMNS = kit.definePluginStateOf<number>()({ id: "library-columns", scope: "screen", default: 1 })
 
 // ツリーで中を出しているフォルダの id（読み直すと消える。値が無ければ、書庫ホームだけ）
 export const LIBRARY_UNFOLDED = kit.definePluginStateOf<readonly string[]>()({
   id: "library-unfolded",
   scope: "screen",
+  default: AT_FIRST,
 })
 
 // ツリーの幅（px。窓ごとに 1 つで、書庫を見せるどのスクリーンでも同じ幅。画面の場所に入るが履歴には積まない。値が無ければ既定の幅）
@@ -35,6 +38,7 @@ export const LIBRARY_TREE_WIDTH = kit.definePluginState({
   scope: "window",
   schema: z.number().int().min(TREE_MIN_WIDTH),
   address: "replace",
+  default: DEFAULT_TREE_WIDTH,
 })
 
 // 書庫の画面（LibraryView）の書庫アピアランス: 右の枠で開いているフォルダと、ツリーで中を出しているフォルダを見せている（作業机とその下の行は、実の物）。
@@ -44,12 +48,7 @@ export const LIBRARY_APPEARANCE = kit.defineLibraryAppearance({
   readsSubjects: workdesksReadsOf,
   shownFolders: (folders, read, records, catalog) => {
     const desks = workdesksOf(catalog, records, folders)
-    return shownFoldersOf(
-      folders,
-      openedFolderOf(folders, read(LIBRARY_FOLDER), desks),
-      unfoldedOf(read(LIBRARY_UNFOLDED)),
-      desks,
-    )
+    return shownFoldersOf(folders, openedFolderOf(folders, read(LIBRARY_FOLDER), desks), read(LIBRARY_UNFOLDED), desks)
   },
 })
 

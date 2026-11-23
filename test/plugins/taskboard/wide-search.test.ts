@@ -1,5 +1,7 @@
 // 横断検索のチケットの絞り（taskboard/wide-search/filter.ts）: 横断検索の当たりのチケットの id の集合と、プロジェクト・タグ・優先度の選びの掛け合わせ
+
 import { expect, test } from "bun:test"
+import { NO_STATE } from "../../../web/src/core/def/plugin-state"
 import type { Ticket } from "../../../web/src/plugins/taskboard/ticket"
 import { ticketLabelParts } from "../../../web/src/plugins/taskboard/ticket/label"
 import {
@@ -64,7 +66,7 @@ test("当たりは、チケットの当たりは自分の id、履歴の当た�
 })
 
 test("絞りが無いか効いていなければ全部、言葉の当たりとプロジェクト・タグ・優先度・チケットボリュームの選びは掛け合わせて残す", () => {
-  expect(ids(undefined)).toEqual(["a", "b", "c", "d"])
+  expect(ids(NO_STATE)).toEqual(["a", "b", "c", "d"])
   expect(isFiltering(NO_FILTER)).toBe(false)
   expect(ids(NO_FILTER)).toEqual(["a", "b", "c", "d"])
   expect(ids({ ...NO_FILTER, term: "x", hits: ["a", "c"] })).toEqual(["a", "c"])

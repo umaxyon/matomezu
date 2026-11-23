@@ -3,15 +3,18 @@
 // 無ければ（まだ描いていない・別のページを描いた絵）定義の minimap で作る
 
 import { useLayoutEffect } from "react"
-import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
+import {
+  usePluginState,
+  useReadPluginState,
+  useResetPluginState,
+  useSetPluginState,
+} from "../../../ui/plugin-state-hooks"
 import { kit } from "../kit"
 import { usePrinting } from "../print-preview/printing"
 import type { MinimapMark } from "./marks"
 import { type DrawnTable, MINIMAP_DRAWN } from "./states"
 
 export type { DrawnTable }
-
-const NONE: DrawnTable = {}
 
 const samePoints = (a: MinimapMark, b: MinimapMark): boolean => {
   if (a.kind !== b.kind) return false
@@ -30,10 +33,11 @@ const sameMarks = (a: readonly MinimapMark[], b: readonly MinimapMark[]): boolea
 export function useDrawnMinimap(item: string, page: string, marks: readonly MinimapMark[] | null): void {
   const set = useSetPluginState(kit, MINIMAP_DRAWN)
   const read = useReadPluginState(kit, MINIMAP_DRAWN)
+  const reset = useResetPluginState(kit, MINIMAP_DRAWN)
   const printing = usePrinting() // 印刷区画の中で描いているか
   useLayoutEffect(() => {
     if (!marks || printing) return
-    const table = read() ?? NONE
+    const table = read()
     const now = table[item]
     if (now?.page === page && sameMarks(now.marks, marks)) return
     set({ ...table, [item]: { page, marks } })
@@ -41,16 +45,17 @@ export function useDrawnMinimap(item: string, page: string, marks: readonly Mini
   useLayoutEffect(
     () => () => {
       if (printing) return
-      const { [item]: gone, ...rest } = read() ?? NONE
+      const { [item]: gone, ...rest } = read()
       if (!gone) return
-      set(Object.keys(rest).length === 0 ? undefined : rest)
+      if (Object.keys(rest).length === 0) reset()
+      else set(rest)
     },
-    [read, set, item, printing],
+    [read, set, reset, item, printing],
   )
 }
 
 // 描いている場所のステージに置いた絵の表。置き直すまで同じ表を返す
-export const useDrawnTable = (): DrawnTable => usePluginState(kit, MINIMAP_DRAWN) ?? NONE
+export const useDrawnTable = (): DrawnTable => usePluginState(kit, MINIMAP_DRAWN)
 
 // 表 table の、つなぐもの item がページ page に描いた絵（無ければ undefined）
 export function drawnOn(table: DrawnTable, item: string, page: string): readonly MinimapMark[] | undefined {

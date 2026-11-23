@@ -5,14 +5,7 @@
 import { useState } from "react"
 import { Slot, usePluginState, useSetPluginState } from "../../plugin-api/ui"
 import { Panel, useControlCenterMaximized, useVisitorRows, useWorkroomRows } from "../base/ui"
-import {
-  CONTENT_AREA,
-  type ContentArea,
-  contentAreaOf,
-  LIBRARY_MAXIMIZED,
-  PICKED_ROOM,
-  PICKED_VISITOR,
-} from "./control-center"
+import { CONTENT_AREA, type ContentArea, LIBRARY_MAXIMIZED, PICKED_ROOM, PICKED_VISITOR } from "./control-center"
 import { kit } from "./kit"
 import { LibraryArea } from "./LibraryArea"
 import { ParticipantListView } from "./ParticipantListView"
@@ -24,7 +17,7 @@ import { UserPanel } from "./UserPanel"
 import { WorkroomView } from "./WorkroomView"
 
 export function ControlCenterScreen() {
-  const screen = contentAreaOf(usePluginState(kit, CONTENT_AREA))
+  const screen = usePluginState(kit, CONTENT_AREA)
   const setContentArea = useSetPluginState(kit, CONTENT_AREA)
   const setScreen = (to: ContentArea) => setContentArea(to)
   const maximized = usePluginState(kit, LIBRARY_MAXIMIZED) === true

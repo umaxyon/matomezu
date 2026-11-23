@@ -1,3 +1,4 @@
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { type CommandActions, type CommandContext, NO_BOOK, NO_PAGE } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { PAGE_UPDATE } from "../pages/page-update"
@@ -20,14 +21,20 @@ const searchable = (ctx: CommandContext) =>
   searchableOf(ctx.catalog, hasOpenedPage(ctx) ? ctx.page : undefined) !== "none"
 // 探せるページの全部: 開いている物のページの全部
 const within = openedPagesOf
+// 覚えた検索の範囲（検索していなければ NO_STATE）
+function searchScopeOf(ctx: CommandContext): SearchOpen["scope"] | typeof NO_STATE {
+  const search = searchOf(ctx)
+  return search === NO_STATE ? NO_STATE : search.scope
+}
 // 検索ダイアログを開いているか
-const opened = (ctx: CommandContext) => searchable(ctx) && searchOf(ctx) !== undefined
+const opened = (ctx: CommandContext) => searchable(ctx) && searchOf(ctx) !== NO_STATE
 
 // 範囲 scope・焦点 focus で検索ダイアログを開く（開いていれば、探す字と切り替えはそのままで範囲と焦点だけ変える。閉じると探す字も消える）
 const open = (scope: SearchOpen["scope"] | "keep", focus: SearchOpen["focus"]) => ({
   run: (ctx: CommandContext, a: CommandActions) =>
     a.updatePluginState(SEARCH_STATE, was => {
-      const base = searchHere(was, ctx.book !== NO_BOOK) ?? { ...NEW_SEARCH, scope: "page" as const, focus, opened: 0 }
+      const kept = searchHere(was, ctx.book !== NO_BOOK)
+      const base = kept === NO_STATE ? { ...NEW_SEARCH, scope: "page" as const, focus, opened: 0 } : kept
       return {
         ...base,
         scope: scope === "keep" ? base.scope : scope,
@@ -59,7 +66,7 @@ export const SEARCH_OPEN_REPLACE = kit.defineCommand({
 // 今の当たり（無ければ開いているページの頭）から向き direction の次の当たりへ移る（ほかのページならそのページを開く）
 function step(ctx: CommandContext, a: CommandActions, direction: "forward" | "backward") {
   const search = searchOf(ctx)
-  if (!search || !searchable(ctx)) return
+  if (search === NO_STATE || !searchable(ctx)) return
   const pages = hitsIn(ctx.catalog, within(ctx), search.query, search.scope, hereId(ctx))
   if (pages === "bad-pattern") return
   const cur = search.current
@@ -94,9 +101,12 @@ export const SEARCH_CLOSE = kit.defineCommand({
   title: "Close search",
   run: (ctx, a) => {
     const search = searchOf(ctx)
-    a.updatePluginState(SEARCH_STATE, () => undefined)
-    if (!search || search.current === "none") return
-    a.updatePluginState(SEARCH_PICK_STATE, now => ({ ...(search.current as SearchSpot), n: (now?.n ?? 0) + 1 }))
+    a.resetPluginState(SEARCH_STATE)
+    if (search === NO_STATE || search.current === "none") return
+    a.updatePluginState(SEARCH_PICK_STATE, now => ({
+      ...(search.current as SearchSpot),
+      n: (now === NO_STATE ? 0 : now.n) + 1,
+    }))
   },
   when: opened,
 })
@@ -107,12 +117,13 @@ export const SEARCH_REPLACE_ONE = kit.defineCommand({
   title: "Replace one",
   performs: [PAGE_UPDATE.id],
   permissionScope: ctx => {
-    const cur = searchOf(ctx)?.current
-    return { page: cur && cur !== "none" ? cur.page : (hereId(ctx) ?? undefined) }
+    const search = searchOf(ctx)
+    const cur = search === NO_STATE ? "none" : search.current
+    return { page: cur !== "none" ? cur.page : (hereId(ctx) ?? undefined) }
   },
   run: (ctx, a) => {
     const search = searchOf(ctx)
-    if (!search || !searchable(ctx)) return
+    if (search === NO_STATE || !searchable(ctx)) return
     const { args, next } = replaceOneStep(ctx.catalog, within(ctx), search, hereId(ctx))
     if (args !== "none" && !a.perform(PAGE_UPDATE.id, { fields: args.fields }, { page: args.page }).ok) return
     a.updatePluginState(SEARCH_STATE, () => ({ ...search, current: next }))
@@ -126,10 +137,10 @@ export const SEARCH_REPLACE_ALL = kit.defineCommand({
   id: "search-replace-all",
   title: "Replace all",
   performs: [PAGE_UPDATE.id],
-  permissionScope: ctx => (searchOf(ctx)?.scope === "book" ? { allPages: true } : { page: hereId(ctx) ?? undefined }),
+  permissionScope: ctx => (searchScopeOf(ctx) === "book" ? { allPages: true } : { page: hereId(ctx) ?? undefined }),
   run: (ctx, a) => {
     const search = searchOf(ctx)
-    if (!search || !searchable(ctx)) return
+    if (search === NO_STATE || !searchable(ctx)) return
     const pages = within(ctx).filter(p => search.scope === "book" || p.id === hereId(ctx))
     for (const page of pages) {
       const args = replaceAllArgs(ctx.catalog, page, search.query, search.replacement)

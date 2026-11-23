@@ -9,6 +9,7 @@ export const EX10_TAB = kit.definePluginState({
   scope: "window",
   schema: z.enum(["one", "two"]),
   address: "push",
+  default: "one",
 })
 
 export const EX10 = definePlugin(kit.plugin({ pluginStates: [EX10_TAB] }))

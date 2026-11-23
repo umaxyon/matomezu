@@ -1,6 +1,6 @@
 // 節の大きさの選び方のコンポーネント（設定の項目 node-size のビュー）: 伸びる・N 字で折り返す・N 字で固定から選ぶ。
 // 既定を選べば値を消す
-import { settingOr } from "../../../core/def/setting"
+import { settingOr } from "../../../plugin-api"
 import { type SettingControlProps, useMessages } from "../../../plugin-api/ui"
 import { controlClass, rowClass } from "../../base/ui"
 import { kit } from "./kit"

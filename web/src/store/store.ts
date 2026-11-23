@@ -9,7 +9,7 @@ import { readLibrary } from "../core/book"
 import { bulkActionOf, entersLibraryHistory, laterThan, localDateOf, performBulk } from "../core/bulk"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionContext, type ActionOn, NO_CONTROL_CENTER } from "../core/def/action"
-import type { PluginStateDef } from "../core/def/plugin-state"
+import { type PluginStateDef, stateRead, storedOf } from "../core/def/plugin-state"
 import { fail, matomezuError, type Problem, problem } from "../core/errors"
 import { type Folder, homeOver, type Library, type PageRow, type TableChanges } from "../core/folders"
 import { recordsOf } from "../core/folders-books"
@@ -603,27 +603,39 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const pending: [string, PluginPlace, unknown][] = []
       const working = () =>
         pending.reduce((v, [id, st, value]) => withPluginValue(v, id, st, value), getState().pluginValues)
-      const updatePluginState = <S>(stateDef: PluginStateDef<S>, change: (now: S | undefined) => S | undefined) => {
+      // 呼ばれた場所の、宣言 stateDef の値を next にする（undefined なら消す）
+      const writeHere = (
+        stateDef: PluginStateDef<unknown>,
+        next: (own: PluginStateDef<unknown>, at: PluginPlace) => unknown,
+      ) => {
         const own = ownedPluginState(owner, stateDef)
         // スクリーンごとの宣言は、呼ばれた場所のスクリーンの値
         const at = placeOf(own.scope, { stage, screen: calledScreenIdOf(call.ctx) })
-        const next = change(pluginValueOf(working(), at, own))
-        withPluginValue(working(), own.id, at, next) // 書く前に、範囲と形を確かめる
-        pending.push([own.id, at, next])
+        const value = next(own, at)
+        withPluginValue(working(), own.id, at, value) // 書く前に、範囲と形を確かめる
+        pending.push([own.id, at, value])
       }
+      const updatePluginState: CommandActions["updatePluginState"] = (stateDef, change) =>
+        writeHere(stateDef, (own, at) => storedOf(change(stateRead(stateDef, pluginValueOf(working(), at, own)))))
+      const resetPluginState = (stateDef: PluginStateDef<unknown>) => writeHere(stateDef, () => undefined)
       // ほかのスクリーン screen の、スクリーンごとの宣言の値（base のコマンドだけが updatePluginStateAtOf で使う）
       const updatePluginStateAt: UpdatePluginStateAt = (screen, stateDef, change) => {
         const own = ownedPluginState(owner, stateDef)
         // 渡したスクリーンに書くのはスクリーンごとの宣言だけ（ステージ・窓の範囲の宣言を、呼ばれた場所に黙って書かない）
         if (own.scope !== "screen") fail("E124", { id: own.id, scope: own.scope, need: "use updatePluginState" })
         const at = placeOf(own.scope, { stage, screen })
-        const next = change(pluginValueOf(working(), at, own))
+        const next = storedOf(change(stateRead(stateDef, pluginValueOf(working(), at, own))))
         withPluginValue(working(), own.id, at, next)
         pending.push([own.id, at, next])
       }
       const run = call.def.run as (ctx: unknown, actions: CommandActions, args: never) => void
       // 呼ばれた場所（ステージか、スクリーン）に向けた操作
-      const given: CommandActions = { ...windowActionsOf(actions), ...boundActions(actions, stage), updatePluginState }
+      const given: CommandActions = {
+        ...windowActionsOf(actions),
+        ...boundActions(actions, stage),
+        updatePluginState,
+        resetPluginState,
+      }
       givenActions.set(given, actions)
       givenScreenWrites.set(given, updatePluginStateAt)
       run(call.ctx, given, args[0] as never)

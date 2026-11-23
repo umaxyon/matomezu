@@ -9,7 +9,7 @@ import {
   useScreens,
   useSetPluginState,
 } from "matomezu/ui"
-import { EX12_ADDED, EX12_DEFAULT_HEIGHT, EX12_HEIGHT, EX12_PANEL, EX12_STACK } from "."
+import { EX12_ADDED, EX12_HEIGHT, EX12_PANEL, EX12_STACK } from "."
 import { kit } from "./kit"
 
 const ONE_SCREEN = "@matomezu/base:one-screen"
@@ -31,7 +31,7 @@ export function Ex12Stack() {
 // 並べたスクリーン 1 枚: 高さを当てた枠の中に、そのスクリーンを描く
 function Ex12Row({ screen, current, closable }: { screen: string; current: boolean; closable: boolean }) {
   const t = useMessages(kit)
-  const height = usePluginState(kit, EX12_HEIGHT, screen) ?? EX12_DEFAULT_HEIGHT
+  const height = usePluginState(kit, EX12_HEIGHT, screen)
   const setHeight = useSetPluginState(kit, EX12_HEIGHT)
   const { close } = useArrangedScreens()
   return (
@@ -72,7 +72,7 @@ export function Ex12Switch() {
   const t = useMessages(kit)
   const { setScreenArrangement, openScreen } = useActions()
   const { open } = useScreens()
-  const added = usePluginState(kit, EX12_ADDED) ?? 0
+  const added = usePluginState(kit, EX12_ADDED)
   const setAdded = useSetPluginState(kit, EX12_ADDED)
   const addPanel = () => {
     setAdded(added + 1)

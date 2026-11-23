@@ -2,7 +2,7 @@
 // インスタンスごとに 1 つ作る（createMatomezuInstance）。組み直しで差し替わる機能台帳は、呼ぶたびに getter から読む
 
 import type { CoreCatalog } from "../core/core-catalog"
-import type { PluginStateRead } from "../core/def/plugin-state"
+import { type PluginStateRead, stateRead } from "../core/def/plugin-state"
 import { isOpenRole, type Library, type TableChanges } from "../core/folders"
 import { libraryOf } from "../core/folders-books"
 import { rowChanges } from "../core/folders-changes"
@@ -146,7 +146,7 @@ export function createUnseenChanges(deps: {
     const readFor =
       (owner: string | null, screen: string): PluginStateRead =>
       def =>
-        pluginValueOf(pluginValues, screen, ownedPluginState(owner ?? "", def))
+        stateRead(def, pluginValueOf(pluginValues, screen, ownedPluginState(owner ?? "", def)))
     for (const id of shownScreens(catalog, win)) {
       const def = catalog.screens.get(win.screens.find(s => s.id === id)?.def ?? "")
       const named = def?.libraryAppearances ?? []

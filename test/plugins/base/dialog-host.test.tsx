@@ -1,6 +1,7 @@
 // ダイアログの置き場（dialog-host）: 開いた場所に向けて中身を描く
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { NO_STATE } from "../../../web/src/core/def/plugin-state"
 import { defineMessages } from "../../../web/src/core/i18n/messages"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { DialogHost } from "../../../web/src/plugins/base/dialog-host/DialogHost"
@@ -24,7 +25,7 @@ function ShowDialog() {
   const set = useSetPluginState(kit, PICKED)
   return (
     <button type="button" onClick={() => set("b")}>
-      picked {picked ?? "none"}
+      picked {picked === NO_STATE ? "none" : picked}
     </button>
   )
 }

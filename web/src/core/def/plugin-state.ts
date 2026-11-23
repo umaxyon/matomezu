@@ -15,8 +15,25 @@ export type PluginStateAddress = "push" | "replace" | "none"
 // 値の型 S を、型だけで持たせる印
 declare const stateType: unique symbol
 
-// プラグイン状態の今の値を読む関数: 宣言 def の値（無ければ undefined）。渡す側が、読める宣言（持ち主のプラグインの物）と、どのスクリーン・ステージの値かを決める
-export type PluginStateRead = <S>(def: PluginStateDef<S>) => S | undefined
+// プラグイン状態に値が無いときの値（既定 default を持たない宣言の値が無いとき。どの値とも重ならないよう、値の形の物にしない）
+export const NO_STATE: unique symbol = Symbol("no state")
+
+// 宣言 D の値の型
+export type StateOf<D> = D extends PluginStateDef<infer S> ? S : never
+// 宣言 D を読んだときの値の型（既定 default を持つ宣言は値の型、持たない宣言は値の型か NO_STATE）
+export type StateRead<D> = D extends { default: infer S } ? S : StateOf<D> | typeof NO_STATE
+
+// 宣言 D の値を今の値から変える関数が返す値（NO_STATE なら値を消す）
+export type StateChange<D> = StateOf<D> | typeof NO_STATE
+// 変える関数が返した値 next の、置く値（NO_STATE なら、消す印の undefined）
+export const storedOf = (next: unknown): unknown => (next === NO_STATE ? undefined : next)
+
+// 宣言 def の、置いてある値 stored（無ければ undefined）を読んだ値: 値が無ければ既定、既定も無ければ NO_STATE
+export const stateRead = <D extends PluginStateDef<unknown>>(def: D, stored: unknown): StateRead<D> =>
+  (stored !== undefined ? stored : def.default !== undefined ? def.default : NO_STATE) as StateRead<D>
+
+// プラグイン状態の今の値を読む関数: 宣言 def の値（StateRead）。渡す側が、読める宣言（持ち主のプラグインの物）と、どのスクリーン・ステージの値かを決める
+export type PluginStateRead = <D extends PluginStateDef<unknown>>(def: D) => StateRead<D>
 
 export interface PluginStateDef<S = unknown> extends PluginStateExtras {
   readonly [stateType]?: S
@@ -24,4 +41,5 @@ export interface PluginStateDef<S = unknown> extends PluginStateExtras {
   scope: PluginStateScope
   address: PluginStateAddress
   schema?: PluginStateSchema<S> // address が none でなければ必ずある（kit.definePluginState の型が求める）
+  default?: S // 値が無いときに読む値（持たなければ、値が無いときは NO_STATE を読む）
 }

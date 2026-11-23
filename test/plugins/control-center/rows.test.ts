@@ -1,7 +1,8 @@
-// コントロールセンターの画面の、見た目でない決め事（rows.ts・control-center.ts の contentAreaOf）: 一覧の下の 1 行の種類と、選んだワークルームの引き方、コンテンツエリアに出す画面の既定
+// コントロールセンターの画面の、見た目でない決め事（rows.ts・control-center.ts の CONTENT_AREA の既定）: 一覧の下の 1 行の種類と、選んだワークルームの引き方、コンテンツエリアに出す画面の既定
 import { expect, test } from "bun:test"
+import { NO_STATE } from "../../../web/src/core/def/plugin-state"
 import type { WorkroomRow } from "../../../web/src/plugins/base"
-import { contentAreaOf } from "../../../web/src/plugins/control-center/control-center"
+import { CONTENT_AREA } from "../../../web/src/plugins/control-center/control-center"
 import {
   lastAccessOf,
   orderHeld,
@@ -30,12 +31,11 @@ test("選んだワークルームは id で引き、無くなっていれば選�
   const rows = [row("ready", false, "a"), row("empty", false, "b")]
   expect(pickedRow(rows, "b")?.room.id).toBe("b")
   expect(pickedRow(rows, "gone")).toBeUndefined()
-  expect(pickedRow(rows, undefined)).toBeUndefined()
+  expect(pickedRow(rows, NO_STATE)).toBeUndefined()
 })
 
 test("コンテンツエリアに出す画面は、値が無ければプロジェクト", () => {
-  expect(contentAreaOf(undefined)).toBe("projects")
-  expect(contentAreaOf("library")).toBe("library")
+  expect(CONTENT_AREA.default).toBe("projects")
 })
 
 test("最終アクセスの出し方は、呼ばれた時刻があればそれ、無ければ準備中か、なし", () => {
