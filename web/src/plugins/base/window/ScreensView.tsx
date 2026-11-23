@@ -21,7 +21,7 @@ import styles from "./ScreensView.module.css"
 import { SLIDE_MS } from "./slide"
 import { SCREEN_FOOTER } from "./slots"
 import { planExpand, SCREEN_FLASH, SPLIT_ROWS } from "./split"
-import { applySplit, splitIn, useTallEnough } from "./useScreenSplit"
+import { applySplit, splitIn, useTallEnough, wideIn } from "./useScreenSplit"
 
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
 
@@ -104,18 +104,28 @@ export function ScreensView() {
   const wholeBook = !mixed && currentKind === "book-screen" ? book : undefined
   const lastWhole = useRef(wholeBook)
   const lastSplit = useRef(split)
+  // 並びのうち、窓いっぱいに広げている物（下の行の □）。戻すのは、前に描いたときに広げていた物だけ（「画面を分割」で並びに入った物は戻すのでない）
+  const wide = useMatomezuState(s => wideIn(s.window))
+  const lastWide = useRef(wide)
   const [over, setOver] = useState<{ id: string; slides: boolean } | undefined>(undefined)
   if (wholeBook !== lastWhole.current) {
     const was = lastWhole.current
     lastWhole.current = wholeBook
     if (wholeBook !== undefined && !bookClosed && gone.length === 0 && over?.id !== wholeBook)
       setOver({ id: wholeBook, slides: !lastSplit.current.includes(wholeBook) })
-    else if (wholeBook === undefined && was !== undefined && split.includes(was) && over?.id !== was) {
+    else if (
+      wholeBook === undefined &&
+      was !== undefined &&
+      was === lastWide.current &&
+      split.includes(was) &&
+      over?.id !== was
+    ) {
       setOver({ id: was, slides: false })
       setInstant(true)
     }
   }
   lastSplit.current = split
+  lastWide.current = wide
   useEffect(() => {
     if (over === undefined) return
     // 滑り込み終えたら、残したコントロールセンターの側を、動かさずに消す
@@ -147,6 +157,7 @@ export function ScreensView() {
             footer={footer}
             currentInRow={row !== null && id === current}
             fresh={!first.current?.includes(id)}
+            closing={instant && over === undefined}
             over={over?.id === id}
             slidesOver={over?.id === id && over.slides}
             inert={mixed ? row === null : currentKind !== "book-screen" || id !== book}
@@ -272,6 +283,7 @@ function BookScreen({
   fresh,
   over,
   slidesOver,
+  closing,
   inert,
   onPress,
 }: {
@@ -284,6 +296,7 @@ function BookScreen({
   fresh: boolean
   over: boolean
   slidesOver: boolean
+  closing: boolean
   inert: boolean
   onPress: () => void
 }) {
@@ -300,6 +313,17 @@ function BookScreen({
   // 窓いっぱいに見せ始めた物は、ほかのスクリーンの上を右から滑り込む（slidesOver。並びの中から広げた物は、その場から伸びる）
   const wasOver = useRef(false)
   if (slidesOver && !wasOver.current && entered) setEntered(false)
+  // ほかのブックスクリーンを閉じて（closing）並びの位置が替わった物は、閉じた物が右へ出ていき終えてから、ほかの物の上を新しい位置へ動く
+  const lastIndex = useRef(row?.index)
+  const [moves, setMoves] = useState(false)
+  if (closing && row !== null && lastIndex.current !== undefined && row.index !== lastIndex.current && !moves)
+    setMoves(true)
+  lastIndex.current = row?.index
+  useEffect(() => {
+    if (!moves) return
+    const timer = setTimeout(() => setMoves(false), reduced() ? 0 : SLIDE_MS * 2)
+    return () => clearTimeout(timer)
+  }, [moves])
   const box = useRef<HTMLDivElement>(null)
   const read = useReadState()
   useSlideOutWhenClosed(box, screen, read)
@@ -317,6 +341,7 @@ function BookScreen({
       data-in={entered}
       data-late={waits}
       data-over={over}
+      data-moves={moves}
       data-footer={footer}
       ref={box}
       style={row ? ({ "--row-index": row.index, "--row-of": row.of } as CSSProperties) : undefined}
