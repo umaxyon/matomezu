@@ -3,7 +3,6 @@
 
 import { pageType } from "../../../core/core-catalog"
 import { slideIsBackground } from "../../../core/def/page-type"
-import { NO_STATE } from "../../../core/def/plugin-state"
 import { editingBackground as isEditing } from "../../../core/stage"
 import { type CommandActions, type CommandContext, NO_BOOK } from "../../../store/commands/def"
 import { kit } from "../kit"
@@ -62,7 +61,7 @@ export const BACKGROUND_END = kit.defineCommand({
 export const BACKGROUND_HIDE_CONTENT = kit.defineCommand({
   id: "background-hide-content",
   title: "Hide content",
-  run: (_ctx, a) => a.updatePluginState(CONTENT_HIDDEN, now => (now ? NO_STATE : true)),
+  run: (_ctx, a) => a.updatePluginState(CONTENT_HIDDEN, now => !now),
   when: editingBackground,
   active: ctx => ctx.pluginState(CONTENT_HIDDEN),
 })

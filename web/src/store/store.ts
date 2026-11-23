@@ -107,7 +107,9 @@ import {
   type CommandActions,
   calledScreenIdOf,
   givenActions,
+  givenScreenResets,
   givenScreenWrites,
+  type ResetPluginStateAt,
   type UpdatePluginStateAt,
 } from "./commands/def"
 import { NO_STAGE, type OpenedPlace, openedAt } from "./dialogs"
@@ -628,6 +630,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         withPluginValue(working(), own.id, at, next)
         pending.push([own.id, at, next])
       }
+      // ほかのスクリーン screen の、スクリーンごとの宣言の値を消す（base のコマンドだけが resetPluginStateAtOf で使う）
+      const resetPluginStateAt: ResetPluginStateAt = (screen, stateDef) => {
+        const own = ownedPluginState(owner, stateDef)
+        if (own.scope !== "screen") fail("E124", { id: own.id, scope: own.scope, need: "use resetPluginState" })
+        const at = placeOf(own.scope, { stage, screen })
+        withPluginValue(working(), own.id, at, undefined)
+        pending.push([own.id, at, undefined])
+      }
       const run = call.def.run as (ctx: unknown, actions: CommandActions, args: never) => void
       // 呼ばれた場所（ステージか、スクリーン）に向けた操作
       const given: CommandActions = {
@@ -638,6 +648,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }
       givenActions.set(given, actions)
       givenScreenWrites.set(given, updatePluginStateAt)
+      givenScreenResets.set(given, resetPluginStateAt)
       run(call.ctx, given, args[0] as never)
       if (pending.length > 0) {
         const now = getState().pluginValues

@@ -8,6 +8,7 @@ import {
   useMessages,
   usePluginState,
   useRecords,
+  useResetPluginState,
   useSetPluginStateById,
   useUpdatePluginState,
 } from "../../../plugin-api/ui"
@@ -43,6 +44,7 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
   const search = useWideSearch()
   const filter = usePluginState(kit, TICKET_FILTER)
   const update = useUpdatePluginState(kit, TICKET_FILTER)
+  const reset = useResetPluginState(kit, TICKET_FILTER)
   const allProjects = useRecords(PROJECT.id, { where: [] })
   const projects = orderedProjects(allProjects, [])
   const settings = useBoardSettings()
@@ -131,7 +133,7 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
   return (
     <div className={styles.panel}>
       <p className={styles.note}>{failed ? t("Could not search") : t("{n} tickets", { n: count })}</p>
-      {isFiltering(filter) && <FilterBanner filter={filter} onClear={() => update(() => NO_STATE)} />}
+      {isFiltering(filter) && <FilterBanner filter={filter} onClear={() => reset()} />}
       <Group title={t("Filter projects")}>
         {projects.map(p => (
           <FilterChip

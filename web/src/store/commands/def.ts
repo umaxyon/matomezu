@@ -218,7 +218,7 @@ export interface CommandActions extends WindowActions, BoundPlaceActions {
   // このコマンドを持つプラグインが宣言したプラグイン状態 def の値を、今の値から change が返す値にする（NO_STATE を返せば消す。ステージごとの宣言は呼ばれた場所のステージの値）。1 回のコマンドで何度書いても、store には 1 回で書く。画面の場所に入れる宣言の形に合わなければ E123
   updatePluginState<S, D extends PluginStateDef<S>>(
     def: D & PluginStateDef<S>,
-    change: (now: StateRead<D>) => S | typeof NO_STATE,
+    change: (now: StateRead<D>) => D extends { default: unknown } ? S : S | typeof NO_STATE,
   ): void
   // 同じく、def の値を消す（既定を持つ宣言は既定を、持たない宣言は NO_STATE を読むようになる）
   resetPluginState(def: PluginStateDef<unknown>): void
@@ -234,7 +234,7 @@ export const storeActionsOf = (a: CommandActions): Actions => givenActions.get(a
 export type UpdatePluginStateAt = <S, D extends PluginStateDef<S>>(
   screen: string,
   def: D & PluginStateDef<S>,
-  change: (now: StateRead<D>) => S | typeof NO_STATE,
+  change: (now: StateRead<D>) => D extends { default: unknown } ? S : S | typeof NO_STATE,
 ) => void
 // コマンドに渡した操作ごとの、ほかのスクリーンの自分の宣言の値を変える操作（プラグイン API には出さない。base のコマンドが updatePluginStateAtOf で読む）
 export const givenScreenWrites = new WeakMap<CommandActions, UpdatePluginStateAt>()
@@ -242,6 +242,13 @@ export const givenScreenWrites = new WeakMap<CommandActions, UpdatePluginStateAt
 // コマンドが受け取った操作 a の、ほかのスクリーンの自分の宣言の値を変える操作（store がコマンドに渡した操作だけが持つ）
 export const updatePluginStateAtOf = (a: CommandActions): UpdatePluginStateAt =>
   givenScreenWrites.get(a) ?? fail("E116")
+
+// コマンドを持つプラグインの、スクリーンごとの宣言 def の値を、呼ばれた場所でないスクリーン screen で消す（resetPluginState と同じく、1 回のコマンドの書き込みにまとめる）。スクリーンごとの宣言でなければ E124
+export type ResetPluginStateAt = (screen: string, def: PluginStateDef<unknown>) => void
+// コマンドに渡した操作ごとの、ほかのスクリーンの自分の宣言の値を消す操作（プラグイン API には出さない。base のコマンドが resetPluginStateAtOf で読む）
+export const givenScreenResets = new WeakMap<CommandActions, ResetPluginStateAt>()
+// コマンドが受け取った操作 a の、ほかのスクリーンの自分の宣言の値を消す操作（store がコマンドに渡した操作だけが持つ）
+export const resetPluginStateAtOf = (a: CommandActions): ResetPluginStateAt => givenScreenResets.get(a) ?? fail("E116")
 
 // コマンドが受け取った操作 a の、アクションを行わずに確かめる操作（store がコマンドに渡した操作だけが持つ。プラグイン API には出さない）
 export const tryPerformOf = (a: CommandActions): ProbeActions["tryPerform"] => storeActionsOf(a).tryPerform

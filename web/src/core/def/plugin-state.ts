@@ -23,8 +23,9 @@ export type StateOf<D> = D extends PluginStateDef<infer S> ? S : never
 // 宣言 D を読んだときの値の型（既定 default を持つ宣言は値の型、持たない宣言は値の型か NO_STATE）
 export type StateRead<D> = D extends { default: infer S } ? S : StateOf<D> | typeof NO_STATE
 
-// 宣言 D の値を今の値から変える関数が返す値（NO_STATE なら値を消す）
-export type StateChange<D> = StateOf<D> | typeof NO_STATE
+// 宣言 D の値を今の値から変える関数が返す値（読む値と同じ型。既定を持たない宣言は、NO_STATE を返すと値を消す）。
+// 条件によって消すときに使い、ただ消すときは reset の操作で書く。既定を持つ宣言は NO_STATE を返せない（消すのは reset の操作だけ）
+export type StateChange<D> = StateRead<D>
 // 変える関数が返した値 next の、置く値（NO_STATE なら、消す印の undefined）
 export const storedOf = (next: unknown): unknown => (next === NO_STATE ? undefined : next)
 
