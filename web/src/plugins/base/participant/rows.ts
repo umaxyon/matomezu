@@ -78,7 +78,7 @@ export function visitorRows(input: {
   calls: Readonly<Record<string, string>>
 }): VisitorRow[] {
   return input.participants
-    .filter(p => participantCategory(p, undefined) === "visitor")
+    .filter(p => participantCategory(p) === "visitor")
     .sort((a, b) => (a.joinedAt ?? "").localeCompare(b.joinedAt ?? "") || a.id.localeCompare(b.id))
     .map(participant => {
       const live = input.live[participant.id]
@@ -93,15 +93,18 @@ export function visitorRows(input: {
     })
 }
 
-// 参加者区分: 管理者（管理者の印が指すワークルームに入っている）・ワーカー（ほかのワークルームに入っている）・ビジター（ワークルームを持たない）。
-// 受け入れていない参加者は区分を持たない（undefined）
-export type ParticipantCategory = "admin" | "worker" | "visitor"
+// 参加者区分: ワーカー（ワークルームに入っている。管理者もワーカー）・ビジター（ワークルームを持たない）。
+// 受け入れていない参加者は区分を持たない（undefined）。管理者かは管理者の印で決まる（adminRoomOf）
+export type ParticipantCategory = "worker" | "visitor"
 
-export function participantCategory(p: Participant, admin: string | undefined): ParticipantCategory | undefined {
+export function participantCategory(p: Participant): ParticipantCategory | undefined {
   if (p.state === "visitor") return "visitor"
-  if (p.state !== "joined") return undefined
-  return p.workroom === admin ? "admin" : "worker"
+  return p.state === "joined" ? "worker" : undefined
 }
+
+// 管理者か: 管理者の印が指すワークルームに入っているワーカー（admin は adminRoomOf が答えるワークルームの id）
+export const isAdminParticipant = (p: Participant, admin: string | undefined): boolean =>
+  p.state === "joined" && admin !== undefined && p.workroom === admin
 
 // ビジターの呼び名（ワークルームの名前が無いので、AI の名前と元のセッション名）
 export const visitorName = (p: Participant): string => (p.sessionName ? `${p.ai} / ${p.sessionName}` : p.ai)

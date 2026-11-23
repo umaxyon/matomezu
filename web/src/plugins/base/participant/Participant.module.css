@@ -11,6 +11,26 @@
   display: block;
 }
 
+/* 管理者の鳥: 頭に金の王冠を重ねる */
+.crowned {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+.crownBox {
+  position: absolute;
+  left: 50%;
+  top: -38%;
+  display: flex;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.crownBox svg {
+  display: block;
+  color: #f2b705;
+  stroke: #b8860b;
+}
+
 /* 受け入れのダイアログ: 鳥と配色の選び（中は見えないラジオボタン。選んだ物に枠） */
 .picks {
   display: flex;

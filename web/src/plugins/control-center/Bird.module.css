@@ -1,20 +1,6 @@
 .wrap {
-  position: relative;
   display: inline-flex;
   flex: none;
-}
-.crownBox {
-  position: absolute;
-  left: 50%;
-  top: -38%;
-  display: flex;
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-.crownBox svg {
-  display: block;
-  color: var(--crown);
-  stroke: var(--crown-line);
 }
 .empty {
   flex: none;

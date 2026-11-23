@@ -44,20 +44,6 @@ export const TrashIcon = () => (
   </LineIcon>
 )
 
-// 管理者の王冠（塗りは currentColor、縁は使う側が stroke で決める）
-export const CrownIcon = ({ width = 18 }: { width?: number }) => (
-  <svg
-    viewBox="0 0 24 14"
-    width={width}
-    height={(width * 14) / 24}
-    aria-hidden="true"
-    fill="currentColor"
-    strokeWidth={1}
-  >
-    <path d="M2 12L1 3l5.5 4.5L12 1l5.5 6.5L23 3l-1 9z" strokeLinejoin="round" />
-  </svg>
-)
-
 export const SearchIcon = () => (
   <LineIcon size={15}>
     <circle cx="10.5" cy="10.5" r="6" />
