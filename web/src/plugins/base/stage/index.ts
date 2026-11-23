@@ -14,7 +14,7 @@ import { NO_STAGE } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { LIBRARY_SCREEN } from "../library/screen"
 import { SPLIT_ROWS, splitOf } from "../window/split"
-import { WIDE_STAGE } from "./states"
+import { shownWideStage, WIDE_STAGE } from "./states"
 
 const isSplit = (ctx: CommandContext) => workspaceOf(ctx).stages.length > 1
 
@@ -41,7 +41,10 @@ export const STAGE_SPLIT = kit.defineCommand({
 export const STAGE_UNSPLIT = kit.defineCommand({
   id: "stage-unsplit",
   title: "Unsplit",
-  run: (_ctx, a) => a.unsplit(),
+  run: (_ctx, a) => {
+    a.unsplit()
+    a.updatePluginState(WIDE_STAGE, () => undefined)
+  },
   when: isSplit,
   active: isSplit, // 分割の切り替えのボタンで、分割していることを押されている見た目で示す
 })
@@ -52,16 +55,29 @@ export const STAGE_WIDEN = kit.defineCommand({
   title: "Maximize stage",
   run: (ctx, a) => {
     const here = calledStageOf(ctx)
-    if (here) a.updatePluginState(WIDE_STAGE, now => (now === here.id ? undefined : here.id))
+    const other = workspaceOf(ctx).stages.find(st => st.id !== here?.id)
+    if (!here || !other) return
+    const stages = workspaceOf(ctx).stages.map(st => st.id)
+    const widened = shownWideStage(stages, ctx.pluginState(WIDE_STAGE)) === here.id
+    a.updatePluginState(WIDE_STAGE, () => (widened ? undefined : { wide: here.id, hidden: other.id }))
+    // 広げたステージをカレントにする（隠れた側にキーが効かないように）
+    if (!widened) storeActionsOf(a).focusStage(here.id)
   },
   when: isSplit,
-  active: ctx => ctx.pluginState(WIDE_STAGE) === calledStageOf(ctx)?.id,
+  active: ctx =>
+    shownWideStage(
+      workspaceOf(ctx).stages.map(st => st.id),
+      ctx.pluginState(WIDE_STAGE),
+    ) === calledStageOf(ctx)?.id,
 })
 
 export const STAGE_CLOSE = kit.defineCommand({
   id: "stage-close",
   title: "Close stage",
-  run: (_ctx, a) => a.closeStage(),
+  run: (_ctx, a) => {
+    a.closeStage()
+    a.updatePluginState(WIDE_STAGE, () => undefined)
+  },
   when: isSplit,
 })
 export {

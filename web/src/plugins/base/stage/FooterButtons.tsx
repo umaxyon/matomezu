@@ -13,22 +13,17 @@ export function FooterCloseButton() {
   const t = useMessages(kit)
   const stage = useCommand(STAGE_CLOSE.id)
   const screen = useCommand(BOOK_SCREEN_CLOSE.id)
-  const split = useScreenSplit()
-  if (!stage.shown && !split.inSplit && !screen.shown) return null
-  // 並びから外すだけでは、ブックスクリーンは閉じない（並びの決まり）。外してから閉じる
-  const close = () => {
-    if (stage.shown) return stage.run()
-    if (split.inSplit) split.close()
-    screen.run()
-  }
+  const shown = stage.shown ? stage : screen
+  if (!shown.shown) return null
+  const label = t(shown.title)
   return (
     <button
       type="button"
       className={styles.close}
-      aria-label={t(stage.shown ? "Close stage" : "Close screen")}
-      title={t(stage.shown ? "Close stage" : "Close screen")}
+      aria-label={label}
+      title={label}
       data-footer-close
-      onClick={close}
+      onClick={() => shown.run()}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <path d="M4 4l8 8M12 4l-8 8" />

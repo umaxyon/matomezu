@@ -172,6 +172,21 @@ test("分割すると、それぞれのステージの下の行の右端に □ 
   expect(restore.getAttribute("aria-pressed")).toBe("true")
   fireEvent.click(restore)
   expect(hidden()).toEqual(["false", "false"])
+  // 右を広げると、右がカレントのステージになる
+  fireEvent.click(screen.getAllByRole("button", { name: "ステージを広げる" })[1]!)
+  expect(hidden()).toEqual(["true", "false"])
+  const current = () => [...document.querySelectorAll("[data-hidden]")].map(c => c.getAttribute("data-current"))
+  expect(current()).toEqual(["false", "true"])
+})
+
+test("ステージを広げたまま分割をやめ、もう一度分割すると、どちらのステージも隠れない", () => {
+  renderBooksScreen()
+  fireEvent.click(fromMenu("画面を分割"))
+  fireEvent.click(screen.getAllByRole("button", { name: "ステージを広げる" })[0]!)
+  fireEvent.click(fromMenu("分割をやめる"))
+  fireEvent.click(fromMenu("画面を分割"))
+  const hidden = [...document.querySelectorAll("[data-hidden]")].map(c => c.getAttribute("data-hidden"))
+  expect(hidden).toEqual(["false", "false"])
 })
 
 test("新しいブックのダイアログでブックを作ると、そのステージでページの無いブックが開き、ページを作ると最初のタブができる", () => {

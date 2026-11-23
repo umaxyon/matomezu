@@ -83,6 +83,8 @@ test("分割で開いたブックスクリーンの下の行に閉じると □ 
   await close.click()
   await expect(close).toHaveCount(0)
   await expect(line).toBeVisible()
+  // 並びから外れただけでなく、閉じている
+  await expect(page.getByText("作業のメモ")).toHaveCount(0)
 })
 
 test("ブックスクリーンを 2 枚分割で開くと 2 段で見え、それぞれの下の行に閉じると □ が出る", async ({ page }) => {
