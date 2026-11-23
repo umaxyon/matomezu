@@ -6,7 +6,6 @@ import { StandLayer } from "../stand/anchors"
 import { BOOK_LAYERS, SHEET_LAYERS, STAGE_BODY } from "../workspace/slots"
 import { STAGE_SLOTS } from "../workspace/ui"
 import { BackgroundBand, BackgroundButton, BackgroundPrintControl } from "./BackgroundParts"
-import { CloseButton } from "./CloseButton"
 import { FooterCloseButton, FooterMaximizeButton } from "./FooterButtons"
 import { STAGE_ICONS } from "./icons"
 import { BookContentLayer, PaperLayer, PrintAreaLayer } from "./layers"
@@ -47,7 +46,6 @@ export const BACKGROUND_PRINT_CONTROL = defineWidget({
   slots: STAGE_SLOTS,
   view: BackgroundPrintControl,
 })
-export const CLOSE_BUTTON = defineWidget({ id: kit.name("close-button"), slots: STAGE_SLOTS, view: CloseButton })
 export const FOOTER_CLOSE_BUTTON = defineWidget({
   id: kit.name("footer-close-button"),
   slots: STAGE_SLOTS,

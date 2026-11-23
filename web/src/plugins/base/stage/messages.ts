@@ -5,7 +5,7 @@ export const STAGE_MESSAGES = defineMessages({
   "Split screen": { en: "Split screen", ja: "画面を分割" },
   "Close stage": { en: "Close stage", ja: "ステージを閉じる" },
   "Maximize stage": { en: "Maximize stage", ja: "ステージを広げる" },
-  "Restore stage": { en: "Restore stage", ja: "ステージを元に戻す" },
+  "Restore stage": { en: "Restore stage", ja: "ステージを戻す" },
   "Maximize screen": { en: "Maximize screen", ja: "スクリーンを広げる" },
   Unsplit: { en: "Unsplit", ja: "分割をやめる" },
   Stage: { en: "Stage", ja: "ステージ" },

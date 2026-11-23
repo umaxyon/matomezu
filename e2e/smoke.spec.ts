@@ -236,7 +236,7 @@ test("ブックの名前のボタンにマウスを乗せるとメニューが�
   expect(footer.width).toBe(156)
 })
 
-test("分割すると、ツールボックスの無いステージでも右上に閉じるボタンがある。画面は縦にはみ出さない", async ({
+test("分割すると、ツールボックスの無いステージでも下の行の左に閉じるボタンがある。画面は縦にはみ出さない", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
@@ -244,12 +244,10 @@ test("分割すると、ツールボックスの無いステージでも右上�
   // 何も開いていないステージのブックの名前のボタンは空。空でも下の行からはみ出さない
   expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBe(0)
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
-  // 右上の角の物（下の行の頭の閉じるでない物）
-  const corner = page.getByRole("button", { name: "ステージを閉じる" }).and(page.locator(":not([data-footer-close])"))
-  const close = (await corner.nth(1).boundingBox())!
+  const close = (await page.getByRole("button", { name: "ステージを閉じる" }).nth(1).boundingBox())!
   const box = (await right.boundingBox())!
-  expect(close.y).toBeLessThan(box.y + 20)
-  expect(close.x + close.width).toBeGreaterThan(box.x + box.width - 20)
+  expect(close.y + close.height).toBeGreaterThan(box.y + box.height - 40)
+  expect(close.x).toBeLessThan(box.x + 40)
 })
 
 test.describe("ブラウザの言語が英語のとき", () => {

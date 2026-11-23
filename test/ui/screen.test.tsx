@@ -144,14 +144,13 @@ test("言語を英語にすると、画面の文言が英語になり、＋で�
   expect(document.documentElement.lang).toBe("en")
 })
 
-test("分割すると、それぞれのステージの右上の角と下の行の頭に閉じるボタンが出て、閉じると残りのステージだけになる", () => {
+test("分割すると、それぞれのステージの下の行の頭に閉じるボタンが出て、閉じると残りのステージだけになる", () => {
   renderBooksScreen()
   expect(screen.queryByRole("button", { name: "ステージを閉じる" })).toBeNull()
   fireEvent.click(fromMenu("画面を分割"))
-  const closes = screen.getAllByRole("button", { name: "ステージを閉じる" })
-  expect(closes).toHaveLength(4)
-  const footer = closes.filter(b => b.hasAttribute("data-footer-close"))
+  const footer = screen.getAllByRole("button", { name: "ステージを閉じる" })
   expect(footer).toHaveLength(2)
+  expect(footer.every(b => b.hasAttribute("data-footer-close"))).toBe(true)
   fireEvent.click(footer[0]!)
   expect(stages()).toHaveLength(1)
   expect(screen.queryByRole("img", { name: "紙" })).toBeNull()
@@ -168,7 +167,7 @@ test("分割すると、それぞれのステージの下の行の右端に □ 
   fireEvent.click(widen[0]!)
   const hidden = () => [...document.querySelectorAll("[data-hidden]")].map(c => c.getAttribute("data-hidden"))
   expect(hidden()).toEqual(["false", "true"])
-  const restore = screen.getByRole("button", { name: "ステージを元に戻す" })
+  const restore = screen.getByRole("button", { name: "ステージを戻す" })
   expect(restore.getAttribute("aria-pressed")).toBe("true")
   fireEvent.click(restore)
   expect(hidden()).toEqual(["false", "false"])

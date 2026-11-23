@@ -49,21 +49,13 @@ test("紙を置かずに、ソースとプレビューを左右に並べて開�
   expect((await pane(page, "ソース").boundingBox())!.x).toBeLessThan((await pane(page, "プレビュー").boundingBox())!.x) // 左右に戻せばソースが左
 })
 
-test("並べ方のボタンは上の行の左端に並び、画面を分割して出たステージの閉じるボタン（右上）と重ならない", async ({
-  page,
-}) => {
+test("並べ方のボタンは、画面を分割しても上の行の左端に並ぶ", async ({ page }) => {
   await markdownBook(page)
   await (await fromMenu(page, "画面を分割")).click()
   const stage = page.locator("[data-stage]").first()
   const bar = (await stage.getByRole("toolbar", { name: "ペイン" }).boundingBox())!
-  const close = (await page
-    .getByRole("button", { name: "ステージを閉じる" })
-    .and(page.locator(":not([data-footer-close])"))
-    .first()
-    .boundingBox())!
   const left = (await stage.boundingBox())!.x
   expect(bar.x - left).toBeLessThan(20)
-  expect(bar.x + bar.width).toBeLessThan(close.x)
 })
 
 // 見出し（ペインの名前）の真ん中から、to のペインの真ん中までドラッグして離す

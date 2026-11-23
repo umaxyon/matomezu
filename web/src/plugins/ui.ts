@@ -91,7 +91,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:page-tabs",
       "@matomezu/base:footer-maximize-button",
     ],
-    "@matomezu/base:stage-corner": ["@matomezu/base:close-button"],
+    "@matomezu/base:stage-corner": [],
     "@matomezu/base:footer-menu-map": ["@matomezu/base:footer-menu-minimap"],
     "@matomezu/base:footer-menu-history": ["@matomezu/base:history-buttons"],
     "@matomezu/base:footer-menu-basics": [
