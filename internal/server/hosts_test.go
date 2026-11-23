@@ -159,3 +159,19 @@ func TestAICannotTurnOnTheHostEntrance(t *testing.T) {
 		t.Fatal("the entrance opened")
 	}
 }
+
+// 常駐が止まるとき（CloseHosts）のあとは、設定が入のままでも開き直さない
+func TestTheHostEntranceStaysClosedAfterCloseHosts(t *testing.T) {
+	h := emptyHub(t)
+	saved := 0
+	testHost(t, h, 0, &saved)
+	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":true}`)
+	port := waitHost(t, h, func(s HostStatus) bool { return s.Open }).Port
+	h.CloseHosts()
+	setHostSettings(t, h, `{"@matomezu/network:host-name":"again"}`)
+	time.Sleep(50 * time.Millisecond)
+	if c, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), time.Second); err == nil {
+		c.Close()
+		t.Fatal("the entrance opened again after CloseHosts")
+	}
+}

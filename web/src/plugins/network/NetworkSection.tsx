@@ -30,7 +30,7 @@ export function NetworkSection() {
       <h4 className={styles.heading}>{t("Network settings")}</h4>
       <UserSettings settings={[HOST_NAME.id, CONNECT_HOSTS.id]} />
       {on && status?.open && (
-        <>
+        <div className={styles.rows}>
           <SettingRow label={t("Listening at")}>
             <span className={styles.addrs}>
               {(status.addrs ?? []).map(a => (
@@ -41,7 +41,7 @@ export function NetworkSection() {
           <SettingRow label={t("Host key")}>
             <code className={styles.key}>{shownHostKey(status.hostId)}</code>
           </SettingRow>
-        </>
+        </div>
       )}
       {on && status?.failed && <p className={styles.note}>{t("Could not open the entrance for other hosts")}</p>}
       {status?.wsl && <WslGuide port={status.port} />}

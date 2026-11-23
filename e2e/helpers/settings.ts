@@ -1,4 +1,4 @@
-// 設定画面: コントロールセンターの「全体設定」で開いたダイアログと、その「全体」の中身
+// 設定画面: コントロールセンターの「全体設定」で開いたダイアログ（「ユーザー設定」で開く）と、その「全体」の中身
 import { expect, type Locator, type Page } from "@playwright/test"
 import { fromMenu, menuOf, menuTrigger } from "./stage-menu"
 

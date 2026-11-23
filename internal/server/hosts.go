@@ -46,16 +46,23 @@ type hostEntry struct {
 	srv    *http.Server
 	status HostStatus
 	kick   chan struct{}
+	done   chan struct{} // CloseHosts が閉じる（開け閉めの goroutine を止める）
+	closed bool          // CloseHosts のあとは開かない
 }
 
 // SetHost は、ホストどうしの入口の用意を渡し、設定に合わせて開け閉めし始める（立ったときに 1 度呼ぶ）
 func (h *Hub) SetHost(c HostConfig) {
-	e := &hostEntry{config: c, kick: make(chan struct{}, 1)}
+	e := &hostEntry{config: c, kick: make(chan struct{}, 1), done: make(chan struct{})}
 	e.status = HostStatus{HostID: c.Identity.HostID, Name: c.OSHostName, OSHostName: c.OSHostName, WSL: c.WSL}
 	h.hosts.Store(e)
 	go func() {
-		for range e.kick {
-			h.applyHosts(e)
+		for {
+			select {
+			case <-e.kick:
+				h.applyHosts(e)
+			case <-e.done:
+				return
+			}
 		}
 	}()
 	h.kickHosts()
@@ -84,14 +91,16 @@ func (h *Hub) HostStatus() HostStatus {
 	return e.status
 }
 
-// CloseHosts は、入口を閉じる（常駐が止まるとき）
+// CloseHosts は、入口を閉じ、そのあとは開かない（常駐が止まるとき）
 func (h *Hub) CloseHosts() {
-	e := h.hosts.Load()
+	e := h.hosts.Swap(nil)
 	if e == nil {
 		return
 	}
+	close(e.done)
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	e.closed = true
 	if e.srv != nil {
 		e.srv.Close()
 		e.srv = nil
@@ -107,6 +116,10 @@ func (h *Hub) applyHosts(e *hostEntry) {
 		return
 	}
 	e.mu.Lock()
+	if e.closed {
+		e.mu.Unlock()
+		return
+	}
 	was := e.status
 	name := s.Name
 	if name == "" {
