@@ -8,7 +8,7 @@
 import { type ReactNode, useState } from "react"
 import { type ItemProps, NO_PAGE } from "../../../plugin-api"
 import { type ItemViewProps, useMessages, usePerform, useStage } from "../../../plugin-api/ui"
-import { stagePageId } from "../../base"
+import { FULL_WIDTH, stagePageId } from "../../base"
 import { NO_THEME, TextBlockView, useBodyGrips, useThemeVars } from "../../base/ui"
 import { areasOf } from "./areas"
 import { ChartView } from "./ChartView"
@@ -41,7 +41,12 @@ export function DataItemView({ props, content, size, id }: ItemViewProps<DataPro
         grips={grips}
         lineColor="var(--data-line)"
         onBodyWidth={bodyWidth => {
-          if (page !== NO_PAGE) perform("@matomezu/paper:item-update", { item: id, props: { bodyWidth } }, { page })
+          if (page !== NO_PAGE)
+            perform(
+              "@matomezu/paper:item-update",
+              { item: id, props: { bodyWidth: bodyWidth === FULL_WIDTH ? null : bodyWidth } },
+              { page },
+            )
         }}
       />
     </div>

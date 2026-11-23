@@ -2,7 +2,7 @@
 // 追加プラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
 
 import { expect, test } from "bun:test"
-import type { CSSProperties, ReactElement, ReactNode, RefObject } from "react"
+import type { CSSProperties, ReactElement, ReactNode, RefObject, SyntheticEvent } from "react"
 import type { ZodType } from "zod"
 import type { ActionId, SlotTable, SubjectId, WidgetTable } from "../web/src/core/catalog"
 import type { CoreCatalog } from "../web/src/core/core-catalog"
@@ -10,6 +10,7 @@ import type { RecordOf } from "../web/src/core/def/action"
 import { NO_CONTROL_CENTER } from "../web/src/core/def/action"
 import type { ItemDef } from "../web/src/core/def/item"
 import type { PageTypeDef } from "../web/src/core/def/page-type"
+import type { PluginStateDef } from "../web/src/core/def/plugin-state"
 import type { ThemeDef } from "../web/src/core/def/theme"
 import type { ArgsOf, Refused } from "../web/src/core/perform"
 import type { ItemPage, PlacedItem } from "../web/src/core/placed"
@@ -325,6 +326,7 @@ test("matomezu/ui が出す名前", () => {
     "AtCorner",
     "BOOKMARKS",
     "BOOK_SCREEN",
+    "BY_KEY",
     "Band",
     "BirdFaceView",
     "BirdWalk",
@@ -729,7 +731,7 @@ type ReturnOffenders<M> = {
 }[keyof Checked<M>]
 type Offenders<M> = [ReturnOffenders<M>] extends [never] ? true : `${ReturnOffenders<M> & string}`
 // プラグインが API の関数とフックに渡す値（引数）も、無いことを null・undefined で表さない。省ける引数（x?: T）と省けるフィールドは、省けばよい。
-// 見るのは、引数の型と、オブジェクトの引数の 1 段目のフィールドと、引数に渡す関数（replaceShape の f など）の返す値。
+// 見るのは、引数の型と、オブジェクトの引数の 1 段目のフィールドと、引数に渡す関数（replaceShape の f など）の返す値と、その関数を API が呼ぶときに渡す値（onChange の値・updater の now など）。
 // 除くのは、返す値と同じく、定義を作る関数と、データの形・定義の形と、外のライブラリの型（CSS モジュール・zod）
 type ArgNone<V> = unknown extends V
   ? never
@@ -738,29 +740,56 @@ type ArgNone<V> = unknown extends V
     : undefined extends V
       ? "(undefined)"
       : V extends Fn
-        ? Named<"()", ReturnNoneOnly<V>>
-        : V extends DataShape | Plain | readonly unknown[] | Element | RefObject<unknown>
+        ? Named<"()", ReturnNoneOnly<V>> | CallbackParamsNone<V>
+        : V extends DataShape | Plain | readonly unknown[] | Element | RefObject<unknown> | Date
           ? never
           : ArgFields<V>
+// 引数に渡す関数 F（onChange・updater の now・replaceShape の f など）を、API が呼ぶときに渡す値の、決まりに合わない所の名前（(0) は 1 番目の引数）。
+// 渡す値そのものが null・undefined を含むか、オブジェクトなら 1 段目のフィールドが null・undefined・任意のフィールドか。データの形・定義の形（プラグイン状態の宣言も）・DOM と React のイベント・Date は見ない
+type CallbackParamsNone<F> = F extends (...args: infer P) => unknown
+  ? { [I in keyof P]-?: Named<`(${I & string})`, CallbackValueNone<P[I]>> }[number]
+  : never
+type CallbackValueNone<V> = unknown extends V
+  ? never
+  : null extends V
+    ? "(null)"
+    : undefined extends V
+      ? "(undefined)"
+      : V extends
+            | DataShape
+            | Plain
+            | readonly unknown[]
+            | Fn
+            | Element
+            | Event
+            | SyntheticEvent
+            | Date
+            | PluginStateDef<unknown>
+        ? never
+        : NoneKeys<V>
 type ReturnNoneOnly<F> = F extends (...args: never[]) => infer R ? NoneReturn<Unwrapped<R>> : never
 // オブジェクトの引数 V の、省けないのに null・undefined を含むフィールドと、関数のフィールドの返す値の名前
 type ArgFields<V> = {
   [K in keyof V]-?: string extends K
     ? never
-    : unknown extends V[K]
+    : K extends `define${string}` | "plugin"
       ? never
-      : ReactNode extends V[K]
+      : unknown extends V[K]
         ? never
-        : Exclude<V[K], undefined> extends Fn
-          ? Named<`${K & string}()`, ReturnNoneOnly<Exclude<V[K], undefined>>>
-          : // biome-ignore lint/complexity/noBannedTypes: 省けるフィールドかを、空のオブジェクトの型 {} で見分ける
-            {} extends Pick<V, K>
-            ? never
-            : null extends V[K]
-              ? K
-              : undefined extends V[K]
+        : ReactNode extends V[K]
+          ? never
+          : Exclude<V[K], undefined> extends Fn
+            ?
+                | Named<`${K & string}()`, ReturnNoneOnly<Exclude<V[K], undefined>>>
+                | Named<K & string, CallbackParamsNone<Exclude<V[K], undefined>>>
+            : // biome-ignore lint/complexity/noBannedTypes: 省けるフィールドかを、空のオブジェクトの型 {} で見分ける
+              {} extends Pick<V, K>
+              ? never
+              : null extends V[K]
                 ? K
-                : never
+                : undefined extends V[K]
+                  ? K
+                  : never
 }[keyof V]
 // 関数 F の引数の、決まりに合わない所の名前（何番目の引数か）
 type ParamsNone<F> = F extends (...args: infer P) => unknown

@@ -24,20 +24,20 @@ export function TextBlockView({
   maxH: number // 塊に使える高さ
   grips: boolean
   lineColor: string
-  onBodyWidth: (width: number | null) => void
+  onBodyWidth: (width: number | typeof FULL_WIDTH) => void
 }) {
   const at = useStage()
-  // 本文の列の端をつかんでいるドラッグ（つかんだ側と、画面の上の始めの x）と、今の本文の幅（動かしていなければ undefined）
+  // 本文の列の端をつかんでいるドラッグ（つかんだ側と、画面の上の始めの x）と、今の本文の幅（動かしていなければ undefined。中いっぱいなら FULL_WIDTH）
   const grab = useRef<{ pointer: number; side: "left" | "right"; start: number } | null>(null)
-  const [dragged, setDragged] = useState<number | null | undefined>(undefined)
-  const shown: BlockProps = dragged === undefined ? props : { ...props, bodyWidth: dragged ?? undefined }
+  const [dragged, setDragged] = useState<number | typeof FULL_WIDTH | undefined>(undefined)
+  const shown: BlockProps =
+    dragged === undefined ? props : { ...props, bodyWidth: dragged === FULL_WIDTH ? undefined : dragged }
   const { body, rule, column } = textBlock(shown, inner, least, maxH)
   const hasBody = body.length > 0
-  // 本文の幅（中いっぱいなら null。本文の幅を消す）
+  // 本文の幅（中いっぱいなら FULL_WIDTH。本文の幅を消す）
   const widthAt = (side: "left" | "right", clientX: number, start: number) => {
-    if (at === NO_STAGE) return null
-    const width = bodyWidthAfter(props, inner, least, side, toPaperDelta(at, { x: clientX - start, y: 0 }).x)
-    return width === FULL_WIDTH ? null : width
+    if (at === NO_STAGE) return FULL_WIDTH
+    return bodyWidthAfter(props, inner, least, side, toPaperDelta(at, { x: clientX - start, y: 0 }).x)
   }
   const grip = (side: "left" | "right") => ({
     onPointerDown: (e: PointerEvent<HTMLDivElement>) => {
@@ -56,7 +56,7 @@ export function TextBlockView({
       grab.current = null
       setDragged(undefined)
       const next = widthAt(g.side, e.clientX, g.start)
-      if (next !== (props.bodyWidth ?? null)) onBodyWidth(next)
+      if (next !== (props.bodyWidth ?? FULL_WIDTH)) onBodyWidth(next)
     },
     onPointerCancel: () => {
       grab.current = null

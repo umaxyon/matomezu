@@ -12,9 +12,9 @@ import { usePluginState, useResetPluginState, useSetPluginState } from "../../..
 import { useActions } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { type InPlaceDraftState, NO_DRAFT } from "../utils/in-place"
+import { NOT_COMPOSING } from "./RichInput"
 
-// 変換中の字が無いときの値（変換中の字はどんな文字列にもなるので、文字列でない定数）
-export const NOT_COMPOSING: unique symbol = Symbol("not composing")
+export { NOT_COMPOSING } from "./RichInput"
 
 // その場の編集の入力Formで、書いている字と変換中の字
 export interface InPlaceWritten {
@@ -38,7 +38,7 @@ export function useInPlaceInput(
   const draft = usePluginState(owner, state)
   const setDraft = useSetPluginState(owner, state)
   const resetDraft = useResetPluginState(owner, state)
-  const [composing, setComposing] = useState<string | null>(null)
+  const [composing, setComposing] = useState<string | typeof NOT_COMPOSING>(NOT_COMPOSING)
   const finish = useEndWhenBlocked(active, commit, resetDraft)
   const left = !active && draft !== NO_STATE
   useEffect(() => {
@@ -47,7 +47,7 @@ export function useInPlaceInput(
   const text = active && target !== NO_WRITING && draft !== NO_STATE && draft.target === target ? draft.text : NO_DRAFT
   const written: InPlaceWritten = {
     text, // 書いている字（書いていない・まだ変えていなければ NO_DRAFT）
-    composing: active && composing !== null ? composing : NOT_COMPOSING, // 変換中の字（変換していなければ NOT_COMPOSING）
+    composing: active ? composing : NOT_COMPOSING, // 変換中の字（変換していなければ NOT_COMPOSING）
   }
   return {
     ...written,
@@ -62,7 +62,7 @@ export function useInPlaceInput(
       onCompose: setComposing,
       onPointerDown: (e: PointerEvent) => e.stopPropagation(),
       onBlur: () => {
-        setComposing(null)
+        setComposing(NOT_COMPOSING)
         if (active) finish.run()
       },
     },

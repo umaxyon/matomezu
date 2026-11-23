@@ -6,7 +6,7 @@ import { type MouseEvent, type ReactNode, useCallback, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import { kit } from "../kit"
 import { belowOf, ChoiceBubble } from "../utils/ChoiceBubble"
-import { type Clicked, useClickOrDouble } from "../utils/useClickOrDouble"
+import { BY_KEY, type Clicked, useClickOrDouble } from "../utils/useClickOrDouble"
 import { useShowBook } from "./useShowBook"
 
 export interface BookOpenChoiceOptions {
@@ -27,7 +27,7 @@ export function useBookOpenChoice(o: BookOpenChoiceOptions): {
   const close = useCallback(() => setAt(null), [])
   const full = o.full ?? (() => shower.full(o.book, o.page))
   const click = useClickOrDouble(
-    (c: Clicked) => setAt(c.at ?? belowOf(c.el)),
+    (c: Clicked) => setAt(c.at === BY_KEY ? belowOf(c.el) : c.at),
     () => full(),
   )
   const onClick = (e: MouseEvent<HTMLElement>) => {
