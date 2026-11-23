@@ -10,4 +10,8 @@ export const PRINT_AREAS_HIDDEN = kit.definePluginStateOf<boolean>()({ id: "prin
 // 分けたステージのうち、広げて見せているステージの id（ブックスクリーンごと。広げていなければ無い）。もう片方の列の幅を 0 にする（右サイドパネルを開いたときと同じ）
 export const WIDE_STAGE = kit.definePluginStateOf<string>()({ id: "wide-stage", scope: "screen" })
 
+// 分けたステージ stages の中で、広げて見せるステージ（wide がそのどれかを指していれば。分けていなければ null）
+export const shownWideStage = (stages: readonly string[], wide: string | undefined): string | null =>
+  stages.length > 1 && wide !== undefined && stages.includes(wide) ? wide : null
+
 export const STAGE_STATES = [CONTENT_HIDDEN, PRINT_AREAS_HIDDEN, WIDE_STAGE] as const
