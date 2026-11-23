@@ -14,6 +14,7 @@ export interface BookOpenChoiceOptions {
   page?: string // 開くページ（無ければ、ブックスクリーンが決める）
   keepHere?: boolean // 分けた並びの中から分割で開くとき、起点を残してもう片方の段を替えるか（チケットスクリーン）
   full?: () => void // 全画面で開く動き（無ければ、ブックを窓に出す）
+  fullClosingRows?: boolean // 全画面で開く前に、上下に分けた並びのブックスクリーンを閉じるか（並びの中の、ステージを並べないスクリーンから開くとき）
   onClick?: () => void // クリックで、すぐに行う事（書庫の選ぶなど。ダブルクリックの 2 回目では行わない）
 }
 
@@ -25,7 +26,7 @@ export function useBookOpenChoice(o: BookOpenChoiceOptions): {
   const shower = useShowBook(o.keepHere)
   const [at, setAt] = useState<{ x: number; y: number } | null>(null)
   const close = useCallback(() => setAt(null), [])
-  const full = o.full ?? (() => shower.full(o.book, o.page))
+  const full = o.full ?? (() => (o.fullClosingRows ? shower.fullClosingRows : shower.full)(o.book, o.page))
   const click = useClickOrDouble(
     (c: Clicked) => setAt(c.at ?? belowOf(c.el)),
     () => full(),

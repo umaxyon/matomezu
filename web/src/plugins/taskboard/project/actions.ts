@@ -9,6 +9,7 @@ import {
   INHERIT_CARD_SIZE,
   inWorkingLane,
   LANE_NAME_MAX,
+  LANE_SHOWS,
   LANES,
   NO_DONE_LANE,
   PREFIX,
@@ -101,7 +102,7 @@ export const PROJECT_UPDATE = kit.defineAction({
   id: "project-update",
   title: "update project",
   aiDescription:
-    "Change the name, the prefix (as in project-add), the lanes, the ticket tags, the card size (cardSize: large, medium or small; each lane row has cardSize too, inherit or a size), what the cards show (cardShows: priority and volume, each true or false; a field left out stays as it is) or the done lane (doneLane: a lane of the new lanes by its id or name, or none; refused while a ticket in that lane has assignees, and when that lane is a working lane) of the project named by on.record (only the user, because the prompts of the lanes and the tags tell you how to work; refused while the project is closed). lanes and tags are the whole new lists: a row with an id keeps that lane or tag, a row without an id is new. A lane row with working: true is a working lane (any number of them); changing the working marks changes the workrooms' current work as moving the tickets would (see current-work). A lane or tag left out is removed; the tickets keep it and read as unsorted, or without that tag.",
+    "Change the name, the prefix (as in project-add), the lanes, the ticket tags, the card size (cardSize: large, medium or small; each lane row has cardSize too, inherit or a size), what the cards show (cardShows: priority and volume, each true or false; a field left out stays as it is), what the title bars of the lanes show (laneShows: count, true or false; a field left out stays as it is) or the done lane (doneLane: a lane of the new lanes by its id or name, or none; refused while a ticket in that lane has assignees, and when that lane is a working lane) of the project named by on.record (only the user, because the prompts of the lanes and the tags tell you how to work; refused while the project is closed). lanes and tags are the whole new lists: a row with an id keeps that lane or tag, a row without an id is new. A lane row with working: true is a working lane (any number of them); changing the working marks changes the workrooms' current work as moving the tickets would (see current-work). A lane or tag left out is removed; the tickets keep it and read as unsorted, or without that tag.",
   target: PROJECT.id,
   // 完了のレーンを選ぶときは、そのレーンのチケットに担当がいないかを確かめるために、プロジェクトのチケットの索引キーを読む
   // （project は ticket を読まない向きなので、id だけを書く）
@@ -121,6 +122,7 @@ export const PROJECT_UPDATE = kit.defineAction({
     doneLane: zod.string().min(1).optional(),
     cardSize: zod.enum(CARD_SIZES).optional(),
     cardShows: CARD_SHOWS.partial().optional(),
+    laneShows: LANE_SHOWS.partial().optional(),
   }),
   run: (now, args, ctx) => {
     if (now === "none") return null
@@ -160,6 +162,7 @@ export const PROJECT_UPDATE = kit.defineAction({
       ...(done.id === NO_DONE_LANE ? {} : { doneLane: done.id }),
       ...(args.cardSize === undefined ? {} : { cardSize: args.cardSize }),
       cardShows: { ...now.cardShows, ...args.cardShows },
+      laneShows: { ...now.laneShows, ...args.laneShows },
     }
     return { next, result: {} }
   },

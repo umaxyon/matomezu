@@ -9,6 +9,7 @@ const PAIR = 2
 
 export interface BookShower {
   full(book: string, page?: string): void
+  fullClosingRows(book: string, page?: string): void // 上下に分けた並びのブックスクリーンを閉じてから、全画面で開く
   split(book: string, page?: string): void
   tall: boolean // 分けて開けるか（窓の高さが足りるか）
 }
@@ -21,6 +22,10 @@ export function useShowBook(keepHere = false): BookShower {
   }
   return {
     full,
+    fullClosingRows: (book, page) => {
+      if (split.inSplit) split.closeBooks()
+      full(book, page)
+    },
     split: (book, page) => {
       if (!split.tall) return full(book, page)
       split.showBook(book, page, bookSplitWay(split.inSplit, split.index, keepHere), PAIR)

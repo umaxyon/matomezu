@@ -20,6 +20,7 @@ type Project = {
   lanes: { kind: string; id?: string; name?: string }[]
   tags: { id: string; name: string; enabled: boolean }[]
   cardShows: { priority: boolean; volume: boolean }
+  laneShows: { count: boolean }
 }
 
 function ready() {
@@ -204,6 +205,18 @@ test("新しいプロジェクトのチケットカードは優先度とチケ�
   expect(user("project-update", { name: "別の名前" }, { record: p.id }).ok).toBe(true)
   expect(user("project-update", { cardShows: {} }, { record: p.id }).ok).toBe(true)
   expect((projects()[0] as Project).cardShows).toEqual({ priority: false, volume: false })
+})
+
+test("新しいプロジェクトのレーンのタイトル帯は件数を出す。laneShows の count を変えられ、省けば今のまま", () => {
+  const { user, projects } = ready()
+  user("project-add", {})
+  const p = projects()[0] as Project
+  expect(p.laneShows).toEqual({ count: true })
+  expect(user("project-update", { laneShows: { count: false } }, { record: p.id }).ok).toBe(true)
+  expect((projects()[0] as Project).laneShows).toEqual({ count: false })
+  expect(user("project-update", { name: "別の名前" }, { record: p.id }).ok).toBe(true)
+  expect(user("project-update", { laneShows: {} }, { record: p.id }).ok).toBe(true)
+  expect((projects()[0] as Project).laneShows).toEqual({ count: false })
 })
 
 test("プロジェクトを直すとき、無い id・重なる名前（前後の空白を除いて）・未分類が 1 つでない並び・ほかのプロジェクトと重なるプレフィクス（大文字小文字を問わない）は断る", () => {

@@ -2,7 +2,11 @@
 .bookScreen {
   --footer-row-height: 30px; /* 下の行の高さ（utils/FooterRow と同じ） */
   position: absolute;
-  inset: 0;
+  /* 上端と高さは決まった値で持ち（窓いっぱいは 0 と 100%）、上下に分けるときに縮む動きを出す */
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -42,9 +46,23 @@
     transition: none;
   }
 }
-/* ブックスクリーンを閉じた直後は、滑らせずに出す（閉じた物の写しが、上から右へ出ていく） */
-.center[data-instant="true"] {
+/* ブックスクリーンを窓いっぱいに見せ始めたときは、それがほかのスクリーンの上を右から滑り込み終えるまで、コントロールセンターの側を動かさずに残す */
+.center[data-current="book-screen"][data-held="true"] {
+  transform: translateX(0);
+  visibility: visible;
+}
+.bookScreen[data-over="true"] {
+  z-index: 2;
+}
+/* ブックスクリーンを閉じた直後は、滑らせずに出す（閉じた物の写しが、上から右へ出ていく）。並びに戻る物も、伸び縮みせずにその位置に出る */
+.center[data-instant="true"],
+.center[data-instant="true"] .plain {
   transition: none;
+}
+/* ほかのブックスクリーンを閉じて並びの位置が替わった物: 閉じた物が出ていき終えてから、ほかの物の上を新しい位置へ動く */
+.bookScreen[data-moves="true"] {
+  z-index: 2;
+  transition-delay: var(--screen-slide);
 }
 /* 閉じたブックスクリーンの写し: 閉じたときの位置から右へ滑り出る */
 .bookScreen[data-leaving] {
@@ -139,7 +157,6 @@
 }
 .bookScreen[data-row="true"] {
   --rows-height: calc(100% - var(--footer-row-height));
-  inset: auto 0;
   top: calc(var(--rows-height) * var(--row-index) / var(--row-of));
   height: calc(var(--rows-height) / var(--row-of));
 }

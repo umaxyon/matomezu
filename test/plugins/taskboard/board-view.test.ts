@@ -39,6 +39,7 @@ const project = (id: string, over: Partial<Project> = {}): Project => ({
   doneLane: "done",
   cardSize: "medium",
   cardShows: { priority: true, volume: true },
+  laneShows: { count: true },
   ...over,
 })
 const ticket = (id: string, over: Partial<Ticket> = {}): Ticket => ({
