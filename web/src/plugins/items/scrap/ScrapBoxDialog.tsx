@@ -11,6 +11,7 @@ import {
   ColorPicker,
   Dialog,
   Form,
+  NO_SWATCHES,
   Problem,
   rowClass,
   ScrapForm,
@@ -79,7 +80,7 @@ function Editor({ args, start, onClose }: { args: ShapeEditArgs; start: ScrapPro
                 checked={line !== NO_LINE}
                 onChange={on => withLine(on ? undefined : NO_LINE)}
               />
-              {swatches && line !== NO_LINE && (
+              {swatches !== NO_SWATCHES && line !== NO_LINE && (
                 <ColorPicker
                   label={t("Border color")}
                   value={line}

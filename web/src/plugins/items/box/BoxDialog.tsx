@@ -22,6 +22,7 @@ import {
   DividerField,
   Field,
   Form,
+  NO_SWATCHES,
   Problem,
   rowClass,
   type TextDraft,
@@ -225,7 +226,7 @@ function BoxDialog({
             </select>
           )}
         </Field>
-        {swatches && (
+        {swatches !== NO_SWATCHES && (
           <div className={rowClass}>
             <span>{t("Color")}</span>
             <ColorPicker

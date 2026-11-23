@@ -21,6 +21,7 @@ import {
   dividerClass,
   Form,
   inlineClass,
+  NO_SWATCHES,
   Problem,
   pairClass,
   Section,
@@ -260,7 +261,7 @@ function ListDialog({
               ))}
             </select>
           </label>
-          {swatches && (
+          {swatches !== NO_SWATCHES && (
             <span className={pairClass}>
               <span>{t("Color")}</span>
               <ColorPicker

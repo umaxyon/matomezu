@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, render } from "@testing-library/react"
 import { defineMessages } from "../../web/src/core/i18n/messages"
-import { useSwatches } from "../../web/src/plugins/base/item-parts/parts"
+import { NO_SWATCHES, useSwatches } from "../../web/src/plugins/base/item-parts/parts"
 import { BOX_FILL } from "../../web/src/plugins/items/box/box"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -41,7 +41,7 @@ const PLUGINS = [...BUILTIN_UI, definePluginUi(kit.plugin({ themes: [DUSK] }), {
 
 function swatchesIn(theme: string) {
   const store = createMatomezu({ plugins: PLUGINS, partial: true })
-  let got: ReturnType<typeof useSwatches> = null
+  let got: ReturnType<typeof useSwatches> = NO_SWATCHES
   const Probe = () => {
     got = useSwatches(theme, BOX_FILL)
     return null
@@ -51,17 +51,19 @@ function swatchesIn(theme: string) {
       <Probe />
     </MatomezuProvider>,
   )
-  return { got: got as ReturnType<typeof useSwatches> }
+  const found = got as ReturnType<typeof useSwatches>
+  if (found === NO_SWATCHES) throw new Error("no swatches")
+  return { got: found }
 }
 
 test("明暗で色の違うテーマの見本は、OS が暗ければ暗いほうの値、明るければ明るいほうの値", () => {
   scheme(true)
-  const dark = swatchesIn(DUSK.id).got!
+  const dark = swatchesIn(DUSK.id).got
   expect(dark.palette.find(p => p.name === "primary")?.hex).toBe("#99bbff")
   expect(dark.none).toBe("#202020")
   cleanup()
   scheme(false)
-  const light = swatchesIn(DUSK.id).got!
+  const light = swatchesIn(DUSK.id).got
   expect(light.palette.find(p => p.name === "primary")?.hex).toBe("#3366cc")
   expect(light.none).toBe("#ffffff")
 })

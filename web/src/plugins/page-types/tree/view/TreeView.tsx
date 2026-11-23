@@ -39,6 +39,7 @@ import {
 } from "../../../../plugin-api/ui"
 import { growOf, NO_GROW, pageContext, refusalMessage, settingValue } from "../../../base"
 import {
+  NO_SWATCHES,
   PaperFrame,
   RichBar,
   RichInput,
@@ -302,7 +303,7 @@ const Tree = memo(function Tree({
         // 選んでいる節のほかを少し暗くする（節の周りに大きな影を落とす）
         <div data-spotlight className={styles.spotlight} style={{ left: at.x, top: at.y, width: at.w, height: at.h }} />
       )}
-      {picking && swatches && (
+      {picking && swatches !== NO_SWATCHES && (
         <NodeColorStand
           page={pageId}
           node={selected}

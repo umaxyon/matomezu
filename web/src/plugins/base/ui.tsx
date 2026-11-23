@@ -124,7 +124,9 @@ export {
 } from "./dialog-host/ui"
 export {
   ALIGN_ICONS,
+  NO_SWATCHES,
   NO_THEME,
+  type Swatches,
   useAligns,
   useOutermostOf,
   usePageTheme,

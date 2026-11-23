@@ -3,7 +3,7 @@
 import { useRef, useState } from "react"
 import { NO_OUTERMOST } from "../../../../plugin-api"
 import { useActions, useCommand, useMessages } from "../../../../plugin-api/ui"
-import { ColorPicker, useOutermostOf, usePageTheme, useSwatches } from "../../../base/ui"
+import { ColorPicker, NO_SWATCHES, useOutermostOf, usePageTheme, useSwatches } from "../../../base/ui"
 import { SLIDE_SET } from "../commands"
 import { kit } from "../kit"
 import {
@@ -68,7 +68,7 @@ export function StyleFields({ subjects }: { subjects: readonly StyleSubject[] })
   const num = (key: string) => (typeof subject.props[key] === "number" ? (subject.props[key] as number) : undefined)
   // outline: 枠の色。「なし」は枠なし（NO_OUTLINE）で、未設定（テーマの文字の色の枠）とは別
   const colorField = (field: StyleField, key: string, label: string, outline = false) =>
-    swatches && (
+    swatches !== NO_SWATCHES && (
       <span key={field} className={styles.field}>
         {label}
         <ColorPicker

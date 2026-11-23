@@ -13,6 +13,7 @@ import {
   Dialog,
   Field,
   Form,
+  NO_SWATCHES,
   Problem,
   rowClass,
   useOutermostOf,
@@ -142,7 +143,7 @@ function ArtDialog({
         <Field label={t("Caption")}>
           {id => <input id={id} className={controlClass} value={caption} onChange={e => setCaption(e.target.value)} />}
         </Field>
-        {swatches && (
+        {swatches !== NO_SWATCHES && (
           <div className={rowClass}>
             <span>{t("Color")}</span>
             <ColorPicker

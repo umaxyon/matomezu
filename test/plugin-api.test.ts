@@ -322,6 +322,7 @@ test("matomezu/ui が出す名前", () => {
     "NO_PERMISSION",
     "NO_RIGHT_SIDE_PANEL",
     "NO_SCREEN",
+    "NO_SWATCHES",
     "NO_THEME",
     "NO_UPDATE_STATUS",
     "Notice",

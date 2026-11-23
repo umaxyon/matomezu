@@ -65,13 +65,22 @@ export function usePageTheme(): string {
   return useMemo(() => (page === NO_PAGE ? NO_THEME : pageTheme(catalog, page)), [catalog, page])
 }
 
-// 色の見本: テーマ looks の代表色と、「なし」の色（形の塗りのテーマキー fill の値）。表に無いテーマ（NO_THEME も）なら null
-export function useSwatches(looks: string | undefined, fill: TokenDef) {
+// 色の見本: テーマの代表色と、「なし」の色
+export interface Swatches {
+  palette: readonly { name: (typeof PALETTE)[number]; hex: string; label: string }[]
+  none: string
+}
+
+// 色の見本が無いときの値（useSwatches）
+export const NO_SWATCHES = "none"
+
+// テーマ looks の色の見本（「なし」の色は形の塗りのテーマキー fill の値）。表に無いテーマ（NO_THEME も）なら NO_SWATCHES
+export function useSwatches(looks: string, fill: TokenDef): Swatches | typeof NO_SWATCHES {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const dark = useDarkScheme()
   return useMemo(() => {
-    if (!looks || !catalog.themes.has(looks)) return null
+    if (!catalog.themes.has(looks)) return NO_SWATCHES
     const tokens = resolveTokens(catalog, looks, [fill])
     const shown = (shades: Shades | undefined) => (shades ? shadeOf(shades, dark) : "#ffffff")
     // 役割の名前は出さない（意味を利用者に押し付けない）

@@ -22,6 +22,7 @@ import {
   ColorPicker,
   Dialog,
   Form,
+  NO_SWATCHES,
   Problem,
   rowClass,
   Switch,
@@ -170,7 +171,7 @@ function ShapeDialog({
         }}
       >
         <CaptionField text={head} onChange={setHead} />
-        {swatches && (
+        {swatches !== NO_SWATCHES && (
           <div className={rowClass}>
             <span>{t("Color")}</span>
             <ColorPicker
