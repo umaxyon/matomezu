@@ -29,6 +29,7 @@ export const USER_NAME = kit.defineSetting({
   id: "user-name",
   title: "User name",
   schema: z.string().max(40),
+  role: "user-name", // 常駐が引き、ほかのホストに見せる
   userOnly: true,
 })
 

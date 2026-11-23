@@ -59,7 +59,8 @@ func askPairing(t *testing.T, s HostStatus) map[string]any {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := peer.Client(other, s.HostID, 5*time.Second).Post("https://"+net.JoinHostPort("127.0.0.1", strconv.Itoa(s.Port))+"/peer/v1/pairing", "application/json", nil)
+	commit := `{"step":"commit","protocol":1,"name":"other","userName":"","port":1,"commit":"` + peer.CommitOf(peer.NewNonce()) + `"}`
+	res, err := peer.Client(other, s.HostID, 5*time.Second).Post("https://"+net.JoinHostPort("127.0.0.1", strconv.Itoa(s.Port))+peer.PairingPath, "application/json", strings.NewReader(commit))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +92,7 @@ func TestTheHostEntranceFollowsTheSetting(t *testing.T) {
 		t.Fatalf("open = %+v (saved %d)", s, saved)
 	}
 	body := askPairing(t, s)
-	if body["hostId"] != id.HostID || body["name"] != "Masa の Mac" || body["protocol"] != float64(peer.Protocol) {
+	if body["hostId"] != id.HostID || body["name"] != "Masa の Mac" || body["protocol"] != float64(peer.Protocol) || body["nonce"] == "" {
 		t.Fatalf("pairing body = %v", body)
 	}
 	told := false

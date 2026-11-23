@@ -14,6 +14,7 @@ import {
   connectHostsOn,
   disabledPluginsOf,
   hostNameOf,
+  userNameOf,
   isParticipantAlive,
   restoreSettings,
   updateCheckOn,
@@ -231,12 +232,13 @@ let lastAdded: readonly Plugin[] = []
 ;(globalThis as { matomezuUpdateCheck?: (settings: string) => boolean }).matomezuUpdateCheck = settings =>
   updateCheckOn(assembled.catalog.core, restoreSettings(JSON.parse(settings)))
 
-// ほかのホストとつなぐかとホスト名（利用者の設定で決まる。常駐が、ホストどうしの入口を開け閉めする前に読む。ホスト名は無ければ空）
+// ほかのホストとつなぐか・ホスト名・利用者名（利用者の設定で決まる。常駐が、ホストどうしの入口を開け閉めする前に読む。ホスト名は無ければ空）
 ;(globalThis as { matomezuHostSettings?: (settings: string) => string }).matomezuHostSettings = settings => {
   const s = restoreSettings(JSON.parse(settings))
   return JSON.stringify({
     connect: connectHostsOn(assembled.catalog.core, s),
     name: hostNameOf(assembled.catalog.core, s) ?? "",
+    userName: userNameOf(assembled.catalog.core, s),
   })
 }
 

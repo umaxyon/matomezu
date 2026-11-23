@@ -80,12 +80,15 @@ func RequestHost(r *http.Request) (string, bool) {
 	return HostIDOf(r.TLS.PeerCertificates[0]), true
 }
 
-// Pinned は、ペアリングしたホスト（known が true と答えるホスト id）の頼みだけを h に通す包み。ほかは 403
+// NotPaired は、Pinned が、ペアリングしていない相手に 403 で返す本文（相手は、固定した鍵で確かめた答えとして、自分の側のペアリングを消す）
+const NotPaired = "not-paired"
+
+// Pinned は、ペアリングしたホスト（known が true と答えるホスト id）の頼みだけを h に通す包み。ほかは 403 で NotPaired
 func Pinned(known func(hostID string) bool, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := RequestHost(r)
 		if !ok || !known(id) {
-			http.Error(w, "not a paired host", http.StatusForbidden)
+			http.Error(w, NotPaired, http.StatusForbidden)
 			return
 		}
 		h(w, r)

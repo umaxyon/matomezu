@@ -5,10 +5,11 @@ import (
 	"fmt"
 )
 
-// HostSettings は、ホストどうしのつなぎの利用者の設定: ほかのホストとつなぐか（Connect）と、ホスト名（Name。無ければ空）
+// HostSettings は、ホストどうしのつなぎの利用者の設定: ほかのホストとつなぐか（Connect）・ホスト名（Name。無ければ空）・利用者名（UserName。無ければ空）
 type HostSettings struct {
-	Connect bool   `json:"connect"`
-	Name    string `json:"name"`
+	Connect  bool   `json:"connect"`
+	Name     string `json:"name"`
+	UserName string `json:"userName"`
 }
 
 // HostSettingsOf は、利用者の設定 settings から、ホストどうしのつなぎの設定を読む

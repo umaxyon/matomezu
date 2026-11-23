@@ -156,6 +156,10 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/screen-plugins/remove", o.screen(o.unlinkPluginsFromScreen))
 	mux.Handle("POST /api/unreadable/purge", o.screen(o.purgeUnreadable))
 	mux.Handle("POST /api/update/check", o.screen(o.checkUpdate))
+	mux.Handle("POST /api/hosts/pair", o.screen(o.startPairing))
+	mux.Handle("POST /api/hosts/pair/end", o.screen(func(w http.ResponseWriter, _ *http.Request) { o.Hub.EndPairing(); writeJSON(w, map[string]bool{"ok": true}) }))
+	mux.Handle("POST /api/hosts/check", o.screen(func(w http.ResponseWriter, _ *http.Request) { o.Hub.CheckPeers(); writeJSON(w, map[string]bool{"ok": true}) }))
+	mux.Handle("POST /api/hosts/discover", o.screen(func(w http.ResponseWriter, _ *http.Request) { o.Hub.Discover(); writeJSON(w, map[string]bool{"ok": true}) }))
 	mux.Handle("POST /api/update/ask", o.screen(o.askUpdate))
 	mux.Handle("POST /api/unreadable/if-off", o.screen(o.movedIfOff))
 	mux.Handle("GET /api/ai/view", o.ai(o.aiView))
@@ -262,6 +266,7 @@ func (o Options) data(w http.ResponseWriter, _ *http.Request) {
 	}
 	if s := o.Hub.HostStatus(); s.HostID != "" {
 		data["host"] = s
+		data["hostPeers"] = o.Hub.HostPeers()
 	}
 	writeJSON(w, data)
 }
@@ -343,6 +348,23 @@ func (o Options) checkUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, s)
+}
+
+// startPairing は、画面の口: addr（番地:ポート）のホストにペアリングを頼み始める。manual は利用者が手で入れたか。様子は host-peers で知らせる
+func (o Options) startPairing(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Addr   string `json:"addr"`
+		Manual bool   `json:"manual"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&req); err != nil || req.Addr == "" {
+		http.Error(w, "the body must be {\"addr\", \"manual\"}", http.StatusBadRequest)
+		return
+	}
+	if err := o.Hub.StartPairing(req.Addr, req.Manual); err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+	writeJSON(w, map[string]bool{"ok": true})
 }
 
 // askUpdate は、画面の口: ワークルームの、参加が確定した AI に版を上げるよう頼む。AI がいなければ { ok: false, reason: "no-recipient" }
