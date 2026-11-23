@@ -1,4 +1,4 @@
-// ワーカーブックを開く口（M-0177）: 参加者一覧の行の、本を頭に付けたチケット番号の行と、チケットのナレッジの作業履歴。
+// ワーカーブックを開く口: 参加者一覧の行の、本を頭に付けたチケット番号の行と、チケットのナレッジの作業履歴。
 // ページが無い間は押せない。番号の行はクリックで「開く／分割で開く」を出し、分割で開くとコントロールセンターの下にブックスクリーンが入る。
 // 作業履歴はクリックで右にページの一覧を出し、ダブルクリックで全画面で開く（書庫のワーカーブックの行は workdesk.spec.ts）
 import { aiAuth, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
@@ -111,4 +111,44 @@ test("チケットのワーカーブックは、ページが足されると参�
   await history.dblclick()
   await expect(page.locator("[data-work-history]")).toBeHidden()
   await expect(page.getByText("作業のメモ").first()).toBeVisible()
+})
+
+test("ワーカーブックは、番号の行のダブルクリックで全画面で開き、書庫の行のクリックで 2 択を出す。窓が低いと、番号の行のクリックで全画面で開く", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  // チケットの無い AI のページは、ワークルーム自身のワーカーブックに入る
+  const ai = await member(page, "ひま")
+  const added = await aiPerform(
+    page,
+    { action: "@matomezu/base:worker-page-add", args: { type: "@matomezu/drawing:drawing", title: "空きのメモ" } },
+    ai,
+  )
+  expect(added, JSON.stringify(added)).toMatchObject({ ok: true })
+  const line = page.locator("[data-workroom]").filter({ hasText: "ひま" }).locator("[data-current-line]")
+  await expect(line).toContainText("（空き）")
+
+  // ダブルクリックは 2 択を出さずに全画面で開く
+  await line.dblclick()
+  await expect(page.getByRole("menuitem", { name: "分割で開く" })).toHaveCount(0)
+  await expect(line).toBeHidden()
+  await expect(page.getByText("空きのメモ").first()).toBeVisible()
+
+  // 書庫のワーカーブックの行: クリックで 2 択
+  await page.goto(CONTROL_CENTER_URL)
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  await page.getByRole("list", { name: "書庫 の中身" }).getByRole("button", { name: "ワークルーム" }).dblclick()
+  await page.getByRole("list", { name: "ワークルーム の中身" }).getByRole("button", { name: "ひま" }).dblclick()
+  await page.getByRole("list", { name: "ひま の中身" }).getByRole("button").click()
+  await expect(page.getByRole("menuitem", { name: "分割で開く" })).toBeVisible()
+  await page.keyboard.press("Escape")
+
+  // 窓が低い（分けて並べない）と、番号の行のクリックで 2 択を出さずに全画面で開く
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.goto(CONTROL_CENTER_URL)
+  await expect(line).toBeVisible()
+  await line.click()
+  await expect(line).toBeHidden()
+  await expect(page.getByRole("menuitem", { name: "分割で開く" })).toHaveCount(0)
+  await expect(page.getByText("空きのメモ").first()).toBeVisible()
 })

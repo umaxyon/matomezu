@@ -1,4 +1,4 @@
-// チケットスクリーンの定義と、その画面の状態（開いたスクリーン 1 枚ごとの状態。閉じると消える。画面の場所には入れない）: どのチケットの物か（ticket。開いているチケットが替われば初めに戻す）・本文の見せ方・本文を出しているか・
+// チケットスクリーンの定義と、その画面の状態（開いたスクリーン 1 枚ごとの状態。閉じると消える。画面の場所には入れない）: どのチケットの物か（ticket。開いているチケットが替われば初めに戻す）・本文の見せ方・右に出しているナレッジ（本文か作業履歴か、出していないか）・
 // 本文を最大化しているか・右に開いている質問（チケット履歴の行の id）
 import type { MarkdownPaneMode } from "../../base"
 import { kit } from "../kit"
@@ -16,11 +16,13 @@ export const TICKET_SCREEN = kit.defineScreen({
 export interface TicketScreenState {
   ticket: string
   mode: MarkdownPaneMode
-  body: boolean
+  side: KnowledgeSide
   maximized: boolean
   question?: string
-  workBook?: boolean // 作業履歴（ワーカーブックのページの一覧）を右に出しているか。出すと本文は閉じる（逆も）
 }
+
+// 右に出しているナレッジ: 本文・作業履歴（ワーカーブックのページの一覧）・どちらも出していない。出すのは一度に片方だけ
+export type KnowledgeSide = "body" | "work-history" | "none"
 
 export const TICKET_SCREEN_STATE = kit.definePluginStateOf<TicketScreenState>()({
   id: "ticket-screen-state",
@@ -29,4 +31,4 @@ export const TICKET_SCREEN_STATE = kit.definePluginStateOf<TicketScreenState>()(
 
 // チケット ticket の画面の状態: 今の値がそのチケットの物でなければ、初めの形（本文はプレビューだけで出している）
 export const viewOf = (now: TicketScreenState | undefined, ticket: string): TicketScreenState =>
-  now?.ticket === ticket ? now : { ticket, mode: "rendered-only", body: true, maximized: false }
+  now?.ticket === ticket ? now : { ticket, mode: "rendered-only", side: "body", maximized: false }

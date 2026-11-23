@@ -13,21 +13,39 @@ export function WorkroomRowLine({ workroom }: { workroom: string; admin: boolean
   const t = useMessages(kit)
   const { current } = useCurrentTickets(workroom)
   const found = useWorkroomWorkerBook(workroom)
-  const book = found === NO_WORKER_BOOK ? undefined : found.book
-  const openable = found !== NO_WORKER_BOOK && found.pages.length > 0
-  const choice = useBookOpenChoice({ book: book ?? "" })
+  const label = current ? ticketLabel(current.project.prefix, current.ticket.number) : t("(idle)")
   return (
     <>
-      <button type="button" className={styles.bookLine} data-current-line disabled={!openable} onClick={choice.onClick}>
-        <span className={styles.bookIcon}>
-          <BookIcon size={13} />
-        </span>
-        <span className={styles.line}>
-          {current ? ticketLabel(current.project.prefix, current.ticket.number) : t("(idle)")}
-        </span>
-      </button>
+      {found !== NO_WORKER_BOOK && found.pages.length > 0 ? (
+        <OpenableLine book={found.book} label={label} />
+      ) : (
+        <button type="button" className={styles.bookLine} data-current-line disabled>
+          <LineFace label={label} />
+        </button>
+      )}
       {current ? <span className={styles.line}>{current.ticket.name}</span> : null}
+    </>
+  )
+}
+
+// 押せる番号の行（ページの在るワーカーブック book を開く）
+function OpenableLine({ book, label }: { book: string; label: string }) {
+  const choice = useBookOpenChoice({ book })
+  return (
+    <>
+      <button type="button" className={styles.bookLine} data-current-line onClick={choice.onClick}>
+        <LineFace label={label} />
+      </button>
       {choice.bubble}
     </>
   )
 }
+
+const LineFace = ({ label }: { label: string }) => (
+  <>
+    <span className={styles.bookIcon}>
+      <BookIcon size={13} />
+    </span>
+    <span className={styles.line}>{label}</span>
+  </>
+)

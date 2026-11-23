@@ -132,7 +132,6 @@ test("ステージを並べるスクリーンが並びに居るとき: 閉じる
 
 test("ブックスクリーンを分割で開く入れ方: 分けていなければ下。分けていれば、起点を替えるか、起点を残してもう片方の段を替える", () => {
   expect(bookSplitWay(false, -1, false)).toBe("after")
-  expect(bookSplitWay(false, -1, true)).toBe("after")
   expect(bookSplitWay(true, 0, false)).toBe("in-place")
   expect(bookSplitWay(true, 1, false)).toBe("in-place")
   // 起点を残す（チケットスクリーン）: 上からなら下の段、下からなら上の段に入り、2 段のまま

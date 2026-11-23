@@ -15,6 +15,7 @@ export type {
   BodyColumn,
   Edges,
   Font,
+  FoundWorkerBook,
   Frame,
   Gap,
   GrowFrom,

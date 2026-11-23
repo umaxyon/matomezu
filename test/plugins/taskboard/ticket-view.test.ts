@@ -70,10 +70,10 @@ test("題の色は、起票の行が success、そのほかは列挙の値の da
 
 test("チケットスクリーンの画面の状態は、開いているチケットが替われば初めの形に戻る", () => {
   const first = viewOf(undefined, "t1")
-  expect(first).toEqual({ ticket: "t1", mode: "rendered-only", body: true, maximized: false })
+  expect(first).toEqual({ ticket: "t1", mode: "rendered-only", side: "body", maximized: false })
   const changed = { ...first, maximized: true, question: "q" }
   expect(viewOf(changed, "t1")).toBe(changed)
-  expect(viewOf(changed, "t2")).toEqual({ ticket: "t2", mode: "rendered-only", body: true, maximized: false })
+  expect(viewOf(changed, "t2")).toEqual({ ticket: "t2", mode: "rendered-only", side: "body", maximized: false })
 })
 
 test("履歴の行の文の出どころ: 起票・本文更新の行は題から、文を持たない題の文の無い行は題の名前、そのほかは行の文", () => {

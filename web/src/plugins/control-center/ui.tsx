@@ -28,7 +28,7 @@ declare module "../../core/catalog" {
     "@matomezu/control-center:side": Record<string, never> // 左の列の、利用者パネルと参加者の一覧の間（何も受け取らない）
     "@matomezu/control-center:projects": Record<string, never> // プロジェクトの画面の上の領域（何も受け取らない）
     "@matomezu/control-center:workroom-columns": { workroom: string } // ワークルームの枠の、情報の列の右に並べる列（選んでいるワークルームの id を受け取る）
-    "@matomezu/control-center:workroom-row-line": { workroom: string; admin: boolean } // 参加者の一覧の、参加済みの行の下の 1 行（その行のワークルームの id と、管理者かを受け取る）
+    "@matomezu/control-center:workroom-row-line": { workroom: string; admin: boolean } // 参加者の一覧の、参加済みの行の名前の下（その行のワークルームの id と、管理者かを受け取る。行は何行でもよい。中のボタンは押しを受け、ほかの所の押しは下の、行を選ぶボタンへ通る）
   }
   interface WidgetTable {
     "@matomezu/control-center:screen": typeof CONTROL_CENTER_SCREEN_WIDGET

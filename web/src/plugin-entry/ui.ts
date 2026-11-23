@@ -15,6 +15,8 @@ export {
   BodyField,
   type Bookmark,
   type BookmarkTone,
+  type BookOpenChoiceOptions,
+  type BookShower,
   belowOf,
   CaptionField,
   type Choice,

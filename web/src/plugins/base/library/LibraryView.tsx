@@ -1,5 +1,5 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
-// 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
+// 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。ページの在るワーカーブックの行は、1 回押すと選んで「開く／分割で開く」を出し、2 回押すと全画面で開く。
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
 import { type CSSProperties, type MouseEvent, type ReactNode, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
@@ -414,8 +414,7 @@ const folderTitle = (s: MatomezuState, id: string, naming: Naming, desks: readon
     ? deskTitleOf(desks, s.folders, id, real => titleOf(s, s.folders[real] ? "folder" : "page", real, naming))
     : titleOf(s, "folder", id, naming)) ?? NO_TITLE
 
-// ツリーの 1 行と、中を出していればその下の行
-// 右の枠の中身の 1 つ（大きなアイコンと名前）。押して選び、ダブルクリックで開く（ページの在るワーカーブックは useRowPress）
+// 右の枠の中身の 1 つ（大きなアイコンと名前）。押して選び、ダブルクリックで開く（ページの在るワーカーブックは RowPressOf）
 function ContentEntry({
   row,
   pressProps,
@@ -434,25 +433,30 @@ function ContentEntry({
   const t = useMessages(kit)
   const nameOf = useNameOf()
   const { onClick, ...marks } = pressProps
-  const press = useRowPress(row.id, onClick, onOpen)
   return (
-    <li>
-      {press.bubble}
-      <button
-        type="button"
-        className={styles.entry}
-        {...marks}
-        data-holder={holder}
-        {...dragMarks(drag, LIBRARY_CONTENTS_SCOPE, row.id)}
-        onClick={press.onClick}
-        onDoubleClick={press.onDoubleClick}
-        onContextMenu={onMenu}
-      >
-        <RowIcon row={row} className={styles.bigIcon} />
-        <span className={row.readable ? styles.caption : `${styles.caption} ${styles.unreadable}`}>{nameOf(row)}</span>
-        {!row.readable && <span className={styles.note}>{t("Cannot be read")}</span>}
-      </button>
-    </li>
+    <RowPressOf id={row.id} click={onClick} open={onOpen}>
+      {press => (
+        <li>
+          {press.bubble}
+          <button
+            type="button"
+            className={styles.entry}
+            {...marks}
+            data-holder={holder}
+            {...dragMarks(drag, LIBRARY_CONTENTS_SCOPE, row.id)}
+            onClick={press.onClick}
+            onDoubleClick={press.onDoubleClick}
+            onContextMenu={onMenu}
+          >
+            <RowIcon row={row} className={styles.bigIcon} />
+            <span className={row.readable ? styles.caption : `${styles.caption} ${styles.unreadable}`}>
+              {nameOf(row)}
+            </span>
+            {!row.readable && <span className={styles.note}>{t("Cannot be read")}</span>}
+          </button>
+        </li>
+      )}
+    </RowPressOf>
   )
 }
 
@@ -467,20 +471,47 @@ function useOpenableWorkerBook(id: string): string | undefined {
   })
 }
 
-// 行の押し方: ページの在るワーカーブックの行は、クリックで行を選ぶ物 click を行ってから「開く／分割で開く」、ダブルクリックで開く（open）。
-// ほかの行は、クリックで click、ダブルクリックで open
-function useRowPress(
-  id: string,
-  click: () => void,
-  open: () => void,
-): { onClick: (e: MouseEvent<HTMLElement>) => void; onDoubleClick: (() => void) | undefined; bubble: ReactNode } {
-  const book = useOpenableWorkerBook(id)
-  const choice = useBookOpenChoice({ book: book ?? "", full: open, onClick: click })
-  return book === undefined
-    ? { onClick: () => click(), onDoubleClick: open, bubble: null }
-    : { onClick: choice.onClick, onDoubleClick: undefined, bubble: choice.bubble }
+// 行の押し方 press（クリック・ダブルクリック・「開く／分割で開く」の吹き出し）
+interface RowPress {
+  onClick: (e: MouseEvent<HTMLElement>) => void
+  onDoubleClick: (() => void) | undefined
+  bubble: ReactNode
 }
 
+// 行 id の押し方を children に渡して描く: ページの在るワーカーブックの行は、クリックで行を選ぶ物 click を行ってから「開く／分割で開く」、ダブルクリックで開く（open）。
+// ほかの行は、クリックで click、ダブルクリックで open
+function RowPressOf({
+  id,
+  click,
+  open,
+  children,
+}: PressOptions & { id: string; children: (p: RowPress) => ReactNode }) {
+  const book = useOpenableWorkerBook(id)
+  return book === undefined ? (
+    <>{children({ onClick: () => click(), onDoubleClick: open, bubble: null })}</>
+  ) : (
+    <WorkerBookPress book={book} click={click} open={open}>
+      {children}
+    </WorkerBookPress>
+  )
+}
+
+interface PressOptions {
+  click: () => void
+  open: () => void
+}
+
+function WorkerBookPress({
+  book,
+  click,
+  open,
+  children,
+}: PressOptions & { book: string; children: (p: RowPress) => ReactNode }) {
+  const choice = useBookOpenChoice({ book, full: open, onClick: click })
+  return <>{children({ onClick: choice.onClick, onDoubleClick: undefined, bubble: choice.bubble })}</>
+}
+
+// ツリーの 1 行と、中を出していればその下の行
 function TreeNode({
   row,
   holder,
@@ -499,55 +530,58 @@ function TreeNode({
   // ゴミ箱の中は、ツリーに出さない
   const unfolds = unfoldable(row.id, holds)
   const open = unfolds && handlers.shown.has(row.id)
-  const press = useRowPress(
-    row.id,
-    () => (holds ? handlers.enter(row.id) : handlers.pick(row, holder)),
-    () => handlers.open(row),
-  )
   return (
-    <li>
-      {press.bubble}
-      <div className={styles.node} style={{ paddingLeft: depth * 14 }}>
-        {unfolds ? (
-          <button
-            type="button"
-            className={styles.toggle}
-            data-open={open}
-            aria-expanded={open}
-            aria-label={t(open ? "Hide what is inside {name}" : "Show what is inside {name}", { name })}
-            onClick={() => handlers.toggle(row.id)}
-          >
-            <span className={styles.mark}>{CHEVRON}</span>
-          </button>
-        ) : (
-          <span className={styles.toggle} />
-        )}
-        <button
-          type="button"
-          className={styles.name}
-          data-library-row={row.id}
-          data-key-scope={LIBRARY_TREE_SCOPE}
-          tabIndex={row.id === handlers.tabbable ? 0 : -1}
-          data-holder={holder}
-          {...dragMarks(handlers.drag, LIBRARY_TREE_SCOPE, row.id)}
-          aria-current={holds && row.id === handlers.opened ? "true" : undefined}
-          aria-pressed={!holds && row.id === handlers.picked}
-          onClick={press.onClick}
-          onDoubleClick={press.onDoubleClick}
-          onContextMenu={e => {
-            if (row.id !== TRASH_ID && row.id !== UNREADABLE_ID) handlers.menu(e, row)
-          }}
-        >
-          {row.id === TRASH_ID ? (
-            <span className={styles.icon}>{TRASH}</span>
-          ) : (
-            <RowIcon row={row} className={styles.icon} open={open} />
-          )}
-          <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>{name}</span>
-        </button>
-      </div>
-      {open && <TreeRows folder={row.id} depth={depth + 1} handlers={handlers} />}
-    </li>
+    <RowPressOf
+      id={row.id}
+      click={() => (holds ? handlers.enter(row.id) : handlers.pick(row, holder))}
+      open={() => handlers.open(row)}
+    >
+      {press => (
+        <li>
+          {press.bubble}
+          <div className={styles.node} style={{ paddingLeft: depth * 14 }}>
+            {unfolds ? (
+              <button
+                type="button"
+                className={styles.toggle}
+                data-open={open}
+                aria-expanded={open}
+                aria-label={t(open ? "Hide what is inside {name}" : "Show what is inside {name}", { name })}
+                onClick={() => handlers.toggle(row.id)}
+              >
+                <span className={styles.mark}>{CHEVRON}</span>
+              </button>
+            ) : (
+              <span className={styles.toggle} />
+            )}
+            <button
+              type="button"
+              className={styles.name}
+              data-library-row={row.id}
+              data-key-scope={LIBRARY_TREE_SCOPE}
+              tabIndex={row.id === handlers.tabbable ? 0 : -1}
+              data-holder={holder}
+              {...dragMarks(handlers.drag, LIBRARY_TREE_SCOPE, row.id)}
+              aria-current={holds && row.id === handlers.opened ? "true" : undefined}
+              aria-pressed={!holds && row.id === handlers.picked}
+              onClick={press.onClick}
+              onDoubleClick={press.onDoubleClick}
+              onContextMenu={e => {
+                if (row.id !== TRASH_ID && row.id !== UNREADABLE_ID) handlers.menu(e, row)
+              }}
+            >
+              {row.id === TRASH_ID ? (
+                <span className={styles.icon}>{TRASH}</span>
+              ) : (
+                <RowIcon row={row} className={styles.icon} open={open} />
+              )}
+              <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>{name}</span>
+            </button>
+          </div>
+          {open && <TreeRows folder={row.id} depth={depth + 1} handlers={handlers} />}
+        </li>
+      )}
+    </RowPressOf>
   )
 }
 
