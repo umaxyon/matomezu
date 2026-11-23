@@ -1,9 +1,9 @@
 // 書庫の画面の右の枠で行を選ぶ一覧の枠と、その上に組んだ表。
-// usePickRows は、普通のフォルダの中身・ゴミ箱・読めない物のフォルダが共に使う、行を選ぶ枠（矢印キーの範囲・Tab で止まる行・選んでいる行・何も無い所を押すと外す・列の数を測る）。
+// usePickRows は、普通のフォルダの中身・ゴミ箱・読めない物のフォルダが共に使う、行を選ぶ枠（矢印キーの範囲・行の外の矢印キーの範囲・Tab で止まる行・選んでいる行・何も無い所を押すと外す・列の数を測る）。
 // 矢印キーのコマンド library-pick-move は、同じ行の順を paneIdsOf から読む。RowTable は、ゴミ箱と読めない物のフォルダの表の形（見出しの行・列・選んだ行のボタン）
 import type { MouseEvent, ReactNode } from "react"
 import { useColumnsMeasure } from "./arrows"
-import { LIBRARY_CONTENTS_SCOPE } from "./commands"
+import { LIBRARY_CONTENTS_AROUND_SCOPE, LIBRARY_CONTENTS_SCOPE } from "./commands"
 import { outsideRow } from "./hooks"
 import styles from "./LibraryView.module.css"
 import { tabStopOf } from "./outline"
@@ -19,7 +19,9 @@ export function usePickRows(
   return {
     list: {
       ref: measure,
-      "data-key-scope": LIBRARY_CONTENTS_SCOPE,
+      // 行の外（余白）を押したら、一覧が焦点を受ける（矢印だけが効く。矢印で選んだ行へ LibraryView が焦点を移す）
+      "data-key-scope": LIBRARY_CONTENTS_AROUND_SCOPE,
+      tabIndex: -1,
       // 何も無い所（行の外）を押すと、選んでいる行を外す
       onClick: (e: MouseEvent) => {
         if (outsideRow(e.target)) onPick(undefined)

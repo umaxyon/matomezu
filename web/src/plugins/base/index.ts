@@ -39,6 +39,7 @@ import {
   LIBRARY_APPEARANCE,
   LIBRARY_BOOK_NEW,
   LIBRARY_COLUMNS,
+  LIBRARY_CONTENTS_AROUND_KEY_SCOPE,
   LIBRARY_CONTENTS_KEY_SCOPE,
   LIBRARY_ENTRY_DUPLICATE,
   LIBRARY_ENTRY_MOVE,
@@ -65,6 +66,7 @@ import {
   LIBRARY_SCREEN_CLOSE,
   LIBRARY_SCREEN_EXPAND,
   LIBRARY_SCREEN_KEYS,
+  LIBRARY_TREE_AROUND_KEY_SCOPE,
   LIBRARY_TREE_FOLD_OR_PARENT,
   LIBRARY_TREE_KEY_SCOPE,
   LIBRARY_TREE_MOVE,
@@ -694,6 +696,8 @@ export const BASE = defineBuiltin(
       LIBRARY_KEY_SCOPE,
       LIBRARY_TREE_KEY_SCOPE,
       LIBRARY_CONTENTS_KEY_SCOPE,
+      LIBRARY_TREE_AROUND_KEY_SCOPE,
+      LIBRARY_CONTENTS_AROUND_KEY_SCOPE,
       LIBRARY_FOUND_KEY_SCOPE,
     ],
     keys: [
@@ -989,6 +993,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:note-text": typeof NOTE_TEXT_KEY_SCOPE // 右サイドパネルの伝言のテキストFormの中のキー
     "@matomezu/base:library-tree": typeof LIBRARY_TREE_KEY_SCOPE // 書庫の画面のツリーの中にフォーカスがある間のキー
     "@matomezu/base:library-contents": typeof LIBRARY_CONTENTS_KEY_SCOPE // 書庫の画面の右の枠の中身の中にフォーカスがある間のキー
+    "@matomezu/base:library-tree-around": typeof LIBRARY_TREE_AROUND_KEY_SCOPE // 書庫の画面のツリーの、行の外にフォーカスがある間のキー（矢印だけ）
+    "@matomezu/base:library-contents-around": typeof LIBRARY_CONTENTS_AROUND_KEY_SCOPE // 書庫の画面の右の枠の中身の、行の外にフォーカスがある間のキー（矢印だけ）
     "@matomezu/base:library-found": typeof LIBRARY_FOUND_KEY_SCOPE // 書庫の画面の検索の結果の中にフォーカスがある間のキー
     "@matomezu/base:library": typeof LIBRARY_KEY_SCOPE // 書庫の画面の中にフォーカスがある間のキー
   }

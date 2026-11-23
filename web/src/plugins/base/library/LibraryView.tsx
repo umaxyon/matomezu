@@ -17,12 +17,14 @@ import { kit } from "../kit"
 import { SplitHandle } from "../utils/SplitHandle"
 import {
   LIBRARY_ADD_PAGE_MENU,
+  LIBRARY_CONTENTS_AROUND_SCOPE,
   LIBRARY_CONTENTS_SCOPE,
   LIBRARY_ENTRY_CONTEXT,
   LIBRARY_ENTRY_OPEN,
   LIBRARY_FOLDER_CONTEXT,
   LIBRARY_FOUND_SCOPE,
   LIBRARY_SCOPE,
+  LIBRARY_TREE_AROUND_SCOPE,
   LIBRARY_TREE_SCOPE,
 } from "./commands"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG } from "./dialog"
@@ -181,11 +183,17 @@ export function LibraryView({ className }: { className?: string } = {}) {
     open: row => openEntry({ entry: row.id }),
     tabbable: treeStop,
   }
-  // キーで選ぶ行が変わったら、焦点もその行へ移す（ツリー・検索の結果の中に焦点があればツリーの今いる行へ、右の枠の中身の中に在れば選んでいる行へ）。
-  // 行のボタンは、入っている所の範囲を自分で名乗る
+  // キーで選ぶ行が変わったら、焦点もその行へ移す（ツリー・検索の結果の中に焦点があればツリーの今いる行へ、右の枠の中身の中に在れば選んでいる行へ。
+  // 行の外（余白）に焦点が在っても、その側の行へ移す）。行のボタンは、入っている所の範囲を自分で名乗る
   useEffect(() => {
     const at = document.activeElement
-    const scope = at instanceof HTMLElement ? at.closest<HTMLElement>("[data-key-scope]")?.dataset.keyScope : undefined
+    const named = at instanceof HTMLElement ? at.closest<HTMLElement>("[data-key-scope]")?.dataset.keyScope : undefined
+    const scope =
+      named === LIBRARY_TREE_AROUND_SCOPE
+        ? LIBRARY_TREE_SCOPE
+        : named === LIBRARY_CONTENTS_AROUND_SCOPE
+          ? LIBRARY_CONTENTS_SCOPE
+          : named
     const id =
       scope === LIBRARY_TREE_SCOPE || scope === LIBRARY_FOUND_SCOPE
         ? current
@@ -248,7 +256,8 @@ export function LibraryView({ className }: { className?: string } = {}) {
             </ActionButton>
           </form>
         </search>
-        <nav className={styles.tree} aria-label={t("Folders")} data-key-scope={LIBRARY_TREE_SCOPE}>
+        {/* 行の外（余白）を押したら、ここが焦点を受ける（矢印だけが効く） */}
+        <nav className={styles.tree} aria-label={t("Folders")} data-key-scope={LIBRARY_TREE_AROUND_SCOPE} tabIndex={-1}>
           <ul className={styles.rows}>
             {(unreadableShown ? TOPS_WITH_UNREADABLE : TOPS).map(top => (
               <TreeNode key={top.id} row={top} holder={top.id} depth={0} handlers={handlers} />
