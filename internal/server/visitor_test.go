@@ -53,7 +53,7 @@ func TestVisitorIsToldAndOnlyReads(t *testing.T) {
 	}
 }
 
-// as visitor と workroom を一緒に頼むと、部屋を見回らずに要求のアクションが断る（部屋に生きた参加者がいても workroom-in-use にならず、誰も外れない）
+// as visitor と workroom を一緒に頼むと、ワークルームを見回らずに要求のアクションが断る（ワークルームに生きた参加者がいても workroom-in-use にならず、誰も外れない）
 func TestVisitorWithAWorkroomIsRefusedByTheRequest(t *testing.T) {
 	s, _ := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")

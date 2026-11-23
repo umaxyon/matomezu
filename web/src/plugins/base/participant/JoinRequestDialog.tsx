@@ -21,7 +21,7 @@ export function JoinRequestDialog({ args, onClose }: DialogProps<{ participant: 
   const id = args.participant
   const requested = useParticipants().find(p => p.id === id && p.state === "requested")
   const canDecline = useAllowedOn(PARTICIPANT_DECLINE.id, {}, { record: id }).ok
-  // 受け入れるダイアログを開く前に、受け入れが行えるかを聞く（部屋は試しの値）
+  // 受け入れるダイアログを開く前に、受け入れが行えるかを聞く（ワークルームは試しの値）
   const canAccept = useAllowedOn(PARTICIPANT_ACCEPT.id, { workroom: "-" }, { record: id }).ok
   const decline = () => {
     const done = perform(PARTICIPANT_DECLINE.id, {}, { record: id })

@@ -94,7 +94,7 @@ test("行は、ワークルームの作業の様子を持ち、知らされて�
   expect(rows.map(r => r.activity)).toEqual(["working", "idle", "unknown"])
 })
 
-test("その名前で入りたいと頼んでいる要求中の参加者がいれば、行はいちばん新しい頼んだ時刻を持つ。名前の違う部屋と、受け入れた参加者は数えない", () => {
+test("その名前で入りたいと頼んでいる要求中の参加者がいれば、行はいちばん新しい頼んだ時刻を持つ。名前の違うワークルームと、受け入れた参加者は数えない", () => {
   const asking = (id: string, wantedName: string, requestedAt: string): Participant => {
     const { workroom: _, joinedAt: __, ...rest } = person(id, "c")
     return { ...rest, state: "requested", wantedName, requestedAt }

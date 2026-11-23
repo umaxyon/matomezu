@@ -600,7 +600,7 @@ func roomNames(t *testing.T, s Storage) map[string]string {
 	return out
 }
 
-// 参加者の表は、ワークルーム・参加者のレコードになる: 受け入れ済みは部屋（id は元の参加者の id）と、そこに入る参加者、要求中は部屋を持たず希望の名前に移す。表は無くなる
+// 参加者の表は、ワークルーム・参加者のレコードになる: 受け入れ済みはワークルーム（id は元の参加者の id）と、そこに入る参加者、要求中はワークルームを持たず希望の名前に移す。表は無くなる
 func TestParticipantTableBecomesRecords(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	db, err := sql.Open("sqlite", path)

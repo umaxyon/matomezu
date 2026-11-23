@@ -1,4 +1,4 @@
-// コントロールセンターの画面の、見た目でない決め事（rows.ts・control-center.ts の contentAreaOf）: 一覧の下の 1 行の種類と、選んだ部屋の引き方、コンテンツエリアに出す画面の既定
+// コントロールセンターの画面の、見た目でない決め事（rows.ts・control-center.ts の contentAreaOf）: 一覧の下の 1 行の種類と、選んだワークルームの引き方、コンテンツエリアに出す画面の既定
 import { expect, test } from "bun:test"
 import type { WorkroomRow } from "../../../web/src/plugins/base"
 import { contentAreaOf } from "../../../web/src/plugins/control-center/control-center"
@@ -88,7 +88,7 @@ test("列の並びは、組の順に管理者・作業中・空き（準備中�
   ])
 })
 
-test("生きていない参加者の部屋を引き継ぐと、準備中の間も受け入れた時刻で空きの先頭に出て、下へ寄らない", () => {
+test("生きていない参加者のワークルームを引き継ぐと、準備中の間も受け入れた時刻で空きの先頭に出て、下へ寄らない", () => {
   const others = [
     ready("idle-a", "idle", "2026-11-14T02:00:00.000Z"),
     ready("idle-b", "idle", "2026-11-14T01:00:00.000Z"),
