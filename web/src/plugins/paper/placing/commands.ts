@@ -9,6 +9,7 @@ import {
   NO_CONTEXT_MENU,
   NO_PAPER,
   NO_PLACING,
+  NO_PROPS,
   type Point,
   type ShapeAddArgs,
   shapeDialogs,
@@ -59,8 +60,8 @@ export const PAPER_PLACE = kit.defineCommand({
       ...(target.parent === null ? {} : { parent: target.parent }),
     }
     // 項目の値 props で置いて選ぶ。断られたら断りの文
-    const place = (props: Readonly<Record<string, unknown>> | undefined): MessageKey | null => {
-      const given = props ? { props } : {}
+    const place = (props: Readonly<Record<string, unknown>> | typeof NO_PROPS): MessageKey | null => {
+      const given = props === NO_PROPS ? {} : { props }
       const done = a.perform(
         ITEM_PLACE.id,
         { ...where, item: placing.item, ...given, crowd: "push" },
@@ -76,7 +77,7 @@ export const PAPER_PLACE = kit.defineCommand({
     // 形の定義が名指す追加のダイアログ（無ければそのまま置く。置こうとしている物が項目の値を持っていれば、聞かずにその値で置く）
     const def = shapeDefOf(ctx.catalog, placing.item)
     const dialog = def && shapeDialogs(def).add
-    if (dialog && !placing.props) {
+    if (dialog && placing.props === NO_PROPS) {
       a.stopPlacing()
       const args: ShapeAddArgs = { page: page.id, place }
       a.openDialog(dialog, args)

@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import { type Address, addressOf, moved, placeAt, type StagePlace } from "../../web/src/core/address"
 import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
-import { openedEntry, setArea, setStart } from "../../web/src/core/stage"
+import { NO_AREA, NO_ORIGIN, openedEntry, setArea, setStart } from "../../web/src/core/stage"
 import { ZOOM_MAX, ZOOM_MIN } from "../../web/src/core/viewport"
 import { recentBookScreen, screenOf } from "../../web/src/core/window"
 import { newStore, sheetOf } from "../support"
@@ -213,6 +213,5 @@ test("場所を当てはめても、開いていたページをそのまま開�
   expect(next).not.toBe("")
   const opened = placedAt(next)
   expect(opened).toMatchObject({ page: next })
-  expect(opened).not.toHaveProperty("area")
-  expect(opened).not.toHaveProperty("origin")
+  expect(opened).toMatchObject({ area: NO_AREA, origin: NO_ORIGIN })
 })

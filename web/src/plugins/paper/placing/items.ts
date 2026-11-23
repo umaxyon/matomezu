@@ -4,6 +4,7 @@ import {
   type CoreCatalog,
   findShape,
   type ItemPage,
+  NO_PROPS,
   type PlacedShape,
   type Point,
   type Rect,
@@ -235,9 +236,13 @@ export function parsePlaced(
   return parsed?.success ? (parsed.data as PlacedShape) : null
 }
 
-// 置こうとしている物 item を、項目を既定（渡す値 given があればその値）にして置いた形（置けるかを試すための形。ページには書かないので、id は置いた物と重なってもよい）。置けない物なら null
-export function placingShape(catalog: CoreCatalog, item: string, given: object = {}): PlacedShape | null {
-  const props = catalog.items.get(item)?.props.safeParse(given)
+// 置こうとしている物 item を、項目を既定（渡す値 given が NO_PROPS でなければその値）にして置いた形（置けるかを試すための形。ページには書かないので、id は置いた物と重なってもよい）。置けない物なら null
+export function placingShape(
+  catalog: CoreCatalog,
+  item: string,
+  given: object | typeof NO_PROPS = NO_PROPS,
+): PlacedShape | null {
+  const props = catalog.items.get(item)?.props.safeParse(given === NO_PROPS ? {} : given)
   return props?.success ? parsePlaced(catalog, { id: "placing", item, x: 0, y: 0, props: props.data }) : null
 }
 

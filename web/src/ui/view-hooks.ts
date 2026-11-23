@@ -26,6 +26,7 @@ import type { BinderEntry, Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
 import {
   askedOutermostOf,
+  NO_AREA,
   NO_PAGE,
   NO_PAPER,
   NO_STAGE,
@@ -197,9 +198,10 @@ export function useStage(): StageView | typeof NO_STAGE {
   return useStageAt(useStageId())
 }
 
-// useStageArea の area の、広さを知らせない（紙 1 枚で描く）ときの値
-export const NO_AREA = "none"
 const ORIGIN: Point = { x: 0, y: 0 }
+
+// useStageArea の area の、広さを知らせない（紙 1 枚で描く）ときの値は NO_AREA（core/stage.ts）
+export { NO_AREA }
 
 // プレゼンテーションのビューが、向け先のステージに描く広さ（可変ページで、印刷区画を並べた広さ）を知らせる。NO_AREA なら紙 1 枚。
 // 位置をデータに持たないプレゼンテーションは、描く中身を右・下へずらした量 origin（印刷区画の数）も知らせる（変わったら、ステージがパンを合わせる）。

@@ -120,9 +120,12 @@ export type { Book, StageLineup } from "../core/schema/book"
 export {
   areaOf,
   binderOf,
+  NO_ORIGIN,
   NO_PAGE_TYPE,
   NO_PAPER,
   NO_PLACING,
+  NO_PROPS,
+  NO_SHIFT,
   NO_STAGE,
   NOTHING_OPENED,
   openedPage,

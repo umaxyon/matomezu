@@ -218,7 +218,7 @@ function placed(
   )
     next = {
       ...next,
-      opened: { ...now, ...(was.area ? { area: was.area } : {}), ...(was.origin ? { origin: was.origin } : {}) },
+      opened: { ...now, area: was.area, origin: was.origin },
     }
   // ずらす量は、ほかの操作と同じく範囲に収める（表示領域を測るまでは収めない）。初めの位置には合わせない（場所のずらす量が 0 のときも）
   const zoomed = { ...stopStart(next), zoom: zoomInRange(place.zoom) }

@@ -25,9 +25,9 @@ import { clampPan, contentSize, paperOrigin } from "./viewport"
 // - none: ブックを開いているが、ページが 1 枚も無い（ステージが何も開いていないのは、Stage の opened が NOTHING_OPENED）
 // - binder: 空のバインダ（中のページが 1 枚も無い。type はバインダが入れるページのタイプ）
 // - page: ページ。ページのタイプと、描く紙を写して持つ（開くときと、ブックが変わったときに決め直す）。
-//   area は、プレゼンテーションが描く広さ（可変ページで、印刷区画を並べた広さ）。プレゼンテーションが知らせるまでと、紙 1 枚で描くページでは持たない。
-//   shift は、開いたページの中身をずらした量（ページの shift を写す。変わったらパンを合わせる）。
-//   origin は、位置をデータに持たないプレゼンテーションが、描く中身を右・下へずらした量（印刷区画の数。プレゼンテーションが広さと一緒に知らせる。変わったらパンを合わせる）
+//   area は、プレゼンテーションが描く広さ（可変ページで、印刷区画を並べた広さ）。プレゼンテーションが知らせるまでと、紙 1 枚で描くページでは NO_AREA。
+//   shift は、開いたページの中身をずらした量（ページの shift を写す。ずらしていなければ NO_SHIFT。変わったらパンを合わせる）。
+//   origin は、位置をデータに持たないプレゼンテーションが、描く中身を右・下へずらした量（印刷区画の数。プレゼンテーションが広さと一緒に知らせる。ずらさなければ NO_ORIGIN。変わったらパンを合わせる）
 // ページが入っているバインダは持たない（ブックから引く。core/book.ts の findPage）
 export type Opened = OpenedNone | OpenedBinder | OpenedPage
 interface OpenedBook {
@@ -46,10 +46,17 @@ export interface OpenedPage extends OpenedBook {
   page: string // 開いているページの id
   type: PageTypeId
   paper: ResolvedPaper | typeof NO_PAPER // 描く紙（プレゼンテーションが紙を置かなければ NO_PAPER）
-  area?: Size
-  shift?: Point
-  origin?: Point
+  area: Size | typeof NO_AREA
+  shift: Point | typeof NO_SHIFT
+  origin: Point | typeof NO_ORIGIN
 }
+
+// 開いたページの area・印刷プレビューの area の、広さを持たない（紙 1 枚で描く・プレゼンテーションがまだ知らせていない）ときの値
+export const NO_AREA = "none"
+// 開いたページの shift の、中身をずらしていないときの値
+export const NO_SHIFT = "none"
+// 開いたページの origin の、描く中身をずらさないときの値
+export const NO_ORIGIN = "none"
 
 // ステージの opened の、何も開いていない（ブックもブックの外のページ・バインダも開いていない）ときの値
 export const NOTHING_OPENED = "none"
@@ -86,18 +93,24 @@ function stagePaper(catalog: CoreCatalog, page: PaperChoice & Pick<Page, "type">
 }
 
 // ページの中身をずらした量（印刷区画の数。ずらしていなければ持たない）
-const shiftOf = (page: Page | undefined): { shift?: Point } => (page?.shift ? { shift: page.shift } : {})
+const shiftOf = (page: Page): Point | typeof NO_SHIFT => page.shift ?? NO_SHIFT
+// 中身をずらした量（ずらしていなければ 0）
+const pointOr = (p: Point | typeof NO_SHIFT | typeof NO_ORIGIN): Point => (p === NO_SHIFT ? ORIGIN : p)
 
 // ステージの見え方: 開いたページを編集するか、印刷プレビュー（開いたブックの全ページの印刷区画を並べて、見るだけ）か。
-// 印刷プレビューの間、ずらす量と倍率は並べた広さ area（プレゼンテーションが知らせるまでは持たない）で決め、開く前の倍率とずらす量 back を閉じたときに戻す。
+// 印刷プレビューの間、ずらす量と倍率は並べた広さ area（プレゼンテーションが知らせるまでは NO_AREA）で決め、開く前の倍率とずらす量 back を閉じたときに戻す。
 // 開いたページはそのまま持つ（閉じたらそのページの編集に戻る）
-export type StageMode = { kind: "edit" } | { kind: "print-preview"; area?: Size; back: { zoom: number; pan: Point } }
+export type StageMode =
+  | { kind: "edit" }
+  | { kind: "print-preview"; area: Size | typeof NO_AREA; back: { zoom: number; pan: Point } }
 
-// 置こうとしている物: アイテムと、置くときに渡す項目の値（無ければ、アイテムの既定の項目で置く）
+// 置こうとしている物: アイテムと、置くときに渡す項目の値（NO_PROPS なら、アイテムの既定の項目で置く）
 export interface Placing {
   item: ItemId
-  props?: Readonly<Record<string, unknown>>
+  props: Readonly<Record<string, unknown>> | typeof NO_PROPS
 }
+// 置こうとしている物の props の、項目の値を渡さない（アイテムの既定の項目で置く）ときの値
+export const NO_PROPS = "none"
 
 // その場の編集の名前: 編集していなければ "none"、しているなら何の編集かをプラグインが kit.name で付けた名前（<プラグインの id>:<名前>）
 export type Editing = "none" | `${string}:${string}`
@@ -171,12 +184,13 @@ export const paperOf = (stage: Pick<Stage, "opened">): Size | typeof NO_PAPER =>
 export function areaOf(stage: Pick<Stage, "opened">): Size | typeof NO_PAPER {
   const paper = paperOf(stage)
   const o = openedPage(stage.opened)
-  return paper === NO_PAPER || o === NO_PAGE ? NO_PAPER : (o.area ?? paper)
+  return paper === NO_PAPER || o === NO_PAGE ? NO_PAPER : o.area === NO_AREA ? paper : o.area
 }
 
 // ずらす量の範囲・全体を収める倍率を決める広さ: 印刷プレビューの間は並べた広さ（知らせるまでは null）、ほかは areaOf
 export function extentOf(stage: Pick<Stage, "opened" | "mode">): Size | null {
-  if (stage.mode.kind === "print-preview") return (stage.opened !== NOTHING_OPENED && stage.mode.area) || null
+  if (stage.mode.kind === "print-preview")
+    return stage.opened !== NOTHING_OPENED && stage.mode.area !== NO_AREA ? stage.mode.area : null
   const area = areaOf(stage)
   return area === NO_PAPER ? null : area
 }
@@ -205,16 +219,15 @@ export function setArea(stage: Stage, area: Size | null, origin: Point | null = 
   const o = openedPage(stage.opened)
   const sheet = paperOf(stage)
   if (o === NO_PAGE || sheet === NO_PAPER) return stage
-  const now = o.area ?? null
-  const was = o.origin ?? ORIGIN
+  const now = o.area === NO_AREA ? null : o.area
+  const was = pointOr(o.origin)
   const next = area ? (origin ?? ORIGIN) : ORIGIN
   const sameArea = now === area || (now && area && now.w === area.w && now.h === area.h)
   if (sameArea && was.x === next.x && was.y === next.y) return stage
-  const { area: _, origin: __, ...rest } = o
-  const opened = {
-    ...rest,
-    ...(area ? { area } : {}),
-    ...(next.x !== 0 || next.y !== 0 ? { origin: next } : {}),
+  const opened: OpenedPage = {
+    ...o,
+    area: area ?? NO_AREA,
+    origin: next.x !== 0 || next.y !== 0 ? next : NO_ORIGIN,
   }
   const dx = (next.x - was.x) * sheet.w * stage.zoom
   const dy = (next.y - was.y) * sheet.h * stage.zoom
@@ -240,7 +253,7 @@ function reachStart(stage: Stage): Stage {
   const s = stage.start
   if (!stage.starting || !s) return stage
   const o = openedPage(stage.opened)
-  if ((s.x !== 0 || s.y !== 0) && (o === NO_PAGE || !o.area)) return stage
+  if ((s.x !== 0 || s.y !== 0) && (o === NO_PAGE || o.area === NO_AREA)) return stage
   return settle(stopStart(stage), startPan(stage, stage.zoom))
 }
 
@@ -333,7 +346,9 @@ function openedAt(catalog: CoreCatalog, outermost: StageEntry, page: Page): Open
     page: page.id,
     type: page.type as PageTypeId,
     paper: stagePaper(catalog, page),
-    ...shiftOf(page),
+    area: NO_AREA,
+    shift: shiftOf(page),
+    origin: NO_ORIGIN,
   }
 }
 
@@ -458,7 +473,7 @@ export function followInto(catalog: CoreCatalog, stage: Stage, into: Book | Bind
   const found = binder ? into.lineup.find(p => p.id === o.page) : foundPage(findPage(into, o.page))
   if (!found) return stage
   const outermost: StageEntry = binder ? { kind: "binder", id: into.id } : entryOf(into)
-  const opened = { ...openedAt(catalog, outermost, found), ...(o.area ? { area: o.area } : {}) }
+  const opened = { ...openedAt(catalog, outermost, found), area: o.area }
   return selectionKept({ ...stage, opened }, found)
 }
 
@@ -496,19 +511,18 @@ function followOpened(catalog: CoreCatalog, stage: Stage, book: Book, before?: B
 function followShown(catalog: CoreCatalog, stage: Stage, o: OpenedPage, found: Page): Stage {
   const paper = stagePaper(catalog, found)
   if (sameData(paper, o.paper)) {
-    const was = o.shift ?? ORIGIN
+    const was = pointOr(o.shift)
     const now = found.shift ?? ORIGIN
     const sheetNow = paperOf(stage)
     const sheet = sheetNow === NO_PAPER ? undefined : sheetNow
     if (was.x === now.x && was.y === now.y) return stage
-    const { shift: _, area, ...rest } = o
     const dx = sheet ? (now.x - was.x) * sheet.w : 0
     const dy = sheet ? (now.y - was.y) * sheet.h : 0
-    const base = area ?? sheet
-    const opened = {
-      ...rest,
-      ...shiftOf(found),
-      ...(base ? { area: { w: base.w + dx, h: base.h + dy } } : {}),
+    const base = o.area === NO_AREA ? sheet : o.area
+    const opened: OpenedPage = {
+      ...o,
+      shift: shiftOf(found),
+      area: base ? { w: base.w + dx, h: base.h + dy } : NO_AREA,
     }
     return settle({ ...stage, opened }, { x: stage.pan.x - dx * stage.zoom, y: stage.pan.y - dy * stage.zoom })
   }
@@ -594,7 +608,10 @@ export function endBackground(stage: Stage): Stage {
 // 並べた広さをプレゼンテーションが知らせるまで、ずらす量は収めない
 export function openPrintPreview(stage: Stage): Stage {
   if (stage.opened === NOTHING_OPENED || previewing(stage)) return stage
-  return { ...leave(stopStart(stage)), mode: { kind: "print-preview", back: { zoom: stage.zoom, pan: stage.pan } } }
+  return {
+    ...leave(stopStart(stage)),
+    mode: { kind: "print-preview", area: NO_AREA, back: { zoom: stage.zoom, pan: stage.pan } },
+  }
 }
 
 // 印刷プレビューを閉じ、開く前の倍率とずらす量に戻す（印刷プレビューの間でなければ、同じ値を返す）
@@ -613,14 +630,14 @@ function edited(stage: Stage): Stage {
 export function setPreviewArea(stage: Stage, area: Size): Stage {
   const mode = stage.mode
   if (mode.kind !== "print-preview") return stage
-  if (mode.area && mode.area.w === area.w && mode.area.h === area.h) return stage
+  if (mode.area !== NO_AREA && mode.area.w === area.w && mode.area.h === area.h) return stage
   return settle({ ...stage, mode: { ...mode, area } }, stage.pan)
 }
 
 // アイテムを置こうとする。同じアイテムをもう一度選べば取り消す（道具を選択にするのは workspace.ts の togglePlacing）
-export function togglePlacing(stage: Stage, item: ItemId, props?: Placing["props"]): Stage {
+export function togglePlacing(stage: Stage, item: ItemId, props: Placing["props"] = NO_PROPS): Stage {
   if (previewing(stage)) return stage
-  const next: Placing = props ? { item, props } : { item }
+  const next: Placing = { item, props }
   return { ...stage, placing: sameData(stage.placing, next) ? NO_PLACING : next }
 }
 

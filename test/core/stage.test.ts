@@ -5,8 +5,11 @@ import {
   binderOf,
   closePrintPreview,
   followBook,
+  NO_AREA,
+  NO_ORIGIN,
   NO_PAGE,
   NO_PAPER,
+  NO_SHIFT,
   newStage,
   openBinder,
   openBook,
@@ -131,6 +134,9 @@ describe("stage", () => {
       outermost: { kind: "book", id: "b9" },
       page: "p4",
       paper: { status: "known", size: { w: 1123, h: 794 } },
+      area: NO_AREA,
+      shift: NO_SHIFT,
+      origin: NO_ORIGIN,
     })
     expect([opened.pan, opened.starting]).toEqual([{ x: 0, y: 0 }, true])
   })
@@ -213,7 +219,7 @@ test("位置をデータに持たないプレゼンテーションが、描く�
   expect(pageOf(moved.opened).origin).toEqual({ x: 2, y: 0 })
   // 同じ広さとずらした量なら同じ値。紙 1 枚に戻せば、ずらした量も無くなる
   expect(setArea(moved, { w: sheet.w * 4, h: sheet.h * 2 }, { x: 2, y: 0 })).toBe(moved)
-  expect(pageOf(setArea(moved, null).opened).origin).toBeUndefined()
+  expect(pageOf(setArea(moved, null).opened).origin).toBe(NO_ORIGIN)
 })
 
 test("開いたばかりのページは、知らせた初めの位置（start）を表示領域の左上に置く。紙の左上でなければ広さが届くまで待ち、動かしたあとや開き直すまでは合わせない", () => {
