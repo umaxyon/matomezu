@@ -21,7 +21,7 @@ export function UnpairDialog({ args, onClose }: DialogProps<{ pairedHost: string
     <Dialog title={t("Unpair")} width={440} onClose={onClose}>
       <p className={styles.request}>
         <span className={styles.name}>{shownName(row, all)}</span>
-        {row.userName ? <span className={styles.muted}>（{row.userName}）</span> : null}
+        {row.userName ? <span className={styles.muted}>{t("({name})", { name: row.userName })}</span> : null}
       </p>
       <p>{t("Unpairing tells the other host too")}</p>
       <div className={styles.buttons}>

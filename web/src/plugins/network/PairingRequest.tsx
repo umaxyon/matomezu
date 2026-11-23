@@ -13,6 +13,7 @@ import {
   useShowBookmarks,
 } from "../base/ui"
 import { PAIRING_REQUEST_DIALOG } from "./dialogs"
+import { ipOf } from "./hosts"
 import { kit } from "./kit"
 import styles from "./Pairing.module.css"
 import { Code } from "./PairingDialog"
@@ -54,14 +55,16 @@ export function PairingRequestDialog({ args, onClose }: DialogProps<{ request: s
   const answer = (action: typeof PAIRING_ACCEPT.id | typeof PAIRING_DECLINE.id) => {
     if (perform(action, {}, on).ok) onClose()
   }
-  const ip = request ? request.addr.slice(0, request.addr.lastIndexOf(":")) : ""
+  const ip = request ? ipOf(request.addr) : ""
   return (
     <Dialog title={t(TITLE)} width={440} onClose={onClose}>
       {request ? (
         <>
           <p className={styles.request}>
             <span className={styles.name}>{request.name}</span>
-            {request.userName ? <span className={styles.muted}>（{request.userName}）</span> : null}{" "}
+            {request.userName ? (
+              <span className={styles.muted}>{t("({name})", { name: request.userName })}</span>
+            ) : null}{" "}
             <span className={styles.ip}>{ip}</span>
           </p>
           <Code code={request.code} />

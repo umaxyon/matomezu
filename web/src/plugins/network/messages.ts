@@ -22,6 +22,7 @@ export const NETWORK_MESSAGES = defineMessages({
   },
   Cancel: { en: "Cancel", ja: "キャンセル" },
   Copy: { en: "Copy", ja: "コピー" },
+  "({name})": { en: "({name})", ja: "（{name}）" },
   "Other hosts": { en: "Other hosts", ja: "ほかのホスト" },
   "Pair with a host": { en: "Pair with a host", ja: "ホストをつなぐ" },
   "No paired hosts": { en: "No paired hosts", ja: "ペアリングしたホストはありません" },

@@ -23,7 +23,7 @@ export function PairedHostDetail({ id }: { id: string }) {
     <div className={styles.detail}>
       <h2 className={styles.title}>
         {shownName(row, all)}
-        {row.userName ? <span className={styles.user}>（{row.userName}）</span> : null}
+        {row.userName ? <span className={styles.user}>{t("({name})", { name: row.userName })}</span> : null}
       </h2>
       <dl className={styles.facts}>
         <dt>{t("Connection")}</dt>

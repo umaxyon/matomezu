@@ -31,3 +31,6 @@ export const shownName = (row: HostRow, rows: readonly HostRow[]): string =>
   rows.filter(r => r.name === row.name).length > 1
     ? `${row.name} · ${row.record.hostId.slice(0, 4).toUpperCase()}`
     : row.name
+
+// 番地:ポートの番地だけ（IPv6 の角括弧も外す）
+export const ipOf = (addr: string): string => addr.slice(0, addr.lastIndexOf(":")).replace(/^\[|\]$/g, "")

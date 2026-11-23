@@ -6,6 +6,7 @@ import { type FormEvent, useEffect, useId, useState } from "react"
 import { type DialogProps, useMessages, useRecords, useSetPluginStateById } from "../../plugin-api/ui"
 import { ActionButton, Dialog, type FoundHost, type HostPairing, useAskHosts, useHostPeers } from "../base/ui"
 import { CONTROL_CENTER_SCREEN, PICKED_STATE } from "./control-center-ids"
+import { ipOf } from "./hosts"
 import { kit } from "./kit"
 import styles from "./Pairing.module.css"
 import { PAIRED_HOST } from "./pairing"
@@ -90,13 +91,14 @@ function Choose({ onCancel }: { onCancel: () => void }) {
 }
 
 function FoundRow({ host, checked, onPick }: { host: FoundHost; checked: boolean; onPick: () => void }) {
-  const ip = host.addr.slice(0, host.addr.lastIndexOf(":")).replace(/^\[|\]$/g, "")
+  const t = useMessages(kit)
+  const ip = ipOf(host.addr)
   return (
     <li>
       <label className={styles.foundRow}>
         <input type="radio" name="host" checked={checked} onChange={onPick} />
         <span className={styles.name}>{host.name}</span>
-        {host.userName ? <span className={styles.muted}>（{host.userName}）</span> : null}
+        {host.userName ? <span className={styles.muted}>{t("({name})", { name: host.userName })}</span> : null}
         <span className={styles.ip}>{ip}</span>
       </label>
     </li>
