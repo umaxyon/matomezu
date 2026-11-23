@@ -4,6 +4,7 @@
 // 項目を変えるとすぐに print-preview-update で変える。ロック中なら先に書き換えてよいかを確かめ、よければロックを外して変え、掛け直す。
 // 右サイドパネルの閉じるボタン（と Esc）で閉じると、印刷プレビューも閉じる（PrintPreviewView）。ステージが印刷プレビューでなくなったら、右サイドパネルを閉じる
 import { useEffect, useState } from "react"
+import { NO_NAME } from "../../../core/entries"
 import { previewing as isPreviewing, NO_PAGE } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
@@ -21,7 +22,7 @@ import { fitSide, PRINT, PRINT_PREVIEW_BOOK_NAME, PRINT_PREVIEW_FIT, PRINT_PREVI
 import { entryCrossings } from "./entry-sheets"
 import styles from "./PrintPreviewPanel.module.css"
 import { PRINT_PREVIEW_PANEL_ID } from "./panel-id"
-import { NO_LOCK, NO_NAME, type PreviewedEntry, type PreviewedLock } from "./previewed"
+import { NO_LOCK, type PreviewedEntry, type PreviewedLock } from "./previewed"
 import { ShapeBadges } from "./ShapeBadges"
 import { usePreviewed } from "./usePreviewed"
 

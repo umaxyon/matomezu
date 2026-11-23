@@ -4,6 +4,7 @@
 
 import { pagesOf } from "../../../core/book"
 import { CREATES_NOTHING, type LibraryTargets } from "../../../core/def/action"
+import { NO_NAME } from "../../../core/entries"
 import type { Folders } from "../../../core/folders"
 import { foldersOver } from "../../../core/folders-tree"
 import type { HistoryStep } from "../../../core/history"
@@ -169,8 +170,9 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
     if (result && !result.ok && !isRevertUnchanged(result)) {
       const denied = result.reason === "denied" ? result : undefined
       const book = denied?.book ? booksOf(ctx)[denied.book]?.title : undefined
+      const page = denied?.page ? ctx.pageTitle(denied.page) : NO_NAME
       notRestored(ctx, a, opened.outermost.id, from, result, {
-        name: book ?? (denied?.page ? ctx.pageTitle(denied.page) : undefined),
+        name: book ?? (page === NO_NAME ? undefined : page),
         clash: kit.message("Clashes with other changes"),
       })
       if (result.reason === "refused")

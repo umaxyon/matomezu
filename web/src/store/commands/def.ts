@@ -6,6 +6,7 @@ import type { ActionId, ActionTable, CommandExtras, ContextMenuId, ContextMenuTa
 import type { CoreCatalog } from "../../core/core-catalog"
 import { ANY_PAGE_TYPE, type ArgsOfType, type NO_CONTROL_CENTER, type Where } from "../../core/def/action"
 import type { PluginStateDef, PluginStateRead } from "../../core/def/plugin-state"
+import type { NO_NAME } from "../../core/entries"
 import { fail } from "../../core/errors"
 import type { Folders } from "../../core/folders"
 import { outsideAsked } from "../../core/folders-tree"
@@ -94,7 +95,7 @@ export interface ScreenCommandContext {
   contextMenu: OpenedContextMenu | typeof NO_CONTEXT_MENU // 開いている右クリックのメニュー（無ければ NO_CONTEXT_MENU）
   libraryHistory: History // 書庫の履歴
   folders: Folders // 書庫のフォルダの表（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダの行と並び。読むだけ。ページの中身は持たない）
-  pageTitle(page: string): string | undefined // ページ page の名前（名前の無いページ・表に無い物は undefined。ページの中身は渡さない）
+  pageTitle(page: string): string | typeof NO_NAME // ページ page の名前（名前の無いページ・表に無い物は NO_NAME。ページの中身は渡さない）
   // コマンドを持つプラグインが宣言したプラグイン状態 def の今の値（スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値。
   // 無ければ undefined。ほかのプラグインの宣言は E125。変えるのは run が受け取る updatePluginState）
   pluginState: PluginStateRead

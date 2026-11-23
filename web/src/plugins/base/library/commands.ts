@@ -8,7 +8,7 @@
 
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
-import { namingOf, placeOf, rowTitle } from "../../../core/entries"
+import { NO_NAME, namingOf, placeOf, rowTitle } from "../../../core/entries"
 import type { Folders } from "../../../core/folders"
 import { isKeptSystemFolder, systemFolderOf } from "../../../core/folders-tree"
 import type { Point } from "../../../core/geom"
@@ -286,11 +286,11 @@ export const LIBRARY_ENTRY_RENAME = kit.defineScreenCommand({
     const kind = placeOf(ctx.folders, entry)?.ref.kind
     const title =
       kind === undefined
-        ? undefined
+        ? NO_NAME
         : kind === "page"
           ? ctx.pageTitle(entry)
-          : rowTitle(ctx.folders[entry], kind, namingOf(ctx.catalog, ctx.settings))
-    return title === undefined ? "unknown" : [{ action: ENTRY_RENAME.id, args: { entry, title } }]
+          : (rowTitle(ctx.folders[entry], kind, namingOf(ctx.catalog, ctx.settings)) ?? NO_NAME)
+    return title === NO_NAME ? "unknown" : [{ action: ENTRY_RENAME.id, args: { entry, title } }]
   },
   when: inMenuHandled(renames),
 })

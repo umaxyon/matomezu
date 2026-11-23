@@ -87,7 +87,7 @@ export type { SystemFolderDef } from "../core/def/system-folder"
 export type { TextColorDef } from "../core/def/text-color"
 export type { ThemeDef } from "../core/def/theme"
 export { themeVar } from "../core/def/theme"
-export { freeTitle, IN_BACKYARD, TITLE_TAKEN } from "../core/entries"
+export { freeTitle, IN_BACKYARD, NO_NAME, TITLE_TAKEN } from "../core/entries"
 export { enumValuesOf } from "../core/enum"
 export type { BackyardEntry, BinderFolder, BookFolder, EntryRef, Folder, WorkKey } from "../core/folders"
 // 書庫ホームとゴミ箱の id（どのマシンでも同じ）

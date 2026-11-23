@@ -5,7 +5,7 @@ import type { CommandId, CommandTable } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import type { NO_CONTROL_CENTER, Where } from "../../core/def/action"
 import type { PluginStateDef } from "../../core/def/plugin-state"
-import { namingOf, titleOf } from "../../core/entries"
+import { NO_NAME, namingOf, titleOf } from "../../core/entries"
 import { fail } from "../../core/errors"
 import { pageIn } from "../../core/folders"
 import { outsideBinderIn } from "../../core/folders-tree"
@@ -109,7 +109,7 @@ export function screenCommandContext(
     contextMenu: contextMenu ?? NO_CONTEXT_MENU,
     libraryHistory: state.history[LIBRARY_HISTORY] ?? NO_HISTORY,
     folders: state.folders,
-    pageTitle: page => titleOf(state, "page", page, namingOf(catalog, settings)),
+    pageTitle: page => titleOf(state, "page", page, namingOf(catalog, settings)) ?? NO_NAME,
     // スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値
     pluginState: <S>(def: PluginStateDef<S>) =>
       pluginValueOf(

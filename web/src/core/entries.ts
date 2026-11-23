@@ -387,6 +387,9 @@ export const namingIn = (catalog: CoreCatalog, lang: Lang): Naming => ({ catalog
 export const namingOf = (catalog: CoreCatalog, settings: Settings): Naming =>
   namingIn(catalog, langOf(catalog, settings, "en"))
 
+// 名前が無いときの値（名前の無い物・書庫に無い物。どの名前とも重ならないよう、文字列にしない）
+export const NO_NAME: unique symbol = Symbol("no name")
+
 // ページかフォルダの行 row（種類 kind）の名前（名前の無い物・行が無ければ undefined）。名前を引くのは、ここだけ:
 // システムフォルダは、印の定義の title を naming の言語で引く（定義が機能台帳に無ければ名前の無い物）。ほかは行の title
 export function rowTitle(row: unknown, kind: EntryKind, naming: Naming): string | undefined {
