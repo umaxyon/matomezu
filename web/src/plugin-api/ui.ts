@@ -48,7 +48,6 @@ export { useLayoutWarnings } from "../ui/store-context"
 export { TokenScope, themeVars, useTokenScope } from "../ui/theme-vars"
 export {
   type Allowed,
-  NO_AREA,
   NO_PERMISSION,
   PAN_NOT_WATCHED,
   useActions,

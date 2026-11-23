@@ -21,6 +21,7 @@ import {
   areaOf,
   findShape,
   type ItemPage,
+  NO_AREA,
   NO_PAGE,
   NO_PAPER,
   NO_PLACING,
@@ -33,7 +34,6 @@ import {
   toPaperDelta,
 } from "../../../plugin-api"
 import {
-  NO_AREA,
   type ShapeScene,
   TokenScope,
   useActions,

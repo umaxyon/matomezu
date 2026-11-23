@@ -14,9 +14,8 @@
 // 鉛筆の間は、根でない行を押して動かすとドラッグになり、落とした所で中身ごと付け替える（落とす先は drag.ts が決める。行の写しがポインタに付き、元の行と中身は薄く、
 // 中へ入るフォルダの行には点線の枠、行の間に入る所には線を出す）。ポインタが端に近ければ紙をずらす。付け替えが紙に入らず断られたら、トーストで知らせる
 import { type MouseEvent, memo, type PointerEvent, type RefObject, useMemo, useRef } from "react"
-import { NO_PAGE, NO_PAPER, NO_STAGE, paperOf, type StageView } from "../../../../plugin-api"
+import { NO_AREA, NO_PAGE, NO_PAPER, NO_STAGE, paperOf, type StageView } from "../../../../plugin-api"
 import {
-  NO_AREA,
   useActions,
   useAllowed,
   useCommand,
