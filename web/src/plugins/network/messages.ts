@@ -35,4 +35,11 @@ export const NETWORK_MESSAGES = defineMessages({
     en: "In PowerShell as administrator, let the port in through the Hyper-V firewall:",
     ja: "管理者の PowerShell で、Hyper-V のファイアウォールにこのポートを通す:",
   },
+  pairedHost: { en: "Paired host", ja: "ペアリングしたホスト" },
+  pairingRequest: { en: "Pairing request", ja: "ペアリングの頼み" },
+  "Put a pairing request": { en: "Put a pairing request", ja: "ペアリングの頼みを載せる" },
+  "Accept a pairing request": { en: "Accept a pairing request", ja: "ペアリングの頼みを受け入れる" },
+  "Decline a pairing request": { en: "Decline a pairing request", ja: "ペアリングの頼みを断る" },
+  "Put a paired host": { en: "Put a paired host", ja: "ペアリングしたホストを載せる" },
+  "Unpair a host": { en: "Unpair a host", ja: "ペアリングを解く" },
 })

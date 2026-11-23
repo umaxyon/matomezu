@@ -8,11 +8,13 @@ import type { MessageKey } from "../i18n/i18n"
 import type { Order } from "../record-keys"
 import type { Warning } from "../warnings"
 
-// 常駐が種類で引く役。参加者（participants）とワークルーム（workrooms）は常駐（join・話しかけのフック）が読む。定義が役を名乗り、常駐は役で種類を引く。
+// 常駐が種類で引く役。参加者（participants）とワークルーム（workrooms）は常駐（join・話しかけのフック）が読む。ペアリングしたホスト（paired-hosts）とペアリングの頼み（pairing-requests）は、ホストどうしの入口が読む。定義が役を名乗り、常駐は役で種類を引く。
 // 役ごとに 1 つの種類だけが名乗り、読むフィールドを record に持つ（SUBJECT_ROLE_FIELDS。台帳アセンブルのときに確かめる）
 export const SUBJECT_ROLE_FIELDS = {
   participants: ["id", "state", "ai", "model", "env", "sessionName", "link", "workroom", "requestedAt", "joinedAt"],
   workrooms: ["id", "name"],
+  "paired-hosts": ["id", "hostId", "nameAtPairing", "userNameAtPairing", "addr", "pairedAt"],
+  "pairing-requests": ["id", "hostId", "name", "userName", "addr", "code", "requestedAt"],
 } as const
 export type SubjectRole = keyof typeof SUBJECT_ROLE_FIELDS
 // 参加者（役 participants）の state の値: 要求中・受け入れ済みでワークルームに入っている・受け入れ済みでワークルームを持たない（ビジター。読むだけ）。常駐もこの値で読む
