@@ -83,6 +83,22 @@
   text-align: left;
   cursor: pointer;
 }
+/* 作業履歴の見出し（書庫の物の後に、線で分けて） */
+.foundGroup {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0 4px;
+  padding: 0 8px;
+  color: var(--skin-text-muted);
+  font-size: inherit;
+  font-weight: normal;
+}
+.foundGroup::after {
+  flex: 1;
+  border-top: 1px solid var(--skin-border);
+  content: "";
+}
 .foundRow:hover {
   background: var(--skin-btn-hover);
 }

@@ -56,7 +56,14 @@ import {
 import { PAGE_CREATE } from "./page-create"
 import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
 import { unreadableShownIn } from "./show-unreadable"
-import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_UNFOLDED } from "./state"
+import {
+  LIBRARY_COLUMNS,
+  LIBRARY_FOLDER,
+  LIBRARY_FOUND_PICKED,
+  LIBRARY_PICKED,
+  LIBRARY_QUERY,
+  LIBRARY_UNFOLDED,
+} from "./state"
 import { createdIn, isDeskRow, realOf } from "./workdesk-rows"
 
 // 作る物を問うときの名前（名前は問いに渡らない。行う前は許可スコープから出した所で問い、run を呼ばない。作るブックは空のブックで問う。定義と機能台帳の「認可ステップ」）
@@ -113,7 +120,7 @@ const NAMING_MENUS: readonly string[] = [LIBRARY_ENTRY_CONTEXT, LIBRARY_FOLDER_C
 
 // コマンドが受け取る物: エントリ entry か、フォルダ folder（何も無い所のメニューから）か、ツリーで今いる行（at）。
 // 書庫の右クリックのメニューが受け取る物も、この形（pressed は、メニューを開いた画面の位置。続けてメニューを開くコマンドが使う）
-type Named = ({ entry: string } | { folder: string } | { at: "tree" }) & { pressed?: Point }
+type Named = ({ entry: string } | { folder: string } | { at: "tree" } | { at: "found" }) & { pressed?: Point }
 
 // 名指した物 named。無ければ、開いている書庫の右クリックのメニューが受け取った物
 function given(ctx: ScreenCommandContext, named: Named | undefined): Named | undefined {
@@ -128,16 +135,15 @@ const desksIn = (ctx: ScreenCommandContext): readonly Workdesk[] => workdesksOf(
 const openedIn = (ctx: ScreenCommandContext): string =>
   openedFolderOf(ctx.folders, ctx.pluginState(LIBRARY_FOLDER), desksIn(ctx))
 
-// コマンドが扱うエントリ: 受け取ったエントリ・フォルダ。ツリーからなら、ツリーで今いる行。何も受け取らなければ、呼ばれた場所の書庫の画面で選んでいる行（無ければ、扱う物は無い）
+// コマンドが扱うエントリ: 受け取ったエントリ・フォルダ。ツリーからなら、ツリーで今いる行。検索の結果からなら、そこで選んでいる行（無ければツリーで今いる行）。何も受け取らなければ、呼ばれた場所の書庫の画面で選んでいる行（無ければ、扱う物は無い）
 function entryOf(ctx: ScreenCommandContext, named?: Named): string | undefined {
   const to = given(ctx, named)
   const picked = ctx.pluginState(LIBRARY_PICKED)
   if (!to) return picked
-  return "entry" in to
-    ? to.entry
-    : "folder" in to
-      ? to.folder
-      : treeCurrentOf(ctx.folders, openedIn(ctx), picked, desksIn(ctx))
+  if ("entry" in to) return to.entry
+  if ("folder" in to) return to.folder
+  const found = to.at === "found" ? ctx.pluginState(LIBRARY_FOUND_PICKED) : undefined
+  return found ?? treeCurrentOf(ctx.folders, openedIn(ctx), picked, desksIn(ctx))
 }
 
 // コマンドが扱う、受け取ったエントリ（フォルダを受け取ったとき（何も無い所のメニュー）は、扱わない。そのフォルダは、右クリックした物でない）のうち、
@@ -701,7 +707,7 @@ export const LIBRARY_KEYS = [
     title: "Open",
     key: "Enter",
     command: LIBRARY_ENTRY_OPEN.id,
-    args: { at: "tree" },
+    args: { at: "found" },
     scope: LIBRARY_FOUND_SCOPE,
   }),
   kit.defineKey({
@@ -725,7 +731,7 @@ export const LIBRARY_KEYS = [
     title: "Open split",
     key: "Mod+Enter",
     command: LIBRARY_ENTRY_OPEN_SPLIT.id,
-    args: { at: "tree" },
+    args: { at: "found" },
     scope: LIBRARY_FOUND_SCOPE,
   }),
   kit.defineKey({ id: "library-undo-mod-z", key: "Mod+Z", command: LIBRARY_UNDO.id, scope: LIBRARY_SCOPE }),

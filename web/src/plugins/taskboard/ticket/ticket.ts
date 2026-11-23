@@ -78,12 +78,20 @@ export const TICKET = kit.defineSubject({
     return project !== "none" && inDoneLane(project, t.lane) && (was === "none" || !inDoneLane(project, was.lane))
   },
   // 番号は、プロジェクトのプレフィクスを付けた見せ方（プロジェクトが読めなければプレフィクス無しの 4 桁）
-  aiBrief: (t, ctx) => {
-    const project = ctx.record(PROJECT.id, t.project) as { prefix?: string } | "none"
-    const label = ticketLabel(project === "none" ? "" : (project.prefix ?? ""), t.number)
-    return `${label} ${t.name} [${[t.lane, ...t.tags].join(", ")}]`
+  aiBrief: (t, ctx) => `${labelOf(t, ctx.record)} ${t.name} [${[t.lane, ...t.tags].join(", ")}]`,
+  // 作業のレコードの名前: 短く呼ぶ名前は番号、名前はチケットの名前
+  workNameReads: [PROJECT.id],
+  workName: (record, read) => {
+    const t = record as TicketRecord
+    return { label: labelOf(t, read.record), name: t.name }
   },
 })
+
+// チケット t の番号の見せ方（プロジェクトのプレフィクスを付ける。record でプロジェクトが読めなければプレフィクス無し）
+function labelOf(t: { project: string; number: number }, record: (subject: string, id: string) => unknown): string {
+  const project = record(PROJECT.id, t.project) as { prefix?: string } | "none"
+  return ticketLabel(project === "none" ? "" : (project.prefix ?? ""), t.number)
+}
 
 // チケットのレコードの形
 export type Ticket = z.output<typeof TICKET.record>

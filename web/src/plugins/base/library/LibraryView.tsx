@@ -2,7 +2,7 @@
 // 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
 // ブックスクリーンに開く行（ページの在るブック・ワーカーブックと、ブックの中のページ）は、1 回押すと選んで「開く／分割で開く」を出し、2 回押すと全画面で開く（「画面を分割」で出した書庫のスクリーンでは出さない）。
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
-import { type CSSProperties, type MouseEvent, type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react"
+import { type CSSProperties, type MouseEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { type Naming, namingOf, titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
@@ -17,9 +17,6 @@ import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import type { Workdesk } from "../participant/workdesks"
 import { SplitHandle } from "../utils/SplitHandle"
-import { BOOK_SCREEN_DEF } from "../window"
-import { useBookOpenChoice } from "../window/useBookOpenChoice"
-import { useScreenSplit } from "../window/useScreenSplit"
 import {
   LIBRARY_ADD_PAGE_MENU,
   LIBRARY_BOOK_NEW,
@@ -44,8 +41,6 @@ import styles from "./LibraryView.module.css"
 import { MoveClashConfirm } from "./MoveClashConfirm"
 import {
   arrivedAt,
-  type BookOpened,
-  bookOpenedFrom,
   holdsRows,
   type LibraryRow,
   NO_TITLE,
@@ -60,9 +55,9 @@ import {
   unfoldable,
   unfoldedOf,
 } from "./outline"
+import { RowPressOf } from "./RowPress"
 import { usePickRows } from "./RowTable"
 import { SettingsClearConfirm } from "./SettingsClearConfirm"
-import { LIBRARY_SCREEN } from "./screen"
 import { type FoundRow, NO_SEARCH, searchWord } from "./search"
 import { SHOW_UNREADABLE_FOLDER } from "./show-unreadable"
 import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_TREE_WIDTH, LIBRARY_UNFOLDED } from "./state"
@@ -464,63 +459,6 @@ function ContentEntry({
       )}
     </RowPressOf>
   )
-}
-
-// 書庫の行 row を開くと出すブックとページ（bookOpenedFrom）と、ブックスクリーンと上下に並んでいるか（beside）。
-// 「画面を分割」で出した書庫のスクリーンでは答えない（開く先が上の段の空のステージに決まっていて、「分割で開く」と重なる）
-function useBookOpenedFrom(row: LibraryRow): { opens: BookOpened; beside: boolean } | undefined {
-  const desks = useWorkdesks()
-  const split = useScreenSplit()
-  const beside = split.inSplit && split.defs.includes(BOOK_SCREEN_DEF.id)
-  const pending = beside && split.here.def === LIBRARY_SCREEN.id
-  const opens = useMatomezuState(useShallow(s => (pending ? undefined : bookOpenedFrom(s.folders, row, desks))))
-  return useMemo(() => (opens === undefined ? undefined : { opens, beside }), [opens, beside])
-}
-
-// 行の押し方 press（クリック・ダブルクリック・「開く／分割で開く」の吹き出し）
-interface RowPress {
-  onClick: (e: MouseEvent<HTMLElement>) => void
-  onDoubleClick: (() => void) | undefined
-  bubble: ReactNode
-}
-
-// 行 row の押し方を children に渡して描く: ブックスクリーンに開く行（ページの在るブックと、ブックの中のページ）は、クリックで行を選ぶ物 click を行ってから
-// 「開く／分割で開く」、ダブルクリックで開く（open）。ほかの行は、クリックで click、ダブルクリックで open
-function RowPressOf({
-  row,
-  click,
-  open,
-  children,
-}: PressOptions & { row: LibraryRow; children: (p: RowPress) => ReactNode }) {
-  const found = useBookOpenedFrom(row)
-  return found === undefined ? (
-    <>{children({ onClick: () => click(), onDoubleClick: open, bubble: null })}</>
-  ) : (
-    <BookPress opens={found.opens} beside={found.beside} click={click} open={open}>
-      {children}
-    </BookPress>
-  )
-}
-
-interface PressOptions {
-  click: () => void
-  open: () => void
-}
-
-// ブックスクリーンと上下に並んでいる（beside）ときの全画面で開くは、並びのブックスクリーンを閉じてから、新しく窓いっぱいに出す（書庫の開くは、並びのブックスクリーンに開く）
-function BookPress({
-  opens,
-  beside,
-  click,
-  open,
-  children,
-}: PressOptions & { opens: BookOpened; beside: boolean; children: (p: RowPress) => ReactNode }) {
-  const choice = useBookOpenChoice({
-    ...opens,
-    ...(beside ? { fullClosingRows: true } : { full: open }),
-    onClick: click,
-  })
-  return <>{children({ onClick: choice.onClick, onDoubleClick: undefined, bubble: choice.bubble })}</>
 }
 
 // ツリーの 1 行と、中を出していればその下の行
