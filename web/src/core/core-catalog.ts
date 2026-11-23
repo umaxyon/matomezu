@@ -91,6 +91,11 @@ export interface PluginFollowStep {
   step: FollowStepDef
 }
 
+// 台帳に並べたフォローステップ: 見る種類を、台帳にある種類の id に解いた物 watched を添える
+export interface CatalogFollowStep extends PluginFollowStep {
+  watched: readonly string[]
+}
+
 // 作った表。種類ごとに id で引く。pageSchemas は、ページのタイプごとに組み立てたページのデータの形。bookSchema は、ブックのデータの形（並びのページは、タイプごとの形のどれか）
 export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDefTable[K]> } & {
   parts: CoreCatalogParts
@@ -107,7 +112,7 @@ export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDe
   tokens: ReadonlyMap<string, TokenDef> // プラグインが持つテーマキー（アイテムとページのタイプのテーマキーは、その定義の tokens）
   normalizeSteps: readonly NormalizeStepDef[] // ノーマライズステップ（core/def/normalize-step.ts）
   // フォローステップ（core/def/follow-step.ts）。見る種類が台帳にある物だけを、依る順（ある種類を書くステップが、それを見るステップより先）に並べた物
-  followSteps: readonly PluginFollowStep[]
+  followSteps: readonly CatalogFollowStep[]
   roles: ReadonlyMap<SettingRole, SettingDef> // role → その role を持つ利用者の設定の項目（土台は role で引く）
 }
 

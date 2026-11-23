@@ -77,7 +77,7 @@ func (lim WakeLimits) fits(line string) bool {
 type wakeItem struct {
 	seq         int64     // 行列の中で見分ける番号
 	participant string    // 宛て先の参加者の id
-	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage・wakeUpdate
+	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage・wakeUpdate・wakeHost
 	line        string    // 流す 1 行
 	from        string    // AI 間メッセージの送り手のワークルーム名
 	body        string    // AI 間メッセージの本文（JSON の文字列にした物。改行を受ける通り道には、送り手の行のあとの行で流す）
@@ -102,6 +102,7 @@ const (
 	wakeCancelled = "cancelled" // 参加の要求を利用者がキャンセルした
 	wakeMessage   = "message"   // AI 間メッセージ
 	wakeUpdate    = "update"    // 利用者が、matomezu の版を上げるよう頼んだ（update.go）
+	wakeHost      = "host"      // 常駐メッセージ（フォローステップが返した、常駐からの知らせ。message.go）
 )
 
 // goneState は、表に無い参加の id を、断り・キャンセルとしてどう伝えるか（無ければ断り）
@@ -399,7 +400,7 @@ func lentCover(prompt string, lent []string, used map[int]bool) map[int]bool {
 	return nil
 }
 
-// takeCallLines は、参加者 id の行列から、呼び出しの返事で渡す行（AI 間メッセージと更新の頼み）を取り出す。通り道に貸している物は残す（結果を待つ）。
+// takeCallLines は、参加者 id の行列から、呼び出しの返事で渡す行（AI 間メッセージと常駐メッセージと更新の頼み）を取り出す。通り道に貸している物は残す（結果を待つ）。
 // 参加の知らせは、呼び出しの返事の「参加しました」が兼ねるので捨てる（h.mu を持って呼ぶ）
 func (h *Hub) takeCallLines(id string) []string {
 	var lines []string
@@ -408,7 +409,7 @@ func (h *Hub) takeCallLines(id string) []string {
 		switch {
 		case it.lentTo != 0:
 			kept = append(kept, it)
-		case it.kind == wakeMessage || it.kind == wakeUpdate:
+		case it.kind == wakeMessage || it.kind == wakeUpdate || it.kind == wakeHost:
 			lines = append(lines, it.line)
 		}
 	}

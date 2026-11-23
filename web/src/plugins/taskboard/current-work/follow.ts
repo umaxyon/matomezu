@@ -17,15 +17,17 @@ export const FOLLOW_TICKETS: FollowStepDef<typeof TICKET.id> = {
     return [READS_CURRENT_WORK, ...(ticket === "none" ? [] : [{ subject: PROJECT.id, id: ticket.project }])]
   },
   follow: (change, ctx) => {
-    if (lockOnly(change.before, change.after)) return []
+    if (lockOnly(change.before, change.after)) return {}
     const ticket = change.after === "removed" ? change.before : change.after
     const project = ticket === "none" ? undefined : (ctx.records[PROJECT.id]?.[ticket.project] as Project | undefined)
-    return currentWorkChanges(
-      change.before as Ticket | "none",
-      change.after as Ticket | "removed",
-      project,
-      currentWorksOf(ctx),
-    )
+    return {
+      records: currentWorkChanges(
+        change.before as Ticket | "none",
+        change.after as Ticket | "removed",
+        project,
+        currentWorksOf(ctx),
+      ),
+    }
   },
 }
 
@@ -39,9 +41,9 @@ export const FOLLOW_PROJECT_LANES: FollowStepDef<typeof PROJECT.id> = {
       : [],
   follow: (change, ctx) => {
     const { before, after } = change
-    if (before === "none" || after === "removed" || !lanesChanged(before, after)) return []
+    if (before === "none" || after === "removed" || !lanesChanged(before, after)) return {}
     const tickets = Object.values(ctx.records[TICKET.id] ?? {}) as Ticket[]
-    return currentWorkOnLanes(before, after, tickets, currentWorksOf(ctx))
+    return { records: currentWorkOnLanes(before, after, tickets, currentWorksOf(ctx)) }
   },
 }
 

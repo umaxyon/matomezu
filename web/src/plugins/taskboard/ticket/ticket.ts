@@ -33,6 +33,9 @@ const TICKET_RECORD = z.strictObject({
   tags: z.array(z.string().min(1)).refine(ids => new Set(ids).size === ids.length), // 付けたタグの id（付けた順。重ならない。消したタグの id は書いたまま残し、読む側が外す）
 })
 
+// 定義の中で使うレコードの型（TICKET から引くと、定義が自分を指す）
+type TicketRecord = z.output<typeof TICKET_RECORD>
+
 export const TICKET = kit.defineSubject({
   id: "ticket",
   title: "ticket",
@@ -62,6 +65,17 @@ export const TICKET = kit.defineSubject({
     },
     unlisted:
       "completed tickets (in the done lane of their project: list them with unlisted include or only, or with where project and lane)",
+  },
+  // 作業が終わる: プロジェクトの完了のレーンに入った（ほかのレーンから。作ったときに完了のレーンにあっても）
+  completesWorkReads: (_before, after) => {
+    const t = after as TicketRecord | "removed"
+    return t === "removed" ? [] : [{ subject: PROJECT.id, id: t.project }]
+  },
+  completesWork: (before, after, record) => {
+    const t = after as TicketRecord
+    const was = before as TicketRecord | "none"
+    const project = record(PROJECT.id, t.project) as { doneLane?: string } | "none"
+    return project !== "none" && inDoneLane(project, t.lane) && (was === "none" || !inDoneLane(project, was.lane))
   },
   // 番号は、プロジェクトのプレフィクスを付けた見せ方（プロジェクトが読めなければプレフィクス無しの 4 桁）
   aiBrief: (t, ctx) => {

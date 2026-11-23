@@ -38,6 +38,7 @@ export const CONTROL_CENTER_MESSAGES = defineMessages({
   "Leave the workroom": { en: "Leave the workroom", ja: "退室する" },
   "Leaving the workroom": { en: "will be left.", ja: "から退室します。" },
   "Deleting the workroom": { en: "will be deleted.", ja: "を削除します。" },
+  "Pages to be removed: {n}": { en: "Pages to be removed: {n}", ja: "消えるページ: {n}" },
   "Cannot be undone": { en: "This cannot be undone.", ja: "戻せません。" },
   "No AI can continue": { en: "No AI can continue this room.", ja: "次の AI は引き継げなくなります。" },
   Cancel: { en: "Cancel", ja: "キャンセル" },

@@ -4,8 +4,9 @@
 import { z } from "zod"
 import { PARTS, partsOf } from "./catalog"
 import { HEX } from "./color"
-import type { CoreCatalogParts } from "./core-catalog"
+import type { CatalogFollowStep, CoreCatalogParts, PluginFollowStep } from "./core-catalog"
 import { attachedTo, BASE_TARGETS, changesBookOnly } from "./def/action"
+import type { FollowStepDef } from "./def/follow-step"
 import type { SettingRole } from "./def/setting"
 import { PARTICIPANT_STATES, SUBJECT_ROLE_FIELDS } from "./def/subject"
 import { THEME_TOKENS } from "./def/theme"
@@ -81,9 +82,12 @@ export function coreWarnings(parts: CoreCatalogParts): Warning[] {
   return [
     ...tools,
     ...shadeWarnings(parts),
-    ...parts.followSteps
-      .filter(f => !subjectIds.has(f.step.watches))
-      .map(f => warning("W034", f.plugin, { plugin: f.plugin, kind: f.step.watches })),
+    // 見る種類をメソッドで指したステップは、答える種類が無くても warning を出さない（その種類を持つプラグインを入れない組み合わせは普通にある）
+    ...parts.followSteps.flatMap(f =>
+      typeof f.step.watches === "string" && !subjectIds.has(f.step.watches)
+        ? [warning("W034", f.plugin, { plugin: f.plugin, kind: f.step.watches })]
+        : [],
+    ),
     ...parts.enumValues
       .filter(v => !enums.has(v.enum))
       .map(v => warning("W026", splitId(v.id).owner ?? "", { id: v.id, enum: v.enum })),
@@ -218,6 +222,11 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       if (!subjects.has(ref) || numbered.has(ref)) problems.push(problem("E079", { plugin, ref }))
       else if (splitId(ref).owner !== plugin) problems.push(problem("E078", { plugin, ref }))
     }
+  // フォローステップが中を書くバックヤードは、台帳にある、自分のプラグインが定義したバックヤード
+  const backyards = new Set(parts.backyards.map(d => d.id))
+  for (const { plugin, step } of parts.followSteps)
+    for (const ref of step.backyards ?? [])
+      if (!backyards.has(ref) || splitId(ref).owner !== plugin) problems.push(problem("E320", { plugin, ref }))
   const loop = followLoop(parts)
   if (loop) problems.push(problem("E080", { loop: loop.join(" -> ") }))
   for (const s of parts.subjects) if (s.aiListed && s.aiList) problems.push(problem("E061", { id: s.id }))
@@ -333,10 +342,20 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   return problems
 }
 
+// フォローステップ step が見る種類の、台帳 parts にある物の id（名前で指したならその種類、メソッドで指したならそのメソッドを持つ種類の全部）
+export function watchedOf(parts: CoreCatalogParts, step: FollowStepDef): readonly string[] {
+  const { watches } = step
+  if (typeof watches === "string") return parts.subjects.some(d => d.id === watches) ? [watches] : []
+  return parts.subjects.filter(d => d[watches.having] !== undefined).map(d => d.id)
+}
+
 // フォローステップの依る向き: ステップ i が書く種類を見るステップの並び（i が先に当たる）
 function followNext(parts: CoreCatalogParts): number[][] {
   const steps = parts.followSteps
-  return steps.map(({ step }) => steps.flatMap((f, j) => (step.writes.includes(f.step.watches) ? [j] : [])))
+  const watched = steps.map(f => watchedOf(parts, f.step))
+  return steps.map(({ step }) =>
+    steps.flatMap((_, j) => (watched[j]?.some(w => (step.writes as readonly string[]).includes(w)) ? [j] : [])),
+  )
 }
 
 // フォローステップの、自分に返ってくる鎖（見る種類の並び。最初と最後が同じ）。無ければ null
@@ -359,15 +378,14 @@ function followLoop(parts: CoreCatalogParts): string[] | null {
   }
   for (const i of parts.followSteps.keys()) {
     const found = visit(i)
-    if (found) return found.map(j => parts.followSteps[j]?.step.watches ?? "")
+    if (found) return found.map(j => watchedOf(parts, (parts.followSteps[j] as PluginFollowStep).step).join("|"))
   }
   return null
 }
 
 // フォローステップを当てる順: 見る種類が台帳にある物だけを、ある種類を書くステップが、それを見るステップより先になるように並べる（それ以外の順は定義の並びから決まる）。
-// 輪は checkCoreCatalog が断ってから呼ぶ
-export function followOrder(parts: CoreCatalogParts): CoreCatalogParts["followSteps"] {
-  const subjects = new Set(parts.subjects.map(d => d.id))
+// 見る種類を台帳の id に解いた物を添える。輪は checkCoreCatalog が断ってから呼ぶ
+export function followOrder(parts: CoreCatalogParts): readonly CatalogFollowStep[] {
   const next = followNext(parts)
   const done = new Set<number>()
   const order: number[] = []
@@ -381,5 +399,6 @@ export function followOrder(parts: CoreCatalogParts): CoreCatalogParts["followSt
   return order
     .reverse()
     .flatMap(i => parts.followSteps[i] ?? [])
-    .filter(f => subjects.has(f.step.watches))
+    .map(f => ({ ...f, watched: watchedOf(parts, f.step) }))
+    .filter(f => f.watched.length > 0)
 }

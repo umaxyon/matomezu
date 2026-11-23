@@ -186,7 +186,7 @@ export interface PermissionDef<Tt extends string = MessageKey> extends Permissio
   readsSubjects?(catalog: CoreCatalog): readonly string[]
   denies(q: PermissionQuery, input: PermissionInput): boolean // 止めるか
   keeps?(c: PermissionCheck, input: PermissionInput): boolean // 結果が許しを守っているか（無ければ守っている）
-  // フォローステップが応じた変わり（core/def/follow-step.ts）にも keeps（kind "record"。action はきっかけのアクション）をかける。
+  // フォローステップが応じた変わり（core/def/follow-step.ts。レコードと、バックヤードの中のブック・ページ）にも keeps（action はきっかけのアクション）をかける。
   // 無いステップは、応じた変わりを止めない
   followed?: true
 }

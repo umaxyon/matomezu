@@ -53,7 +53,16 @@ export type {
 } from "../core/def/action"
 export type { AnnotationDef } from "../core/def/annotation"
 export type { EnumDef, EnumValueDef } from "../core/def/enum"
-export type { FollowContext, FollowedChange, FollowedRecord, FollowStepDef } from "../core/def/follow-step"
+export type {
+  BackyardFollow,
+  FollowContext,
+  FollowedChange,
+  FollowedRecord,
+  FollowOut,
+  FollowStepDef,
+  HostMessage,
+  WatchesHaving,
+} from "../core/def/follow-step"
 export type {
   ConnectorData,
   ItemDef,

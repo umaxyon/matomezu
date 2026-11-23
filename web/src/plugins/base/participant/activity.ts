@@ -33,6 +33,9 @@ declare module "../../../core/catalog" {
     workroomWork?(workroom: string, read: RecordReader): WorkroomWork
     // workroomWork が読む種類（読む id が読んだ中身で決まるので、種類ごと宣言する）
     workroomWorkReads?: readonly string[]
+    // workroomWork が答える作業のレコードの種類（key の種類）。どれも completesWork を持つ（台帳アセンブルが確かめる。E133）。
+    // ここに無い種類を答えたら、その作業のワーカーブックは作らず、ワークルーム自身のブックを使う
+    workroomWorkSubjects?: readonly string[]
   }
 }
 

@@ -65,6 +65,7 @@ export const PARTICIPANT_MESSAGES = defineMessages({
     en: "Taking over keeps its name, bird and palette. Discarding removes it and starts a new one.",
     ja: "引き継ぐと、名前・鳥・配色が前のままになります。破棄すると、前の参加者を外して新しく始めます。",
   },
+  "Pages to be removed: {n}": { en: "Pages to be removed: {n}", ja: "消えるページ: {n}" },
   "Taking over keeps its name, bird and palette.": {
     en: "Taking over keeps its name, bird and palette.",
     ja: "引き継ぐと、名前・鳥・配色が前のままになります。",

@@ -385,6 +385,7 @@ test("matomezu/ui が出す名前", () => {
     "useOpenSettings",
     "useOutermostOf",
     "useOutsideBinder",
+    "useOwnBookPages",
     "usePage",
     "usePageById",
     "usePageProblems",
