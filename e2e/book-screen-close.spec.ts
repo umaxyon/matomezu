@@ -110,3 +110,58 @@ test("ブックスクリーンを 2 枚分割で開くと 2 段で見え、そ�
   await settled(page)
   await page.screenshot({ path: "test-results/book-screen-footer-two.png" })
 })
+
+// 動きの途中の位置を、コマごとに記録する（ブックスクリーンの左端と、コントロールセンターのスクリーンの高さ）
+const track = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<{ t: number; book: number | null; center: number; leaving: number | null }[]>(done => {
+        const out: { t: number; book: number | null; center: number; leaving: number | null }[] = []
+        const start = performance.now()
+        const step = () => {
+          const book = document.querySelector<HTMLElement>("[data-current][data-row='true']:not([data-leaving])")
+          const leaving = document.querySelector<HTMLElement>("[data-leaving]")
+          const plain = [...document.querySelectorAll<HTMLElement>("section [data-top]")].find(
+            e => getComputedStyle(e).visibility !== "hidden",
+          )
+          out.push({
+            t: performance.now() - start,
+            book: book ? book.getBoundingClientRect().left : null,
+            center: plain ? plain.getBoundingClientRect().height : 0,
+            leaving: leaving ? leaving.getBoundingClientRect().left : null,
+          })
+          if (performance.now() - start < 900) requestAnimationFrame(step)
+          else done(out)
+        }
+        requestAnimationFrame(step)
+      }),
+  )
+
+test("分割で開くと、コントロールセンターが上に縮んでから、ブックスクリーンが右から入る。閉じると、ブックスクリーンが右へ出ていき、後ろのコントロールセンターが見える", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  await memberWithPage(page, "しらべ", "作業のメモ")
+  const line = page.locator("[data-workroom]").filter({ hasText: "しらべ" }).locator("[data-current-line]")
+  await line.click()
+  const height = await page.evaluate(() => innerHeight)
+  const [frames] = await Promise.all([track(page), page.getByRole("menuitem", { name: "分割で開く" }).click()])
+  const width = await page.evaluate(() => innerWidth)
+  // コントロールセンターが縮み終える前は、ブックスクリーンは右の外にいる
+  const shrinking = frames.filter(f => f.center > height * 0.55 && f.center < height * 0.95)
+  expect(shrinking.length).toBeGreaterThan(0)
+  for (const f of shrinking) expect(f.book === null || f.book >= width - 1).toBe(true)
+  // そのあと、右から入る（途中の位置を通る）
+  expect(frames.some(f => f.book !== null && f.book > 10 && f.book < width - 10)).toBe(true)
+  await settled(page)
+
+  const close = page.locator("[data-footer-close]").locator("visible=true")
+  const [out] = await Promise.all([track(page), close.click()])
+  // 閉じたブックスクリーンが、右へ出ていく（途中の位置を通る）。その間、コントロールセンターは右から滑り込まない（見えたまま）
+  expect(out.some(f => f.leaving !== null && f.leaving > 10 && f.leaving < width - 10)).toBe(true)
+  const section = await page.locator("section[data-instant]").evaluate(e => e.getBoundingClientRect().left)
+  expect(section).toBe(0)
+  await settled(page)
+  await expect(page.locator("[data-leaving]")).toHaveCount(0)
+  await expect(line).toBeVisible()
+})

@@ -1,6 +1,6 @@
 // スクリーンアレンジメント「1 枚ずつ」（index.ts の ONE_SCREEN）と「上下に分ける」（split.ts の SPLIT_ROWS）のビュー。2 つのスロットに同じウィジェットを置くので、
 // 見せ方を替えても描き直さない（中のスクリーンの状態は残る）。開いているスクリーンを全部重ねて描き、見えているスクリーンを出す。
-// ブックスクリーン（ステージを並べるスクリーン）は動かさず、いちばん最近カレントにした 1 枚を下に敷く。ステージを並べないスクリーンは、その上に右から滑り込み、
+// ブックスクリーン（ステージを並べるスクリーン）は動かさず、いちばん最近カレントにした 1 枚を下に敷く（閉じたときは、右へ滑り出て、後ろの物を出す）。ステージを並べないスクリーンは、その上に右から滑り込み、
 // ブックスクリーンへ戻すときは右へ滑り出る（SLIDE_MS。動きを減らす設定では動かさない）。後ろに退いた物は消さずに隠し（中のステージ・倍率・選択などは残る）、操作も読み上げも受けない（inert）。
 // ステージを並べないスクリーンどうしは、カレントにした順に重ねる（あとからカレントにした物が上）。あとから開いたスクリーンは右から滑り込み、閉じると右へ滑り出る（滑り出る間は描き続ける）。
 // 上下に分けている間は、分けた並びのスクリーンを上から等分の高さで並べる。分け始めは、上の物が縮んでから、新しい物が下に滑り込む。押したスクリーンをカレントスクリーンにする。
@@ -8,7 +8,7 @@
 // ブックスクリーンを入れた並び（「画面を分割」で下に書庫のスクリーンを出した物）は畳まず、低い間はカレントスクリーンだけを窓いっぱいに見せる。
 // 並びに入れたブックスクリーンは上の行に描き、押せばカレントスクリーンにする。その間、並びに入っていないステージを並べないスクリーンは見せない。
 // ステージを並べないスクリーンが出ている間の下の行は、スロット screen-footer に置いたウィジェットを並べる（置いた物が無ければ、下の行を描かない）
-import { type CSSProperties, useEffect, useRef, useState } from "react"
+import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { bookScreenCurrent, type OpenedScreen, recentBookScreen, recentPlainScreen } from "../../../core/window"
 import { usePluginState } from "../../../ui/plugin-state-hooks"
@@ -73,7 +73,17 @@ export function ScreensView() {
   const flash = usePluginState(kit, SCREEN_FLASH)
   // 最初に描いたときから開いていたスクリーンは、滑り込ませない
   const first = useRef<readonly string[] | null>(null)
-  if (first.current === null) first.current = plainScreens
+  if (first.current === null) first.current = [...plainScreens, ...stageScreens]
+  // ブックスクリーンを閉じたら、その間はコントロールセンターの側を滑らせずに出す（閉じた物が、上から右へ出ていく）
+  const lastBooks = useRef(stageScreens)
+  const [instant, setInstant] = useState(false)
+  if (lastBooks.current.some(id => !stageScreens.includes(id)) && !instant) setInstant(true)
+  lastBooks.current = stageScreens
+  useEffect(() => {
+    if (!instant) return
+    const timer = setTimeout(() => setInstant(false), reduced() ? 0 : SLIDE_MS)
+    return () => clearTimeout(timer)
+  }, [instant])
   // 閉じられたスクリーンは、滑り出る間だけ、閉じたときの位置で描き続ける
   const last = useRef<{ screens: readonly OpenedScreen[]; rows: ReadonlyMap<string, Row | null> }>({
     screens: [],
@@ -105,7 +115,7 @@ export function ScreensView() {
             row={row}
             footer={footer}
             currentInRow={row !== null && id === current}
-            late={starting && row !== null && id === current}
+            fresh={!first.current?.includes(id)}
             inert={mixed ? row === null : currentKind !== "book-screen" || id !== book}
             onPress={() => {
               if (row !== null && id !== current) makeScreenCurrent(id)
@@ -117,6 +127,7 @@ export function ScreensView() {
         className={styles.center}
         data-current={mixed ? "plain-screen" : currentKind}
         data-mixed={mixed}
+        data-instant={instant}
         inert={!mixed && currentKind !== "plain-screen"}
       >
         <div className={styles.body}>
@@ -215,8 +226,8 @@ function useSlideFrames(
   }, [waits, entered, setWaits])
 }
 
-// ブックスクリーン 1 枚。上下に分けた並びに新しく入る物（並びに入っていなかった物が、カレントスクリーンとして入る。currentInRow で入った瞬間を見分ける）は、右から滑り込む
-// （分け始めは、上の物が縮み終えてから。late）。並びの中で位置が替わるだけのときと、並びの外の物は滑らない
+// ブックスクリーン 1 枚。上下に分けた並びに新しく入る物（並びに入っていなかった物か新しく開いた物 fresh が、カレントスクリーンとして入る。currentInRow で入った瞬間を見分ける）は、
+// 並びのほかの物が縮み終えてから、右から滑り込む。並びの中で位置が替わるだけのときと、並びの外の物は滑らない。閉じると、右へ滑り出る
 function BookScreen({
   screen,
   current,
@@ -224,7 +235,7 @@ function BookScreen({
   row,
   footer,
   currentInRow,
-  late,
+  fresh,
   inert,
   onPress,
 }: {
@@ -234,19 +245,23 @@ function BookScreen({
   row: Row | null
   footer: boolean
   currentInRow: boolean
-  late: boolean
+  fresh: boolean
   inert: boolean
   onPress: () => void
 }) {
   const inRow = row !== null
-  const wasInRow = useRef(inRow)
-  // 並びに入った瞬間に、右の外から始める
+  // 新しく開いた物は、並びの外から入ったと見る
+  const wasInRow = useRef(fresh ? false : inRow)
+  // 並びに入った瞬間に、右の外から始める（並びのほかの物が縮み終えてから滑り込む）
   const [entered, setEntered] = useState(true)
   const [waits, setWaits] = useState(false)
   if (inRow && !wasInRow.current && currentInRow && entered) {
     setEntered(false)
-    setWaits(late)
+    setWaits(true)
   }
+  const box = useRef<HTMLDivElement>(null)
+  const read = useReadState()
+  useSlideOutWhenClosed(box, screen, read)
   useEffect(() => {
     wasInRow.current = inRow
   })
@@ -260,6 +275,7 @@ function BookScreen({
       data-in={entered}
       data-late={waits}
       data-footer={footer}
+      ref={box}
       style={row ? ({ "--row-index": row.index, "--row-of": row.of } as CSSProperties) : undefined}
       inert={inert}
       onPointerDownCapture={onPress}
@@ -267,6 +283,30 @@ function BookScreen({
       <ScreenView screen={screen} />
     </div>
   )
+}
+
+// 閉じたブックスクリーン screen を、閉じたときの見た目のまま右へ滑り出させる（中のステージはもう読めないので、描いた物の写しを動かし、動き終えたら消す）。
+// 写しはコントロールセンターの側より上に置く。描き直しで外れただけ（スクリーンがまだ開いている）なら写さない
+function useSlideOutWhenClosed(
+  box: { current: HTMLDivElement | null },
+  screen: string,
+  read: ReturnType<typeof useReadState>,
+) {
+  useLayoutEffect(() => {
+    const node = box.current
+    const parent = node?.parentElement
+    return () => {
+      if (!node || !parent || reduced()) return
+      if (read().window.screens.some(s => s.id === screen)) return
+      const copy = node.cloneNode(true) as HTMLDivElement
+      copy.removeAttribute("data-current")
+      copy.setAttribute("data-leaving", "")
+      copy.setAttribute("aria-hidden", "true")
+      copy.inert = true
+      parent.appendChild(copy)
+      setTimeout(() => copy.remove(), SLIDE_MS)
+    }
+  }, [box, screen, read])
 }
 
 // ステージを並べないスクリーン 1 枚。slides なら、描いた次のコマで右から滑り込ませる（late なら、上の物が縮むのを待ってから）。
