@@ -14,7 +14,7 @@ import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { useCloseLeftSidePanel, useLeftSidePanel } from "../left-side-panel/hooks"
+import { NO_LEFT_SIDE_PANEL, useCloseLeftSidePanel, useLeftSidePanel } from "../left-side-panel/hooks"
 import { MAIL_SEEN, MAIL_VISITED } from "."
 import { useMailbox, useShowMailPlaceAt } from "./hooks"
 import own from "./Mail.module.css"
@@ -57,7 +57,7 @@ function MailDialogBody({ stage, mail: mailId, onClose }: { stage: string; mail:
   const actions = useStoreActions()
   const closeLeft = useCloseLeftSidePanel()
   const left = useLeftSidePanel()
-  const mailboxOpened = left?.tab === MAILBOX_TAB_ID
+  const mailboxOpened = left !== NO_LEFT_SIDE_PANEL && left.tab === MAILBOX_TAB_ID
   const showPlace = useShowMailPlaceAt()
   const seen = !!mail?.seenAt
   const [docked, setDocked] = useState(false) // 窓の右の端に寄せているか（種類のボタンが頼む）
@@ -100,7 +100,7 @@ function MailDialogBody({ stage, mail: mailId, onClose }: { stage: string; mail:
     if (opens) open(opens.primary)
     else onClose()
   }
-  const closeBoth = mailboxOpened && left && (
+  const closeBoth = mailboxOpened && (
     <ActionButton
       onClick={() => {
         onClose()

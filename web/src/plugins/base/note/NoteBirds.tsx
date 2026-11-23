@@ -13,7 +13,12 @@ import { BirdWalk, birdClass } from "../birds/BirdWalk"
 import { LEAVE } from "../birds/flight"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
-import { useRightSidePanel, useSetRightSidePanelCurrent, useTakeOffAnchor } from "../right-side-panel/hooks"
+import {
+  NO_RIGHT_SIDE_PANEL,
+  useRightSidePanel,
+  useSetRightSidePanelCurrent,
+  useTakeOffAnchor,
+} from "../right-side-panel/hooks"
 import { Ask, useRemoveAsk } from "../stand/Ask"
 import { AnchorFrame, StandAt, useAnchorElement } from "../stand/anchors"
 import { NOTE_BIRDS } from "./birds-state"
@@ -32,7 +37,8 @@ interface Shown {
 
 export function NoteBirds() {
   const open = useRightSidePanel()
-  const anchors = open?.widget === NOTE_PANEL_ID ? open.anchors : NONE
+  const noted = open !== NO_RIGHT_SIDE_PANEL && open.widget === NOTE_PANEL_ID
+  const anchors = noted ? open.anchors : NONE
   const [shown, setShown] = useState<readonly Shown[]>([])
   const readBirds = useReadPluginState(kit, NOTE_BIRDS)
   const setBirds = useSetPluginState(kit, NOTE_BIRDS)
@@ -54,7 +60,7 @@ export function NoteBirds() {
     ])
   }, [key])
   const gone = (s: Shown) => setShown(now => now.filter(x => x !== s))
-  const current = open?.widget === NOTE_PANEL_ID && anchors.length > 1 ? (open.current ?? null) : null
+  const current = noted && anchors.length > 1 ? (open.current ?? null) : null
   return (
     <>
       {current && <AnchorFrame anchor={current} className={styles.current} />}

@@ -387,7 +387,7 @@ export const namingIn = (catalog: CoreCatalog, lang: Lang): Naming => ({ catalog
 export const namingOf = (catalog: CoreCatalog, settings: Settings): Naming =>
   namingIn(catalog, langOf(catalog, settings, "en"))
 
-// 名前が無いときの値（名前の無い物・書庫に無い物。どの名前とも重ならないよう、文字列にしない）
+// 名前が無いときの値（名前の無い物・書庫に無い物・利用者名を決めていない。どの名前とも重ならないよう、文字列にしない）
 export const NO_NAME: unique symbol = Symbol("no name")
 
 // ページかフォルダの行 row（種類 kind）の名前（名前の無い物・行が無ければ undefined）。名前を引くのは、ここだけ:

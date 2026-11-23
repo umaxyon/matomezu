@@ -5,6 +5,7 @@ import {
   type ActionContext,
   type Actor,
   isAI,
+  NO_RECORD,
   NO_WORKROOM,
   type RecordOf,
   type RecordRead,
@@ -33,7 +34,7 @@ export type Records = Pick<ActionContext, "records" | "keys" | "record">
 // アクションが読んだ、種類 subject の id のレコード（reads が id で答えた物か、宛先のレコードが指す先。無ければ undefined）
 export function recordIn(ctx: Records, subject: string, id: string): unknown | undefined {
   const read = ctx.records?.[subject]?.[id] ?? ctx.record?.(subject, id)
-  return read === "none" ? undefined : read
+  return read === NO_RECORD ? undefined : read
 }
 
 export const workroomOf = (ctx: Records, id: string) =>

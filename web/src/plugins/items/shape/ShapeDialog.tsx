@@ -5,7 +5,7 @@
 // 追加は決めた項目の値を、開いた側が渡した置き方（ShapeAddArgs の place）に渡す（置く・選ぶ・断りの文は開いた側が持つ）。編集は形の項目を書き換える（アクション item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { type ItemProps, type MessageKey, NO_ITEM, NO_PAGE, type ShapeAddArgs } from "../../../plugin-api"
+import { type ItemProps, type MessageKey, NO_ITEM, NO_OUTERMOST, NO_PAGE, type ShapeAddArgs } from "../../../plugin-api"
 import {
   type DialogProps,
   useActions,
@@ -59,7 +59,7 @@ export function addShapeDialog(item: string, turnable = false) {
         submit={kit.message("Add")}
         start={turnable ? { ...EMPTY, turned } : EMPTY}
         pageTheme={pageTheme}
-        ready={outermost !== undefined}
+        ready={outermost !== NO_OUTERMOST}
         onSubmit={add}
         onClose={onClose}
       />
@@ -79,10 +79,11 @@ export function EditShapeDialog({ args, onClose }: DialogProps<{ page: string; i
   const { previewDialog } = useActions()
   const perform = usePerform()
   const preview = useCallback(
-    (look: Look | null) => previewDialog(look && outermost ? { outermost, item: args.item, props: look } : null),
+    (look: Look | null) =>
+      previewDialog(look && outermost !== NO_OUTERMOST ? { outermost, item: args.item, props: look } : null),
     [outermost, args.item, previewDialog],
   )
-  if (!outermost || !start) return null
+  if (outermost === NO_OUTERMOST || !start) return null
   const update = (props: ShapeProps) => {
     // 色の「なし」に戻したら、形の色の項目を消す
     const done = perform(
@@ -123,7 +124,7 @@ function ShapeDialog({
   title: MessageKey
   submit: MessageKey
   start: ShapeProps
-  pageTheme: string | undefined // ページのテーマの id（色の見本に使う）
+  pageTheme: string // ページのテーマの id（色の見本に使う）
   ready: boolean
   onSubmit: (props: ShapeProps) => MessageKey | null // 断られたわけの文言（決められたら null）
   onPreview?: (look: Look | null) => void // 寄せ・色を選んだ（元の値に戻せば null。無ければ見せない）

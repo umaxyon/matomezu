@@ -67,17 +67,17 @@ export function canPaperBinder(catalog: CoreCatalog, book: StageLineup, binder: 
 }
 
 // アクションのあとのページ page を、増やす向きに合わせて整えたもの: 左・上へ増やすなら空きの印刷区画を持たせ、アクションの前のページ before では
-// 増やしていたが増やさなくなった向きは空きを詰める（中身を印刷区画の単位でずらし、ページの shift に足す。作ったページなら before は undefined）。
+// 増やしていたが増やさなくなった向きは空きを詰める（中身を印刷区画の単位でずらし、ページの shift に足す。作ったページなら before は NO_PAGE）。
 // 紙・向き・可変ページかを変えたか、中身をずらしたページの形が、増やさない向きで紙からはみ出すなら null（ノーマライズステップ variable-pages.ts と、ページの設定のダイアログが使う）
 export function normalizedPage<P extends ItemPage>(
   catalog: CoreCatalog,
-  before: ItemPage | undefined,
+  before: ItemPage | typeof NO_PAGE,
   page: P,
 ): P | null {
-  const was = before ? growOf(catalog, before) : NO_GROW
+  const was = before !== NO_PAGE ? growOf(catalog, before) : NO_GROW
   const padded = paddedFor(catalog, page, growOf(catalog, page), was)
   const papered =
-    before !== undefined &&
+    before !== NO_PAGE &&
     (before.paper !== page.paper || before.orientation !== page.orientation || before.grows !== page.grows)
   if (padded === page && !papered) return page
   return shapesFit(catalog, padded) ? padded : null

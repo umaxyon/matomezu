@@ -2,7 +2,15 @@
 // 入口を開けなかった理由の 1 行。そのうえ WSL で動いているときは、ほかのマシンから届かせる設定の案内の 1 行と、開くと出る手引き
 import { useEffect, useState } from "react"
 import { type UserSettingControlProps, useMessages, useSettings } from "../../plugin-api/ui"
-import { ActionButton, SettingRow, TextSettingControl, UserSettings, useCopyText, useHostStatus } from "../base/ui"
+import {
+  ActionButton,
+  NO_HOST_STATUS,
+  SettingRow,
+  TextSettingControl,
+  UserSettings,
+  useCopyText,
+  useHostStatus,
+} from "../base/ui"
 import { kit } from "./kit"
 import styles from "./NetworkCategory.module.css"
 import { CONNECT_HOSTS, HOST_NAME } from "./settings"
@@ -22,13 +30,15 @@ export const shownHostKey = (hostId: string): string =>
 
 export function NetworkCategory() {
   const t = useMessages(kit)
-  const status = useHostStatus()
+  const got = useHostStatus()
   const { values } = useSettings()
   const on = values[CONNECT_HOSTS.id] === true
+  if (!on || got === NO_HOST_STATUS) return <UserSettings settings={[HOST_NAME.id, CONNECT_HOSTS.id]} />
+  const status = got
   return (
     <>
       <UserSettings settings={[HOST_NAME.id, CONNECT_HOSTS.id]} />
-      {on && status?.open && (
+      {status.open && (
         <div className={styles.rows}>
           <SettingRow label={t("Listening at")}>
             <span className={styles.addrs}>
@@ -42,13 +52,11 @@ export function NetworkCategory() {
           </SettingRow>
         </div>
       )}
-      {on && status?.failed === "port-in-use" && (
+      {status.failed === "port-in-use" && (
         <p className={styles.note}>{t("Port {port} is used by another program", { port: status.port ?? "" })}</p>
       )}
-      {on && status?.failed === "listen" && (
-        <p className={styles.note}>{t("Could not open the entrance for other hosts")}</p>
-      )}
-      {on && status?.wsl && status.port !== undefined && <WslGuide port={status.port} />}
+      {status.failed === "listen" && <p className={styles.note}>{t("Could not open the entrance for other hosts")}</p>}
+      {status.wsl && status.port !== undefined && <WslGuide port={status.port} />}
     </>
   )
 }
@@ -109,5 +117,5 @@ function WslGuide({ port }: { port: number }) {
 // ホスト名の項目のビュー: 空なら OS のホスト名を薄く出す
 export function HostNameSetting(props: UserSettingControlProps<string>) {
   const status = useHostStatus()
-  return <TextSettingControl {...props} placeholder={status?.osHostName} />
+  return <TextSettingControl {...props} placeholder={status !== NO_HOST_STATUS ? status.osHostName : undefined} />
 }

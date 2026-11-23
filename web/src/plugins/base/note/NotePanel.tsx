@@ -16,7 +16,12 @@ import { usePluginState, useResetPluginState, useSetPluginState } from "../../..
 import { useAllowed, usePage, useUserSetting } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
-import { useCloseRightSidePanel, useRightSidePanel, useSetRightSidePanelCurrent } from "../right-side-panel/hooks"
+import {
+  NO_RIGHT_SIDE_PANEL,
+  useCloseRightSidePanel,
+  useRightSidePanel,
+  useSetRightSidePanelCurrent,
+} from "../right-side-panel/hooks"
 import type { RightSidePanelOpen } from "../right-side-panel/state"
 import { clampChars } from "../text/text"
 import { useAnnotationsOf, usePerformOrToast } from "../utils/annotation-hooks"
@@ -45,12 +50,12 @@ export function NotePanel() {
   const open = useRightSidePanel()
   const notes = useAnnotationsOf(NOTE.id)
   const close = useCloseRightSidePanel()
-  const note = open ? notes.find(n => n.id === open.subject) : undefined
-  const gone = !!open && open.subject !== NEW_NOTE && !note
+  const note = open !== NO_RIGHT_SIDE_PANEL ? notes.find(n => n.id === open.subject) : undefined
+  const gone = open !== NO_RIGHT_SIDE_PANEL && open.subject !== NEW_NOTE && !note
   useEffect(() => {
     if (gone) close()
   }, [gone, close])
-  if (!open || (open.subject !== NEW_NOTE && !note)) return null
+  if (open === NO_RIGHT_SIDE_PANEL || (open.subject !== NEW_NOTE && !note)) return null
   return (
     <div className={styles.panel}>
       <Badges open={open} />

@@ -24,7 +24,12 @@ import { useStage, useStagePan } from "../../../ui/view-hooks"
 import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 import { paperSize } from "../place/grow"
-import { useOpenRightSidePanelAt, useRightSidePanelAt, useSidePanelSliding } from "../right-side-panel/hooks"
+import {
+  NO_RIGHT_SIDE_PANEL,
+  useOpenRightSidePanelAt,
+  useRightSidePanelAt,
+  useSidePanelSliding,
+} from "../right-side-panel/hooks"
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
 import { entrySheets, hasCrossing } from "./entry-sheets"
@@ -153,7 +158,7 @@ function PrintPreviewBody({ id }: { id: string }) {
   const ready = !!layout && !pending && layout.sheets.length > 0
   const setPrintReady = useSetPrintReady()
   useEffect(() => setPrintReady(ready), [ready, setPrintReady])
-  const shown = panel?.widget === PRINT_PREVIEW_PANEL_ID
+  const shown = panel !== NO_RIGHT_SIDE_PANEL && panel.widget === PRINT_PREVIEW_PANEL_ID
   // 初めは、並べる向きと交わる辺を表示領域に合わせる（幅に合わせる。print-preview-fit）。右サイドパネルが出て表示領域が狭まり終えてから合わせ、
   // そのあと表示領域の大きさが変わっても、倍率を変えていなければ合わせ直す
   const fit = useCommand(PRINT_PREVIEW_FIT.id)

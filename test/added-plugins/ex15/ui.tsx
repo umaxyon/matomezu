@@ -2,6 +2,7 @@
 import {
   definePluginUi,
   defineWidget,
+  NO_FOLDER,
   useFolderEntries,
   useMessages,
   usePluginState,
@@ -18,8 +19,9 @@ function ShelfScreenView() {
   const resetFolded = useResetPluginState(kit, SHELF_FOLDED)
   const folder = usePluginState(kit, SHELF_FOLDER)
   const setFolder = useSetPluginState(kit, SHELF_FOLDER)
-  // 読む: このフォルダの直下のエントリ（並びの順。フォルダが無ければ undefined）
-  const entries = useFolderEntries(folder) ?? []
+  // 読む: このフォルダの直下のエントリ（並びの順。フォルダが無ければ NO_FOLDER）
+  const found = useFolderEntries(folder)
+  const entries = found === NO_FOLDER ? [] : found
   return (
     <section>
       <h1>{t("shelf")}</h1>

@@ -1,6 +1,6 @@
 // アクションの結果を整え、形と決まりと認可ステップの守らせること（keeps）を確かめる（ページ・ブック・書庫・レコード）
 
-import { distinctBooks, findPage, foundPage, holds, pageSettles, pagesOf, putPage } from "./book"
+import { distinctBooks, findPage, foundPage, holds, NO_PAGE, pageSettles, pagesOf, putPage } from "./book"
 import { changesOf, type LibraryPageRows, pageChangeOf } from "./changes"
 import type { CoreCatalog } from "./core-catalog"
 import type { ActionContext, ActionDef } from "./def/action"
@@ -30,7 +30,7 @@ export function normalizedPage(
   let next: ItemPage | null = after
   for (const step of catalog.normalizeSteps) {
     if (!step.restoring?.includes(action.id) && step.pageFields.some(f => changed.has(f))) return null
-    next = next && step.normalize(before, next, catalog)
+    next = next && step.normalize(before ?? NO_PAGE, next, catalog)
   }
   return next
 }

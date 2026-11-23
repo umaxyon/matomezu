@@ -18,7 +18,7 @@ import { Confirm } from "../dialog-host/Confirm"
 import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, PAGE_LOCK, PAGE_UNLOCK } from "../lock"
 import { LockToggle } from "../lock/LockToggle"
-import { useCloseRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
+import { NO_RIGHT_SIDE_PANEL, useCloseRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
 import { ZoomBar, ZoomButton } from "../zoom/ZoomBar"
 import { fitSide, PRINT, PRINT_PREVIEW_BOOK_NAME, PRINT_PREVIEW_FIT, PRINT_PREVIEW_UPDATE } from "."
 import { entryCrossings } from "./entry-sheets"
@@ -37,7 +37,7 @@ export function PrintPreviewPanel() {
   const open = useRightSidePanel()
   const close = useCloseRightSidePanel()
   const previewing = useStageHere(st => !!st && isPreviewing(st))
-  const mine = open?.widget === PRINT_PREVIEW_PANEL_ID
+  const mine = open !== NO_RIGHT_SIDE_PANEL && open.widget === PRINT_PREVIEW_PANEL_ID
   useEffect(() => {
     if (mine && !previewing) close()
   }, [mine, previewing, close])

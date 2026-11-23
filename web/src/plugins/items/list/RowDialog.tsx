@@ -4,8 +4,7 @@
 // 編集だけに「行を削除」があり、押すと確かめずに行を消して閉じる（row-remove）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import type { MessageKey } from "../../../plugin-api"
-import { NO_ITEM } from "../../../plugin-api"
+import { type MessageKey, NO_ITEM, NO_OUTERMOST } from "../../../plugin-api"
 import { type DialogProps, useActions, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import {
   ActionButton,
@@ -29,7 +28,7 @@ export function AddRowDialog({ args, onClose }: DialogProps<{ page: string; list
   const outermost = useOutermostOf()
   const perform = usePerform()
   const add = (props: Text) => {
-    if (!outermost) return
+    if (outermost === NO_OUTERMOST) return
     if (perform(ROW_ADD.id, { list: args.list, props }, { page: args.page }).ok) onClose()
   }
   return (
@@ -37,7 +36,7 @@ export function AddRowDialog({ args, onClose }: DialogProps<{ page: string; list
       title={kit.message("Add row")}
       submit={kit.message("Add")}
       start={EMPTY}
-      ready={outermost !== undefined}
+      ready={outermost !== NO_OUTERMOST}
       onSubmit={add}
       onClose={onClose}
     />
@@ -55,7 +54,7 @@ export function EditRowDialog({ args, onClose }: DialogProps<{ page: string; lis
   const preview = useCallback(
     (text: Text | null) =>
       previewDialog(
-        text && outermost && rows
+        text && outermost !== NO_OUTERMOST && rows
           ? {
               outermost,
               item: args.list,
@@ -68,7 +67,7 @@ export function EditRowDialog({ args, onClose }: DialogProps<{ page: string; lis
       ),
     [outermost, rows, args.list, args.row, previewDialog],
   )
-  if (!outermost || !start) return null
+  if (outermost === NO_OUTERMOST || !start) return null
   const update = (props: Text) => {
     if (perform(ROW_UPDATE.id, { list: args.list, row: args.row, props }, { page: args.page }).ok) onClose()
   }

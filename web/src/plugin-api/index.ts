@@ -98,6 +98,8 @@ export { enumValuesOf } from "../core/enum"
 export type { BackyardEntry, BinderFolder, BookFolder, EntryRef, Folder, WorkKey } from "../core/folders"
 // 書庫ホームとゴミ箱の id（どのマシンでも同じ）
 export { HOME_ID, TRASH_ID } from "../core/folders"
+// ステージエントリが無いときの値（useOutermostOf）
+export { NO_OUTERMOST } from "../core/folders-tree"
 export type { Point, Rect, Size } from "../core/geom"
 export { translate } from "../core/i18n/i18n"
 export { defineMessages } from "../core/i18n/messages"
@@ -116,6 +118,8 @@ export {
   slideOf,
   walkShapes,
 } from "../core/placed"
+// レコードが無いときの値（useRecord・アクションの文脈の record）
+export { NO_RECORD } from "../core/records"
 export type { Book, StageLineup } from "../core/schema/book"
 export {
   areaOf,

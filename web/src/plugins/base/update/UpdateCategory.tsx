@@ -10,7 +10,7 @@ import { SettingRow } from "../settings/SettingRow"
 import { UserSettings } from "../settings/UserSettings"
 import { shownTime } from "../utils/shown-time"
 import { useCopyText, useMatomezuCommand } from "../window-io/hooks"
-import { useAskUpdate, useCheckUpdate, useUpdateStatus } from "./hooks"
+import { NO_UPDATE_STATUS, useAskUpdate, useCheckUpdate, useUpdateStatus } from "./hooks"
 import { UPDATE_CHECK } from "./setting"
 import styles from "./UpdateCategory.module.css"
 
@@ -39,7 +39,7 @@ export function UpdateCategory() {
     const timer = setTimeout(() => setCopied("none"), COPIED_MS)
     return () => clearTimeout(timer)
   }, [copied])
-  if (!status) return null
+  if (status === NO_UPDATE_STATUS) return null
   const dev = status.state === "dev"
   const latest =
     status.state === "newer"

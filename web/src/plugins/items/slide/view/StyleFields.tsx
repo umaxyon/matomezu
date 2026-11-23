@@ -1,6 +1,7 @@
 // バーに並ぶ、選んだアイテムの見た目の入力Form: 文字枠=文字色、線=色・太さ・点線（直線だけ矢印）、楕円・長方形=塗り・枠の色・枠の太さ。
 // アイテムの種類に合う物だけを出し、変えるのはコマンド slide-set（行えなければ押せない）。色は「なし」（塗りは塗らない。枠の色は枠なし）か、テーマの代表色か、好きな色
 import { useRef, useState } from "react"
+import { NO_OUTERMOST } from "../../../../plugin-api"
 import { useActions, useCommand, useMessages } from "../../../../plugin-api/ui"
 import { ColorPicker, useOutermostOf, usePageTheme, useSwatches } from "../../../base/ui"
 import { SLIDE_SET } from "../commands"
@@ -60,7 +61,7 @@ export function StyleFields({ subjects }: { subjects: readonly StyleSubject[] })
   const swatches = useSwatches(usePageTheme(), SLIDE_INK)
   if (!subject) return null
   const change = (props: Record<string, unknown>, continues = false) => {
-    if (continues && outermost) continueStep(outermost) // 入力の途中の変更は、最初の変更の元に戻す 1 段に続ける
+    if (continues && outermost !== NO_OUTERMOST) continueStep(outermost) // 入力の途中の変更は、最初の変更の元に戻す 1 段に続ける
     set.run({ items: subjects.map(s => s.id), props })
   }
   const str = (key: string) => (typeof subject.props[key] === "string" ? (subject.props[key] as string) : undefined)

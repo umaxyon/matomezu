@@ -5,7 +5,7 @@
 // キャプションで間隔が広がって押した形が紙に収まらなければ、閉じずに理由を出す
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { findShape, type MessageKey, NO_ITEM, NO_PAGE } from "../../../plugin-api"
+import { findShape, type MessageKey, NO_ITEM, NO_OUTERMOST, NO_PAGE } from "../../../plugin-api"
 import {
   type DialogProps,
   useActions,
@@ -88,7 +88,8 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
     startHead !== (line?.props.startHead ?? "") ||
     endHead !== (line?.props.endHead ?? "")
   const preview = useCallback(
-    (look: Look | null) => previewDialog(look && outermost ? { outermost, item: args.item, props: look } : null),
+    (look: Look | null) =>
+      previewDialog(look && outermost !== NO_OUTERMOST ? { outermost, item: args.item, props: look } : null),
     [outermost, args.item, previewDialog],
   )
   useEffect(() => {
@@ -103,7 +104,7 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
         : null,
     )
   }, [changed, route, dash, startHead, endHead, preview])
-  if (!outermost || !page || !line) return null
+  if (outermost === NO_OUTERMOST || !page || !line) return null
   const self = line.from === line.to
   // キャプションの候補: ページのタイプが、始点のアイテムに決めたもの
   const from = findShape(page, line.from)

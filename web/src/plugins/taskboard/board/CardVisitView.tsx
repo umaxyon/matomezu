@@ -4,7 +4,7 @@
 // 置き場が変わったら（measure の 1 か所）鳥をすぐ消して終える。チケットカードが見つからない・止まらないときも黙って終える
 
 import { useEffect, useRef, useState } from "react"
-import { NO_STATE } from "../../../plugin-api"
+import { NO_RECORD, NO_STATE } from "../../../plugin-api"
 import {
   usePluginState,
   useRecord,
@@ -109,7 +109,7 @@ function Visiting({ visit, root }: { visit: CardVisit; root: HTMLElement | null 
   latest.current = { settings, projects, ticket }
   const seq = visit.seq
   const phase = visit.phase
-  const ready = ticket !== undefined && room !== undefined
+  const ready = ticket !== NO_RECORD && room !== NO_RECORD
 
   // 見に行く: タスクボードを出し、止まるのを待ち、スクロールして、また止まるのを待つ
   // biome-ignore lint/correctness/useExhaustiveDependencies: 続けて押した（seq が変わった）ときと、見に行く途中に入ったときだけやり直す
@@ -120,16 +120,17 @@ function Visiting({ visit, root }: { visit: CardVisit; root: HTMLElement | null 
     const give = () => resetVisit()
     void (async () => {
       const now = latest.current
-      if (!now.ticket || !ready) return give()
+      const ticket = now.ticket
+      if (ticket === NO_RECORD || !ready) return give()
       const ordered = orderedProjects(now.projects, now.settings.order)
       const shownIds = shownProjects(ordered, now.settings.shown).map(p => p.id)
-      if (!shownIds.includes(now.ticket.project)) {
+      if (!shownIds.includes(ticket.project)) {
         if (!now.settings.canChange) return give()
-        now.settings.setShown(withProject(shownIds, now.ticket.project))
+        now.settings.setShown(withProject(shownIds, ticket.project))
       }
       // タスクボードが入り終えて落ち着いた（idle で、動き（遅れて始まる動きも）が残っていない）ときだけ、チケットカードとして見つける
       const find = () => {
-        const card = root.querySelector(`[data-card="${now.ticket?.id}"]`)
+        const card = root.querySelector(`[data-card="${ticket.id}"]`)
         const board = card?.closest("[data-board]")
         const moving = board?.getAnimations({ subtree: true }).length !== 0
         return board?.getAttribute("data-state") === "idle" && !moving ? card : null
@@ -162,7 +163,7 @@ function Visiting({ visit, root }: { visit: CardVisit; root: HTMLElement | null 
     return () => cancelAnimationFrame(frameId)
   }, [phase, box, resetVisit])
 
-  if (phase !== "visiting" || !box || !root || !room) return null
+  if (phase !== "visiting" || !box || !root || room === NO_RECORD) return null
   const at = {
     left: box.at.left - rectOf(root).left + root.scrollLeft,
     top: box.at.top - rectOf(root).top + root.scrollTop,

@@ -9,6 +9,7 @@
 
 import { type ReactNode, useEffect, useId, useState } from "react"
 import { withSettings } from "../../../core/book"
+import { NO_OUTERMOST } from "../../../core/folders-tree"
 import type { Page } from "../../../core/schema/book"
 import { NO_PAGE } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
@@ -69,7 +70,9 @@ export function PageSettingsDialogView({ page: id, onClose, children, fields, dr
   const pageId = page?.id
   const changed = Object.keys(settings.patch).length > 0
   useEffect(() => {
-    previewDialog(changed && outermost && pageId ? { outermost, page: pageId, props: settings.patch } : null)
+    previewDialog(
+      changed && outermost !== NO_OUTERMOST && pageId ? { outermost, page: pageId, props: settings.patch } : null,
+    )
   }, [changed, outermost, pageId, settings.patch, previewDialog])
   if (!page) return null
   // 選んでいる値（紙・設定の項目の下書き・タイプが書いている値）を重ねたページで、ページの問題を確かめる

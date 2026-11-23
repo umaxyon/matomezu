@@ -85,12 +85,15 @@ export interface FolderEntry {
   name: string
 }
 
-// フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下のエントリ（並びの順。フォルダの中を問うので、作業机は出さない）。フォルダが無ければ undefined
-export function useFolderEntries(folder: string): readonly FolderEntry[] | undefined {
+// フォルダが無いときの値（useFolderEntries）
+export const NO_FOLDER = "none"
+
+// フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下のエントリ（並びの順。フォルダの中を問うので、作業机は出さない）。フォルダが無ければ NO_FOLDER
+export function useFolderEntries(folder: string): readonly FolderEntry[] | typeof NO_FOLDER {
   const entries = useLibraryRows(folder, (s, naming) =>
     rowsIn(s, folder, naming, NO_DESKS).map((r): FolderEntry => ({ id: r.id, kind: r.kind, name: r.title })),
   )
-  return useMatomezuState(s => s.folders[folder] !== undefined) ? entries : undefined
+  return useMatomezuState(s => s.folders[folder] !== undefined) ? entries : NO_FOLDER
 }
 
 // 行の名前: 書庫ホームとゴミ箱と読めない物のフォルダは画面の言葉、ブックごと読めないブックは読めない訳に残った名前、名前の無い物は id を添える

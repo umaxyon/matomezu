@@ -4,6 +4,7 @@
 import { type CSSProperties, useMemo } from "react"
 import { PALETTE } from "../../../core/color"
 import type { ThemeDef, TokenDef } from "../../../core/def/theme"
+import { NO_OUTERMOST } from "../../../core/folders-tree"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import { splitId } from "../../../core/names"
 import { NO_PAGE } from "../../../core/stage"
@@ -40,10 +41,10 @@ export function useAligns() {
   return ALIGNS.map(a => ({ value: a.value, label: t(a.label), icon: ALIGN_ICONS[a.value] }))
 }
 
-// 描くページのステージエントリの id（描いている場所。ui/scope.tsx）
-export function useOutermostOf(): string | undefined {
+// 描くページのステージエントリの id（描いている場所。ui/scope.tsx。描く所がステージエントリを開いていなければ NO_OUTERMOST）
+export function useOutermostOf(): string {
   const scope = useScope()
-  return useMatomezuState(s => openedOf(s, scope)?.outermost)
+  return useMatomezuState(s => openedOf(s, scope)?.outermost ?? NO_OUTERMOST)
 }
 
 // 描いているページのタイプが、ページと中の形に使えるテーマ（book-look/theme-types.ts。ページを描いていなければ空）
@@ -54,14 +55,17 @@ export function usePageThemes(): ThemeDef[] {
   return useMemo(() => (type === undefined ? [] : themesFor(catalog, type)), [catalog, type])
 }
 
-// 描いているページのテーマの id（設定のダイアログの下書きを重ねたページで決める。ページを描いていなければ undefined）
-export function usePageTheme(): string | undefined {
+// テーマが無いときの値（ページを描いていない）
+export const NO_THEME = "none"
+
+// 描いているページのテーマの id（設定のダイアログの下書きを重ねたページで決める。ページを描いていなければ NO_THEME）
+export function usePageTheme(): string {
   const catalog = useCatalog().core
   const page = useShownPage()
-  return useMemo(() => (page === NO_PAGE ? undefined : pageTheme(catalog, page)), [catalog, page])
+  return useMemo(() => (page === NO_PAGE ? NO_THEME : pageTheme(catalog, page)), [catalog, page])
 }
 
-// 色の見本: テーマ looks の代表色と、「なし」の色（形の塗りのテーマキー fill の値）。表に無いテーマなら null
+// 色の見本: テーマ looks の代表色と、「なし」の色（形の塗りのテーマキー fill の値）。表に無いテーマ（NO_THEME も）なら null
 export function useSwatches(looks: string | undefined, fill: TokenDef) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
@@ -80,14 +84,17 @@ export function useSwatches(looks: string | undefined, fill: TokenDef) {
   }, [catalog, looks, fill, t, dark])
 }
 
+// 当てるテーマの CSS 変数が無いときの値（空の style）
+const NO_VARS: CSSProperties = {}
+
 // 描くページの中の形に当てたテーマ theme の、テーマキー defs の値の CSS 変数
-// （当てていないか、ページのタイプが使えないテーマなら undefined。ページのテーマのまま描く。book-look/theme-types.ts）
-export function useThemeVars(theme: string | undefined, defs: readonly TokenDef[]): CSSProperties | undefined {
+// （当てていないか、ページのタイプが使えないテーマなら空。ページのテーマのまま描く。book-look/theme-types.ts）
+export function useThemeVars(theme: string | undefined, defs: readonly TokenDef[]): CSSProperties {
   const catalog = useCatalog().core
   const scope = useScope()
   const type = useMatomezuState(s => pageTypeOf(s, scope))
   return useMemo(() => {
-    if (!theme || type === undefined || !themeFits(catalog, type, theme)) return undefined
+    if (!theme || type === undefined || !themeFits(catalog, type, theme)) return NO_VARS
     const owners = new Set(defs.map(d => splitId(d.id).owner))
     const [owner] = owners // テーマキーの持ち主（アイテムのプラグイン）は 1 つ
     return themeVars(resolveTokens(catalog, theme, defs), owners.size === 1 && owner ? owner : undefined)

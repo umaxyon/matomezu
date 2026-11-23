@@ -193,7 +193,9 @@ export interface StandAway {
   // 見せたあと、スタンドに戻るか（stand）、真ん中へ動かしても StandAt の minRoom の余地が無く、縁に寄せたままか（pointer。物が範囲より広いとき）
   afterShow: "stand" | "pointer"
 }
-const AwayContext = createContext<StandAway | null>(null)
+// アンカーの上の辺が見える所の外に出ていない（か、edgePinned のスタンドの中でない）ときの値（useStandAway）
+export const NOT_AWAY = "none"
+const AwayContext = createContext<StandAway | typeof NOT_AWAY>(NOT_AWAY)
 
 // スタンドを置いた所から見たアンカーの四角（スタンドの左上から）と、スタンドの大きさと、side のいつもの立ち位置から置ける範囲の端までの余地 room（roomBeside）。
 // 中の物が、アンカーの方を指したり（吹き出しの尾など）、幅を合わせたりするのに使う（測り終えるまで null）
@@ -209,8 +211,8 @@ export const useStandFacing = (): StandFacing | null => useContext(FacingContext
 const ShapeContext = createContext<readonly Point[] | null>(null)
 export const useStandShape = (): readonly Point[] | null => useContext(ShapeContext)
 
-// スタンドの中で、アンカーの上の辺が見える所の外に出ていれば StandAway（edgePinned でないか、外に出ていなければ null）
-export const useStandAway = (): StandAway | null => useContext(AwayContext)
+// スタンドの中で、アンカーの上の辺が見える所の外に出ていれば StandAway（edgePinned でないか、外に出ていなければ NOT_AWAY）
+export const useStandAway = (): StandAway | typeof NOT_AWAY => useContext(AwayContext)
 
 // アンカー anchor（いくつも指せば、まとめた範囲）の side に立つスタンド。アンカーが描かれていなければ出さない。
 // span なら、幅をアンカーの幅（画面の上の幅）にそろえる。edgePinned なら、アンカーの上の辺が見える所の外に出たとき、範囲の中へ寄せずに付いて行く。
@@ -278,7 +280,7 @@ export function StandAt({
         room,
       }
     : null
-  const away: StandAway | null = out
+  const away: StandAway | typeof NOT_AWAY = out
     ? {
         pin: (p, pad = STAND_MARGIN) => {
           const inStand = { x: at.x + p.x, y: at.y + p.y }
@@ -290,7 +292,7 @@ export function StandAt({
         },
         afterShow: roomBeside(centered, area, side) < minRoom ? "pointer" : "stand",
       }
-    : null
+    : NOT_AWAY
   return createPortal(
     // biome-ignore lint/a11y/useSemanticElements: スタンドは中身を束ねる箱で、入力Formのまとまり（fieldset）ではない
     <div

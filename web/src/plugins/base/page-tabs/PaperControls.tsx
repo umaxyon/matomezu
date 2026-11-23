@@ -3,6 +3,7 @@
 // 可変ページかは、タイプが増やす向きの決め方を持つときだけ出す（利用者が向きを選ぶタイプなら、可変ページにすると増やす向きも選べる）。ページの設定では、変えた項目だけをアクション page-update に渡し、形が紙に入らなければ問題にする
 
 import { useState } from "react"
+import { NO_PAGE } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import type { GrowChoice, Orientation } from "../../../core/def/paper"
 import type { Page, StageLineup } from "../../../core/schema/book"
@@ -67,7 +68,7 @@ function usePaperForm(
     withGrows({ ...p, paper: value.paper, orientation: value.orientation }, value.grows)
   const settle = (p: Page): Page | null => {
     const next = chosenPage(p)
-    return normalizedPage(catalog, page ?? undefined, next)
+    return normalizedPage(catalog, page ?? NO_PAGE, next)
   }
   const draft = (p: Page): Page => settle(p) ?? chosenPage(p)
   const fits = !page || Object.keys(patch).length === 0 || settle(page) !== null
