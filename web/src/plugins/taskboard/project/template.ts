@@ -9,7 +9,9 @@ import {
   type CardSize,
   DONE_LANE_CARD_SIZE,
   INHERIT_CARD_SIZE,
+  LANE_SHOWS_DEFAULT,
   type LANES,
+  type LaneShows,
   type TAGS,
 } from "./project"
 
@@ -33,6 +35,7 @@ export function templateOf(
   doneLane: string
   cardSize: CardSize
   cardShows: CardShows
+  laneShows: LaneShows
 } {
   const done = newId()
   return {
@@ -80,5 +83,6 @@ export function templateOf(
     doneLane: done,
     cardSize: "medium",
     cardShows: CARD_SHOWS_DEFAULT,
+    laneShows: LANE_SHOWS_DEFAULT,
   }
 }

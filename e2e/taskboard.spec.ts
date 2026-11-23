@@ -40,6 +40,10 @@ test("一覧でタスクボードを出し入れし、レーンにチケット�
   await expect(board).toBeVisible()
   const card = board.locator("[data-card]", { hasText: "最初のチケットカード" })
   await expect(card).toContainText("-0001")
+  // レーンのタイトル帯は、名前の右に「/ 数」でチケットカードの数を出す
+  const laneCards = board.locator(`[data-lane="${lane}"]`)
+  const count = await laneCards.locator("[data-card]").count()
+  await expect(laneCards.locator("[data-lane-count]")).toHaveText(` / ${count}`)
 
   // 一覧は最初は閉じていて、見出しで開く。チェックを外すとタスクボードが消え、入れるとまた出る
   const head = page.locator("button[aria-expanded]", { hasText: "プロジェクト" })

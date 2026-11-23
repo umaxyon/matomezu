@@ -45,6 +45,7 @@ type Engine struct {
 	end          func() string
 	alive        func(string, string, float64) bool
 	updateCheck  func(string) bool
+	hostSettings func(string) string
 	needs        func(string, string) string
 	roles        func() string
 	aiRecords    func(string, string, string, string) string
@@ -144,6 +145,7 @@ func New() (*Engine, error) {
 		{"matomezuEndActions", &e.end},
 		{"matomezuParticipantAlive", &e.alive},
 		{"matomezuUpdateCheck", &e.updateCheck},
+		{"matomezuHostSettings", &e.hostSettings},
 		{"matomezuCheckRecords", &e.records},
 		{"matomezuRunOnceActions", &e.once},
 		{"matomezuSystemFolderTitles", &e.sysFolders},

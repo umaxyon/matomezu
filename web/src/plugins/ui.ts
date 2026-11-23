@@ -10,6 +10,7 @@ import { LIST_UI } from "./items/list/ui"
 import { SCRAP_BOX_UI } from "./items/scrap/ui"
 import { SHAPE_UI } from "./items/shape/ui"
 import { SLIDE_UI } from "./items/slide/ui"
+import { NETWORK_UI } from "./network/ui"
 import { DIR_UI } from "./page-types/dir/ui"
 import { DRAWING_UI } from "./page-types/drawing/ui"
 import { FLOWCHART_UI } from "./page-types/flowchart/ui"
@@ -38,6 +39,7 @@ export const BUILTIN_UI = [
   MARKDOWN_UI,
   SLIDE_PAGE_UI,
   TASKBOARD_UI,
+  NETWORK_UI,
 ] as const
 
 // 既定の UI マッピング。インスタンスは MatomezuProvider にこれか、これを写して直したものを渡す
@@ -113,6 +115,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/markdown:settings",
       "@matomezu/base:settings-keys",
       "@matomezu/base:settings-plugins",
+      "@matomezu/network:settings",
       "@matomezu/base:settings-update",
     ],
     "@matomezu/base:mail-actions": ["@matomezu/base:proposal-actions"],

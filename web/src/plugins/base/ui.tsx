@@ -207,6 +207,7 @@ import type { PrintSheetProps } from "./print-preview/ui"
 
 // ページの設定の項目とステージエントリが持つ設定の項目のコンポーネントの並び（ページのタイプの設定のダイアログが使う）
 export { type SettingsPatch, useSettingControls } from "./book-settings/ui"
+export { useHostStatus } from "./host/ui"
 export type { RightSidePanelOpen } from "./right-side-panel/ui"
 export {
   RIGHT_SIDE_PANEL,
@@ -224,7 +225,14 @@ export {
   useSearchHits,
   useSearchPick,
 } from "./search/ui"
-export { defineSettingsCategory, SettingRow, UserSettings, useOpenSettings } from "./settings/ui"
+export {
+  defineSettingsCategory,
+  SettingRow,
+  TextSettingControl,
+  UserSettings,
+  useOpenSettings,
+  useUserName,
+} from "./settings/ui"
 export {
   BodyField,
   CaptionField,

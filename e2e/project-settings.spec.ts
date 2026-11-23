@@ -1,4 +1,4 @@
-// プロジェクト設定: ボードの歯車で開き、レーンの名前を直し、完了と作業中のスイッチ（同じレーンには片方だけ）を切り替え、未分類を表示すると、保存でボードに出る。名前が重なる間は保存できない。全般の「優先度を出す」「チケットボリュームを出す」を切ると、チケットカードに優先度・チケットボリュームが出ない
+// プロジェクト設定: ボードの歯車で開き、レーンの名前を直し、完了と作業中のスイッチ（同じレーンには片方だけ）を切り替え、未分類を表示すると、保存でボードに出る。「件数を表示する」を切ると、レーンのタイトル帯に数が出ない。名前が重なる間は保存できない。全般の「優先度を出す」「チケットボリュームを出す」を切ると、チケットカードに優先度・チケットボリュームが出ない
 import { CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
 import { storedRecords } from "./helpers/stored"
@@ -72,6 +72,16 @@ test("ボードの歯車でプロジェクト設定を開き、レーンを直�
   await expect(dialog).toHaveCount(0)
   await expect(board.getByText("見直し", { exact: true })).toBeVisible()
   await expect(board.getByText("未分類", { exact: true })).toBeVisible()
+  // 「件数を表示する」（入っている）を切ると、レーンのタイトル帯に数が出ない
+  await expect(board.locator("[data-lane-count]").first()).toBeVisible()
+  await board.getByRole("button", { name: "プロジェクト設定" }).click()
+  await dialog.getByRole("tab", { name: "レーン" }).click()
+  const countSwitch = dialog.getByRole("switch", { name: "件数を表示する" })
+  await expect(countSwitch).toBeChecked()
+  await countSwitch.click()
+  await dialog.getByRole("button", { name: "保存" }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(board.locator("[data-lane-count]")).toHaveCount(0)
 })
 
 test("プロジェクト設定でチケットサイズを変えると、ボードのチケットカードの大きさが変わる（レーンは継承か、自分のサイズ）", async ({

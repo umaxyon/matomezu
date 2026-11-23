@@ -54,6 +54,7 @@ export interface MatomezuState {
   // つなぎ直した常駐が、窓を開いたときと別の版か（ホストクライアントが知らせる。無ければ null）。データの形が違えば、アクションもキーも断る
   staleBuild: StaleBuild | null
   updateStatus: UpdateStatus | null // 新しい版の確かめの結果（常駐だけが持つ。ホストクライアントが知らせる。無ければ null）
+  hostStatus: HostStatus | null // ホストどうしの入口の様子（常駐だけが持つ。ホストクライアントが知らせる。無ければ null）
   lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐のレコードの知らせに添えられた値で入れる）
   // ステージエントリの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのステージエントリを変えたら、その全部に同じ画面の履歴の段が入る
   history: Readonly<Record<string, History>>
@@ -79,6 +80,20 @@ export interface UpdateStatus {
   latest?: string
   checkedAt?: string
   askedAt?: string
+}
+
+// ホストどうしの入口の様子: hostId はこのホストの id（鍵の指紋）、name はホスト名（設定か、無ければ OS のホスト名 osHostName）、
+// open は入口が開いているか（port と、待っている所の番地 addrs）、wsl は WSL で動いているか、failed は開こうとして開けなかったときの理由
+// （port-in-use は覚えたポート port がほかに使われていた、listen はそのほか。覚えたポートは取り直さない。足してもらったファイアウォールの規則や相手が覚えた番号を壊さないため）
+export interface HostStatus {
+  hostId: string
+  name: string
+  osHostName: string
+  open: boolean
+  port?: number
+  addrs?: readonly string[]
+  wsl?: boolean
+  failed?: "port-in-use" | "listen"
 }
 
 // 常駐の版とデータの形の番号（移し替えの数）
@@ -214,6 +229,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   setStaleBuild(stale: StaleBuild): void
   // 新しい版の確かめの結果（updateStatus）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setUpdateStatus(status: UpdateStatus): void
+  // ホストどうしの入口の様子（hostStatus）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
+  setHostStatus(status: HostStatus): void
   // 新しい版を今確かめるのをホストに頼む（結果はホストの知らせで入る）。base のフックを通して使う。ホストが無いか、頼めなければ投げる
   checkUpdate(): Promise<void>
   // ワークルーム workroom（id）の AI に、版を上げるよう頼むのをホストに頼む。そこに参加の確定した AI がいなければ false。base のフックを通して使う。ホストが無いか、頼めなければ投げる
@@ -297,6 +314,7 @@ export function initialState(
     offline: false,
     staleBuild: null,
     updateStatus: null,
+    hostStatus: null,
     lastWindow: false,
     history: {},
     pluginValues: NO_PLUGIN_STATES,

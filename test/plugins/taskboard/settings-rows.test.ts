@@ -83,7 +83,16 @@ test("行から作った引数でプロジェクトを直すと、残した行�
   const nextLanes: LaneRow[] = [...lanes.slice(0, 1), lane("new-2", "見直し"), lane("new-3", "  "), ...lanes.slice(-1)]
   const done = perform(
     "@matomezu/taskboard:project-update",
-    updateArgsOf(" 新しい名前 ", "AB-", nextLanes, tags, "none", "large", { priority: false, volume: true }),
+    updateArgsOf(
+      " 新しい名前 ",
+      "AB-",
+      nextLanes,
+      tags,
+      "none",
+      "large",
+      { priority: false, volume: true },
+      { count: false },
+    ),
     {
       record: p.id,
     },
@@ -93,6 +102,7 @@ test("行から作った引数でプロジェクトを直すと、残した行�
   expect(q.name).toBe("新しい名前")
   expect(q.cardSize).toBe("large")
   expect(q.cardShows).toEqual({ priority: false, volume: true })
+  expect(q.laneShows).toEqual({ count: false })
   expect(q.lanes.map(l => (l.kind === "lane" ? l.name : l.kind))).toEqual([
     first?.kind === "lane" ? first.name : "",
     "見直し",
