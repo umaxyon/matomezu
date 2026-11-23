@@ -401,6 +401,25 @@ test("落とした物を動かすコマンドは、行うアクションを引�
   expect(store.state.getState().toasts).toEqual([])
 })
 
+test("検索している間に、フォルダを開く・ツリーの矢印でフォルダの行へ移ると、検索をやめる。ブックを開くだけなら、検索はそのまま", () => {
+  const { store, center, folder, run, at, set } = setup()
+  const query = () => pluginValueOf(store.state.getState().pluginValues, center, LIBRARY_QUERY)
+  const a = folder("あ")
+  // ブックを開く: 検索はそのまま
+  set(LIBRARY_QUERY.id, center, "あ")
+  run("library-entry-open", { entry: "b3" })
+  expect(query()).toBe("あ")
+  // 検索の結果のフォルダを開く: 中へ入り、検索をやめる
+  run("library-entry-open", { entry: a })
+  expect(at()).toMatchObject({ folder: a, picked: undefined })
+  expect(query()).toBeUndefined()
+  // ツリーの矢印でフォルダの行へ移る: 検索をやめる
+  set(LIBRARY_QUERY.id, center, "あ")
+  run("library-tree-fold-or-parent")
+  expect(at().folder).toBe(HOME_ID)
+  expect(query()).toBeUndefined()
+})
+
 test("読めない物のフォルダを開く: 書庫を開き、検索していればやめ、選んでいる行も外して、右の枠に読めない物のフォルダを出す", () => {
   const { store, run, set } = setup()
   run("library-open")

@@ -714,6 +714,22 @@ test("書庫の検索は、名前に言葉を含む物を右の枠に並べる�
     "検索の試しの所",
     "検索の試しの帳面",
   ])
+  // 結果のフォルダを 2 回押すと、検索をやめて、右の枠にそのフォルダの中身を出す（入力Formも空になる）
+  await field.fill("検索の試し")
+  await page.keyboard.press("Enter")
+  await found.getByRole("button", { name: /^検索の試しの所/ }).dblclick()
+  await expect(found).toHaveCount(0)
+  await expect(field).toHaveValue("")
+  await expect(page.getByRole("list", { name: "検索の試しの所 の中身" }).getByRole("button")).toHaveText([
+    /検索の試しの帳面/,
+  ])
+  // 検索し直して、ツリーのフォルダの行を押しても、検索をやめてその中身を出す
+  await field.fill("検索の試し")
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("status")).toHaveText("「検索の試し」を含む名前: 2 件")
+  await tree.getByRole("button", { name: "書庫", exact: true }).click()
+  await expect(found).toHaveCount(0)
+  await expect(field).toHaveValue("")
   // 選んだ行の Enter で開く（2 回押すのと同じ）
   await field.fill("検索の試しの帳面")
   await page.keyboard.press("Enter")

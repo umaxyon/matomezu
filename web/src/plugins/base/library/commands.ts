@@ -54,7 +54,7 @@ import {
 import { PAGE_CREATE } from "./page-create"
 import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
 import { unreadableShownIn } from "./show-unreadable"
-import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
+import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_UNFOLDED } from "./state"
 import { createdIn, isDeskRow, realOf } from "./workdesk-rows"
 
 // 作る物を問うときの名前（名前は問いに渡らない。行う前は許可スコープから出した所で問い、run を呼ばない。作るブックは空のブックで問う。定義と機能台帳の「認可ステップ」）
@@ -375,7 +375,7 @@ export const LIBRARY_ENTRY_MOVE = kit.defineScreenCommand({
   when: () => true,
 })
 
-// ツリーの行 row へ移る（開くフォルダ・選ぶ行・中を出すフォルダは、ビューが行を押したときと同じに決める）
+// ツリーの行 row へ移る（開くフォルダ・選ぶ行・中を出すフォルダは、ビューが行を押したときと同じに決める）。フォルダの中へ入るなら、検索をやめる（右の枠にその中身を出す）
 function goTo(
   ctx: ScreenCommandContext,
   a: CommandActions,
@@ -387,6 +387,7 @@ function goTo(
   if (next.folder !== openedIn(ctx)) a.updatePluginState(LIBRARY_FOLDER, () => next.folder)
   a.updatePluginState(LIBRARY_PICKED, () => next.picked)
   if (next.unfolded !== now) a.updatePluginState(LIBRARY_UNFOLDED, () => next.unfolded)
+  if (row.holds && ctx.pluginState(LIBRARY_QUERY) !== undefined) a.updatePluginState(LIBRARY_QUERY, () => undefined)
 }
 
 // 呼ばれた場所の書庫の画面のツリー: 出ている行 rows と、今いる行の位置 i（出ていなければ -1）と、中を出しているフォルダ unfolded

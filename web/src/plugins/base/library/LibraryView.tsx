@@ -143,7 +143,6 @@ export function LibraryView({ className }: { className?: string } = {}) {
     setPicked(next.picked)
     if (next.unfolded !== unfolded) setUnfolded([...next.unfolded])
   }
-  const enter = (folder: string) => arrive({ id: folder, holder: folder, holds: true })
   // 検索: 入力Formに打っている途中の言葉 typed と、「検索」を押して探している言葉 query
   const query = usePluginState(kit, LIBRARY_QUERY)
   const treeWidth = usePluginState(kit, LIBRARY_TREE_WIDTH) ?? DEFAULT_TREE_WIDTH
@@ -151,12 +150,17 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const setQuery = useSetPluginState(kit, LIBRARY_QUERY)
   const [typed, setTyped] = useState(query ?? "")
   const searchForm = useId()
-  // 読めない物のフォルダを開く（ツリーの下の ⚠ の行）: 検索していればやめ、選んでいる行も外す
-  const openUnreadable = () => {
-    setQuery(undefined)
-    setTyped("")
-    enter(UNREADABLE_ID)
+  // 検索をやめたら（フォルダの中へ入った・コマンドがやめた）、入力Formも空にする
+  useEffect(() => {
+    if (query === undefined) setTyped("")
+  }, [query])
+  // フォルダの中へ入る（ツリーのフォルダの行・パンくず）: 検索していればやめ、右の枠にその中身を出す
+  const enter = (folder: string) => {
+    if (query !== undefined) setQuery(undefined)
+    arrive({ id: folder, holder: folder, holds: true })
   }
+  // 読めない物のフォルダを開く（ツリーの下の ⚠ の行）: 選んでいる行も外す
+  const openUnreadable = () => enter(UNREADABLE_ID)
   // 検索の結果を押した回数: 同じ行を押し直しても、ツリーをその行まで送り直す
   const [reveals, setReveals] = useState(0)
   const reveal = (row: FoundRow) => {
