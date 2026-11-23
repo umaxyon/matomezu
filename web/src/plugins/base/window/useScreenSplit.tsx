@@ -17,6 +17,7 @@ import {
   planAt,
   planClose,
   planExpand,
+  planLeaveAll,
   planOpen,
   SCREEN_FLASH,
   SPLIT_MIN_HEIGHT,
@@ -25,6 +26,7 @@ import {
   shownSplit,
   splitOf,
   wideOf,
+  withWide,
 } from "./split"
 
 const TALL = `(min-height: ${SPLIT_MIN_HEIGHT}px)`
@@ -135,7 +137,7 @@ export function useScreenSplit(): ScreenSplit {
     has: (def, props) => find(def, props) !== undefined,
     count: split.length,
     defs: members.flatMap(s => (s ? [s.def] : [])),
-    closeAll: () => apply({ screens: [], leaving: split }),
+    closeAll: () => apply(planLeaveAll(split)),
     openAt: ({ def, props }, index) => {
       const added = actions.openScreenId(def.id, props)
       if (added !== SCREEN_REFUSED && split.length > 0) apply(planAt(split, index, added))
@@ -178,18 +180,16 @@ export function useScreenSplit(): ScreenSplit {
     },
     wide: wideHere,
     widen: () => {
-      const win = read().window
-      actions.setScreenArrangement(SPLIT_ROWS.id, { ...(win.arrangementValue as object), wide: here.id })
+      actions.setScreenArrangement(SPLIT_ROWS.id, withWide(read().window.arrangementValue, here.id))
       actions.makeScreenCurrent(here.id)
     },
     unwiden: () => {
-      const { wide: _, ...value } = read().window.arrangementValue as { wide?: string }
-      actions.setScreenArrangement(SPLIT_ROWS.id, value)
+      actions.setScreenArrangement(SPLIT_ROWS.id, withWide(read().window.arrangementValue, undefined))
       actions.makeScreenCurrent(here.id)
     },
     closeBooks: () => {
       const books = split.filter(id => stageScreensOf(read().window).includes(id))
-      apply({ screens: [], leaving: split })
+      apply(planLeaveAll(split))
       for (const id of books) actions.closeScreen(id)
     },
   }

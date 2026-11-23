@@ -1,7 +1,8 @@
 // スクリーンアレンジメント「上下に分ける」（SPLIT_ROWS）と、分けて並べるスクリーンの並びを決める純粋な関数。
-// 値は、分けて並べるスクリーンの id の並び（上から）と、並びから外したが閉じられずに開いたままの物（behind。新しい順。コントロールセンターなど）。
+// 値は、分けて並べるスクリーンの id の並び（上から）と、並びから外したが閉じられずに開いたままの物（behind。新しい順。コントロールセンターなど）と、
+// 並びを覚えたまま窓いっぱいに広げているスクリーン（wide。下の行の □）。
 // ステージを並べるスクリーン（ブックスクリーン）も並びに入る（ステージを分けて、下に書庫のスクリーンを出すとき）。並びから外れても閉じない（applySplit）。
-// 見えているのは、カレントスクリーンがその並びにあれば並び全部、無ければカレントスクリーンだけ
+// 見えているのは、カレントスクリーンがその並びにあれば並び全部（広げている間は、カレントスクリーンだけ）、無ければカレントスクリーンだけ
 // （分けている間に巣箱のコマンドでブックスクリーンへ行けば、ブックスクリーンだけ。戻れば、また分けて見せる）。生きている物が 2 枚に満たない並びは、分けていない物として扱う。
 // 並びから外れたスクリーンは閉じる（閉じられない物は土台が残す: 最初から開いているスクリーンの最後の 1 枚）。
 // 並べる枚数の上限は、開く側が決める（max）
@@ -80,7 +81,7 @@ export const SPLIT_ROWS = kit.defineScreenArrangement({
   id: "split-rows",
   title: "Split into rows",
   aiDescription:
-    "Shows the screens split into rows, from the top, while the current screen is one of them; otherwise only the current screen.",
+    "Shows the screens split into rows, from the top, while the current screen is one of them; otherwise only the current screen. While one of the rows is widened, only the current screen is shown and the rows are kept to restore.",
   value: { schema: SPLIT_VALUE, initial: NO_SPLIT },
   shown: splitShown,
 })
@@ -150,6 +151,16 @@ export function planClose(
   const back = behind.find(id => id !== target)
   return { screens: back === undefined ? [] : [back, ...rest], leaving: [target] }
 }
+
+// 並びの値 value に、窓いっぱいに広げるスクリーン wide を書いた値（wide が無ければ、広げるのをやめた値）
+export function withWide(value: unknown, wide: string | undefined): SplitValue {
+  const fits = SPLIT_VALUE.safeParse(value)
+  const { wide: _, ...rest } = fits.success ? fits.data : NO_SPLIT
+  return wide === undefined ? rest : { ...rest, wide }
+}
+
+// 分けた並びを全部外す（並びのブックスクリーンは、外したあとに閉じる側が閉じる）
+export const planLeaveAll = (split: readonly string[]): SplitPlan => ({ screens: [], leaving: split })
 
 // 分けた並びから here だけを残す（ほかは閉じる）。窓が低くなって畳むときは、here がカレントスクリーン
 export const planExpand = (split: readonly string[], here: string): SplitPlan => ({
