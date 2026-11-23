@@ -34,6 +34,7 @@ export const CONTROL_CENTER_SCREEN = kit.defineScreen({
     "The control center: the user's one entry that is not a book (the user panel, the workrooms and participants, the projects and the library).",
   props: z.strictObject({}),
   atStart: true,
+  wideSearchToggle: true,
   // 書庫の画面を出している間だけ、base の書庫（LibraryView）を見せている（プロジェクトの画面の間は、描いたまま隠している）
   libraryAppearances: ["@matomezu/base:library"],
   shownLibraryAppearances: read => (contentAreaOf(read(CONTENT_AREA)) === "library" ? ["@matomezu/base:library"] : []),

@@ -8,6 +8,7 @@ import { bookOf, withBook } from "../../../core/folders-books"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { TICKETS_HISTORY } from "../library/backyards"
+import { MY_WORKDESK } from "../library/system-folders"
 import { describeNewPage, NEW_PAGE_ARGS, type NewPageResult, withNewPage } from "../pages/page-add"
 import { readerIn } from "./activity"
 import { workerBookOf, workerBookReadsOf } from "./worker-book"
@@ -17,8 +18,7 @@ const ARGS = PAGE_ARGS.extend({ workroom: z.string().min(1).optional() })
 
 export const WORKER_PAGE_ADD = kit.defineAction({
   id: "worker-page-add",
-  aiDescription:
-    "Add a page at the end of your worker book: the book of your workroom's current work (the ticket you are working on; your workroom's own book while you have none), which list_books and read_folder do not show. The same arguments as page-add (without index). The book is made with its first page when it does not exist yet. Returns the book's id and what page-add returns. Write down the page's id to find it again. Refused (worker-book) when workroom names another workroom.",
+  aiDescription: `Add a page at the end of your worker book (read_folder with folder "${MY_WORKDESK}" shows it). The same arguments as page-add (without index). The book is made with its first page when it does not exist yet. Returns the book's id and what page-add returns. Write down the page's id to find it again. Refused (worker-book) when workroom names another workroom.`,
   title: "Add a page to the worker book",
   target: "library",
   permissionScope: "unknown",

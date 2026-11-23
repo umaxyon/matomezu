@@ -172,7 +172,7 @@ describe("起こす知らせで始まったターン", () => {
     await wokenTurn(session, m, say, e, p)
     await wokenTurn(session, m, say, e, p)
     expect(runs.map(r => r.args)).toEqual([
-      ["annotations"],
+      ["annotations", "--session", id],
       ["talked", "--context", "NOTE", "--format", "split", "--woken"],
     ])
     expect(JSON.parse(runs[1]?.input ?? "")).toEqual({ session_id: id, prompt: "matomezu: the user accepted" })

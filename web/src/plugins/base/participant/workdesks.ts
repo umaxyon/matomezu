@@ -8,8 +8,9 @@ import type { Bird } from "../birds"
 import { TICKETS_HISTORY } from "../library/backyards"
 import { ADMIN_MARK, PARTICIPANT, type Workroom } from "."
 import { originalPalette } from "./birds"
+import { workerBookIn } from "./my-workdesk"
 import { adminRoomOf } from "./rows"
-import { workerBookOf, workerBookReadsOf } from "./worker-book"
+import { workerBookReadsOf } from "./worker-book"
 import { WORKROOM } from "./workroom"
 
 // 作業机 1 つ: ワークルーム room の id・名前 title・鳥 bird と配色 palette、ワーカーブックの名前 bookTitle と、実のブックの id book（まだ無ければ undefined）
@@ -45,14 +46,14 @@ export function workdesksOf(catalog: CoreCatalog, read: RecordReader, folders: F
   const admin = adminRoomOf(read.record(ADMIN_MARK.id, "admin") as { workroom: string } | undefined, rooms)
   const ordered = [...rooms.filter(r => r.id === admin), ...rooms.filter(r => r.id !== admin)]
   return [...new Map(ordered.map(r => [r.id, r])).values()].map(room => {
-    const { workKey, title } = workerBookOf(catalog, read, room.id)
+    const { title, book } = workerBookIn(catalog, read, folders, room.id)
     return {
       room: room.id,
       title: room.name,
       bird: room.bird,
       palette: room.palette ?? originalPalette(room.bird),
       bookTitle: title,
-      book: backyardBookOf({ folders }, TICKETS_HISTORY.id, workKey),
+      book,
     }
   })
 }

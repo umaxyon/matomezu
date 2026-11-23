@@ -1,6 +1,7 @@
 // カレントワークとチケットの担当の変わりを、ワークルームの AI に常駐メッセージで知らせるフォローステップ（何も書かない）。
 // カレントチケットが変わったら、そのワークルームへ作業机を読み直すように。前からの担当のチケットに別のワークルームが担当に入ったら、前からの担当へ
 import type { FollowStepDef } from "../../../plugin-api"
+import { MY_WORKDESK } from "../../base"
 import { PROJECT, type Project } from "../project"
 import { ticketLabel } from "../ticket/label"
 import { TICKET, type Ticket } from "../ticket/ticket"
@@ -32,7 +33,7 @@ export const NOTICE_CURRENT_TICKET: FollowStepDef<typeof CURRENT_WORK.id> = {
         hostMessages: [
           {
             workroom: change.id,
-            text: "Your workroom has no current ticket now. Your workdesk now shows your workroom's own worker book: read your workdesk again.",
+            text: `Your workroom has no current ticket now. Your workdesk now shows your workroom's own worker book: read your workdesk again (read_folder with folder "${MY_WORKDESK}").`,
           },
         ],
       }
@@ -43,7 +44,7 @@ export const NOTICE_CURRENT_TICKET: FollowStepDef<typeof CURRENT_WORK.id> = {
       hostMessages: [
         {
           workroom: change.id,
-          text: `Your current ticket is now ${ticketText(ticket, project === "none" ? undefined : project)}. Your workdesk now shows the worker book of that ticket: read your workdesk again.`,
+          text: `Your current ticket is now ${ticketText(ticket, project === "none" ? undefined : project)}. Your workdesk now shows the worker book of that ticket: read your workdesk again (read_folder with folder "${MY_WORKDESK}").`,
         },
       ],
     }

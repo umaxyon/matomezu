@@ -1,11 +1,12 @@
 // 横断検索のパネル（左サイドパネルのタブ）: 検索の入力と、モードの切り替え、選んだモードのパネル。
 // モードはスロット wide-search-modes に置かれたウィジェットで、置いた順に並べる。最後に選んだモードは覚え、開き直したら同じモードで開く
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useMessages, useT } from "../../../ui/i18n"
 import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { useLayout, useUiCatalog } from "../../../ui/store-context"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { WIDE_SEARCH_WORDS_KEY_SCOPE } from "./index"
 import { WIDE_SEARCH_MODES, type WideSearchModeProps } from "./slots"
 import { WIDE_SEARCH_MODE } from "./state"
 import styles from "./WideSearch.module.css"
@@ -24,6 +25,14 @@ export function WideSearchPanel() {
   const chosen = usePluginState(kit, WIDE_SEARCH_MODE)
   const setChosen = useSetPluginState(kit, WIDE_SEARCH_MODE)
   const [term, setTerm] = useState("")
+  // 開いたら、すぐ打ち直せるように検索語のテキストFormに焦点を置き、中の言葉を全部選ぶ（ボタンで開いても、キーで開いても）。
+  // モードが開いたときに言葉を戻す（チケットモードの絞りの言葉）ので、利用者が打つまでは、言葉が変わるたびに選び直す
+  const words = useRef<HTMLInputElement>(null)
+  const opening = useRef(true)
+  useEffect(() => words.current?.focus(), [])
+  useEffect(() => {
+    if (opening.current && term !== "") words.current?.select()
+  }, [term])
   const mode = modes.find(m => m.id === chosen) ?? modes[0]
   return (
     <div className={styles.panel}>
@@ -37,8 +46,13 @@ export function WideSearchPanel() {
       <input
         className={controlClass}
         aria-label={t("Search words")}
+        data-key-scope={WIDE_SEARCH_WORDS_KEY_SCOPE.id}
+        ref={words}
         value={term}
-        onChange={e => setTerm(e.target.value)}
+        onChange={e => {
+          opening.current = false
+          setTerm(e.target.value)
+        }}
       />
       {mode && <mode.View key={mode.id} term={term} setTerm={setTerm} />}
     </div>
