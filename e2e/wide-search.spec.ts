@@ -69,6 +69,24 @@ test("コントロールセンターで Ctrl+Shift+F を押すと横断検索が
   await expect(words).toHaveCount(0)
 })
 
+test("開き直すと、チケットモードが残した言葉が検索する言葉の入力に戻り、全部選ばれている", async ({ page }) => {
+  const word = `えらぶ${Date.now()}`
+  const { other } = await setup(page, word)
+  const words = panel(page).getByRole("textbox", { name: "検索する言葉" })
+  await page.keyboard.press("Control+Shift+F")
+  await words.fill(word)
+  // ボードが絞られてから閉じる（絞りの言葉が残る）
+  await expect(page.locator(`[data-card="${other}"]`)).toHaveCount(0)
+  await page.keyboard.press("Escape")
+  await expect(words).toHaveCount(0)
+  await page.keyboard.press("Control+Shift+F")
+  await expect(words).toHaveValue(word)
+  await expect(words).toBeFocused()
+  await expect
+    .poll(() => words.evaluate((e: HTMLInputElement) => [e.selectionStart, e.selectionEnd]))
+    .toEqual([0, word.length])
+})
+
 test("チケットモードは、パネルを開いたままボードを絞り、閉じても残り、パネルを開き直して印の × で戻る", async ({
   page,
 }) => {
