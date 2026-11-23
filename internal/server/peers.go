@@ -25,8 +25,21 @@ type peerHello struct {
 	Port     int    `json:"port"`
 }
 
-func (h *Hub) peerHello(w http.ResponseWriter, _ *http.Request) {
+// 頼んだ側は、自分の待っているポートを port に載せる。こちらは、頼みの来た番地とそのポートを、相手へつなぐ所として覚える
+// （受け入れた側は相手の待っている所を利用者から聞かないので、相手の確かめで知る。相手の IP が変わっても追える）
+func (h *Hub) peerHello(w http.ResponseWriter, r *http.Request) {
 	s := h.HostStatus()
+	if e := h.entrance.Load(); e != nil {
+		if from, ok := peer.RequestHost(r); ok {
+			addr := ""
+			if port, err := strconv.Atoi(r.URL.Query().Get("port")); err == nil && port > 0 && port <= 65535 {
+				if ip, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+					addr = net.JoinHostPort(ip, strconv.Itoa(port))
+				}
+			}
+			h.sawPeer(e.peers, from, addr, "", "")
+		}
+	}
 	writeJSON(w, peerHello{Protocol: peer.Protocol, Name: s.Name, UserName: h.userName(), Port: s.Port})
 }
 
@@ -70,7 +83,7 @@ func (h *Hub) checkPeer(e *hostEntrance, r pairedHostRecord, addr string) {
 		return
 	}
 	c := peer.Client(e.config.Identity, r.HostID, peerAskTimeout)
-	resp, err := c.Get("https://" + addr + "/peer/v1/hello")
+	resp, err := c.Get("https://" + addr + "/peer/v1/hello?port=" + strconv.Itoa(h.HostStatus().Port))
 	var hello peerHello
 	notPaired := false
 	if err == nil {

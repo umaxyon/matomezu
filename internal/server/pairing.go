@@ -494,7 +494,35 @@ func (h *Hub) pairingReveal(w http.ResponseWriter, r *http.Request, e *hostEntra
 	if outcome == peer.PairingAccepted && (werr != nil || r.Context().Err() != nil) {
 		// 受け入れたのに A に答えられなかった: 片方にだけ載らないよう、すぐ消す
 		h.dropPairedHost(ps, from, "because the answer did not reach it")
+		return
 	}
+	if outcome == peer.PairingAccepted {
+		// A は答えを受けた。頼みの来た番地と A の待っているポートを、つなぐ所として覚える（レコードの addr は利用者が入れた所だけ）
+		h.sawPeer(ps, from, net.JoinHostPort(in.ip, strconv.Itoa(in.commit.Port)), in.commit.Name, in.commit.UserName)
+	}
+}
+
+// sawPeer は、ペアリングしたホスト id が今つながったと記し（鍵で確かめた相手だけ）、待っている所 addr（空なら変えない）と名前を覚えて、窓に知らせる
+func (h *Hub) sawPeer(ps *peerState, id, addr, name, userName string) {
+	ps.mu.Lock()
+	if _, known := ps.known[id]; !known {
+		ps.mu.Unlock()
+		return
+	}
+	l := ps.live[id]
+	if l == nil {
+		l = &PeerLive{HostID: id}
+		ps.live[id] = l
+	}
+	l.Connected, l.KeyMismatch, l.LastSeen = true, false, stamp()
+	if addr != "" {
+		l.Addr = addr
+	}
+	if name != "" {
+		l.Name, l.UserName = name, userName
+	}
+	ps.mu.Unlock()
+	h.tellPeers()
 }
 
 func mustJSON(v any) []byte {

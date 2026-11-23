@@ -67,7 +67,7 @@ func userDoes(t *testing.T, h *Hub, action, on string) {
 	}
 }
 
-// A が B に頼むと、B に頼みが載り、両方に同じ接続確認コードが出る。B の利用者が受け入れると、両方にペアリングしたホストが載り、互いの hello に通る
+// A が B に頼むと、B に頼みが載り、両方に同じ接続確認コードが出る。B の利用者が受け入れると、両方にペアリングしたホストが載り、互いの hello に通る。B は A の待っている所を、頼みと A の hello で知る
 func TestPairingAcceptedPutsBothSides(t *testing.T) {
 	a, as := openHost(t, "masa-wsl")
 	b, bs := openHost(t, "win-lan")
@@ -96,11 +96,24 @@ func TestPairingAcceptedPutsBothSides(t *testing.T) {
 	if len(requestsOf(b)) != 0 {
 		t.Fatal("the request stays on B")
 	}
-	waitFor(t, "B knows A", func() bool { return len(b.HostPeers().Paired) == 1 })
+	// B は利用者から A の待っている所を聞かないが、頼みの来た番地と A のポートで知る
+	bSeesA := func() bool {
+		l := b.HostPeers().Paired
+		return len(l) == 1 && l[0].Connected && l[0].Addr == addrOf(as) && l[0].Name == "masa-wsl"
+	}
+	waitFor(t, "B sees A connected", bSeesA)
+	// B が忘れても（起動し直しなど）、A の確かめで知り直す
+	b.entrance.Load().peers.mu.Lock()
+	clear(b.entrance.Load().peers.live)
+	b.entrance.Load().peers.mu.Unlock()
 	a.CheckPeers()
 	waitFor(t, "A sees B connected", func() bool {
 		l := a.HostPeers().Paired
 		return len(l) == 1 && l[0].Connected && l[0].Name == "win-lan"
+	})
+	waitFor(t, "B learns where A listens from its hello", func() bool {
+		l := b.HostPeers().Paired
+		return len(l) == 1 && l[0].Connected && l[0].Addr == addrOf(as)
 	})
 }
 
