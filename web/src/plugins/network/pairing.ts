@@ -4,7 +4,7 @@
 // ペアリングを解くのは paired-host-remove（利用者が解く。相手が解いた・相手がペアリングしていないと答えたときも、常駐がこれで消す）。
 // 相手の身元はホスト id（鍵の印）だけで決まる。名前・利用者名はペアリングしたときに相手が名乗った物で、今の名前は常駐だけが持つ
 import { z } from "zod"
-import type { ActionContext } from "../../core/def/action"
+import type { ActionContext } from "../../plugin-api"
 import { kit } from "./kit"
 
 const HOST_ID = z.string().regex(/^[0-9a-f]{64}$/)

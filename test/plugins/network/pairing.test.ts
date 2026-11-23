@@ -6,6 +6,7 @@ import { hostActions } from "../../../web/src/core/hosts"
 import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform-world"
 import { withCounters, withRecords } from "../../../web/src/core/records"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
+import { PAIRED_HOST, PAIRING_REQUEST } from "../../../web/src/plugins/network"
 import { CORE_CATALOG } from "../../support"
 
 const N = (id: string) => `@matomezu/network:${id}`
@@ -34,7 +35,8 @@ function host() {
       }
     return done as unknown as Done
   }
-  const all = (kind: string) => Object.values(w.records[N(kind)] ?? {}) as Record<string, string>[]
+  const all = (kind: typeof PAIRED_HOST.id | typeof PAIRING_REQUEST.id) =>
+    Object.values(w.records[kind] ?? {}) as Record<string, string>[]
   return { act, all }
 }
 
@@ -47,8 +49,8 @@ test("受け入れると、頼みが消えて、頼みの名前のままペア�
   expect(h.act(USER, "pairing-request-add", request).detail).toContain("waiting")
   const done = h.act(USER, "pairing-accept", {}, { record: put.result?.request as string })
   expect(done.ok).toBe(true)
-  expect(h.all("pairing-request")).toEqual([])
-  expect(h.all("paired-host")).toEqual([
+  expect(h.all(PAIRING_REQUEST.id)).toEqual([])
+  expect(h.all(PAIRED_HOST.id)).toEqual([
     {
       id: done.result?.pairedHost as string,
       hostId: B,
@@ -72,8 +74,8 @@ test("ペアリング済みのホストからの頼みは受け入れられず�
   const on = { record: put.result?.request as string }
   expect(h.act(USER, "pairing-accept", {}, on).detail).toContain("paired already")
   expect(h.act(USER, "pairing-decline", {}, on).ok).toBe(true)
-  expect(h.all("pairing-request")).toEqual([])
-  expect(h.all("paired-host")).toHaveLength(1)
+  expect(h.all(PAIRING_REQUEST.id)).toEqual([])
+  expect(h.all(PAIRED_HOST.id)).toHaveLength(1)
 })
 
 test("ペアリングを解くと消える。AI はどのアクションも行えない", () => {
@@ -86,7 +88,7 @@ test("ペアリングを解くと消える。AI はどのアクションも行�
     expect(h.act(AI, action, args).ok).toBe(false)
   expect(h.act(AI, "paired-host-remove", {}, { record: put.result?.pairedHost as string }).ok).toBe(false)
   expect(h.act(USER, "paired-host-remove", {}, { record: put.result?.pairedHost as string }).ok).toBe(true)
-  expect(h.all("paired-host")).toEqual([])
+  expect(h.all(PAIRED_HOST.id)).toEqual([])
 })
 
 test("常駐が行う役は、4 つとも network のアクションが名乗る", () => {
