@@ -84,3 +84,27 @@ test("分割で開いたブックスクリーンの下の行に閉じると □ 
   await expect(close).toHaveCount(0)
   await expect(line).toBeVisible()
 })
+
+test("ブックスクリーンを 2 枚分割で開くと 2 段で見え、それぞれの下の行に閉じると □ が出る", async ({ page }) => {
+  await page.goto(CONTROL_CENTER_URL)
+  await memberWithPage(page, "あお", "あおのメモ")
+  await memberWithPage(page, "あか", "あかのメモ")
+  const lineOf = (name: string) =>
+    page.locator("[data-workroom]").filter({ hasText: name }).locator("[data-current-line]")
+  const close = page.locator("[data-footer-close]").locator("visible=true")
+  const maximize = page.locator("[data-footer-maximize]").locator("visible=true")
+
+  await lineOf("あお").click()
+  await page.getByRole("menuitem", { name: "分割で開く" }).click()
+  await expect(close).toHaveCount(1)
+  await settled(page)
+  // コントロールセンターの段から、もう 1 冊を分割で開く（押した側の段が替わる）
+  await lineOf("あか").click()
+  await page.getByRole("menuitem", { name: "分割で開く" }).click()
+  await expect(close).toHaveCount(2)
+  await expect(maximize).toHaveCount(2)
+  await expect(page.getByText("あおのメモ").locator("visible=true")).toHaveCount(1)
+  await expect(page.getByText("あかのメモ").locator("visible=true")).toHaveCount(1)
+  await settled(page)
+  await page.screenshot({ path: "test-results/book-screen-footer-two.png" })
+})
