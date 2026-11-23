@@ -334,7 +334,6 @@ test("matomezu/ui が出す名前", () => {
     "defineMailActions",
     "definePluginUi",
     "defineSettingsCategory",
-    "defineSettingsSection",
     "defineWideSearchMode",
     "defineWideSearchOpener",
     "defineWidget",

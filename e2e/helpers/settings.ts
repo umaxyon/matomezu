@@ -1,4 +1,4 @@
-// 設定画面: コントロールセンターの「全体設定」で開いたダイアログ（「ユーザー設定」で開く）と、その「全体」の中身
+// 設定画面: コントロールセンターの「全体設定」で開いたダイアログと、その「全体」の中身
 import { expect, type Locator, type Page } from "@playwright/test"
 import { fromMenu, menuOf, menuTrigger } from "./stage-menu"
 
@@ -24,10 +24,9 @@ export async function backToBook(page: Page) {
   await expect(page.getByRole("heading", { name: "コントロールセンター" })).toBeHidden()
 }
 
-// 設定画面を開き、「全体」を選んで、その中身（tabpanel）を返す（設定画面は「ユーザー設定」で開く）
+// 設定画面を開き、「全体」の中身（tabpanel）を返す
 export async function openGeneral(page: Page) {
   await openSettings(page)
-  await settingsDialog(page).getByRole("tab", { name: "全体" }).click()
   return settingsDialog(page).getByRole("tabpanel", { name: "全体" })
 }
 

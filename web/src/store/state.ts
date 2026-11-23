@@ -84,6 +84,7 @@ export interface UpdateStatus {
 
 // ホストどうしの入口の様子: hostId はこのホストの id（鍵の指紋）、name はホスト名（設定か、無ければ OS のホスト名 osHostName）、
 // open は入口が開いているか（port と、待っている所の番地 addrs）、wsl は WSL で動いているか、failed は開こうとして開けなかったときの理由
+// （port-in-use は覚えたポート port がほかに使われていた、listen はそのほか。覚えたポートは取り直さない。足してもらったファイアウォールの規則や相手が覚えた番号を壊さないため）
 export interface HostStatus {
   hostId: string
   name: string
@@ -92,7 +93,7 @@ export interface HostStatus {
   port?: number
   addrs?: readonly string[]
   wsl?: boolean
-  failed?: string
+  failed?: "port-in-use" | "listen"
 }
 
 // 常駐の版とデータの形の番号（移し替えの数）

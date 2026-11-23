@@ -140,7 +140,7 @@ func (c *serveCmd) Run() error {
 	if err := setHost(hub, h); err != nil {
 		return err
 	}
-	defer hub.CloseHosts()
+	defer hub.CloseHostEntrance()
 	port, err := listenPort(h, c.Port)
 	if err != nil {
 		return err

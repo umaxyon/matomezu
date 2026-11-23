@@ -19,6 +19,6 @@ func setHost(hub *server.Hub, h *home.Home) error {
 		return err
 	}
 	name, _ := os.Hostname()
-	hub.SetHost(server.HostConfig{Identity: id, Port: port, SavePort: h.WriteHostPort, OSHostName: name, WSL: onWSL()})
+	hub.SetHostEntrance(server.HostConfig{Identity: id, Port: port, SavePort: h.WriteHostPort, OSHostName: name, WSL: onWSL()})
 	return nil
 }

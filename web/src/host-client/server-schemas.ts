@@ -69,7 +69,7 @@ export const HostStatusSchema = z.object({
   port: z.number().int().optional(),
   addrs: z.array(z.string()).optional(),
   wsl: z.boolean().optional(),
-  failed: z.string().optional(),
+  failed: z.enum(["port-in-use", "listen"]).optional(),
 })
 export const DataSchema = z.object({
   pages: z.array(z.object({ id: z.string(), page: z.unknown(), version: z.number().int() })),

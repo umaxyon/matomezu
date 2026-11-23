@@ -109,14 +109,13 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:print-check-panel",
     ],
     "@matomezu/base:settings-categories": [
-      "@matomezu/base:settings-user",
       "@matomezu/base:settings-general",
       "@matomezu/markdown:settings",
       "@matomezu/base:settings-keys",
       "@matomezu/base:settings-plugins",
+      "@matomezu/network:settings",
       "@matomezu/base:settings-update",
     ],
-    "@matomezu/base:settings-sections": ["@matomezu/network:settings-network"],
     "@matomezu/base:mail-actions": ["@matomezu/base:proposal-actions"],
     "@matomezu/base:bookmarks": ["@matomezu/base:join-request-bookmarks", "@matomezu/base:mail-bookmarks"],
     "@matomezu/base:wide-search-modes": [

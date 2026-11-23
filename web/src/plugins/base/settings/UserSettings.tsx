@@ -1,6 +1,5 @@
 // 利用者の設定の並び: settings を渡せばその項目だけを、その順に見出しなしで並べる（プラグインの設定カテゴリ）。渡さなければ、機能台帳の利用者の設定の項目のうち、
-// 設定画面のほかの設定カテゴリ（UI マッピングがスロット settings-categories に置いたウィジェットの settingsCategory.settings）と、
-// 設定カテゴリ「ユーザー設定」の節（スロット settings-sections のウィジェットの settingsSection.settings）が名指していない物を、プラグインごとに並べる
+// 設定画面のほかの設定カテゴリ（UI マッピングがスロット settings-categories に置いたウィジェットの settingsCategory.settings）が名指していない物を、プラグインごとに並べる
 // （base の項目が先で見出しなし、ほかは見出しにプラグインの id）。
 // 項目のビューがあればそれを、無ければ値の形から作った入力Form（真偽はスイッチ、選択肢はセレクトForm、数と文字はテキストForm）を出し、どちらも作れない項目は出さない。
 // 変えるとコマンド settings-set を呼ぶ。コマンドが押せないときと、アクション settings-set がその項目で使えないとき（コントロールセンターが変えさせない項目）は、灰色で押せない
@@ -19,7 +18,7 @@ import { kit } from "../kit"
 import { SETTINGS_SET } from "./actions"
 import { SETTINGS_SET_COMMAND } from "./commands"
 import { SettingRow } from "./SettingRow"
-import { SETTINGS_CATEGORIES, SETTINGS_SECTIONS } from "./settings-screen"
+import { SETTINGS_CATEGORIES } from "./settings-screen"
 import styles from "./UserSettings.module.css"
 import { type AutoInput, autoInputOf } from "./user-settings"
 
@@ -30,11 +29,9 @@ export function UserSettings({ settings }: { settings?: readonly string[] | unde
   const { values } = useSettings()
   const set = useCommand(SETTINGS_SET_COMMAND.id)
   const widgets = useUiCatalog().widgets
-  const slots = useLayout().slots
-  const claimed = new Set([
-    ...(slots[SETTINGS_CATEGORIES] ?? []).flatMap(id => widgets.get(id)?.settingsCategory?.settings ?? []),
-    ...(slots[SETTINGS_SECTIONS] ?? []).flatMap(id => widgets.get(id)?.settingsSection?.settings ?? []),
-  ])
+  const claimed = new Set(
+    (useLayout().slots[SETTINGS_CATEGORIES] ?? []).flatMap(id => widgets.get(id)?.settingsCategory?.settings ?? []),
+  )
   const defs = settings
     ? settings.flatMap(id => catalog.userSettings.get(id) ?? [])
     : [...catalog.userSettings.values()].filter(def => !claimed.has(def.id))

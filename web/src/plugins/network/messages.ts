@@ -2,14 +2,18 @@
 import { defineMessages } from "../../plugin-api"
 
 export const NETWORK_MESSAGES = defineMessages({
-  "Network settings": { en: "Network settings", ja: "ネットワーク設定" },
+  Network: { en: "Network", ja: "ネットワーク" },
   "Host name": { en: "Host name", ja: "ホスト名" },
-  "Connect with other hosts": { en: "Connect with other hosts", ja: "ほかのホストとつなぐ" },
+  "Connect with other hosts": { en: "Connect with other hosts", ja: "ホストとつなぐ" },
   "Listening at": { en: "Listening at", ja: "待っている所" },
   "Host key": { en: "Host key", ja: "このホストの鍵の印" },
   "Could not open the entrance for other hosts": {
     en: "Could not open the entrance for other hosts",
     ja: "ほかのホストを待つ入口を開けませんでした",
+  },
+  "Port {port} is used by another program": {
+    en: "Port {port} is used by another program",
+    ja: "ポート {port} がほかのプログラムに使われていて開けません",
   },
   Copy: { en: "Copy", ja: "コピー" },
   Copied: { en: "Copied", ja: "コピーしました" },

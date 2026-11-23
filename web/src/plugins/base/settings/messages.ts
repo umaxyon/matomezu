@@ -2,8 +2,7 @@
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const SETTINGS_MESSAGES = defineMessages({
-  // 設定カテゴリ「ユーザー設定」（categories.tsx）
-  "User settings": { en: "User settings", ja: "ユーザー設定" },
+  // 利用者名の項目（UserNameSetting.tsx）
   "User name": { en: "User name", ja: "ユーザー名" },
   You: { en: "You", ja: "あなた" },
   // コーナーステータスの並びの設定（CornerStatusOrderSetting.tsx）

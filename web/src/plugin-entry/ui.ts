@@ -39,7 +39,6 @@ export {
   defineLeftSidePanelTab,
   defineMailActions,
   defineSettingsCategory,
-  defineSettingsSection,
   defineWideSearchMode,
   defineWideSearchOpener,
   defineWorkspace,

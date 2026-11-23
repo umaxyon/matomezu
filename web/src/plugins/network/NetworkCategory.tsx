@@ -1,10 +1,10 @@
-// 節「ネットワーク設定」: 見出しの線、ホスト名とほかのホストとつなぐかの項目。つなぐが入なら、待っている所（番地ごとに［コピー］）とこのホストの鍵の印、
-// 入口を開けなければその 1 行。WSL で動いているときだけ、ほかのマシンから届かせる設定の案内の 1 行と、開くと出る手引き
+// 設定カテゴリ「ネットワーク」: ホスト名とほかのホストとつなぐかの項目。つなぐが入なら、待っている所（番地ごとに［コピー］）とこのホストの鍵の印か、
+// 入口を開けなかった理由の 1 行。そのうえ WSL で動いているときは、ほかのマシンから届かせる設定の案内の 1 行と、開くと出る手引き
 import { useEffect, useState } from "react"
 import { type UserSettingControlProps, useMessages, useSettings } from "../../plugin-api/ui"
 import { ActionButton, SettingRow, TextSettingControl, UserSettings, useCopyText, useHostStatus } from "../base/ui"
 import { kit } from "./kit"
-import styles from "./NetworkSection.module.css"
+import styles from "./NetworkCategory.module.css"
 import { CONNECT_HOSTS, HOST_NAME } from "./settings"
 
 const COPIED_MS = 1500
@@ -20,14 +20,13 @@ export const shownHostKey = (hostId: string): string =>
       .match(/.{1,4}/g) ?? []
   ).join(" ")} …`
 
-export function NetworkSection() {
+export function NetworkCategory() {
   const t = useMessages(kit)
   const status = useHostStatus()
   const { values } = useSettings()
   const on = values[CONNECT_HOSTS.id] === true
   return (
-    <section>
-      <h4 className={styles.heading}>{t("Network settings")}</h4>
+    <>
       <UserSettings settings={[HOST_NAME.id, CONNECT_HOSTS.id]} />
       {on && status?.open && (
         <div className={styles.rows}>
@@ -43,9 +42,14 @@ export function NetworkSection() {
           </SettingRow>
         </div>
       )}
-      {on && status?.failed && <p className={styles.note}>{t("Could not open the entrance for other hosts")}</p>}
-      {status?.wsl && <WslGuide port={status.port} />}
-    </section>
+      {on && status?.failed === "port-in-use" && (
+        <p className={styles.note}>{t("Port {port} is used by another program", { port: status.port ?? "" })}</p>
+      )}
+      {on && status?.failed === "listen" && (
+        <p className={styles.note}>{t("Could not open the entrance for other hosts")}</p>
+      )}
+      {on && status?.wsl && status.port !== undefined && <WslGuide port={status.port} />}
+    </>
   )
 }
 
@@ -79,9 +83,9 @@ const COPY_LABELS = { none: "Copy", done: "Copied", failed: "Could not copy" } a
 
 // WSL の案内: ほかのマシンから届かせるには、WSL のネットワークをミラーにし、Hyper-V のファイアウォールにポートを通す（matomezu は自動では設定しない。
 // 効かせるのに WSL の起動し直しが要り、AI のセッションごと止まるため）
-function WslGuide({ port }: { port: number | undefined }) {
+function WslGuide({ port }: { port: number }) {
   const t = useMessages(kit)
-  const rule = `New-NetFirewallHyperVRule -Name matomezu -DisplayName matomezu -Direction Inbound -VMCreatorId '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -Protocol TCP -LocalPorts ${port ?? "<port>"}`
+  const rule = `New-NetFirewallHyperVRule -Name matomezu -DisplayName matomezu -Direction Inbound -VMCreatorId '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -Protocol TCP -LocalPorts ${port}`
   return (
     <div className={styles.note}>
       <p>{t("On WSL, other machines cannot reach this host until WSL is set up for it")}</p>

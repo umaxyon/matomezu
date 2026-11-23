@@ -13,21 +13,20 @@ import (
 	"github.com/umaxyon/matomezu/internal/peer"
 )
 
-// testHost は、127.0.0.1 で待つホストどうしの入口を hub に用意する。覚えたポートは *saved に入る
+// testHost は、ホストどうしの入口を hub に用意する（全部の番地で待つので、テストは 127.0.0.1 からつなぐ）。覚えたポートは *saved に入る
 func testHost(t *testing.T, h *Hub, port int, saved *int) *peer.Identity {
 	t.Helper()
 	id, err := peer.LoadOrCreate(filepath.Join(t.TempDir(), "host.key"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	h.SetHost(HostConfig{
+	h.SetHostEntrance(HostConfig{
 		Identity:   id,
 		Port:       port,
 		SavePort:   func(p int) error { *saved = p; return nil },
 		OSHostName: "desk",
-		Bind:       "127.0.0.1",
 	})
-	t.Cleanup(h.CloseHosts)
+	t.Cleanup(h.CloseHostEntrance)
 	return id
 }
 
@@ -88,7 +87,7 @@ func TestTheHostEntranceFollowsTheSetting(t *testing.T) {
 
 	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":true,"@matomezu/network:host-name":"Masa の Mac"}`)
 	s := waitHost(t, h, func(s HostStatus) bool { return s.Open })
-	if s.Port == 0 || saved != s.Port || s.Name != "Masa の Mac" || s.HostID != id.HostID || len(s.Addrs) != 1 {
+	if s.Port == 0 || saved != s.Port || s.Name != "Masa の Mac" || s.HostID != id.HostID {
 		t.Fatalf("open = %+v (saved %d)", s, saved)
 	}
 	body := askPairing(t, s)
@@ -108,7 +107,7 @@ func TestTheHostEntranceFollowsTheSetting(t *testing.T) {
 	port := s.Port
 	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":false}`)
 	s = waitHost(t, h, func(s HostStatus) bool { return !s.Open })
-	if s.Port != 0 || len(s.Addrs) != 0 {
+	if s.Port != 0 || s.Addrs != nil {
 		t.Fatalf("closed = %+v", s)
 	}
 	if c, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), time.Second); err == nil {
@@ -122,21 +121,55 @@ func TestTheHostEntranceFollowsTheSetting(t *testing.T) {
 	}
 }
 
-// 覚えたポートが取られていれば、空いている番号で開き、それを覚え直す
-func TestTheHostEntranceTakesAnotherPortWhenTheKeptOneIsTaken(t *testing.T) {
-	taken, err := net.Listen("tcp", "127.0.0.1:0")
+// 覚えたポートがほかに使われていれば、取り直さずに開かず、そのポートと port-in-use を見せる。空けば、入れ直して同じ番号で開く
+func TestTheHostEntranceDoesNotTakeAnotherPortWhenTheKeptOneIsTaken(t *testing.T) {
+	taken, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer taken.Close()
 	kept := taken.Addr().(*net.TCPAddr).Port
 	h := emptyHub(t)
 	saved := 0
 	testHost(t, h, kept, &saved)
 	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":true}`)
-	s := waitHost(t, h, func(s HostStatus) bool { return s.Open })
-	if s.Port == kept || saved != s.Port {
-		t.Fatalf("open = %+v, kept %d, saved %d", s, kept, saved)
+	s := waitHost(t, h, func(s HostStatus) bool { return s.Failed != "" })
+	if s.Open || s.Failed != HostPortInUse || s.Port != kept || saved != 0 {
+		t.Fatalf("taken = %+v, saved %d", s, saved)
+	}
+	taken.Close()
+	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":false}`)
+	waitHost(t, h, func(s HostStatus) bool { return s.Failed == "" })
+	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":true}`)
+	if s = waitHost(t, h, func(s HostStatus) bool { return s.Open }); s.Port != kept {
+		t.Fatalf("reopened = %+v, kept %d", s, kept)
+	}
+}
+
+// 入口が自分で止まれば（閉じたのでなく）、開いていない様子（listen）にして窓に知らせる
+func TestTheHostEntranceTellsWhenItStops(t *testing.T) {
+	h := emptyHub(t)
+	saved := 0
+	testHost(t, h, 0, &saved)
+	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":true}`)
+	waitHost(t, h, func(s HostStatus) bool { return s.Open })
+	w := h.Join()
+	<-w.ch // hello
+	e := h.entrance.Load()
+	e.mu.Lock()
+	e.ln.Close()
+	e.mu.Unlock()
+	if s := waitHost(t, h, func(s HostStatus) bool { return !s.Open }); s.Failed != HostListen {
+		t.Fatalf("stopped = %+v", s)
+	}
+	for {
+		select {
+		case ev := <-w.ch:
+			if ev.name == "host-status" {
+				return
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("the windows were not told")
+		}
 	}
 }
 
@@ -160,18 +193,18 @@ func TestAICannotTurnOnTheHostEntrance(t *testing.T) {
 	}
 }
 
-// 常駐が止まるとき（CloseHosts）のあとは、設定が入のままでも開き直さない
-func TestTheHostEntranceStaysClosedAfterCloseHosts(t *testing.T) {
+// 常駐が止まるとき（CloseHostEntrance）のあとは、設定が入のままでも開き直さない
+func TestTheHostEntranceStaysClosedAfterCloseHostEntrance(t *testing.T) {
 	h := emptyHub(t)
 	saved := 0
 	testHost(t, h, 0, &saved)
 	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":true}`)
 	port := waitHost(t, h, func(s HostStatus) bool { return s.Open }).Port
-	h.CloseHosts()
+	h.CloseHostEntrance()
 	setHostSettings(t, h, `{"@matomezu/network:host-name":"again"}`)
 	time.Sleep(50 * time.Millisecond)
 	if c, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), time.Second); err == nil {
 		c.Close()
-		t.Fatal("the entrance opened again after CloseHosts")
+		t.Fatal("the entrance opened again after CloseHostEntrance")
 	}
 }

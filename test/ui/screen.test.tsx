@@ -197,7 +197,6 @@ test("新しいブックのダイアログでブックを作ると、そのス�
 test("設定画面の「全体」で言語とスキンを変える", () => {
   renderBooksScreen()
   fireEvent.click(screen.getByRole("button", { name: "全体設定", hidden: true }))
-  fireEvent.click(screen.getByRole("tab", { name: "全体" }))
   fireEvent.change(screen.getByLabelText("言語"), { target: { value: "matomezu:en" } })
   expect(screen.getByRole("tab", { name: "General" })).toBeTruthy()
   fireEvent.change(screen.getByLabelText("Skin"), { target: { value: "@matomezu/base:light" } })

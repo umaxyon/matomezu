@@ -5,9 +5,9 @@ import (
 	"slices"
 )
 
-// LANAddrs は、このマシンの、ほかのマシンから届きうる IPv4 の番地（ループバックとリンクローカルを除く。並びは番地の順）。
+// ReachableAddrs は、このマシンの、ほかのマシンから届きうる IPv4 の番地（ループバックとリンクローカルを除く。並びは番地の順）。
 // ホストどうしの入口がどこで待っているかを画面に見せるのに使う
-func LANAddrs() []string {
+func ReachableAddrs() []string {
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return nil

@@ -1,24 +1,25 @@
-// ネットワークのプラグインの見た目: 設定カテゴリ「ユーザー設定」の節「ネットワーク設定」と、ホスト名の項目のビュー
+// ネットワークのプラグインの見た目: 設定カテゴリ「ネットワーク」と、ホスト名の項目のビュー
 import { definePluginUi } from "../../plugin-api/ui"
-import { defineSettingsSection } from "../base/ui"
+import { defineSettingsCategory } from "../base/ui"
 import { NETWORK_PLUGIN } from "."
 import { kit } from "./kit"
-import { HostNameSetting, NetworkSection } from "./NetworkSection"
+import { HostNameSetting, NetworkCategory } from "./NetworkCategory"
 import { CONNECT_HOSTS, HOST_NAME } from "./settings"
 
-export const NETWORK_SECTION = defineSettingsSection({
-  id: kit.name("settings-network"),
+export const NETWORK_CATEGORY = defineSettingsCategory({
+  id: kit.name("settings"),
+  title: kit.message("Network"),
   settings: [HOST_NAME.id, CONNECT_HOSTS.id],
-  view: NetworkSection,
+  view: NetworkCategory,
 })
 
 export const NETWORK_UI = definePluginUi(NETWORK_PLUGIN, {
   userSettingViews: { [HOST_NAME.id]: { control: HostNameSetting } },
-  widgets: [NETWORK_SECTION],
+  widgets: [NETWORK_CATEGORY],
 })
 
 declare module "../../core/catalog" {
   interface WidgetTable {
-    "@matomezu/network:settings-network": typeof NETWORK_SECTION
+    "@matomezu/network:settings": typeof NETWORK_CATEGORY
   }
 }

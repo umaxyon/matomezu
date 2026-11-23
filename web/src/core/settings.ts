@@ -84,12 +84,6 @@ export function hostNameOf(catalog: CoreCatalog, settings: Settings): string | u
   return typeof name === "string" && name.trim() !== "" ? name.trim() : undefined
 }
 
-// 利用者名: role が user-name の項目の、空でない値（無ければ undefined。画面は「あなた」と出す）
-export function userNameOf(catalog: CoreCatalog, settings: Settings): string | undefined {
-  const name = byRole(catalog, settings, "user-name")
-  return typeof name === "string" && name.trim() !== "" ? name.trim() : undefined
-}
-
 // 常駐が新しい版を自分で確かめるか: role が update-check の項目の値が true（項目が無ければ確かめない）
 export function updateCheckOn(catalog: CoreCatalog, settings: Settings): boolean {
   return byRole(catalog, settings, "update-check") === true
