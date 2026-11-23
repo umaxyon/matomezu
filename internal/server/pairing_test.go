@@ -160,21 +160,42 @@ func TestPairingWithItselfOrNobodyIsRefused(t *testing.T) {
 
 func pair(t *testing.T) (a, b *Hub, as, bs HostStatus) {
 	t.Helper()
+	return pairBy(t, true)
+}
+
+// pairBy は、A が B に頼んで B が受け入れた 2 つを返す。manual が false なら、見つかったホストから選んだときと同じく、A のレコードに待っている所が入らない
+func pairBy(t *testing.T, manual bool) (a, b *Hub, as, bs HostStatus) {
+	t.Helper()
 	a, as = openHost(t, "a")
 	b, bs = openHost(t, "b")
-	_ = a.StartPairing(addrOf(bs), true)
+	_ = a.StartPairing(addrOf(bs), manual)
 	waitFor(t, "the request on B", func() bool { return len(requestsOf(b)) == 1 })
 	userDoes(t, b, "@matomezu/network:pairing-accept", requestsOf(b)[0].ID)
 	waitFor(t, "accepted", func() bool { return pairingPhase(a) == "accepted" })
 	return a, b, as, bs
 }
 
-// A の利用者がペアリングを解くと、B にも知らせ、B の側も消える
+// どちらの利用者がペアリングを解いても、相手に知らせ、相手の側も消える。どちらのレコードにも待っている所が入っていなくても（見つかったホストから選んだ）、つながったときに知った所へ知らせる
 func TestUnpairingTellsTheOtherHost(t *testing.T) {
-	a, b, _, _ := pair(t)
-	waitFor(t, "B knows A's address", func() bool { return len(b.pairedHostRecords()) == 1 })
-	userDoes(t, a, "@matomezu/network:paired-host-remove", a.pairedHostRecords()[0].ID)
-	waitFor(t, "B unpairs too", func() bool { return len(b.pairedHostRecords()) == 0 })
+	for _, c := range []struct {
+		name   string
+		manual bool
+		byB    bool
+	}{{"asker, typed", true, false}, {"asker, found", false, false}, {"accepter", false, true}} {
+		t.Run(c.name, func(t *testing.T) {
+			a, b, _, _ := pairBy(t, c.manual)
+			waitFor(t, "both connected", func() bool {
+				pa, pb := a.HostPeers().Paired, b.HostPeers().Paired
+				return len(pa) == 1 && pa[0].Connected && len(pb) == 1 && pb[0].Connected
+			})
+			by, other := a, b
+			if c.byB {
+				by, other = b, a
+			}
+			userDoes(t, by, "@matomezu/network:paired-host-remove", by.pairedHostRecords()[0].ID)
+			waitFor(t, "the other unpairs too", func() bool { return len(other.pairedHostRecords()) == 0 })
+		})
+	}
 }
 
 // 片方にだけ載っているとき: 相手が「ペアリングしていない」と答えたら、自分の側も消す

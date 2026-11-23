@@ -240,7 +240,12 @@ func (h *Hub) followPeers(e *hostEntrance) {
 		default:
 		}
 	}
-	var told []pairedHostRecord
+	// 知らせる先は、様子を忘れる前に決める（レコードに待っている所が無ければ、つながったときに知った所しか無い）
+	type tell struct {
+		r    pairedHostRecord
+		addr string
+	}
+	var told []tell
 	for id, r := range ps.known {
 		if _, still := now[id]; still {
 			continue
@@ -248,22 +253,26 @@ func (h *Hub) followPeers(e *hostEntrance) {
 		if ps.dropping[id] {
 			delete(ps.dropping, id)
 		} else {
-			told = append(told, r)
+			addr := r.Addr
+			if l := ps.live[id]; l != nil && l.Addr != "" {
+				addr = l.Addr
+			}
+			told = append(told, tell{r, addr})
 		}
 		delete(ps.live, id)
 	}
 	ps.known = now
 	ps.mu.Unlock()
-	for _, r := range told {
-		go h.tellUnpaired(e, r)
+	for _, t := range told {
+		go h.tellUnpaired(e, t.r, t.addr)
 	}
 	h.tellPeers()
 }
 
-// tellUnpaired は、利用者が解いたペアリングを相手に知らせる（届かなくても、こちらは消したまま。相手は次につないできたときに not-paired で知る）
-func (h *Hub) tellUnpaired(e *hostEntrance, r pairedHostRecord) {
-	addr := h.peerAddr(e, r)
+// tellUnpaired は、利用者が解いたペアリングを、相手の待っている所 addr に知らせる（届かなくても、こちらは消したまま。相手は次につないできたときに not-paired で知る）
+func (h *Hub) tellUnpaired(e *hostEntrance, r pairedHostRecord, addr string) {
 	if addr == "" {
+		fmt.Fprintln(os.Stderr, "hosts: could not tell", r.HostID[:16], "it was unpaired: where it listens is not known")
 		return
 	}
 	c := peer.Client(e.config.Identity, r.HostID, peerAskTimeout)
