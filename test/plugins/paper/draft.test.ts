@@ -49,3 +49,15 @@ test("箱の中のリストのチェックリストを外す下書きは、そ�
 test("下書きで何も変わらなければ、ページをそのまま返す", () => {
   expect(settledDraft(CORE_CATALOG, page, page)).toBe(page)
 })
+
+test("子を持つ内包ボックスの縦の位置を下にする下書きは、整えに前の箱を渡し、子が上へずれる", () => {
+  const before = replaceShape(page, "b1", s => ({ ...s, props: { ...s.props, body: "" } }) as PlacedShape) as ItemPage
+  const draft = replaceShape(
+    before,
+    "b1",
+    s => ({ ...s, props: { ...s.props, vAlign: "bottom" } }) as PlacedShape,
+  ) as ItemPage
+  const settled = settledDraft(CORE_CATALOG, before, draft)
+  const child = (shapeOf(settled, "b1").shape as unknown as { shapes: { y: number }[] }).shapes[0]
+  expect(child?.y).toBeLessThan(list.y)
+})

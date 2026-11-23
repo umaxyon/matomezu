@@ -21,7 +21,7 @@ export function settledDraft(catalog: CoreCatalog, page: ItemPage, draft: ItemPa
     const def = shapeDefOf(catalog, shape.item)
     const settle = def !== NO_SHAPE_DEF ? def[kit.name("settle")] : undefined
     if (!settle) continue
-    const next = replaceShape(settled, shape.id, s => settle(s as never, before as never) as PlacedShape)
+    const next = replaceShape(settled, shape.id, s => settle(s as never, before.shape as never) as PlacedShape)
     if (next !== NO_ITEM) settled = next
   }
   return settled
