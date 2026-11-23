@@ -388,9 +388,9 @@ function action(
 export const withoutPermissions = (answer: Inspected<boolean>): Inspected<boolean> =>
   decide(answer.steps.filter(s => s.from.source !== "permission"))
 
-// 答えを止めたのが認可ステップなら、そのステップの id（使えるか、ほかのステップが止めたなら null）
 // 使えるかの答え（matomezu/ui の Allowed など）の permission の、止めたのが認可ステップでない（タイプなどで使えない）ときの値
 export const NO_PERMISSION = "none"
 
+// 答えを止めたのが認可ステップなら、そのステップの id（使えるか、ほかのステップが止めたなら null）
 export const deniedBy = (answer: Inspected<boolean>): string | null =>
   answer.value === false && answer.decidedBy?.source === "permission" ? answer.decidedBy.id : null

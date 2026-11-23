@@ -22,7 +22,7 @@ import type { BinderEntry, Book, Page } from "./schema/book"
 import { clampPan, contentSize, paperOrigin } from "./viewport"
 
 // 開いているブックと、その中で開いているもの。開いているものは 3 通り:
-// - none: 何も開いていない（ページが 1 枚も無いブック）
+// - none: ブックを開いているが、ページが 1 枚も無い（ステージが何も開いていないのは、Stage の opened が NOTHING_OPENED）
 // - binder: 空のバインダ（中のページが 1 枚も無い。type はバインダが入れるページのタイプ）
 // - page: ページ。ページのタイプと、描く紙を写して持つ（開くときと、ブックが変わったときに決め直す）。
 //   area は、プレゼンテーションが描く広さ（可変ページで、印刷区画を並べた広さ）。プレゼンテーションが知らせるまでと、紙 1 枚で描くページでは持たない。
@@ -51,7 +51,7 @@ export interface OpenedPage extends OpenedBook {
   origin?: Point
 }
 
-// ステージの opened の、何も開いていないときの値
+// ステージの opened の、何も開いていない（ブックもブックの外のページ・バインダも開いていない）ときの値
 export const NOTHING_OPENED = "none"
 // ステージが無いときの値（ステージを持たない所から開いたダイアログ・向け先がステージでないときなど）
 export const NO_STAGE = "none"

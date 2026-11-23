@@ -14,10 +14,10 @@ export type Tools = Readonly<Record<string, string>>
 
 const setOf = (catalog: CoreCatalog, id: string): ToolSetDef => catalog.toolSets.get(id) ?? fail("E114", { id })
 
-// 道具の定義
 // ステージの見え方の tool の、道具が無い（ページのタイプが道具を使わない・使える道具が無い）ときの値
 export const NO_TOOL = "none"
 
+// 道具の定義
 export const toolDef = (catalog: CoreCatalog, id: string): ToolDef => catalog.tools.get(id) ?? fail("E115", { id })
 
 // ステージで使う道具の組の id（ページを開いていないか、開いているページのタイプが道具を使わなければ null）
