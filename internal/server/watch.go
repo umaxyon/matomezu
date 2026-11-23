@@ -29,6 +29,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -104,6 +105,11 @@ const (
 	wakeUpdate    = "update"    // 利用者が、matomezu の版を上げるよう頼んだ（update.go）
 )
 
+// logWake は、起こす知らせが通り道に届いたかを調べるための 1 行を常駐のログに書く
+func logWake(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, "%s wake: %s\n", time.Now().Format("15:04:05"), fmt.Sprintf(format, args...))
+}
+
 // goneState は、表に無い参加の id を、断り・キャンセルとしてどう伝えるか（無ければ断り）
 type goneState string
 
@@ -140,6 +146,7 @@ func (h *Hub) OpenWakesWith(host, session string, limits WakeLimits) *wakeLine {
 	}
 	h.wakeLines[w] = struct{}{}
 	w.ready <- struct{}{}
+	logWake("line %d opened: host %q, session %q", w.id, host, session)
 	return w
 }
 
@@ -156,6 +163,7 @@ func (h *Hub) closeWakesLocked(w *wakeLine) {
 	}
 	delete(h.wakeLines, w)
 	close(w.closed)
+	logWake("line %d closed", w.id)
 	for id, q := range h.wakeQueue {
 		for i := range q {
 			if q[i].lentTo == w.id {
@@ -201,6 +209,14 @@ func (h *Hub) enqueueWake(it wakeItem) {
 		q = q[len(q)-wakeQueueMax:]
 	}
 	h.wakeQueue[it.participant] = q
+	n := h.participantNotes[it.participant]
+	var lines []int64
+	for l := range h.wakeLines {
+		if l.reaches(n) {
+			lines = append(lines, l.id)
+		}
+	}
+	logWake("%d (%s) queued for participant %s (host %q, session %q): lines that reach it %v", it.seq, it.kind, it.participant, n.WakeHost, n.WakeSession, lines)
 	h.signalWakes(it.participant)
 }
 
@@ -287,6 +303,7 @@ func (h *Hub) nextWake(l *wakeLine, now time.Time) (WakeOut, bool) {
 	}
 	text = l.limits.shape(text)
 	h.rememberLent(text)
+	logWake("%d (%s) lent to line %d", pick.seq, pick.kind, l.id)
 	return WakeOut{Line: l.id, ID: strconv.FormatInt(pick.seq, 10), Session: h.participantNotes[pick.participant].SessionID, Text: text}, true
 }
 
@@ -296,6 +313,7 @@ func (h *Hub) AckWake(line int64, id, result string, now time.Time) {
 	if err != nil {
 		return
 	}
+	logWake("%d on line %d: %s", seq, line, result)
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for participant, q := range h.wakeQueue {
