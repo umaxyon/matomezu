@@ -1,6 +1,6 @@
-// ワーカーブックの片付け: tickets-history のブックを、持ち主のレコード（workKey が指すワークルームや、取り組む物）の変わりに応じて片付けるフォローステップ。
-// ワークルームが消えたら（部屋を消した・引き継がずに入り直した）そのワークルーム自身のブックを、取り組む物のレコードが消えたらその物のブックを完全に消す。
-// 取り組む物が終わったら（completesWork）、その物のブックのアノテーションを消す（ブックは残る）
+// ワーカーブックの片付け: tickets-history のブックを、持ち主のレコード（workKey が指すワークルームや、作業のレコード）の変わりに応じて片付けるフォローステップ。
+// ワークルームが消えたら（部屋を消した・引き継がずに入り直した）そのワークルーム自身のブックを、作業のレコードが消えたらそのレコードのブックを完全に消す。
+// 作業が終わったら（completesWork）、その作業のレコードのブックのアノテーションを消す（ブックは残る）
 import type { RecordRead } from "../../../core/def/action"
 import type { FollowedChange, FollowStepDef } from "../../../core/def/follow-step"
 import { TICKETS_HISTORY } from "../library/backyards"
@@ -35,7 +35,7 @@ export const FOLLOW_WORKROOM_GONE: FollowStepDef<typeof WORKROOM.id> = {
   follow: change => purgedOn(change as FollowedChange),
 }
 
-// 取り組む物（completesWork を持つ種類）のレコードが消えたらそのブックを完全に消し、作業が終わったらそのブックのアノテーションを消す
+// 作業のレコード（completesWork を持つ種類）が消えたらそのブックを完全に消し、作業が終わったらそのブックのアノテーションを消す
 export const FOLLOW_WORK_ENDED: FollowStepDef = {
   watches: { having: "completesWork" },
   writes: [],
