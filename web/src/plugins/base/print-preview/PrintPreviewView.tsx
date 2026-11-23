@@ -34,7 +34,7 @@ import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
 import { entrySheets, hasCrossing } from "./entry-sheets"
 import { useMeasures, useReportMeasure, useSetPrintReady } from "./measures"
-import type { PrintMeasured } from "./measures-state"
+import { NOT_MEASURED, type PrintMeasured } from "./measures-state"
 import { PrintOutput } from "./PrintOutput"
 import styles from "./PrintPreviewView.module.css"
 import { PRINT_PREVIEW_PANEL_ID, printCheckOpen } from "./panel-id"
@@ -53,7 +53,7 @@ export interface PrintSheetProps {
   column: number
   row: number
   paper: Size
-  measured?: unknown // 測るだけのビュー（printMeasure）が知らせたデータ（測るプレゼンテーションだけ）
+  measured: unknown // 測るだけのビュー（printMeasure）が知らせたデータ（測らないプレゼンテーションと、まだ測っていない間は NOT_MEASURED）
 }
 
 // 測るだけのビュー（プレゼンテーションのビューの定義の printMeasure）が受け取る物: ページと、紙の大きさ paper、測った結果を知らせる report。
@@ -65,7 +65,7 @@ export interface PrintMeasureProps {
   report(measured: PrintMeasured): void
 }
 
-export type { PrintMeasured } from "./measures-state"
+export { NOT_MEASURED, type PrintMeasured } from "./measures-state"
 
 declare module "../../../core/catalog" {
   interface PresentationViewExtras {
@@ -281,7 +281,7 @@ function PrintPreviewBody({ id }: { id: string }) {
               entry={previewed.id}
               page={pageOf(s.page)}
               sheet={s}
-              measured={measures[s.page]?.data}
+              measured={measures[s.page]?.data ?? NOT_MEASURED}
               labels={labelsOf(s)}
             />
           </div>
@@ -295,7 +295,7 @@ function PrintPreviewBody({ id }: { id: string }) {
             ...s,
             key: keyOf(s),
             page: pageOf(s.page),
-            measured: measures[s.page]?.data,
+            measured: measures[s.page]?.data ?? NOT_MEASURED,
             labels: labelsOf(s),
           }))}
         />

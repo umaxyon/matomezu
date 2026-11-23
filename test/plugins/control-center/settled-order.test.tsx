@@ -1,7 +1,14 @@
 // 列の並びを、行が途中の様子に入った直後は前の並びで待つ（control-center/rows.ts の passingRow・settleOrder と、それを使う useSettledOrder）
 import { afterEach, expect, setSystemTime, test } from "bun:test"
 import { cleanup, renderHook } from "@testing-library/react"
-import type { WorkroomRow } from "../../../web/src/plugins/base"
+import {
+  NO_BRANCH,
+  NO_MODEL,
+  NO_OCCUPANT,
+  NOT_CALLED,
+  NOT_REQUESTED,
+  type WorkroomRow,
+} from "../../../web/src/plugins/base"
 import { PASSING_WAIT_MS, passingRow } from "../../../web/src/plugins/control-center/rows"
 import { useSettledOrder } from "../../../web/src/plugins/control-center/useSettledOrder"
 
@@ -14,8 +21,12 @@ const row = (id: string, state: WorkroomRow["state"], requestedAt?: string): Wor
   room: { id, name: id, bird: "inko", createdAt: "t" },
   state,
   admin: false,
+  participant: NO_OCCUPANT,
+  model: NO_MODEL,
+  branch: NO_BRANCH,
+  calledAt: NOT_CALLED,
+  requestedAt: requestedAt ?? NOT_REQUESTED,
   activity: "unknown",
-  ...(requestedAt ? { requestedAt } : {}),
 })
 
 const ids = (rows: readonly WorkroomRow[]) => rows.map(r => r.room.id)

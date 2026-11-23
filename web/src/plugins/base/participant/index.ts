@@ -402,5 +402,17 @@ export function isAdminActor(actor: Actor, ctx: Pick<ActionContext, "records" | 
 
 export { PARTICIPANT_ALIVE } from "./alive"
 export { JOIN_REQUEST_DIALOG, PARTICIPANT_JOIN_DIALOG, PARTICIPANT_WELCOME_DIALOG } from "./dialogs"
-export type { ParticipantCategory, VisitorRow, WorkroomRow, WorkroomState } from "./rows"
-export { NO_CATEGORY, participantCategory, visitorName } from "./rows"
+export {
+  NO_BRANCH,
+  NO_CATEGORY,
+  NO_MODEL,
+  NO_OCCUPANT,
+  NOT_CALLED,
+  NOT_REQUESTED,
+  type ParticipantCategory,
+  participantCategory,
+  type VisitorRow,
+  visitorName,
+  type WorkroomRow,
+  type WorkroomState,
+} from "./rows"

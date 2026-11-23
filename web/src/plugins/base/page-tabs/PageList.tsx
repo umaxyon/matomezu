@@ -23,6 +23,7 @@ import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
 import { PAGE_ADD } from "../pages/page-add"
 import { pageArea } from "../place/grow"
+import { NOT_MEASURED } from "../print-preview/measures-state"
 import { Printing } from "../print-preview/printing"
 import { SheetLayers } from "../print-preview/SheetLayers"
 import { useResize } from "../utils/useResize"
@@ -65,7 +66,7 @@ function ThumbnailFrame({
       {scale > 0 && (
         <div className={styles.scaled} style={{ width: size.w, height: size.h, transform: `scale(${scale})` }}>
           <Printing>
-            <SheetLayers page={page} column={0} row={0} paper={size} />
+            <SheetLayers page={page} column={0} row={0} paper={size} measured={NOT_MEASURED} />
           </Printing>
         </div>
       )}

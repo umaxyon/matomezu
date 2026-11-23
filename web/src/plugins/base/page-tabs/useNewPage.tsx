@@ -21,8 +21,11 @@ import { nextPageTitle, type PaperPlace } from "../pages/pages"
 import type { NewPageDialogArgs } from "."
 import { useAddPage } from "./useAddPage"
 
+// ページを作る先が無いときの値
+export const NO_LINEUP = "none"
+
 export interface NewPage {
-  lineup: StageLineup | null // 紙の規定と選択肢を出す並び（ブックか、ブックの外のバインダ 1 つの並び。書庫ホームとフォルダは空の並び）。作る先が無ければ null
+  lineup: StageLineup | typeof NO_LINEUP // 紙の規定と選択肢を出す並び（ブックか、ブックの外のバインダ 1 つの並び。書庫ホームとフォルダは空の並び）。作る先が無ければ NO_LINEUP
   place: PaperPlace // 並びの中の入れる所（今あるバインダ・新しいバインダ・並び）
   // 初めに入れておく名前（作る先の名前と重ならない）: page はページ、binder は新しく作るバインダ
   titles: { page: string; binder: string }
@@ -57,7 +60,7 @@ export function useNewPage(args: NewPageDialogArgs): NewPage {
   const inBinder = lineup && into !== undefined ? pagesIn(lineup, into).map(p => p.title) : undefined
   const none: StageLineup = { id: "", lineup: [] }
   return {
-    lineup,
+    lineup: lineup ?? NO_LINEUP,
     place,
     titles: {
       page: nextPageTitle(lineup ?? none, t, place === "new-binder" ? [] : (inBinder ?? taken())),

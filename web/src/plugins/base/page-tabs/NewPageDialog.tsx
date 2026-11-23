@@ -10,13 +10,13 @@ import { controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import type { NewPageDialogArgs } from "."
 import { usePaperControls } from "./PaperControls"
-import { type NewPage, useNewPage } from "./useNewPage"
+import { type NewPage, NO_LINEUP, useNewPage } from "./useNewPage"
 
 export function NewPageDialog({ args, onClose }: DialogProps<NewPageDialogArgs>) {
   const t = useMessages(kit)
   const to = useNewPage(args)
   const type = useCatalog().core.pageTypes.get(args.type)
-  if (!to.lineup || !type) return null
+  if (to.lineup === NO_LINEUP || !type) return null
   return (
     <Dialog title={t("New {type}", { type: t(type.title) })} onClose={onClose}>
       <NewPageForm to={to} type={args.type} onDone={onClose} />
@@ -30,7 +30,7 @@ function NewPageForm({ to, type, onDone }: { to: NewPage; type: string; onDone: 
   // 新しいバインダを作るか（まとまるタイプで、入れるバインダが決まっていない）
   const newBinder = place === "new-binder"
   const [title, setTitle] = useState(newBinder ? titles.binder : titles.page)
-  const paper = usePaperControls(to.lineup ?? undefined, type, place)
+  const paper = usePaperControls(to.lineup === NO_LINEUP ? undefined : to.lineup, type, place)
   const into = newBinder ? { into: { newBinder: title } } : place === "lineup" ? {} : { into: place }
   return (
     <Form

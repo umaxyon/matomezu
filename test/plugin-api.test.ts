@@ -2,8 +2,16 @@
 // 追加プラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
 
 import { expect, test } from "bun:test"
+import type { CSSProperties, ReactNode } from "react"
+import type { ZodType } from "zod"
+import type { SlotTable, SubjectId, WidgetTable } from "../web/src/core/catalog"
+import type { RecordOf } from "../web/src/core/def/action"
 import { NO_CONTROL_CENTER } from "../web/src/core/def/action"
-import type { Book } from "../web/src/core/schema/book"
+import type { ItemDef } from "../web/src/core/def/item"
+import type { PageTypeDef } from "../web/src/core/def/page-type"
+import type { ThemeDef } from "../web/src/core/def/theme"
+import type { ItemPage, PlacedItem } from "../web/src/core/placed"
+import type { BinderEntry, Book, LineupEntry } from "../web/src/core/schema/book"
 import type { Opened, Placing, StageMode } from "../web/src/core/stage"
 import { NO_PAPER, NO_PLACING, NOTHING_OPENED, newStage, shownPageId } from "../web/src/core/stage"
 import { NO_TOOL } from "../web/src/core/tools"
@@ -13,6 +21,8 @@ import { stageView, toolOf } from "../web/src/core/workspace"
 import * as api from "../web/src/plugin-entry/index"
 import * as ui from "../web/src/plugin-entry/ui"
 import * as plugin from "../web/src/plugins/base"
+import type { PrintMeasureProps, PrintSheetProps } from "../web/src/plugins/base/print-preview/PrintPreviewView"
+import type { Run } from "../web/src/plugins/base/text/rich"
 import * as pluginUi from "../web/src/plugins/base/ui"
 import { boundActions, windowActionsOf } from "../web/src/store/actions"
 import { commandContext, commandDef } from "../web/src/store/commands"
@@ -22,7 +32,16 @@ import type { OpenedContextMenu } from "../web/src/store/context-menus"
 import { NO_CONTEXT_MENU } from "../web/src/store/context-menus"
 import type { OpenedDialog } from "../web/src/store/dialogs"
 import { NO_DIALOG } from "../web/src/store/dialogs"
+import type { HostStatus, UpdateStatus } from "../web/src/store/state"
 import * as testing from "../web/src/testing"
+import type { ShapeScene } from "../web/src/ui/connector"
+import type {
+  DialogProps,
+  ItemViewProps,
+  PresentationViewProps,
+  SettingControlProps,
+  UserSettingControlProps,
+} from "../web/src/ui/plugin"
 import { CORE_CATALOG, newStore, pageOf } from "./support"
 
 const names = (m: object) => Object.keys(m).sort()
@@ -52,21 +71,29 @@ test("matomezu が出す名前", () => {
     "MY_WORKDESK",
     "NEST_PADDING",
     "NOTHING_OPENED",
+    "NOT_CALLED",
+    "NOT_REQUESTED",
     "NOT_SET",
     "NO_AI_PLACED",
+    "NO_ANCHORS",
     "NO_AREA",
     "NO_BINDER",
     "NO_BOOK",
+    "NO_BRANCH",
     "NO_CATEGORY",
     "NO_CONTEXT_MENU",
     "NO_CONTROL_CENTER",
     "NO_DIALOG",
     "NO_DIALOG_PREVIEW",
+    "NO_DRAFT",
     "NO_EXTENT",
     "NO_FRAME",
     "NO_GROW",
+    "NO_HOLDER",
     "NO_ITEM",
+    "NO_MODEL",
     "NO_NAME",
+    "NO_OCCUPANT",
     "NO_ORIGIN",
     "NO_OUTERMOST",
     "NO_OUTSIDE_BINDER",
@@ -83,8 +110,10 @@ test("matomezu が出す名前", () => {
     "NO_STAGE",
     "NO_STATE",
     "NO_TOOL",
+    "NO_VIEW_AREA",
     "NO_WORKER_BOOK",
     "NO_WORKROOM",
+    "PAGE_ITSELF",
     "PAGE_PAPER_COLOR",
     "PAGE_TEXT_COLORS",
     "PAGE_THEME",
@@ -317,6 +346,8 @@ test("matomezu/ui が出す名前", () => {
     "GhostArea",
     "IconButton",
     "InheritChoices",
+    "KEEP_ALL",
+    "KEEP_DRAWN",
     "LEFT_SIDE_PANEL",
     "LIBRARY_CONTEXT_MENUS",
     "LeftSidePanelOpenButton",
@@ -330,14 +361,21 @@ test("matomezu/ui が出す名前", () => {
     "MaxButton",
     "MultiChoices",
     "NOT_AWAY",
+    "NOT_COMPOSING",
+    "NOT_MEASURED",
+    "NOT_PRESSED",
     "NO_FOLDER",
     "NO_HOST_STATUS",
+    "NO_HOVER",
     "NO_LEFT_SIDE_PANEL",
+    "NO_LINEUP",
     "NO_MENU_COMMAND",
+    "NO_MOTION",
     "NO_PERMISSION",
     "NO_RIGHT_SIDE_PANEL",
     "NO_SCREEN",
     "NO_SWATCHES",
+    "NO_TARGET",
     "NO_THEME",
     "NO_UPDATE_STATUS",
     "Notice",
@@ -534,18 +572,23 @@ test("matomezu/testing が出す名前", () => {
   ])
 })
 
-// 型 T（ユニオンなら、そのどれか）の、任意のフィールド（?:）と、値の型に null か undefined を含むフィールドの名前（値が unknown のフィールドは、渡す値の形を決めないので除く）
+// 型 T（ユニオンなら、そのどれか）の、任意のフィールド（?:）と、値の型に null か undefined を含むフィールドの名前（値が unknown のフィールドは、渡す値の形を決めないので除く。
+// React が描く物 ReactNode のフィールドも、描かない null は無いことの値ではないので除く）
 type NoneKeys<T> = T extends unknown
   ? {
-      [K in keyof T]-?: {} extends Pick<T, K>
-        ? K
-        : unknown extends T[K]
-          ? never
-          : null extends T[K]
-            ? K
-            : undefined extends T[K]
-              ? K
-              : never
+      [K in keyof T]-?: string extends K
+        ? never
+        : {} extends Pick<T, K>
+          ? K
+          : unknown extends T[K]
+            ? never
+            : ReactNode extends T[K]
+              ? never
+              : null extends T[K]
+                ? K
+                : undefined extends T[K]
+                  ? K
+                  : never
     }[keyof T]
   : never
 // 型 T のどのフィールドも、無いことを null・undefined・任意のフィールドで表していなければ true（していれば、そのフィールドの名前の型になり、true を置けない）
@@ -581,6 +624,106 @@ test("コマンドの文脈とプラグインに見せるステージのフィ�
     const skip = new Set<unknown>([ctx.catalog, ctx.book, ctx.page, ctx.outsideBinder, ctx.settings, ctx.folders])
     expect(noneAt(ctx, "ctx", skip)).toEqual([])
   }
+})
+
+// プラグイン API の関数とフックが返す値と、プラグインのコンポーネントに渡る値も、無いこと・できないことを名前の付いた定数で表す（型の確かめ。違えば typecheck が通らず、名前が出る）。
+// 返す値は、Promise と並びはその中を、オブジェクトは 1 段目のフィールドを見る。除くのは次の物:
+// - 定義を作る関数（define…）: 返すのはプラグインが書く定義で、任意のフィールドを持つ
+// - プラグイン API が出すコンポーネント（名前が大文字で始まる）: 受け取る props は、プラグインが渡す値
+// - 返す値のうち、プラグインのデータの形（ブック・ページ・アイテム・レコード・文字の並び）と定義（タイプ・テーマ・アイテムの定義）と、
+//   CSS の値・zod の形: どれも任意のフィールドを、データや定義の形として持つ
+// - ホストの状態（HostStatus・UpdateStatus）: ホストの HTTP の口が渡す形のまま
+type Fn = (...args: never[]) => unknown
+type DataShape =
+  | Book
+  | LineupEntry
+  | BinderEntry
+  | ItemPage
+  | PlacedItem
+  | Run
+  | RecordOf<SubjectId>
+  | ItemDef
+  | PageTypeDef
+  | ThemeDef
+  | CSSProperties
+  | ZodType
+  | HostStatus
+  | UpdateStatus
+type Unwrapped<R> = R extends Promise<infer X> ? Unwrapped<X> : R extends readonly (infer E)[] ? Unwrapped<E> : R
+// 返す値そのものが null か undefined を含めば、その印（何も返さない void は除く）
+// biome-ignore lint/suspicious/noConfusingVoidType: 何も返さない関数の返す型 void を見分ける
+type NoneReturn<R> = [R] extends [void]
+  ? never
+  : unknown extends R
+    ? never
+    : null extends R
+      ? "(null)"
+      : undefined extends R
+        ? "(undefined)"
+        : never
+// 返す値（ユニオンなら、そのどれか）が、データの形・関数・プリミティブでないオブジェクトなら、その NoneKeys
+type ResultKeys<X> = X extends DataShape | Fn | string | number | boolean | symbol | bigint | null | undefined
+  ? never
+  : NoneKeys<X>
+type ReturnNone<F> = F extends (...args: never[]) => infer R
+  ? NoneReturn<Unwrapped<R>> | ResultKeys<Unwrapped<R>>
+  : never
+type Component<K> = K extends `${infer C}${string}` ? (C extends Lowercase<C> ? false : true) : false
+// 入口 M の、確かめる関数とフック（名前 → 当たったフィールドの名前）
+type Checked<M> = {
+  [K in keyof M as K extends `define${string}`
+    ? never
+    : Component<K> extends true
+      ? never
+      : M[K] extends Fn
+        ? K
+        : never]: ReturnNone<M[K]>
+}
+// 入口 M の、決まりに合わない関数とフックの名前
+type ReturnOffenders<M> = {
+  [K in keyof Checked<M>]: [Checked<M>[K]] extends [never] ? never : K
+}[keyof Checked<M>]
+type Offenders<M> = [ReturnOffenders<M>] extends [never] ? true : `${ReturnOffenders<M> & string}`
+// 土台と base が、プラグインのコンポーネント（定義の view・control など）に渡す値
+type SlotPropsOf = SlotTable[keyof SlotTable]
+type WidgetPropsOf = {
+  [W in keyof WidgetTable]: WidgetTable[W] extends { view: (props: infer P) => unknown } ? P : never
+}[keyof WidgetTable]
+const returnsNoneFree: readonly true[] = [
+  true satisfies Offenders<typeof api>,
+  true satisfies Offenders<typeof ui>,
+  true satisfies NoneFree<UserSettingControlProps>,
+  true satisfies NoneFree<SettingControlProps>,
+  true satisfies NoneFree<DialogProps<unknown>>,
+  true satisfies NoneFree<ItemViewProps<unknown, unknown>>,
+  true satisfies NoneFree<PresentationViewProps>,
+  true satisfies NoneFree<ShapeScene>,
+  true satisfies NoneFree<PrintSheetProps>,
+  true satisfies NoneFree<PrintMeasureProps>,
+  true satisfies NoneFree<SlotPropsOf>,
+  true satisfies NoneFree<WidgetPropsOf>,
+]
+
+// 土台と base が、プラグインのコンポーネントを受ける定義のフィールドの、渡す値の型（ComponentType<…> に書く型）。足したら、上の確かめにも足す
+const COMPONENT_PROPS_FILES = [
+  "web/src/ui/plugin.ts",
+  "web/src/ui/connector.ts",
+  "web/src/plugins/base/print-preview/PrintPreviewView.tsx",
+]
+test("プラグイン API の関数とフックが返す値と、プラグインのコンポーネントに渡る値は、null・undefined・任意のフィールドにしない", async () => {
+  expect(returnsNoneFree.length).toBe(12)
+  const given = new Set<string>()
+  for (const file of COMPONENT_PROPS_FILES)
+    for (const m of (await Bun.file(file).text()).matchAll(/ComponentType<([A-Za-z]+)/g)) given.add(m[1] as string)
+  expect([...given].sort()).toEqual([
+    "DialogProps",
+    "ItemViewProps",
+    "PresentationViewProps",
+    "PrintMeasureProps",
+    "PrintSheetProps",
+    "SettingControlProps",
+    "UserSettingControlProps",
+  ])
 })
 
 test("プラグインに見せるステージ（StageView）のフィールド", () => {

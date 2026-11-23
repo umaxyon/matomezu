@@ -37,9 +37,11 @@ import {
   useStage,
   useStageArea,
 } from "../../../../plugin-api/ui"
-import { growOf, NO_GROW, pageContext, refusalMessage, settingValue } from "../../../base"
+import { growOf, NO_DRAFT, NO_GROW, NO_HOLDER, pageContext, refusalMessage, settingValue } from "../../../base"
 import {
   NO_SWATCHES,
+  NOT_COMPOSING,
+  NOT_PRESSED,
   PaperFrame,
   RichBar,
   RichInput,
@@ -165,7 +167,7 @@ const Tree = memo(function Tree({
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
   const openNodeMenu = useContextMenu(NODE_CONTEXT)
   const root = treeRootOf(page)
-  const grow = settingValue(catalog, page ?? null, GROW)
+  const grow = settingValue(catalog, page ?? NO_HOLDER, GROW)
   const usingEdit = stage.tool === EDIT_TOOL.id
   const selected = root ? selectedIn(root, stage.selection) : null
   const swatches = useSwatches(usePageTheme(), NODE_FILL) // 節の色のスタンドに並べる色
@@ -184,10 +186,10 @@ const Tree = memo(function Tree({
     begin: p => zoomStage(1, p),
     end: () => zoomStage(toolZoom(true)),
   })
-  const text = caption.text
+  const text = caption.text === NO_DRAFT ? null : caption.text
   const shown = root && selected && text !== null ? withCaption(root, selected, text) : root
-  const shape = settingValue(catalog, page ?? null, NODE_SHAPE)
-  const lineShape = settingValue(catalog, page ?? null, LINE_SHAPE)
+  const shape = settingValue(catalog, page ?? NO_HOLDER, NODE_SHAPE)
+  const lineShape = settingValue(catalog, page ?? NO_HOLDER, LINE_SHAPE)
   // ページの増やす向き（可変ページでなければ NO_GROW）
   const growing = page ? growOf(catalog, page) : NO_GROW
   // 印刷と同じ並べ方（print.ts の laidPage）で、書いている字を重ねた木を並べる
@@ -202,7 +204,7 @@ const Tree = memo(function Tree({
   // 出てもそのまま（見え方は変えない）。節を選ぶか書き換え始めるか、ページを替えると戻る
   const focused = useFocus(stage, page?.id)
   useToolZoom(usingEdit, focused, zoomStage)
-  useCentered(stage, usingEdit && focused && !drag.state ? at : undefined, view, panStageBy)
+  useCentered(stage, usingEdit && focused && drag.state === NOT_PRESSED ? at : undefined, view, panStageBy)
   if (!page || !root || !laid || !selected) return null
   const tree = root
   const pageId = page.id
@@ -217,7 +219,7 @@ const Tree = memo(function Tree({
   }
   const { nodes, lines } = laid
   // ドラッグで動かしている節（押しただけでまだ動かしていなければ null）と、落とす先
-  const dragging = drag.state?.moved ? drag.state : null
+  const dragging = drag.state !== NOT_PRESSED && drag.state.moved ? drag.state : null
   const moving = dragging ? subtreeIds(nodeOf(tree, dragging.id) ?? { id: dragging.id, caption: "" }) : null
   const drop = dragging ? dropAt(tree, grow, nodes, dragging.id, dragging.at) : null
   const ghost = dragging && nodes.find(n => n.id === dragging.id)
@@ -324,7 +326,7 @@ const Tree = memo(function Tree({
           style={{
             left: at.x,
             top: at.y,
-            width: editorWidth(caption.composing ?? text ?? at.caption, at.w),
+            width: editorWidth((caption.composing !== NOT_COMPOSING ? caption.composing : text) ?? at.caption, at.w),
             height: at.h,
           }}
         />

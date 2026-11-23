@@ -311,7 +311,7 @@ export {
 } from "./book-look"
 export { createBookIn } from "./book-new"
 export type { PageContext, SettingReader } from "./book-settings"
-export { pageContext, settingValue } from "./book-settings"
+export { NO_HOLDER, pageContext, settingValue } from "./book-settings"
 export { MY_WORKDESK } from "./library"
 export { PAPER_IDS } from "./looks"
 // Markdown の原文を読む・描いた文書が使う物（ほかのプラグインが使う。追加プラグインには matomezu から出す）
@@ -344,19 +344,28 @@ export {
 export { itemMinimapMarks, type MinimapMark } from "./minimap"
 export type { PageProblem } from "./pages"
 export { addPageIn, type PageFieldsWay, pageFieldsWay } from "./pages"
-export type { FoundWorkerBook, ParticipantCategory, VisitorRow, WorkroomRow, WorkroomState } from "./participant"
 export {
   adminWorkroom,
+  type FoundWorkerBook,
   isAdminActor,
   JOINED_MESSAGE,
   myWorkdeskIn,
+  NO_BRANCH,
   NO_CATEGORY,
+  NO_MODEL,
+  NO_OCCUPANT,
   NO_WORKER_BOOK,
+  NOT_CALLED,
+  NOT_REQUESTED,
+  type ParticipantCategory,
   participantCategory,
   READS_ADMIN,
   READS_WORKROOM_KEYS,
   VISITOR_JOINED_MESSAGE,
+  type VisitorRow,
   visitorName,
+  type WorkroomRow,
+  type WorkroomState,
   workTitleIn,
 } from "./participant"
 // 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）

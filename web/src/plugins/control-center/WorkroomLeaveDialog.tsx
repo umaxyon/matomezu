@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import type { DialogProps } from "../../plugin-api/ui"
 import { useMessages } from "../../plugin-api/ui"
+import { NO_OCCUPANT } from "../base"
 import { ActionButton, Dialog, useOwnBookPages, useWorkroomActions, useWorkroomRows } from "../base/ui"
 import { Bird } from "./Bird"
 import { kit } from "./kit"
@@ -12,7 +13,7 @@ export function WorkroomLeaveDialog({ args, onClose }: DialogProps<{ workroom: s
   const t = useMessages(kit)
   const row = useWorkroomRows().find(r => r.room.id === args.workroom)
   const rooms = useWorkroomActions()
-  const occupant = row?.participant?.id
+  const occupant = row && row.participant !== NO_OCCUPANT ? row.participant.id : undefined
   // ワークルームを消すと、ワークルーム自身のワーカーブックが完全に消える
   const pages = useOwnBookPages(args.workroom)
   const gone = !row

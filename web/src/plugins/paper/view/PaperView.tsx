@@ -27,14 +27,17 @@ import {
   NO_PAPER,
   NO_PLACING,
   NO_STAGE,
+  PAGE_ITSELF,
   type PlacedShape,
   type Point,
   type Rect,
+  type ShapeParent,
   type StageView,
   shapesOf,
   toPaperDelta,
 } from "../../../plugin-api"
 import {
+  NO_HOVER,
   type ShapeScene,
   TokenScope,
   useActions,
@@ -211,7 +214,7 @@ function Content({
   const t = useMessages(kit)
   return (
     <PaperFrame stage={stage} role="img" aria-label={t("Paper")}>
-      <Items stage={stage} into={placed?.target?.parent ?? null} localOf={localOf} />
+      <Items stage={stage} into={placed?.target?.parent ?? PAGE_ITSELF} localOf={localOf} />
       {pointer && placed && <Ghost placed={placed} />}
       {box && (
         <div
@@ -255,7 +258,7 @@ const Items = memo(function Items({
   localOf,
 }: {
   stage: StageView
-  into: string | null
+  into: ShapeParent // 置こうとしている間の、押すと入る先（入る先の形が無ければ PAGE_ITSELF）
   localOf: LocalOf
 }) {
   const catalog = useCoreCatalog()
@@ -281,7 +284,7 @@ function PageItems({
   stage: StageView
   page: ItemPage
   shownPage: ItemPage
-  into: string | null
+  into: ShapeParent // 置こうとしている間の、押すと入る先（入る先の形が無ければ PAGE_ITSELF）
   localOf: LocalOf
 }) {
   const catalog = useCoreCatalog()
@@ -314,7 +317,7 @@ function PageItems({
   const stretch = useRef<Stretch | null>(null)
   const [stretched, setStretched] = useState<Point>({ x: 0, y: 0 }) // 大きさを変えているドラッグの、画面の上で動いた量
   const pans = stage.pans
-  const [hover, setHover] = useState<string | null>(null) // ポインタを乗せている形
+  const [hover, setHover] = useState<string | typeof NO_HOVER>(NO_HOVER) // ポインタを乗せている形
   // 離したばかりの形（離したあとの 1 回の描画だけ、つなぐもののビューに渡す）
   const settled = useRef<ReadonlySet<string>>(new Set())
   useEffect(() => {
@@ -382,7 +385,7 @@ function PageItems({
     settled.current = new Set(d.items)
     if (drop && !d.travelled && d.release) select(d.release)
     if (!drop || !d.movable || !moved || (moved.x === 0 && moved.y === 0)) return
-    if (d.reparent) reparent.run({ item: d.items[0] as string, parent: target ?? null, by: moved })
+    if (d.reparent) reparent.run({ item: d.items[0] as string, parent: target ?? PAGE_ITSELF, by: moved })
     else move.run({ items: d.items, by: moved, came: d.came })
   }
   const shift = moved && toPaperDelta(stage, moved)
@@ -450,7 +453,7 @@ function PageItems({
       key={item.id}
       zoom={stage.zoom}
       item={item}
-      onHover={on => setHover(h => (on ? item.id : h === item.id ? null : h))}
+      onHover={on => setHover(h => (on ? item.id : h === item.id ? NO_HOVER : h))}
       overlays={connectors.flatMap(c => {
         const Overlay = c.overlay
         return Overlay

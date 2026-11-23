@@ -105,4 +105,4 @@ export const PRINT_PREVIEW_PANEL = defineWidget({
 // 印刷区画の中のレイヤー（スロット sheet-layers）: ページの中身（ページのタイプのプレゼンテーションの printSheet）
 export const SHEET_CONTENT = defineWidget({ id: kit.name("sheet-content"), slots: [SHEET_LAYERS], view: SheetContent })
 
-export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./PrintPreviewView"
+export { NOT_MEASURED, type PrintMeasured, type PrintMeasureProps, type PrintSheetProps } from "./PrintPreviewView"

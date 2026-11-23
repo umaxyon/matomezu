@@ -5,19 +5,30 @@ import type { ParticipantLive } from "../../../store/state"
 import type { Participant, Workroom } from "."
 import type { WorkroomActivity } from "./activity"
 import { shownModel } from "./live"
-import { occupantOf } from "./workroom"
+import { NOT_CALLED, occupantOf } from "./workroom"
+
+export { NOT_CALLED }
 
 export type WorkroomState = "empty" | "preparing" | "ready"
 
+// 空室で、いる参加者が無いときの値
+export const NO_OCCUPANT = "none"
+// 画面に出すモデルが無い（空室の）ときの値（モデルの名前はどんな文字列にもなるので、文字列でない定数）
+export const NO_MODEL: unique symbol = Symbol("no model")
+// git のブランチが知らされていないときの値（ブランチの名前はどんな文字列にもなるので、文字列でない定数）
+export const NO_BRANCH: unique symbol = Symbol("no branch")
+// その名前で入りたいと頼んでいる参加者がいないときの、頼んだ時刻の値
+export const NOT_REQUESTED = "none"
+
 export interface WorkroomRow {
   room: Workroom
-  participant?: Participant // いる参加者（空室なら無い）
+  participant: Participant | typeof NO_OCCUPANT // いる参加者（空室なら NO_OCCUPANT）
   state: WorkroomState
   admin: boolean
-  model?: string // 画面に出すモデル（AI のフックが知らせた今のモデルを、参加を頼んだときのモデルより先に）
-  branch?: string // git のブランチ（知らされた参加者だけ）
-  calledAt?: string // 参加者が最後に呼ばれた時刻（呼ばれていなければ無い）
-  requestedAt?: string // このワークルームの名前で入りたいと頼んでいる要求中の参加者の、頼んだ時刻（いちばん新しいもの。無ければ無い）
+  model: string | typeof NO_MODEL // 画面に出すモデル（AI のフックが知らせた今のモデルを、参加を頼んだときのモデルより先に。空室なら NO_MODEL）
+  branch: string | typeof NO_BRANCH // git のブランチ（知らされた参加者だけ。ほかは NO_BRANCH）
+  calledAt: string | typeof NOT_CALLED // 参加者が最後に呼ばれた時刻（呼ばれていなければ NOT_CALLED）
+  requestedAt: string | typeof NOT_REQUESTED // このワークルームの名前で入りたいと頼んでいる要求中の参加者の、頼んだ時刻（いちばん新しいもの。無ければ NOT_REQUESTED）
   activity: WorkroomActivity | "unknown" // 作業の様子（activity.ts。見せるためだけ。答える種類が無ければ unknown）
 }
 
@@ -49,13 +60,13 @@ export function workroomRows(input: {
       .at(-1)
     return {
       room,
-      ...(participant ? { participant } : {}),
+      participant: participant ?? NO_OCCUPANT,
       state: !participant ? "empty" : input.ready.includes(participant.id) ? "ready" : "preparing",
       admin: room.id === input.admin,
-      ...(participant ? { model: shownModel(participant, live) } : {}),
-      ...(live?.branch ? { branch: live.branch } : {}),
-      ...(calledAt ? { calledAt } : {}),
-      ...(requestedAt ? { requestedAt } : {}),
+      model: participant ? shownModel(participant, live) : NO_MODEL,
+      branch: live?.branch ? live.branch : NO_BRANCH,
+      calledAt: calledAt ? calledAt : NOT_CALLED,
+      requestedAt: requestedAt ? requestedAt : NOT_REQUESTED,
       activity: input.activities[room.id] ?? "unknown",
     }
   })
@@ -67,8 +78,8 @@ export interface VisitorRow {
   participant: Participant
   state: Exclude<WorkroomState, "empty">
   model: string
-  branch?: string
-  calledAt?: string
+  branch: string | typeof NO_BRANCH
+  calledAt: string | typeof NOT_CALLED
 }
 
 export function visitorRows(input: {
@@ -87,8 +98,8 @@ export function visitorRows(input: {
         participant,
         state: input.ready.includes(participant.id) ? "ready" : "preparing",
         model: shownModel(participant, live),
-        ...(live?.branch ? { branch: live.branch } : {}),
-        ...(calledAt ? { calledAt } : {}),
+        branch: live?.branch ? live.branch : NO_BRANCH,
+        calledAt: calledAt ? calledAt : NOT_CALLED,
       }
     })
 }

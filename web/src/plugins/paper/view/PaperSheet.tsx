@@ -5,6 +5,7 @@ import type { ReactNode } from "react"
 import { allowedItems, type CoreCatalog, type ItemPage, type PlacedShape } from "../../../plugin-api"
 import {
   type ItemViewProps,
+  NO_HOVER,
   type ShapeScene,
   TokenScope,
   useCoreCatalog,
@@ -36,7 +37,7 @@ export function PaperSheet({ zoom, page, column, row, paper }: PrintSheetProps) 
     released: NO_IDS,
     busy: false,
     selectable: false,
-    hover: null,
+    hover: NO_HOVER,
     localOf: () => null,
   }
   const connectors = allowedItems(catalog, page).flatMap(c => {

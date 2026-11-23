@@ -9,6 +9,7 @@ import {
   annotationBriefs,
   annotationsForAi,
   checkAnnotations,
+  NO_ANCHORS,
   prune,
   unexpired,
   usableAnnotations,
@@ -83,7 +84,7 @@ test("効くアノテーションは、決まりを守る物だけ（W018・W019
 
 test("並びを、結び付く物の id の並び（1 つ以上）にする", () => {
   expect(anchorsOf(["a", "b"])).toEqual(["a", "b"])
-  expect(anchorsOf([])).toBeNull()
+  expect(anchorsOf([])).toBe(NO_ANCHORS)
 })
 
 test("prune は無くなった物を結び付く物から外し、全部無くなった物を消す。変わらなければ同じ並び", () => {

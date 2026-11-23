@@ -14,7 +14,7 @@ import { kit } from "../kit"
 import { openRightSidePanelIn, RIGHT_SIDE_PANEL_STATE, type RightSidePanelOpen } from "../right-side-panel/state"
 import { AnchorsArg } from "../utils/anchors"
 import { freshId } from "../utils/ids"
-import { type InPlaceDraft, inPlaceText } from "../utils/in-place"
+import { type InPlaceDraft, inPlaceText, NO_DRAFT } from "../utils/in-place"
 import { hasOpenedPage } from "../utils/opened-page"
 import { refusalMessage } from "../utils/refusal"
 import { expiryFrom, NOTE_EXPIRY } from "./expiry"
@@ -248,7 +248,8 @@ function sendIn(ctx: CommandContext) {
   if (open === NO_STATE || open.widget !== NOTE_PANEL_ID) return null
   const note = ctx.annotations.find(a => a.id === open.subject && a.annotation === NOTE.id)
   if (!note && open.subject !== NEW_NOTE) return null
-  const text = inPlaceText(ctx, NOTE_DRAFT, open.subject) ?? (note ? (note.props as NoteProps).text : "")
+  const draft = inPlaceText(ctx, NOTE_DRAFT, open.subject)
+  const text = draft !== NO_DRAFT ? draft : note ? (note.props as NoteProps).text : ""
   return noteSendOf(open, text, note)
 }
 

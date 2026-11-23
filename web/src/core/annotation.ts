@@ -21,10 +21,13 @@ export type Annotation = z.output<typeof AnnotationSchema>
 // 結び付く物の id の並び（1 つ以上）
 export type Anchors = Annotation["anchors"]
 
-// 並び ids を、結び付く物の id の並びにする（1 つも無ければ null）
-export function anchorsOf(ids: readonly string[]): Anchors | null {
+// 結び付く物が 1 つも無いときの値
+export const NO_ANCHORS = "none"
+
+// 並び ids を、結び付く物の id の並びにする（1 つも無ければ NO_ANCHORS）
+export function anchorsOf(ids: readonly string[]): Anchors | typeof NO_ANCHORS {
   const [first, ...rest] = ids
-  return first === undefined ? null : [first, ...rest]
+  return first === undefined ? NO_ANCHORS : [first, ...rest]
 }
 
 // アクションの対象 annotations が受けて返すもの: ページ（読むだけで、アクションは変えない）と、そのアノテーションの並び
@@ -56,7 +59,7 @@ export function prune(annotations: readonly Annotation[], page: ItemPage): reado
     if (kept.length === a.anchors.length) return [a]
     changed = true
     const anchors = anchorsOf(kept)
-    return anchors ? [{ ...a, anchors }] : []
+    return anchors !== NO_ANCHORS ? [{ ...a, anchors }] : []
   })
   return changed ? next : annotations
 }

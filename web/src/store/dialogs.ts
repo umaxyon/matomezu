@@ -31,11 +31,13 @@ export type DialogTaking<A> = {
 // 使うのはプラグインだけだが、土台に置く: 形の定義の dialogs は id の文字で、型の上で「その値を受けるダイアログ」とは書けない（DialogTaking はダイアログの表から作り、
 // その表を作る材料に形の定義も入るので、形の定義の型に使うと型どうしが互いを参照する）。土台の確かめを根拠にした言い張りを、土台の関数に閉じておくため
 // （ページのタイプが名指すダイアログを引く base の pageDialog も同じ作り）
+// （定義が書いていないダイアログは NO_DIALOG）
 export function shapeDialogs(def: ShapeItemDef): {
-  add?: DialogTaking<ShapeAddArgs>
-  edit?: DialogTaking<ShapeEditArgs>
+  add: DialogTaking<ShapeAddArgs> | typeof NO_DIALOG
+  edit: DialogTaking<ShapeEditArgs> | typeof NO_DIALOG
 } {
-  return (def.dialogs ?? {}) as { add?: DialogTaking<ShapeAddArgs>; edit?: DialogTaking<ShapeEditArgs> }
+  const dialogs = (def.dialogs ?? {}) as { add?: DialogTaking<ShapeAddArgs>; edit?: DialogTaking<ShapeEditArgs> }
+  return { add: dialogs.add ?? NO_DIALOG, edit: dialogs.edit ?? NO_DIALOG }
 }
 
 // ページを作るダイアログが受ける値: 作るページのタイプと、作る先。作る先は、ステージのブックなら書かず（まとまるタイプのページを今あるバインダに足すときだけ、binder にその id）、

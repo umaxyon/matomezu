@@ -6,6 +6,9 @@
 import { createContext, type ReactNode, useContext, useLayoutEffect, useRef } from "react"
 import { NO_PLACING, NO_STAGE } from "../../../plugin-api"
 import {
+  KEEP_ALL,
+  NO_TARGET,
+  type ShapeMarks,
   ShapeMarksProvider,
   type ShapeScene,
   useActions,
@@ -15,7 +18,7 @@ import {
   useStage,
 } from "../../../plugin-api/ui"
 import { type PortArea, portAreasOf, toggledSelection } from "../../base"
-import { modPressed, useDrawnMinimap } from "../../base/ui"
+import { KEEP_DRAWN, modPressed, useDrawnMinimap } from "../../base/ui"
 import { LINE_EDIT } from "./commands"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "./connect"
 import { DrawnLinesView } from "./DrawnLinesView"
@@ -88,7 +91,7 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
   const editing = selectable && lineDrag.editable && only && drafted.some(l => l.id === only) ? only : null
 
   // ミニマップの線は、紙に描いた点の並びで描かせる（形を動かしている間は置き直さない。ミニマップの形も、離すまで動かないため）
-  useDrawnMinimap(LINE.id, page.id, scene.busy ? null : lines.map(d => ({ kind: "polyline", points: d.points })))
+  useDrawnMinimap(LINE.id, page.id, scene.busy ? KEEP_DRAWN : lines.map(d => ({ kind: "polyline", points: d.points })))
 
   // 描き終えたら、次に描くときのために、線の記憶と形の四角を覚える
   useLayoutEffect(() => {
@@ -113,9 +116,9 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
   }
   // 線を引いている間は引ける相手と引き始めた形のほかを、端を運んでいる間はつなぎ替えられる形と今の形のほかを薄くする
   const l = linkDrag.link
-  const marks = {
-    keep: l ? new Set([l.from, ...l.targets]) : lineDrag.dimming,
-    target: linkDrag.tip?.target ?? lineDrag.target ?? null,
+  const marks: ShapeMarks = {
+    keep: l ? new Set([l.from, ...l.targets]) : (lineDrag.dimming ?? KEEP_ALL),
+    target: linkDrag.tip?.target ?? lineDrag.target ?? NO_TARGET,
   }
   const from = l && rects.get(l.from)
   const zoom = scene.zoom

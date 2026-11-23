@@ -159,7 +159,8 @@ function NoteEditor({ note, open }: { note: Annotation; open: RightSidePanelOpen
   useEffect(() => {
     if (editing) setEdited(true)
   }, [editing])
-  useEditLock(open.page, edited || editing ? [id] : [])
+  // ページを開いていなければ掛けない
+  useEditLock(open.page, open.page !== NO_PAGE && (edited || editing) ? [id] : [])
   const changed = updatable && noteSendOf(open, text, note) !== null
   return (
     <>

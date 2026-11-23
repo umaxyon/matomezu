@@ -2,7 +2,14 @@
 // ポインタの操作は、押した所の一番内側の形だけが受ける
 import type { MouseEvent, PointerEvent, ReactNode } from "react"
 import type { CoreCatalog, PlacedShape, Point } from "../../../plugin-api"
-import { type ItemViewProps, useCoreCatalog, useShapeMarks, useTokenScope, useUiCatalog } from "../../../plugin-api/ui"
+import {
+  type ItemViewProps,
+  KEEP_ALL,
+  useCoreCatalog,
+  useShapeMarks,
+  useTokenScope,
+  useUiCatalog,
+} from "../../../plugin-api/ui"
 import { type Edges, NO_SHAPE_DEF, NO_SIZE, placedSize, shapeDefOf } from "../../base"
 import { useAnchorRef } from "../../base/ui"
 import { kit } from "../kit"
@@ -92,17 +99,18 @@ export function Item({
   const marks = useShapeMarks()
   const anchor = useAnchorRef() // アイテムにアンカーを付ける（そばにスタンドを立てられる）
   // ドラッグ中の見た目: つなぐもののビューが薄くするよう求めた形は薄く。動かすアイテムは透かし、大きさを変えているアイテムはそのまま、ほかは薄く
-  const look = marks.keep
-    ? marks.keep.has(item.id)
-      ? undefined
-      : "faded"
-    : dragged.length > 0
-      ? dragged.includes(item.id)
-        ? "lifted"
+  const look =
+    marks.keep !== KEEP_ALL
+      ? marks.keep.has(item.id)
+        ? undefined
         : "faded"
-      : resizing && item.id !== resizing
-        ? "faded"
-        : undefined
+      : dragged.length > 0
+        ? dragged.includes(item.id)
+          ? "lifted"
+          : "faded"
+        : resizing && item.id !== resizing
+          ? "faded"
+          : undefined
   const ui = useUiCatalog().items.get(item.item)
   const size = placedSize(catalog, item)
   const View = ui?.view as ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode) | undefined

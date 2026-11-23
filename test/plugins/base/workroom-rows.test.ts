@@ -9,7 +9,15 @@ import {
   WORKROOM,
   type Workroom,
 } from "../../../web/src/plugins/base/participant"
-import { adminRoomOf, workroomRows } from "../../../web/src/plugins/base/participant/rows"
+import {
+  adminRoomOf,
+  NO_BRANCH,
+  NO_MODEL,
+  NO_OCCUPANT,
+  NOT_CALLED,
+  NOT_REQUESTED,
+  workroomRows,
+} from "../../../web/src/plugins/base/participant/rows"
 
 const room = (id: string, name = id): Workroom => ({ id, name, bird: "inko", createdAt: "t" })
 const person = (id: string, workroom: string): Participant => ({
@@ -53,10 +61,9 @@ test("モデルは AI のフックが知らせた今のモデルを先に、ブ�
   expect(a).toMatchObject({ model: "opus-5.5", branch: "feat/x", calledAt: "2026-11-12T01:00:00.000Z" })
   const b = rows.find(r => r.room.id === "b")
   expect(b?.model).toBe("opus-5")
-  expect(b && "branch" in b).toBe(false)
-  expect(b && "calledAt" in b).toBe(false)
+  expect(b).toMatchObject({ branch: NO_BRANCH, calledAt: NOT_CALLED })
   const c = rows.find(r => r.room.id === "c")
-  expect(c && ["model", "branch", "calledAt", "participant"].some(k => k in c)).toBe(false)
+  expect(c).toMatchObject({ model: NO_MODEL, branch: NO_BRANCH, calledAt: NOT_CALLED, participant: NO_OCCUPANT })
 })
 
 test("受け入れていない参加者（要求中）はワークルームに入っていないので、行に出ない", () => {
@@ -112,7 +119,7 @@ test("その名前で入りたいと頼んでいる要求中の参加者がい�
   )
   expect(rows.map(r => [r.room.id, r.requestedAt])).toEqual([
     ["a", "2026-11-17T03:00:00.000Z"],
-    ["b", undefined],
+    ["b", NOT_REQUESTED],
     ["c", "2026-11-17T02:00:00.000Z"],
   ])
 })

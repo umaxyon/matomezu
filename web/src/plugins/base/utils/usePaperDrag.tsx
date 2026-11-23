@@ -8,7 +8,7 @@ import { NO_PAPER, NO_STAGE, toPaper } from "../../../core/stage"
 import type { StageView } from "../../../core/workspace"
 import { PAN_NOT_WATCHED, useActions, useStagePan, useToPaper } from "../../../ui/view-hooks"
 import { DRAG_START } from "./drag"
-import { edgePanner } from "./edge-pan"
+import { edgePanner, NO_VIEW_AREA } from "./edge-pan"
 
 export interface PaperDrag {
   id: string // 押した物
@@ -17,6 +17,9 @@ export interface PaperDrag {
   at: Point // ポインタの所（紙の座標）
   moved: boolean // DRAG_START より動かしたか
 }
+
+// 押していないときの値
+export const NOT_PRESSED = "none"
 
 export interface PaperDragWays {
   begin?: (pointer: Point) => void
@@ -63,7 +66,7 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
     const panner = edgePanner(
       () => {
         const r = area.current?.getBoundingClientRect()
-        return r ? { x: r.left, y: r.top, w: r.width, h: r.height } : null
+        return r ? { x: r.left, y: r.top, w: r.width, h: r.height } : NO_VIEW_AREA
       },
       (dx, dy) => panStageBy(dx, dy),
     )
@@ -107,5 +110,7 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
     if (at)
       setPress({ id: item.id, from: { x: cx, y: cy }, grab: { x: at.x - item.x, y: at.y - item.y }, at, moved: false })
   }
-  return { state, start, onDrop }
+  // state は押している物（押していなければ NOT_PRESSED）
+  const shown: PaperDrag | typeof NOT_PRESSED = state ?? NOT_PRESSED
+  return { state: shown, start, onDrop }
 }

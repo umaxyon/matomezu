@@ -1,7 +1,14 @@
 // コントロールセンターの画面の、見た目でない決め事（rows.ts・control-center.ts の CONTENT_AREA の既定）: 一覧の下の 1 行の種類と、選んだワークルームの引き方、コンテンツエリアに出す画面の既定
 import { expect, test } from "bun:test"
 import { NO_STATE } from "../../../web/src/core/def/plugin-state"
-import type { WorkroomRow } from "../../../web/src/plugins/base"
+import {
+  NO_BRANCH,
+  NO_MODEL,
+  NO_OCCUPANT,
+  NOT_CALLED,
+  NOT_REQUESTED,
+  type WorkroomRow,
+} from "../../../web/src/plugins/base"
 import { CONTENT_AREA } from "../../../web/src/plugins/control-center/control-center"
 import {
   lastAccessOf,
@@ -16,6 +23,11 @@ const row = (state: WorkroomRow["state"], admin = false, id = "a"): WorkroomRow 
   room: { id, name: id, bird: "inko", createdAt: "t" },
   state,
   admin,
+  participant: NO_OCCUPANT,
+  model: NO_MODEL,
+  branch: NO_BRANCH,
+  calledAt: NOT_CALLED,
+  requestedAt: NOT_REQUESTED,
   activity: "unknown",
 })
 

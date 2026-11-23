@@ -24,6 +24,7 @@ import { workroomActivityOf } from "./activity"
 import { adminRoomOf, type VisitorRow, visitorRows, type WorkroomRow, workroomRows } from "./rows"
 import { ownBookPagesOf } from "./workdesks"
 import { type FoundWorkerBook, foundWorkerBookOf, NO_WORKER_BOOK, workerBookOf, workerBookReadsOf } from "./worker-book"
+import { NOT_CALLED } from "./workroom"
 
 // 参加者のレコード（種類 PARTICIPANT。要求が届いた順）と、ワークルームのレコード（作った順）
 const sorted = <T extends { id: string }>(records: Readonly<Record<string, unknown>> | undefined, key: keyof T) =>
@@ -46,10 +47,14 @@ export const useParticipantLive = (): Readonly<Record<string, ParticipantLive>> 
 export const useParticipantReady = (): readonly string[] => useMatomezuState(s => s.participantReady)
 
 // 参加者が生きているかを決める関数（最後に呼ばれた時刻と今の時刻から。参加の有効時間の設定で決まる）
-export function useIsAlive(): (calledAt: string | undefined, nowMs: number) => boolean {
+// （呼ばれていなければ NOT_CALLED）
+export function useIsAlive(): (calledAt: string | typeof NOT_CALLED, nowMs: number) => boolean {
   const catalog = useCoreCatalog()
   const settings = useMatomezuState(s => s.settings)
-  return useCallback((calledAt, nowMs) => isParticipantAlive(catalog, settings, calledAt, nowMs), [catalog, settings])
+  return useCallback(
+    (calledAt, nowMs) => isParticipantAlive(catalog, settings, calledAt === NOT_CALLED ? undefined : calledAt, nowMs),
+    [catalog, settings],
+  )
 }
 
 // 管理者のワークルームの id（管理者の印が指すワークルームが無ければ undefined）

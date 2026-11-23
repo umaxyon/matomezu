@@ -13,7 +13,7 @@ import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { usePageLookStyle } from "../../web/src/plugins/base/book-look/use-page-look-style"
 import { kit as baseKit } from "../../web/src/plugins/base/kit"
 import { useAddPage } from "../../web/src/plugins/base/page-tabs/useAddPage"
-import { PRINT_MEASURES } from "../../web/src/plugins/base/print-preview/measures-state"
+import { NOT_MEASURED, PRINT_MEASURES } from "../../web/src/plugins/base/print-preview/measures-state"
 import { Printing } from "../../web/src/plugins/base/print-preview/printing"
 import { SheetLayers } from "../../web/src/plugins/base/print-preview/SheetLayers"
 import { WIDE_SEARCH_MODE } from "../../web/src/plugins/base/wide-search/state"
@@ -98,7 +98,7 @@ function Sheet({ book }: { book: ReturnType<ReturnType<typeof setup>["bookOf"]> 
   return (
     <div data-sheet style={look}>
       <Printing>
-        <SheetLayers page={pagesOf(book)[0]!} column={0} row={0} paper={SIZE} />
+        <SheetLayers page={pagesOf(book)[0]!} column={0} row={0} paper={SIZE} measured={NOT_MEASURED} />
       </Printing>
     </div>
   )

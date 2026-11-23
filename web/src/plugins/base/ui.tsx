@@ -155,9 +155,10 @@ export {
   markdownDocumentOnSkin,
   useMarkdownDocument,
 } from "./markdown/ui"
-export { useDrawnMinimap } from "./minimap/ui"
+export { KEEP_DRAWN, useDrawnMinimap } from "./minimap/ui"
 export { ANNOTATION_ICON, type AnnotationIconProps, defineAnnotationIcon } from "./outbox/ui"
 export {
+  NO_LINEUP,
   PageProblemsView,
   PageSettingsDialogView,
   type PageSettingsDialogViewProps,
@@ -180,7 +181,7 @@ export {
   WorkerBookPages,
   type WorkroomActions,
 } from "./participant/ui"
-export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-preview/ui"
+export { NOT_MEASURED, type PrintMeasured, type PrintMeasureProps, type PrintSheetProps } from "./print-preview/ui"
 export { ScrapForm, ScrapView, type ScrapViewProps } from "./scrap/ui"
 export { ChoiceSetting } from "./settings/ui"
 export {
@@ -243,6 +244,7 @@ export {
   BodyField,
   CaptionField,
   DividerField,
+  NOT_COMPOSING,
   RichBar,
   RichBody,
   RichInput,

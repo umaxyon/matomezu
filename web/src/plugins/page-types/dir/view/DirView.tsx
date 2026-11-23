@@ -27,9 +27,11 @@ import {
   useStage,
   useStageArea,
 } from "../../../../plugin-api/ui"
-import { growOf, NO_GROW, pageContext } from "../../../base"
+import { growOf, NO_DRAFT, NO_GROW, pageContext } from "../../../base"
 import {
   FolderIcon,
+  NOT_COMPOSING,
+  NOT_PRESSED,
   PaperFrame,
   RichBar,
   RichInput,
@@ -128,7 +130,7 @@ const Rows = memo(function Rows({
   const edit = { target: selected, keyScope: DIR_EDIT_KEY_SCOPE.id, commit: DIR_EDIT_COMMIT.id }
   const nameInput = useInPlaceInput(kit, DIR_DRAFT, { ...edit, active: writing })
   const noteInput = useInPlaceInput(kit, DIR_NOTE_DRAFT, { ...edit, active: writingNote({ stage }) })
-  const text = nameInput.text
+  const text = nameInput.text === NO_DRAFT ? null : nameInput.text
   // 書いている字を重ねた根
   const shown =
     root && text !== null && selected !== undefined ? (changeNode(root, selected, { name: text }) ?? root) : root
@@ -145,10 +147,10 @@ const Rows = memo(function Rows({
   const { rows, lines, notes, divider } = laid
   const at = rows.find(r => r.id === selected)
   const noting = writingNote({ stage }) && notes !== null
-  const noteText = noting ? noteInput.text : null
+  const noteText = noting && noteInput.text !== NO_DRAFT ? noteInput.text : null
   const description = nodeOf(dir, selected)?.description ?? ""
   // ドラッグで動かしている行（押しただけでまだ動かしていなければ null）と、落とす先
-  const dragging = drag.state?.moved ? drag.state : null
+  const dragging = drag.state !== NOT_PRESSED && drag.state.moved ? drag.state : null
   const moving = dragging ? subtreeIds(nodeOf(dir, dragging.id) ?? { id: dragging.id, kind: "file", name: "" }) : null
   const drop = dragging ? dropAt(dir, rows, dragging.id, dragging.at) : null
   const ghost = dragging && rows.find(r => r.id === dragging.id)
@@ -221,7 +223,10 @@ const Rows = memo(function Rows({
           style={{
             left: nameLeft(at.x) - EDITOR_INSET,
             top: at.y,
-            width: editorWidth(nameInput.composing ?? text ?? at.name, at.w - (nameLeft(at.x) - at.x)),
+            width: editorWidth(
+              (nameInput.composing !== NOT_COMPOSING ? nameInput.composing : text) ?? at.name,
+              at.w - (nameLeft(at.x) - at.x),
+            ),
             height: at.h,
           }}
         />

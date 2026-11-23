@@ -2,7 +2,7 @@
 // バインダに入るタイプ（スライド）は、そろえる相手のいる所（ページの設定と、今あるバインダに足すページ）では紙と向きを出さない（バインダの設定でまとめて変える）。
 // 可変ページかは、タイプが増やす向きの決め方を持つときだけ出す（利用者が向きを選ぶタイプなら、可変ページにすると増やす向きも選べる）。ページの設定では、変えた項目だけをアクション page-update に渡し、形が紙に入らなければ問題にする
 
-import { useState } from "react"
+import { type ReactNode, useState } from "react"
 import { NO_PAGE } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import type { GrowChoice, Orientation } from "../../../core/def/paper"
@@ -41,7 +41,10 @@ export interface PaperValue {
   grows: Page["grows"]
 }
 
-// 選んでいる紙の入力Form と、変えた項目。page は変えるページ（ページを作るなら null）、options は選べる紙と向き
+// 紙の入力Form を出さないときの値（描くと何も出ない）
+const NO_CONTROLS: ReactNode = null
+
+// 選んでいる紙の入力Form（controls）と、変えた項目。page は変えるページ（ページを作るなら null）、options は選べる紙と向き
 function usePaperForm(
   type: string | undefined,
   page: Page | null,
@@ -53,7 +56,7 @@ function usePaperForm(
   const catalog = useCatalog().core
   const [value, setValue] = useState<PaperValue | null>(start)
   if (!value || !options || type === undefined)
-    return { controls: null, value: null, patch: {}, draft: (p: Page) => p, problems: [] }
+    return { controls: NO_CONTROLS, patch: {}, draft: (p: Page) => p, problems: [] }
   const { papers, orientations } = options
   const choices = growChoices(catalog, type)
   const chosen = value.grows === true ? undefined : value.grows // 選んでいる増やす向き
@@ -116,7 +119,7 @@ function usePaperForm(
       )}
     </>
   )
-  return { controls, value, patch, draft, problems }
+  return { controls, patch, draft, problems }
 }
 
 // ページを作るダイアログの紙の入力Form: 並び lineup（ブックか、ブックの外のバインダ 1 つの並び）の所 place（紙をそろえる相手が決まる）に足す、タイプ type のページ。タイプの規定の既定から始める

@@ -11,7 +11,16 @@ import { useCommand } from "../../../ui/commands"
 import { usePluginState, useResetPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { useActions } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import type { InPlaceDraftState } from "../utils/in-place"
+import { type InPlaceDraftState, NO_DRAFT } from "../utils/in-place"
+
+// 変換中の字が無いときの値（変換中の字はどんな文字列にもなるので、文字列でない定数）
+export const NOT_COMPOSING: unique symbol = Symbol("not composing")
+
+// その場の編集の入力Formで、書いている字と変換中の字
+export interface InPlaceWritten {
+  text: string | typeof NO_DRAFT
+  composing: string | typeof NOT_COMPOSING
+}
 
 export function useInPlaceInput(
   owner: Parameters<typeof usePluginState>[0],
@@ -32,10 +41,13 @@ export function useInPlaceInput(
   useEffect(() => {
     if (left) resetDraft()
   }, [left, resetDraft])
-  const text = active && target !== undefined && draft !== NO_STATE && draft.target === target ? draft.text : null
+  const text = active && target !== undefined && draft !== NO_STATE && draft.target === target ? draft.text : NO_DRAFT
+  const written: InPlaceWritten = {
+    text, // 書いている字（書いていない・まだ変えていなければ NO_DRAFT）
+    composing: active && composing !== null ? composing : NOT_COMPOSING, // 変換中の字（変換していなければ NOT_COMPOSING）
+  }
   return {
-    text, // 書いている字（書いていない・まだ変えていなければ null）
-    composing: active ? composing : null, // 変換中の字
+    ...written,
     // RichInput に渡す物（value・label・見た目は呼び手が渡す）
     input: {
       autoFocus: true,

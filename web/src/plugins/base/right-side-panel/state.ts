@@ -5,7 +5,7 @@
 import { NO_STATE } from "../../../core/def/plugin-state"
 import {
   areaOf,
-  NO_PAGE,
+  type NO_PAGE,
   NO_PAPER,
   NOTHING_OPENED,
   type Opened,
@@ -25,7 +25,7 @@ export interface RightSidePanelOpen {
   anchors: readonly string[] // 見せている物が付いた先（ステージの物の id の並び。選択に従う中身なら、ステージの選択に合わせる）
   current: string // anchors のうち、いま見せている 1 つ（カレント。anchors が空の間は、最後にカレントだった物）
   book: string // 開いたときのブック
-  page: string | null // 開いたときのページ
+  page: string | typeof NO_PAGE // 開いたときのページ（ページを開いていなければ NO_PAGE）
 }
 
 // 選択に従う中身の open を、ステージの選択 selection に合わせたもの（同じなら同じ値）。
@@ -48,7 +48,7 @@ export const RIGHT_SIDE_PANEL_STATE = kit.definePluginStateOf<RightSidePanelOpen
 // 開いている間か閉じて幅を動かしている間に倍率かずらす量を変えたか（ページを替えれば閉じ、restoreTo が戻さない）。ステージの right-side-panel-restore に持ち、
 // 閉じて幅を動かし終えたら、変えていなければ戻して消す
 export interface RightSidePanelRestore {
-  before: ViewAt & { book: string; page: string | null }
+  before: ViewAt & { book: string; page: string | typeof NO_PAGE }
   shown: ViewAt | null
   seen: Seen | null // 最後に見せたときの付いた先とカレント（まだ見せていなければ null）
   moved: boolean
@@ -92,11 +92,8 @@ export const RIGHT_SIDE_PANEL_STATES = [RIGHT_SIDE_PANEL_STATE, RIGHT_SIDE_PANEL
 
 // 右サイドパネルを open で開いたときの、戻すための覚え。開く前の見え方は now で、物はまだ見せていない。
 // 閉じて戻す前に同じブックとページで開き直したときは、最初に開く前の見え方と、それまでに変えたかをそのまま持つ（一度変えたら、開き直しても戻さない）
-// 右サイドパネルの覚えに書く、開いているページの id（ページを開いていなければ null）
-export const panelPageOf = (opened: Opened | typeof NOTHING_OPENED): string | null => {
-  const page = shownPageId(opened)
-  return page === NO_PAGE ? null : page
-}
+// 右サイドパネルの覚えに書く、開いているページの id（ページを開いていなければ NO_PAGE）
+export const panelPageOf = (opened: Opened | typeof NOTHING_OPENED): string | typeof NO_PAGE => shownPageId(opened)
 
 export function openedRestore(
   kept: RightSidePanelRestore | typeof NO_STATE,

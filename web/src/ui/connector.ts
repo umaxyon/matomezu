@@ -20,25 +20,37 @@ export interface ShapeScene {
   released: ReadonlySet<string> // 離したばかりの形（離したあとの 1 回の描画だけ）
   busy: boolean // 形を動かしているか、大きさを変えている間
   selectable: boolean // 選択の道具で、置こうとしていないとき
-  hover: string | null // ポインタを乗せている形
+  hover: string | typeof NO_HOVER // ポインタを乗せている形（乗せていなければ NO_HOVER）
   localOf(e: PointerEvent<Element>): Point | null // ポインタの位置を、ビューの左上から見た位置にする
 }
 
-// つなぐもののビューが形に求める見た目: keep にない形を薄くする（null ならだれも薄くしない）、target を相手として強調する
+// ポインタをどの形にも乗せていないときの値
+export const NO_HOVER = "none"
+// だれも薄くしないときの、残す形の値
+export const KEEP_ALL = "all"
+// 相手として強調する形が無いときの値
+export const NO_TARGET = "none"
+
+// つなぐもののビューが形に求める見た目: keep にない形を薄くする（KEEP_ALL ならだれも薄くしない）、target を相手として強調する（NO_TARGET ならしない）
 export interface ShapeMarks {
-  keep: ReadonlySet<string> | null
-  target: string | null
+  keep: ReadonlySet<string> | typeof KEEP_ALL
+  target: string | typeof NO_TARGET
 }
 
-const ShapeMarksContext = createContext<ShapeMarks>({ keep: null, target: null })
+const ShapeMarksContext = createContext<ShapeMarks>({ keep: KEEP_ALL, target: NO_TARGET })
 export const useShapeMarks = (): ShapeMarks => useContext(ShapeMarksContext)
 
 // 外側の求め outer と内側の求め inner を合わせる: 薄くするのは、どちらかが薄くすると求めた形（残す形はどちらも残すと言った形）。
 // 強調するのは内側が求めた形（無ければ外側）
 export function mergeMarks(outer: ShapeMarks, inner: ShapeMarks): ShapeMarks {
+  const { keep: o } = outer
   const keep =
-    outer.keep && inner.keep ? new Set([...inner.keep].filter(id => outer.keep?.has(id))) : (inner.keep ?? outer.keep)
-  return { keep, target: inner.target ?? outer.target }
+    o !== KEEP_ALL && inner.keep !== KEEP_ALL
+      ? new Set([...inner.keep].filter(id => o.has(id)))
+      : inner.keep !== KEEP_ALL
+        ? inner.keep
+        : o
+  return { keep, target: inner.target !== NO_TARGET ? inner.target : outer.target }
 }
 
 // つなぐもののビューが、形に求める見た目を渡す。外側のビューの求めと合わせて、内側（形）に届ける

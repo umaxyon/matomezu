@@ -1,6 +1,9 @@
 // 測るプレゼンテーション（printMeasure）が知らせた、ページごとの測った結果の、base のステージごとのプラグイン状態 print-measures（開いたステージエントリごとに 1 つ）
 import { kit } from "../kit"
 
+// 測るだけのビューが知らせたデータが無いときの値（印刷区画 1 つのビューの measured）
+export const NOT_MEASURED = "none"
+
 // 印刷区画の数と、印刷区画 1 つのビューに渡すデータ（ページ 1 つの測った結果）
 export interface PrintMeasured {
   rows: number

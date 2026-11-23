@@ -21,10 +21,10 @@ export { TitledArea } from "./TitledArea"
 export { type Clicked, useClickOrDouble } from "./useClickOrDouble"
 export { useEditLock, useRecordEditLock } from "./useEditLock"
 export { useElapsed } from "./useElapsed"
-export { type PaperDrag, type PaperDragWays, usePaperDrag } from "./usePaperDrag"
+export { NOT_PRESSED, type PaperDrag, type PaperDragWays, usePaperDrag } from "./usePaperDrag"
 export { useResize } from "./useResize"
 export { useRowSlide } from "./useRowSlide"
-export { useZoomMotion } from "./useZoomMotion"
+export { NO_MOTION, useZoomMotion } from "./useZoomMotion"
 
 // 選択に足す・外すクリックの修飾キー Mod（Mac は Cmd、ほかは Ctrl。キーの書き方の Mod と同じ）を押しているか
 export const modPressed = (e: { ctrlKey: boolean; metaKey: boolean }): boolean => (isMac() ? e.metaKey : e.ctrlKey)
