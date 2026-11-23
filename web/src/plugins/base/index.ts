@@ -44,6 +44,7 @@ import {
   LIBRARY_ENTRY_DUPLICATE,
   LIBRARY_ENTRY_MOVE,
   LIBRARY_ENTRY_OPEN,
+  LIBRARY_ENTRY_OPEN_SPLIT,
   LIBRARY_ENTRY_RENAME,
   LIBRARY_ENTRY_TRASH,
   LIBRARY_FOLDER,
@@ -630,6 +631,7 @@ export const BASE = defineBuiltin(
       LIBRARY_UNDO,
       LIBRARY_REDO,
       LIBRARY_ENTRY_OPEN,
+      LIBRARY_ENTRY_OPEN_SPLIT,
       LIBRARY_BOOK_NEW,
       LIBRARY_OPEN,
       LIBRARY_SCREEN_CLOSE,
@@ -897,6 +899,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-undo": typeof LIBRARY_UNDO
     "@matomezu/base:library-redo": typeof LIBRARY_REDO
     "@matomezu/base:library-entry-open": typeof LIBRARY_ENTRY_OPEN
+    "@matomezu/base:library-entry-open-split": typeof LIBRARY_ENTRY_OPEN_SPLIT
     "@matomezu/base:library-book-new": typeof LIBRARY_BOOK_NEW
     "@matomezu/base:library-open": typeof LIBRARY_OPEN
     "@matomezu/base:library-screen-close": typeof LIBRARY_SCREEN_CLOSE

@@ -11,9 +11,37 @@ import {
   type ScreenCommandContext,
   screensOf,
   storeActionsOf,
+  windowNowOf,
 } from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
+import { showBookSplit } from "../window/apply-split"
+import { SCREEN_FLASH } from "../window/split"
+import { tallNow } from "../window/tall"
+import type { BookOpened } from "./outline"
 import { LIBRARY_SCREEN, leaveLibrary, stageBeside } from "./screen"
+
+// 分割で開くときに一緒に並べる段の数（useShowBook と同じ）
+const PAIR = 2
+
+// 呼ばれたのが、ブックスクリーンと上下に並んだ書庫のスクリーンか（開く先が、並びのブックスクリーンに決まっている）
+export const opensBeside = (ctx: ScreenCommandContext): boolean =>
+  ctx.screen.def === LIBRARY_SCREEN.id &&
+  stageBeside(screensOf(ctx), arrangementValueIn(ctx), calledScreenIdOf(ctx)) !== NO_STAGE
+
+// 書庫の行のブック opens を、呼ばれたスクリーンを起点に上下に分けて窓に出す（吹き出しの「分割で開く」と同じ showBookSplit。窓が低ければ窓いっぱいに）
+export function openSplitFromLibrary(ctx: ScreenCommandContext, a: CommandActions, opens: BookOpened): void {
+  showBookSplit({
+    actions: storeActionsOf(a),
+    readWindow: windowNowOf(a),
+    here: calledScreenIdOf(ctx),
+    keepHere: false,
+    max: PAIR,
+    tall: tallNow(),
+    flash: screen => a.updatePluginState(SCREEN_FLASH, was => ({ screen, n: (was?.n ?? 0) + 1 })),
+    book: opens.book,
+    page: opens.page,
+  })
+}
 
 export function openFromLibrary(ctx: ScreenCommandContext, a: CommandActions, to: OpenTo): void {
   const store = storeActionsOf(a)

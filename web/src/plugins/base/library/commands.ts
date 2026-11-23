@@ -38,9 +38,11 @@ import {
 import { ENTRY_DUPLICATE } from "./entry-duplicate"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
 import { ENTRY_TRASH } from "./entry-trash"
-import { openFromLibrary } from "./open-from"
+import { openFromLibrary, openSplitFromLibrary, opensBeside } from "./open-from"
 import {
   arrivedAt,
+  type BookOpened,
+  bookOpenedFrom,
   NOT_OPENED,
   type OpenTarget,
   openedFolderOf,
@@ -174,19 +176,32 @@ const holder = (ctx: ScreenCommandContext, named?: Named): string | undefined =>
   return entry !== undefined && holdsEntries(ctx.folders, entry) ? entry : undefined
 }
 
-// 開く行き先（フォルダは中へ入る。表に行の無い物・ゴミ箱の中の物は開かない）
-function opening(ctx: ScreenCommandContext, named?: Named): Exclude<OpenTarget, typeof NOT_OPENED> | undefined {
+// 開く行（行の id・種類・読めるか）。作業机とその下の行は、実の物の種類で開く（作業机・実の物が無い行は、フォルダとして）
+function openedRow(ctx: ScreenCommandContext, named?: Named) {
   const to = given(ctx, named)
   const entry = to && "folder" in to ? undefined : entryOf(ctx, named)
   if (entry === undefined) return undefined
   const desks = desksIn(ctx)
-  // 作業机とその下の行は、実の物の種類で開く（作業机・実の物が無い行は、フォルダとして）
   const real = realOf(desks, ctx.folders, entry)
   const kind = placeOf(ctx.folders, real)?.ref.kind ?? (isDeskRow(entry) ? "folder" : undefined)
   if (kind === undefined) return undefined
   const readable = isDeskRow(entry) || kind === "page" || entry in ctx.folders
-  const target = openTargetOf(ctx.folders, { id: entry, kind, readable }, desks)
+  return { row: { id: entry, kind, readable }, desks }
+}
+
+// 開く行き先（フォルダは中へ入る。表に行の無い物・ゴミ箱の中の物は開かない）
+function opening(ctx: ScreenCommandContext, named?: Named): Exclude<OpenTarget, typeof NOT_OPENED> | undefined {
+  const found = openedRow(ctx, named)
+  if (found === undefined) return undefined
+  const target = openTargetOf(ctx.folders, found.row, found.desks)
   return target === NOT_OPENED ? undefined : target
+}
+
+// 分割で開くブックとページ（ブックスクリーンに開く行だけ。「画面を分割」で出した書庫のスクリーンでは開かない: 開く先が上の段に決まっている）
+function splitOpening(ctx: ScreenCommandContext, named?: Named): BookOpened | undefined {
+  if (opensBeside(ctx)) return undefined
+  const found = openedRow(ctx, named)
+  return found === undefined ? undefined : bookOpenedFrom(ctx.folders, found.row, found.desks)
 }
 
 // 開く: フォルダは右の枠で中へ入り、ブック・ページ・バインダ・ブックの外のページは窓に出す（書庫の画面の行を 2 回押す・Enter・右クリックのメニューの「開く」の、ただ 1 つの道）。
@@ -206,6 +221,19 @@ export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
     const target = opening(ctx)
     return target !== undefined && target.to !== "folder"
   },
+})
+
+// 分割で開く: ブックとその中のページ・ワーカーブックを、呼ばれたスクリーンを起点に上下に分けて窓に出す（右クリックのメニューの「分割で開く」と Mod+Enter。窓が低ければ窓いっぱいに）
+export const LIBRARY_ENTRY_OPEN_SPLIT = kit.defineScreenCommand({
+  id: "library-entry-open-split",
+  readsSubjects: workdesksReadsOf,
+  title: "Open split",
+  run: (ctx, a, named: Named | undefined) => {
+    const opens = splitOpening(ctx, named)
+    if (opens === undefined) return
+    openSplitFromLibrary(ctx, a, opens)
+  },
+  when: inMenu(ctx => splitOpening(ctx)),
 })
 
 export const LIBRARY_BOOK_NEW = kit.defineScreenCommand({
@@ -673,6 +701,30 @@ export const LIBRARY_KEYS = [
     title: "Open",
     key: "Enter",
     command: LIBRARY_ENTRY_OPEN.id,
+    args: { at: "tree" },
+    scope: LIBRARY_FOUND_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-entry-open-split-mod-enter",
+    title: "Open split",
+    key: "Mod+Enter",
+    command: LIBRARY_ENTRY_OPEN_SPLIT.id,
+    args: undefined,
+    scope: LIBRARY_CONTENTS_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-tree-open-split-mod-enter",
+    title: "Open split",
+    key: "Mod+Enter",
+    command: LIBRARY_ENTRY_OPEN_SPLIT.id,
+    args: { at: "tree" },
+    scope: LIBRARY_TREE_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-found-open-split-mod-enter",
+    title: "Open split",
+    key: "Mod+Enter",
+    command: LIBRARY_ENTRY_OPEN_SPLIT.id,
     args: { at: "tree" },
     scope: LIBRARY_FOUND_SCOPE,
   }),
