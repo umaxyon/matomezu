@@ -1,5 +1,5 @@
 // ペアリングしたホストの詳しい所（スロット picked-detail に置き、種類 paired-host を名乗る）: ホスト名（利用者名）、つながっているか・最後につながった時刻、
-// 待っている所、鍵の印、覚えた鍵と合わない相手が答えたときの一言、［ペアリングを解く］（相手にも知らせる。相手が切れていれば、次につないできたときに断る）
+// 待っている所、鍵の印（覚えた鍵と合わない相手が答えたときは、その横に一言）。［ペアリングを解く］は題の行の右（枠の高さが決まっているため。相手にも知らせる。相手が切れていれば、次につないできたときに断る）
 import { useActions, useAllowedOn, useMessages, useRecord, useRecords } from "../../plugin-api/ui"
 import { ActionButton, Elapsed, useHostPeers } from "../base/ui"
 import { hostRows, shownName } from "./hosts"
@@ -19,10 +19,15 @@ export function PairedHostDetail({ id }: { id: string }) {
   const addr = row.live?.addr || record.addr
   return (
     <div className={styles.detail}>
-      <h2 className={styles.title}>
-        {shownName(row, all)}
-        {row.userName ? <span className={styles.user}>（{row.userName}）</span> : null}
-      </h2>
+      <div className={styles.head}>
+        <h2 className={styles.title}>
+          {shownName(row, all)}
+          {row.userName ? <span className={styles.user}>（{row.userName}）</span> : null}
+        </h2>
+        <ActionButton danger disabled={!canRemove} onClick={() => perform(PAIRED_HOST_REMOVE.id, {}, { record: id })}>
+          {t("Unpair")}
+        </ActionButton>
+      </div>
       <dl className={styles.facts}>
         <dt>{t("Connection")}</dt>
         <dd>
@@ -39,14 +44,9 @@ export function PairedHostDetail({ id }: { id: string }) {
         <dt>{t("Key")}</dt>
         <dd>
           <code>{shownHostKey(record.hostId)}</code>
+          {row.live?.keyMismatch ? <span className={styles.warn}>{t("The key does not match")}</span> : null}
         </dd>
       </dl>
-      {row.live?.keyMismatch ? <p className={styles.warn}>{t("The key does not match")}</p> : null}
-      <div className={styles.buttons}>
-        <ActionButton danger disabled={!canRemove} onClick={() => perform(PAIRED_HOST_REMOVE.id, {}, { record: id })}>
-          {t("Unpair")}
-        </ActionButton>
-      </div>
     </div>
   )
 }

@@ -71,7 +71,13 @@
 .detail {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 .title {
   margin: 0;
@@ -105,11 +111,6 @@
   color: var(--skin-text-muted);
 }
 .warn {
-  margin: 0;
-  font-size: 13px;
+  margin-left: 16px;
   color: var(--skin-danger);
-}
-.buttons {
-  display: flex;
-  justify-content: flex-end;
 }
