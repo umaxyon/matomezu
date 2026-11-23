@@ -10,6 +10,7 @@ export {
   bodyColumn,
   bodyMinWidth,
   bodyWidthAfter,
+  FULL_WIDTH,
   type TextBlock,
   textBlock,
   textBlockHeight,

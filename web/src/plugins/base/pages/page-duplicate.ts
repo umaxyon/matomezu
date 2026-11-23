@@ -67,5 +67,5 @@ export function duplicatedPage<B extends StageLineup>(
   const copy = { ...renewedIds(at.page, content, newId), title: title ?? freeTitle(at.page.title, titles) }
   const index = siblings.findIndex(e => e.id === page) + 1
   const added = addPage(book, copy, at.binder !== NO_BINDER ? { binder: at.binder.id, index } : { index }, newId)
-  return added ? { book: added.book, page: added.page } : null
+  return added !== NO_BINDER ? { book: added.book, page: added.page } : null
 }

@@ -2,6 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
+import type { Rect } from "../../../web/src/core/geom"
 import { type ItemPage, walkShapes } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
@@ -373,7 +374,7 @@ test("内包ボックスの辺をつまんで縮めると、子がみな入る�
   const shape = at(store, big)!.shape
   expect(resizedBy(CORE_CATALOG, shape, { x: "right" }, { x: -400, y: 0 }, paper)).toMatchObject({ x: 360, w: 648 })
   expect(resizedBy(CORE_CATALOG, shape, { x: "left" }, { x: 400, y: 0 }, paper)).toMatchObject({ x: 460, w: 648 })
-  const tall = resizedBy(CORE_CATALOG, shape, { y: "bottom" }, { x: 0, y: -400 }, paper)!
+  const tall = resizedBy(CORE_CATALOG, shape, { y: "bottom" }, { x: 0, y: -400 }, paper) as Rect
   expect(tall.h).toBe(placedSize(CORE_CATALOG, shape as never)!.h)
 })
 

@@ -17,7 +17,7 @@ import {
   shapesOf,
   toPaperDelta,
 } from "../../../plugin-api"
-import { amongSelected, type Edges, hasOpenedPage, refusalMessage, shapeDefOf } from "../../base"
+import { amongSelected, CANNOT_RESIZE, type Edges, hasOpenedPage, refusalMessage, shapeDefOf } from "../../base"
 import { kit } from "../kit"
 import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
 import { NO_FREE_SPOT } from "./crowd"
@@ -223,7 +223,7 @@ export const PAPER_RESIZE = kit.defineCommand({
     if (found === NO_ITEM) return
     const placed = found.shape
     const to = stretchedBy(ctx.catalog, placed, args.edges, toPaperDelta(ctx.stage, args.by), paper)
-    if (to) a.perform(ITEM_RESIZE.id, { item: placed.id, ...to }, { page: page.id })
+    if (to !== CANNOT_RESIZE) a.perform(ITEM_RESIZE.id, { item: placed.id, ...to }, { page: page.id })
   },
   when: hasOpenedPage,
 })

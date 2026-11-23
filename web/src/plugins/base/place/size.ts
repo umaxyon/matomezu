@@ -34,9 +34,12 @@ export interface Edges {
   y?: "top" | "bottom"
 }
 
+// 大きさを変えられない（resizedBy）
+export const CANNOT_RESIZE = "cannot"
+
 // 辺をつかんで、紙の上で by だけ動かしたときの左上と大きさ。つかんでいない辺はそのまま。
-// 一番小さい大きさより小さくせず（子を持つ形は、子がみな入る大きさより小さくしない）、紙の外へは広げない（変えられないアイテムは null）。
-// ratio なら、つかめるのは角だけで（辺なら null）、向かいの角を止めて幅と高さの比を保つ（幅と高さのうち、大きく変わった方の割合に合わせる）。
+// 一番小さい大きさより小さくせず（子を持つ形は、子がみな入る大きさより小さくしない）、紙の外へは広げない（変えられないアイテムは CANNOT_RESIZE）。
+// ratio なら、つかめるのは角だけで（辺なら CANNOT_RESIZE）、向かいの角を止めて幅と高さの比を保つ（幅と高さのうち、大きく変わった方の割合に合わせる）。
 // 大きさを項目に写す形（定義の resizedTo）は、写した項目から決まる大きさにする（離したあとの大きさと同じ）
 export function resizedBy(
   catalog: CoreCatalog,
@@ -45,14 +48,14 @@ export function resizedBy(
   by: Point,
   paper: Size,
   ratio = false,
-): { x: number; y: number; w: number; h: number } | null {
+): { x: number; y: number; w: number; h: number } | typeof CANNOT_RESIZE {
   const own = minSize(catalog, item)
   const size = placedSize(catalog, item)
-  if (!own || !size) return null
+  if (!own || !size) return CANNOT_RESIZE
   const children = childrenSize(catalog, item)
   const min = children ? { w: Math.max(own.w, children.w), h: Math.max(own.h, children.h) } : own
   if (ratio) {
-    if (!edges.x || !edges.y) return null
+    if (!edges.x || !edges.y) return CANNOT_RESIZE
     const right = edges.x === "right"
     const bottom = edges.y === "bottom"
     // 止めた角から紙の端までの広さ
@@ -65,7 +68,7 @@ export function resizedBy(
     const wanted = { w: size.w * f, h: size.h * f }
     const to = shapeDefOf(catalog, item.item)?.resizedTo
     const next = to ? placedSize(catalog, to(item as ShapeData, wanted) as PlacedShape) : wanted
-    if (!next) return null
+    if (!next) return CANNOT_RESIZE
     return {
       x: right ? item.x : item.x + size.w - next.w,
       y: bottom ? item.y : item.y + size.h - next.h,

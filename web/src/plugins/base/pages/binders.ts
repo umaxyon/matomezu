@@ -135,7 +135,7 @@ export function duplicatedBinder<B extends StageLineup>(
     if (problem) return null
     const { id: _id, locked: _locked, ...content } = page
     const added = addPage(next, renewedIds(page, content, newId), { binder: made.binder }, newId)
-    if (!added) return null
+    if (added === NO_BINDER) return null
     pages.push(added.page)
     next = added.book
   }

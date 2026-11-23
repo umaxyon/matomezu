@@ -5,7 +5,7 @@
 import { type CSSProperties, type PointerEvent, useRef, useState } from "react"
 import { NO_STAGE, toPaperDelta } from "../../../core/stage"
 import { useStage } from "../../../ui/view-hooks"
-import { type BlockProps, bodySides, bodyWidthAfter, textBlock } from "./block"
+import { type BlockProps, bodySides, bodyWidthAfter, FULL_WIDTH, textBlock } from "./block"
 import { RichText } from "./RichText"
 import styles from "./TextBlockView.module.css"
 
@@ -33,8 +33,12 @@ export function TextBlockView({
   const shown: BlockProps = dragged === undefined ? props : { ...props, bodyWidth: dragged ?? undefined }
   const { body, rule, column } = textBlock(shown, inner, least, maxH)
   const hasBody = body.length > 0
-  const widthAt = (side: "left" | "right", clientX: number, start: number) =>
-    at !== NO_STAGE ? bodyWidthAfter(props, inner, least, side, toPaperDelta(at, { x: clientX - start, y: 0 }).x) : null
+  // 本文の幅（中いっぱいなら null。本文の幅を消す）
+  const widthAt = (side: "left" | "right", clientX: number, start: number) => {
+    if (at === NO_STAGE) return null
+    const width = bodyWidthAfter(props, inner, least, side, toPaperDelta(at, { x: clientX - start, y: 0 }).x)
+    return width === FULL_WIDTH ? null : width
+  }
   const grip = (side: "left" | "right") => ({
     onPointerDown: (e: PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0) return

@@ -108,8 +108,9 @@ export function withNewPage<B extends StageLineup>(
         ? { binder: binder.id, ...indexOf(at) }
         : indexOf(at)
   const made = addPage(book, content, into, ctx.newId)
-  const madeAt = made ? findPage(made.book, made.page) : NO_PAGE
-  if (!made || madeAt === NO_PAGE) return null
+  if (made === NO_BINDER) return null
+  const madeAt = findPage(made.book, made.page)
+  if (madeAt === NO_PAGE) return null
   const fresh = madeAt.page
   const placed = made.book
   const written = writeFields(catalog, fresh, args.fields, "add", contentIdMaker(fresh, ctx.newId))

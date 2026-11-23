@@ -65,7 +65,10 @@ export function bodyColumn(props: BlockProps, inner: number, least: number): Bod
   return { x, w: cw }
 }
 
-// 本文の列の端（side）をつかんで、紙の上で dx だけ横に動かしたときの本文の幅（中いっぱいになれば null。本文の幅を消す）。
+// 本文の列が中いっぱい（本文の幅を持たない）
+export const FULL_WIDTH = "full"
+
+// 本文の列の端（side）をつかんで、紙の上で dx だけ横に動かしたときの本文の幅（中いっぱいになれば FULL_WIDTH。本文の幅を消す）。
 // キャプションが中央寄せなら両側が同じだけ縮み、左寄せなら右の端、右寄せなら左の端だけが動く
 export function bodyWidthAfter(
   props: BlockProps,
@@ -73,11 +76,11 @@ export function bodyWidthAfter(
   least: number,
   side: "left" | "right",
   dx: number,
-): number | null {
+): number | typeof FULL_WIDTH {
   const now = bodyColumn(props, inner, least).w
   const grow = side === "right" ? dx : -dx
   const next = Math.round(now + (props.captionAlign === "center" ? 2 * grow : grow))
-  if (next >= inner) return null
+  if (next >= inner) return FULL_WIDTH
   return Math.max(next, bodyMinWidth(props, least))
 }
 

@@ -31,8 +31,9 @@ test("足すページの id は、newId の値そのまま（uuid）で振られ
     {},
     () => ids.shift()!,
   )
-  expect(added?.page).toBe("p-2a")
-  expect(added && pagesOf(added.book).at(-1)).toEqual({
+  if (added === NO_BINDER) throw new Error("no binder")
+  expect(added.page).toBe("p-2a")
+  expect(pagesOf(added.book).at(-1)).toEqual({
     kind: "page",
     id: "p-2a",
     type: DRAWING,
@@ -40,7 +41,7 @@ test("足すページの id は、newId の値そのまま（uuid）で振られ
     paper: "@matomezu/base:a5",
     orientation: "portrait",
   })
-  expect(added && pagesOf(added.book).map(p => p.id)).toEqual(["p1", "p3", "p-2a"])
+  expect(pagesOf(added.book).map(p => p.id)).toEqual(["p1", "p3", "p-2a"])
   expect(pagesOf(book)).toHaveLength(2)
 })
 
@@ -65,9 +66,10 @@ describe("並び", () => {
   test("バインダに足すページは、そのバインダの中に入る", () => {
     const { id: _id, ...third } = testPage(SLIDE, "s3", { title: "3" })
     const added = addPage(mixed, third, { binder: "f1", index: 0 }, sequence("n"))
-    expect(added && pagesOf(added.book).map(p => p.id)).toEqual(["p1", "n1", "s1", "s2", "t1"])
+    if (added === NO_BINDER) throw new Error("no binder")
+    expect(pagesOf(added.book).map(p => p.id)).toEqual(["p1", "n1", "s1", "s2", "t1"])
     // 無いバインダには足せない
-    expect(addPage(mixed, third, { binder: "nope" }, sequence("n"))).toBeUndefined()
+    expect(addPage(mixed, third, { binder: "nope" }, sequence("n"))).toBe(NO_BINDER)
   })
 
   test("一緒に作るバインダに足すと、ページの id・バインダの id の順に振り、バインダは並びの index 番目に入る。空のバインダだけも足せる", () => {
@@ -78,9 +80,10 @@ describe("並び", () => {
       { newBinder: { title: "別のスライド", pageType: SLIDE }, index: 0 },
       sequence("n"),
     )
+    if (added === NO_BINDER) throw new Error("no binder")
     expect(added).toMatchObject({ page: "n1", binder: "n2" })
-    expect(added && lineupOf(added.book).map(e => e.id)).toEqual(["n2", "p1", "f1", "t1"])
-    expect(added && findPage(added.book, "n1")).toMatchObject({ binder: { id: "n2" } })
+    expect(lineupOf(added.book).map(e => e.id)).toEqual(["n2", "p1", "f1", "t1"])
+    expect(findPage(added.book, "n1")).toMatchObject({ binder: { id: "n2" } })
     const empty = addBinder(mixed, { title: "空", pageType: SLIDE }, undefined, sequence("n"))
     expect(empty.binder).toBe("n1")
     expect(lineupOf(empty.book).at(-1)).toEqual({ kind: "binder", id: "n1", title: "空", pageType: SLIDE, lineup: [] })
