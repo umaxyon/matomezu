@@ -14,10 +14,10 @@ import {
   connectHostsOn,
   disabledPluginsOf,
   hostNameOf,
-  userNameOf,
   isParticipantAlive,
   restoreSettings,
   updateCheckOn,
+  userNameOf,
 } from "../core/settings"
 import { warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"

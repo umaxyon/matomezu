@@ -55,6 +55,7 @@ export interface MatomezuState {
   staleBuild: StaleBuild | null
   updateStatus: UpdateStatus | null // 新しい版の確かめの結果（常駐だけが持つ。ホストクライアントが知らせる。無ければ null）
   hostStatus: HostStatus | null // ホストどうしの入口の様子（常駐だけが持つ。ホストクライアントが知らせる。無ければ null）
+  hostPeers: HostPeers | null // ほかのホストの様子（常駐だけが持つ。ホストクライアントが知らせる。無ければ null）
   lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐のレコードの知らせに添えられた値で入れる）
   // ステージエントリの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのステージエントリを変えたら、その全部に同じ画面の履歴の段が入る
   history: Readonly<Record<string, History>>
@@ -95,6 +96,54 @@ export interface HostStatus {
   wsl?: boolean
   failed?: "port-in-use" | "listen"
 }
+
+// ペアリングしたホストの、常駐だけが持つ様子: connected はつながっているか（確かめた時点で）、lastSeen は最後につながった時刻、addr は待っている所（番地:ポート）、
+// name と userName は相手の今のホスト名と利用者名（つながったときに聞いた物）、keyMismatch は覚えた鍵と合わない相手が答えたか
+export interface PeerLive {
+  hostId: string
+  connected: boolean
+  lastSeen?: string
+  addr?: string
+  name?: string
+  userName?: string
+  keyMismatch?: boolean
+}
+
+// mDNS で見つけた、ペアリングしていないホスト（相手が名乗ったまま）。addr は待っている所（番地:ポート）
+export interface FoundHost {
+  hostId: string
+  name: string
+  userName: string
+  addr: string
+}
+
+// このホストが頼んでいるペアリングの様子: asking は相手に届けている所、waiting は相手の利用者の答えを待っている所（code は接続確認コード）、
+// accepted・declined・timed-out は相手の答え、unreachable は届かなかった、refused は相手が受けなかった（reason は相手の理由。self は自分自身）、key-mismatch は 2 回目で鍵が変わった
+export interface HostPairing {
+  phase: "asking" | "waiting" | "accepted" | "declined" | "timed-out" | "unreachable" | "refused" | "key-mismatch"
+  addr: string
+  hostId?: string
+  name?: string
+  userName?: string
+  code?: string
+  reason?: string
+}
+
+// ほかのホストの様子（常駐だけが持つ）: ペアリングしたホストの様子・mDNS で見つけたホスト・頼んでいるペアリング
+export interface HostPeers {
+  paired: readonly PeerLive[]
+  found: readonly FoundHost[]
+  pairing?: HostPairing
+}
+
+// ほかのホストについてホストに頼む事: pair は addr（番地:ポート）のホストにペアリングを頼む（manual は利用者が手で入れたか）、end-pairing は頼んでいるのをやめる（終わった様子も消す）、
+// check はペアリングしたホストとつながっているか確かめる、discover は mDNS で今すぐ問う、repick-port は覚えたポートが使われているとき別の番号で開き直す
+export type HostRequest =
+  | { kind: "pair"; addr: string; manual: boolean }
+  | { kind: "end-pairing" }
+  | { kind: "check" }
+  | { kind: "discover" }
+  | { kind: "repick-port" }
 
 // 常駐の版とデータの形の番号（移し替えの数）
 export interface Build {
@@ -231,6 +280,10 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   setUpdateStatus(status: UpdateStatus): void
   // ホストどうしの入口の様子（hostStatus）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setHostStatus(status: HostStatus): void
+  // ほかのホストの様子（hostPeers）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
+  setHostPeers(peers: HostPeers): void
+  // ほかのホストについてホストに頼む（様子はホストの知らせで入る）。base のフックを通して使う。ホストが無いか、頼めなければ投げる
+  askHosts(request: HostRequest): Promise<void>
   // 新しい版を今確かめるのをホストに頼む（結果はホストの知らせで入る）。base のフックを通して使う。ホストが無いか、頼めなければ投げる
   checkUpdate(): Promise<void>
   // ワークルーム workroom（id）の AI に、版を上げるよう頼むのをホストに頼む。そこに参加の確定した AI がいなければ false。base のフックを通して使う。ホストが無いか、頼めなければ投げる
@@ -315,6 +368,7 @@ export function initialState(
     staleBuild: null,
     updateStatus: null,
     hostStatus: null,
+    hostPeers: null,
     lastWindow: false,
     history: {},
     pluginValues: NO_PLUGIN_STATES,
@@ -372,6 +426,8 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   command?: string // 利用者が端末で打つ matomezu の名前。無ければ matomezu
   // 新しい版を確かめる・ワークルームの AI に更新を頼むのをホストに頼む口。無ければ、頼むと投げる（E409）
   updateHost?: { check(): Promise<void>; ask(workroom: string): Promise<boolean> }
+  // ほかのホストについてホストに頼む口。無ければ、頼むと投げる（E412）
+  hostsHost?: { ask(request: HostRequest): Promise<void> }
   // 読めない物のフォルダについてホストに頼む口（完全に消す・無効にしたら移る物を数える）。無ければ、頼むと投げる（E406）
   unreadableHost?: {
     purge(id: string): Promise<Purged>

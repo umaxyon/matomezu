@@ -146,6 +146,8 @@ export const ERRORS = {
   E409: "this window has no server to ask about updates",
   E410: "the server could not check for updates: {status}",
   E411: "the server could not ask the workroom {workroom} to update: {status}",
+  E412: "this window has no server to ask about other hosts",
+  E413: "the server could not do {request} for other hosts: {status}",
 } as const
 
 export type ErrorCode = keyof typeof ERRORS

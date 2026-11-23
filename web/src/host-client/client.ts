@@ -4,7 +4,14 @@ import type { BROKEN } from "../core/folders"
 import type { MovedIfOff, Purged, UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
 import type { WideSearchAnswer, WideSearchQuery } from "../core/wide-search"
-import type { AIEditTicketOutcome, DoneBulk, HostAnswer, LibraryRows, MatomezuInstance } from "../store/state"
+import type {
+  AIEditTicketOutcome,
+  DoneBulk,
+  HostAnswer,
+  HostRequest,
+  LibraryRows,
+  MatomezuInstance,
+} from "../store/state"
 
 // 起動のときに読むもの
 export interface Loaded {
@@ -42,6 +49,8 @@ export interface HostClient {
   checkUpdate(): Promise<void>
   // ワークルーム workroom（id）の AI に、版を上げるよう頼む（起こす知らせ）。そこに参加の確定した AI がいなければ false。常駐が断るか（200 でない）つながらなければ E411 を投げる
   askUpdate(workroom: string): Promise<boolean>
+  // ほかのホストについて頼む（様子は知らせで入る）。常駐が断るか（200 でない）つながらなければ E413 を投げる
+  askHosts(request: HostRequest): Promise<void>
   visible(): boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。createMatomezu の visible に渡す）
 }
 
