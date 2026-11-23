@@ -211,7 +211,7 @@ export interface StageListed {
 }
 const NO_STAGE_LIST: readonly StageListed[] = []
 
-// スクリーン screen のカレントのステージの id（ステージを並べないスクリーンなら null）
+// スクリーン screen のカレントのステージの id（ステージを並べないスクリーンなら NO_STAGE）
 export const currentStageOf = (screen: Pick<OpenedScreen, "stages">): string => screen.stages?.current ?? NO_STAGE
 
 // 開いたままにする枚数（定義の maxOpen）を超えたスクリーンを閉じる（カレントにしたのが古い物から。超えていなければ同じ窓を返す）

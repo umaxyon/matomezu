@@ -20,7 +20,7 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { PageScope, useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useReadState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
-import { PAN_NOT_WATCHED, useStage, useStagePan } from "../../../ui/view-hooks"
+import { useStage, useStagePan } from "../../../ui/view-hooks"
 import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 import { paperSize } from "../place/grow"
@@ -208,7 +208,7 @@ function PrintPreviewBody({ id }: { id: string }) {
     el.addEventListener("dblclick", onDoubleClick)
     return () => el.removeEventListener("dblclick", onDoubleClick)
   }, [id, openPage])
-  if (!layout || pan === NO_STAGE || pan === PAN_NOT_WATCHED || !previewed) return null
+  if (!layout || pan === NO_STAGE || !previewed) return null
   const pageOf = (pageId: string) => pages.find(p => p.id === pageId)
   // ブック名（バインダ名）・ページ名と印刷区画の番号（設定で入れるときだけ。番号は並べた印刷区画全体の通し）
   const shows = {

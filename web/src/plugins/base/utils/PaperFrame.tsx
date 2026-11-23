@@ -7,7 +7,7 @@ import { pageType } from "../../../core/core-catalog"
 import { NO_PAGE_TYPE, NO_PAPER, NO_STAGE, placement, shownType } from "../../../core/stage"
 import type { StageView } from "../../../core/workspace"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
-import { PAN_NOT_WATCHED, useStagePan } from "../../../ui/view-hooks"
+import { useStagePan } from "../../../ui/view-hooks"
 import { useZoomMotion } from "./useZoomMotion"
 
 type Props = Omit<HTMLAttributes<HTMLDivElement>, "style" | "children"> & {
@@ -18,7 +18,7 @@ type Props = Omit<HTMLAttributes<HTMLDivElement>, "style" | "children"> & {
 
 export function PaperFrame({ stage, style, children, ...rest }: Props) {
   const pan = useStagePan()
-  const p = pan === NO_STAGE || pan === PAN_NOT_WATCHED ? NO_PAPER : placement({ ...stage, pan })
+  const p = pan === NO_STAGE ? NO_PAPER : placement({ ...stage, pan })
   const motion = useZoomMotion(stage.zoom, usePaperMotionKey(stage))
   if (p === NO_PAPER) return null
   return (

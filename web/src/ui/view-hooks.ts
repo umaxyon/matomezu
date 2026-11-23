@@ -228,6 +228,8 @@ export const PAN_NOT_WATCHED = "not-watched"
 
 // 向け先のステージの紙をずらす量（向け先がステージでなければ NO_STAGE）。ずらすたびに描き直す（紙を置く所など、ずらす量で描くものが使う）。
 // watch が false の間は PAN_NOT_WATCHED を返し、ずらしても描き直さない（ドラッグの間だけ追うときなど）
+export function useStagePan(): Point | typeof NO_STAGE
+export function useStagePan(watch: boolean): Point | typeof NO_STAGE | typeof PAN_NOT_WATCHED
 export function useStagePan(watch = true): Point | typeof NO_STAGE | typeof PAN_NOT_WATCHED {
   const stage = useStageId()
   return useMatomezuState(s =>
