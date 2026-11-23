@@ -1,8 +1,10 @@
 // ワーカーブックの片付け: tickets-history のブックを、持ち主のレコード（workKey が指すワークルームや、作業のレコード）の変わりに応じて片付けるフォローステップ。
 // ワークルームが消えたら（ワークルームを消した・引き継がずに入り直した）そのワークルーム自身のブックを、作業のレコードが消えたらそのレコードのブックを完全に消す。
 // 作業が終わったら（completesWork）、その作業のレコードのブックのアノテーションを消す（ブックは残る）
+import type { CatalogCheckDef } from "../../../core/core-catalog"
 import type { RecordRead } from "../../../core/def/action"
 import type { FollowedChange, FollowStepDef } from "../../../core/def/follow-step"
+import { problem } from "../../../core/errors"
 import { TICKETS_HISTORY } from "../library/backyards"
 import { WORKROOM } from "./workroom"
 
@@ -28,6 +30,16 @@ const purgedOn = (change: FollowedChange) =>
     : {}
 
 // ワークルームが消えたら、そのワークルーム自身のブックを完全に消す（チケットのブックは残る）
+// ワークルームの作業を答える種類が workroomWorkSubjects に書いた種類が、どれも機能台帳に在って completesWork を持つか（無ければ片付かないワーカーブックができる）
+export const WORK_SUBJECTS_CHECK: CatalogCheckDef = catalog =>
+  [...catalog.subjects.values()].flatMap(s =>
+    s.workroomWork
+      ? (s.workroomWorkSubjects ?? []).flatMap(ref =>
+          catalog.subjects.get(ref)?.completesWork ? [] : [problem("E133", { id: s.id, ref })],
+        )
+      : [],
+  )
+
 export const FOLLOW_WORKROOM_GONE: FollowStepDef<typeof WORKROOM.id> = {
   watches: WORKROOM.id,
   writes: [],

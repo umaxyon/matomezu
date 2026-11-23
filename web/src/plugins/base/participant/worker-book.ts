@@ -17,6 +17,11 @@ export const workerBookReadsOf = (catalog: CoreCatalog): readonly string[] => [
   ...new Set([...workroomWorkReadsOf(catalog), WORKROOM.id]),
 ]
 
+// 種類 subject の作業のレコードが、ワーカーブックを持てるか（ワークルームの作業を答える種類が workroomWorkSubjects に書き、completesWork を持つ）
+const ownsWorkerBook = (catalog: CoreCatalog, subject: string): boolean =>
+  !!catalog.subjects.get(subject)?.completesWork &&
+  [...catalog.subjects.values()].some(s => s.workroomWork && s.workroomWorkSubjects?.includes(subject))
+
 // ワークルーム workroom のワーカーブックの workKey と名前 title（ワークルームのレコードが無ければ、名前はワークルームの id）。
 // read は workerBookReadsOf の種類を読める読み口
 export function workerBookOf(
@@ -25,7 +30,8 @@ export function workerBookOf(
   workroom: string,
 ): { workKey: WorkKey; title: string } {
   const work = workroomWorkIn(catalog, read, workroom)
-  if (work !== "unknown" && work.kind === "working") return { workKey: work.key, title: work.label }
+  if (work !== "unknown" && work.kind === "working" && ownsWorkerBook(catalog, work.key.subject))
+    return { workKey: work.key, title: work.label }
   const room = read.record(WORKROOM.id, workroom) as { name?: unknown }
   return {
     workKey: { subject: WORKROOM.id, id: workroom },
