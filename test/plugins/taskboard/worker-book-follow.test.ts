@@ -7,13 +7,14 @@ import { type PerformedIn, performIn, type World } from "../../../web/src/core/p
 import { REMOVED, withCounters, withRecords } from "../../../web/src/core/records"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { TICKETS_HISTORY } from "../../../web/src/plugins/base/library/backyards"
-import type { Project } from "../../../web/src/plugins/taskboard/project"
+import { PROJECT, type Project } from "../../../web/src/plugins/taskboard/project"
+import { TICKET as TICKET_DEF } from "../../../web/src/plugins/taskboard/ticket/ticket"
 import { drawingPage, testBook } from "../../lineup"
 import { CORE_CATALOG, libraryWith } from "../../support"
 
 const A = (id: string) => `@matomezu/taskboard:${id}`
 const WORKROOM = "@matomezu/base:workroom"
-const TICKET = A("ticket")
+const TICKET = TICKET_DEF.id
 const YARD = backyardIdOf(TICKETS_HISTORY.id)
 type Done = Extract<PerformedIn, { ok: true }> & { result: Record<string, unknown> }
 const ai = (workroom: string): Actor => ({ kind: "ai", workroom: { id: workroom } })
@@ -43,7 +44,7 @@ function board() {
   const user = (action: string, args: unknown, on?: { record: string }) => act(USER, action, args, on)
   const room = (name: string) => user("@matomezu/base:workroom-add", { name, bird: "inko" }).result.workroom as string
   user("project-add", {})
-  const project = () => Object.values(w.records[A("project")] ?? {})[0] as Project
+  const project = () => Object.values(w.records[PROJECT.id] ?? {})[0] as Project
   const ticket = (args: Record<string, unknown> = {}) =>
     user("ticket-add", { project: project().id, name: "t", ...args }).result.ticket as string
   // tickets-history に、key ごとのブック（ページ 1 枚。そのページに伝言 1 つ）を置く
