@@ -7,6 +7,7 @@
 // 2 行目にそう出し、その画面の履歴の段を捨てる（次はその前の段を置き直す）。認可ステップが止めた（ロック中など）なら、その画面の履歴の段は動かさない
 
 import type { CoreCatalog } from "../../../core/core-catalog"
+import { ANY_PAGE_TYPE } from "../../../core/def/action"
 import { namingOf, placeOf, rowTitle } from "../../../core/entries"
 import type { Folders } from "../../../core/folders"
 import { isKeptSystemFolder, systemFolderOf } from "../../../core/folders-tree"
@@ -22,6 +23,7 @@ import { BOOK_CREATE } from "../book-new/book-create"
 import { dropClashing, notRestored } from "../history"
 import { isRevertUnchanged } from "../history/restore"
 import { kit } from "../kit"
+import { type Workdesk, workdesksOf, workdesksReadsOf } from "../participant/workdesks"
 import { refusalMessage } from "../utils/refusal"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./dialog"
 import type { Drop } from "./drop"
@@ -53,6 +55,10 @@ import { PAGE_CREATE } from "./page-create"
 import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
 import { unreadableShownIn } from "./show-unreadable"
 import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
+import { createdIn, isDeskRow, realOf } from "./workdesk-rows"
+
+// 作る物を問うときの名前（名前は問いに渡らない。行う前は許可スコープから出した所で問い、run を呼ばない。作るブックは空のブックで問う。定義と機能台帳の「認可ステップ」）
+const ASKED_TITLE = "-"
 
 // 書庫の履歴の最後の段を、from の向きに置き直す（ステージエントリの画面の履歴の restore と同じ決まり。plugins/base/history/index.ts）
 function restore(ctx: ScreenCommandContext, a: CommandActions, from: "undo" | "redo"): void {
@@ -75,6 +81,7 @@ function restore(ctx: ScreenCommandContext, a: CommandActions, from: "undo" | "r
 
 export const LIBRARY_UNDO = kit.defineScreenCommand({
   id: "library-undo",
+  readsSubjects: workdesksReadsOf,
   title: "Undo in the library",
   performs: [LIBRARY_REVERT.id],
   run: (ctx, a) => restore(ctx, a, "undo"),
@@ -84,6 +91,7 @@ export const LIBRARY_UNDO = kit.defineScreenCommand({
 
 export const LIBRARY_REDO = kit.defineScreenCommand({
   id: "library-redo",
+  readsSubjects: workdesksReadsOf,
   title: "Redo in the library",
   performs: [LIBRARY_REVERT.id],
   run: (ctx, a) => restore(ctx, a, "redo"),
@@ -112,14 +120,22 @@ function given(ctx: ScreenCommandContext, named: Named | undefined): Named | und
   return menu && NAMING_MENUS.includes(menu.id) ? (menu.target as Named) : undefined
 }
 
-const openedIn = (ctx: ScreenCommandContext): string => openedFolderOf(ctx.folders, ctx.pluginState(LIBRARY_FOLDER))
+// 作業机（コマンドは readsSubjects に workdesksReadsOf を書き、その種類を読む）
+const desksIn = (ctx: ScreenCommandContext): readonly Workdesk[] => workdesksOf(ctx.catalog, ctx.read, ctx.folders)
+
+const openedIn = (ctx: ScreenCommandContext): string =>
+  openedFolderOf(ctx.folders, ctx.pluginState(LIBRARY_FOLDER), desksIn(ctx))
 
 // コマンドが扱うエントリ: 受け取ったエントリ・フォルダ。ツリーからなら、ツリーで今いる行。何も受け取らなければ、呼ばれた場所の書庫の画面で選んでいる行（無ければ、扱う物は無い）
 function entryOf(ctx: ScreenCommandContext, named?: Named): string | undefined {
   const to = given(ctx, named)
   const picked = ctx.pluginState(LIBRARY_PICKED)
   if (!to) return picked
-  return "entry" in to ? to.entry : "folder" in to ? to.folder : treeCurrentOf(ctx.folders, openedIn(ctx), picked)
+  return "entry" in to
+    ? to.entry
+    : "folder" in to
+      ? to.folder
+      : treeCurrentOf(ctx.folders, openedIn(ctx), picked, desksIn(ctx))
 }
 
 // コマンドが扱う、受け取ったエントリ（フォルダを受け取ったとき（何も無い所のメニュー）は、扱わない。そのフォルダは、右クリックした物でない）のうち、
@@ -148,11 +164,13 @@ const inMenu =
 const inMenuHandled = (handles: Handles) => inMenu(ctx => handled(ctx, handles))
 
 // 新しいブック・フォルダを作る先のフォルダ: エントリを受け取ったら、それが書庫ホームかフォルダのとき、その中。
-// フォルダを受け取ったら（何も無い所のメニュー）、ボタンと同じに、それがブック・バインダなら、それを入れているフォルダ
+// フォルダを受け取ったら（何も無い所のメニュー）、ボタンと同じに、それがブック・バインダなら、それを入れているフォルダ。
+// 作業机とその下の行なら、ボタンと同じにワークルームのフォルダ（作れないので、認可ステップに止められる）
 const holder = (ctx: ScreenCommandContext, named?: Named): string | undefined => {
   const to = given(ctx, named)
-  if (to && "folder" in to) return holderForNew(ctx.folders, to.folder)
+  if (to && "folder" in to) return holderForNew(ctx.folders, createdIn(ctx.folders, to.folder))
   const entry = entryOf(ctx, named)
+  if (entry !== undefined && isDeskRow(entry)) return holderForNew(ctx.folders, createdIn(ctx.folders, entry))
   return entry !== undefined && holdsEntries(ctx.folders, entry) ? entry : undefined
 }
 
@@ -160,9 +178,14 @@ const holder = (ctx: ScreenCommandContext, named?: Named): string | undefined =>
 function opening(ctx: ScreenCommandContext, named?: Named): Exclude<OpenTarget, typeof NOT_OPENED> | undefined {
   const to = given(ctx, named)
   const entry = to && "folder" in to ? undefined : entryOf(ctx, named)
-  const kind = entry === undefined ? undefined : placeOf(ctx.folders, entry)?.ref.kind
-  if (entry === undefined || kind === undefined) return undefined
-  const target = openTargetOf(ctx.folders, { id: entry, kind, readable: kind === "page" || entry in ctx.folders })
+  if (entry === undefined) return undefined
+  const desks = desksIn(ctx)
+  // 作業机とその下の行は、実の物の種類で開く（作業机・実の物が無い行は、フォルダとして）
+  const real = realOf(desks, ctx.folders, entry)
+  const kind = placeOf(ctx.folders, real)?.ref.kind ?? (isDeskRow(entry) ? "folder" : undefined)
+  if (kind === undefined) return undefined
+  const readable = isDeskRow(entry) || kind === "page" || entry in ctx.folders
+  const target = openTargetOf(ctx.folders, { id: entry, kind, readable }, desks)
   return target === NOT_OPENED ? undefined : target
 }
 
@@ -170,6 +193,7 @@ function opening(ctx: ScreenCommandContext, named?: Named): Exclude<OpenTarget, 
 // 右クリックのメニューでは、受け取った物がフォルダでなく開けるときだけ出す。名指して呼ぶときは when が引数を受けないので、メニューの外ではいつも出す
 export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
   id: "library-entry-open",
+  readsSubjects: workdesksReadsOf,
   title: "Open",
   run: (ctx, a, named: Named | undefined) => {
     const target = opening(ctx, named)
@@ -186,22 +210,33 @@ export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
 
 export const LIBRARY_BOOK_NEW = kit.defineScreenCommand({
   id: "library-book-new",
+  readsSubjects: workdesksReadsOf,
   title: "New book…",
   performs: [BOOK_CREATE.id], // 開いたダイアログが行う
   run: (ctx, a, named: Named | undefined) => {
     const into = holder(ctx, named)
     if (into !== undefined) a.openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into })
   },
+  // 作る先に作ってよいかを、名前を決める前に問う（名前は問うためだけの物）
+  performsWith: (ctx, named) => {
+    const into = holder(ctx, named)
+    return into === undefined ? [] : [{ action: BOOK_CREATE.id, args: { title: ASKED_TITLE, into } }]
+  },
   when: inMenu(holder),
 })
 
 export const LIBRARY_FOLDER_NEW = kit.defineScreenCommand({
   id: "library-folder-new",
+  readsSubjects: workdesksReadsOf,
   title: "New folder…",
   performs: [FOLDER_CREATE.id], // 開いたダイアログが行う
   run: (ctx, a, named: Named | undefined) => {
     const into = holder(ctx, named)
     if (into !== undefined) a.openDialog(LIBRARY_NEW_FOLDER_DIALOG.id, { into })
+  },
+  performsWith: (ctx, named) => {
+    const into = holder(ctx, named)
+    return into === undefined ? [] : [{ action: FOLDER_CREATE.id, args: { title: ASKED_TITLE, into } }]
   },
   when: inMenu(holder),
 })
@@ -210,25 +245,33 @@ export const LIBRARY_FOLDER_NEW = kit.defineScreenCommand({
 // フォルダを受け取ったら（何も無い所のメニュー）、ボタンと同じ（holderForNewPage）
 const pageHolder = (ctx: ScreenCommandContext, named?: Named): string | undefined => {
   const to = given(ctx, named)
-  if (to && "folder" in to) return holderForNewPage(ctx.folders, to.folder)
+  if (to && "folder" in to) return holderForNewPage(ctx.folders, createdIn(ctx.folders, to.folder))
   const entry = entryOf(ctx, named)
+  if (entry !== undefined && isDeskRow(entry)) return holderForNewPage(ctx.folders, createdIn(ctx.folders, entry))
   return entry !== undefined && holderForNewPage(ctx.folders, entry) === entry ? entry : undefined
 }
 
 // ページのタイプの一覧のメニューを、右クリックのメニューを開いた位置 pressed に開く（位置を受け取らなければ開かない。選んだタイプのページを作るダイアログは、メニューの行が開く）
 export const LIBRARY_PAGE_NEW = kit.defineScreenCommand({
   id: "library-page-new",
+  readsSubjects: workdesksReadsOf,
   title: "New page…",
   performs: [PAGE_CREATE.id], // メニューの行が開くダイアログが行う
   run: (ctx, a, named: Named | undefined) => {
     const folder = pageHolder(ctx, named)
     if (folder !== undefined && named?.pressed) a.openContextMenu(LIBRARY_ADD_PAGE_MENU, { folder }, named.pressed)
   },
+  // 作るページのタイプは、まだ決まっていない
+  performsWith: (ctx, named) => {
+    const folder = pageHolder(ctx, named)
+    return folder === undefined ? [] : [{ action: PAGE_CREATE.id, args: { folder, type: ANY_PAGE_TYPE } }]
+  },
   when: inMenu(pageHolder),
 })
 
 export const LIBRARY_ENTRY_RENAME = kit.defineScreenCommand({
   id: "library-entry-rename",
+  readsSubjects: workdesksReadsOf,
   title: "Rename…",
   performs: [ENTRY_RENAME.id], // 開いたダイアログが行う
   run: (ctx, a, named: Named | undefined) => {
@@ -260,6 +303,7 @@ const duplicates: Handles = (folders, entry) => {
 // 写す: ページ・バインダを、すぐ後ろに番号付きの名前で写す。断られたらトーストで知らせる
 export const LIBRARY_ENTRY_DUPLICATE = kit.defineScreenCommand({
   id: "library-entry-duplicate",
+  readsSubjects: workdesksReadsOf,
   title: "Duplicate",
   performs: [ENTRY_DUPLICATE.id],
   run: (ctx, a, named: Named | undefined) => {
@@ -285,6 +329,7 @@ function trash(ctx: ScreenCommandContext, a: CommandActions, entry: string): voi
 
 export const LIBRARY_ENTRY_TRASH = kit.defineScreenCommand({
   id: "library-entry-trash",
+  readsSubjects: workdesksReadsOf,
   title: "Move to trash",
   performs: [ENTRY_TRASH.id],
   run: (ctx, a, named: Named | undefined) => {
@@ -303,6 +348,7 @@ export const LIBRARY_ENTRY_TRASH = kit.defineScreenCommand({
 type Moving = { entry: string; to: Drop; how?: "number" | { replaces: string } }
 export const LIBRARY_ENTRY_MOVE = kit.defineScreenCommand({
   id: "library-entry-move",
+  readsSubjects: workdesksReadsOf,
   title: "Move",
   performs: [ENTRY_MOVE.id, ENTRY_MOVE_OVER.id, ENTRY_TRASH.id],
   run: (ctx, a, { entry, to, how }: Moving) => {
@@ -337,7 +383,7 @@ function goTo(
 ): void {
   if (!row) return
   const now = unfoldedOf(ctx.pluginState(LIBRARY_UNFOLDED))
-  const next = arrivedAt(ctx.folders, row, now)
+  const next = arrivedAt(ctx.folders, row, now, desksIn(ctx))
   if (next.folder !== openedIn(ctx)) a.updatePluginState(LIBRARY_FOLDER, () => next.folder)
   a.updatePluginState(LIBRARY_PICKED, () => next.picked)
   if (next.unfolded !== now) a.updatePluginState(LIBRARY_UNFOLDED, () => next.unfolded)
@@ -346,14 +392,16 @@ function goTo(
 // 呼ばれた場所の書庫の画面のツリー: 出ている行 rows と、今いる行の位置 i（出ていなければ -1）と、中を出しているフォルダ unfolded
 function treeAt(ctx: ScreenCommandContext) {
   const unfolded = unfoldedOf(ctx.pluginState(LIBRARY_UNFOLDED))
-  const rows = treeRowsOf(ctx.folders, unfolded, unreadableShownIn(ctx.catalog, ctx.settings))
-  const at = treeCurrentOf(ctx.folders, openedIn(ctx), ctx.pluginState(LIBRARY_PICKED))
+  const desks = desksIn(ctx)
+  const rows = treeRowsOf(ctx.folders, unfolded, unreadableShownIn(ctx.catalog, ctx.settings), desks)
+  const at = treeCurrentOf(ctx.folders, openedIn(ctx), ctx.pluginState(LIBRARY_PICKED), desks)
   return { rows, unfolded, i: rows.findIndex(r => r.id === at) }
 }
 
 // ツリーで、上・下の行へ移る
 export const LIBRARY_TREE_MOVE = kit.defineScreenCommand({
   id: "library-tree-move",
+  readsSubjects: workdesksReadsOf,
   title: "Move in the tree",
   run: (ctx, a, { to }: { to: "up" | "down" }) => {
     const { rows, i } = treeAt(ctx)
@@ -365,6 +413,7 @@ export const LIBRARY_TREE_MOVE = kit.defineScreenCommand({
 // ツリーで、中を出している行なら中をしまい、ほかは、それを持つフォルダの行へ移る
 export const LIBRARY_TREE_FOLD_OR_PARENT = kit.defineScreenCommand({
   id: "library-tree-fold-or-parent",
+  readsSubjects: workdesksReadsOf,
   title: "Fold or go to the parent",
   run: (ctx, a) => {
     const { rows, unfolded, i } = treeAt(ctx)
@@ -384,6 +433,7 @@ export const LIBRARY_TREE_FOLD_OR_PARENT = kit.defineScreenCommand({
 // ツリーで、中をしまっている行なら中を出し、中を出している行なら、その下の行へ移る
 export const LIBRARY_TREE_UNFOLD_OR_NEXT = kit.defineScreenCommand({
   id: "library-tree-unfold-or-next",
+  readsSubjects: workdesksReadsOf,
   title: "Unfold or go inside",
   run: (ctx, a) => {
     const { rows, unfolded, i } = treeAt(ctx)
@@ -398,9 +448,10 @@ export const LIBRARY_TREE_UNFOLD_OR_NEXT = kit.defineScreenCommand({
 // 右の枠で、選んでいる行の前・次の行か、上・下の段の行を選ぶ（選んでいなければ、最初の行）。行の順はビューと同じ paneIdsOf、段の列の数は、ビューが測った LIBRARY_COLUMNS
 export const LIBRARY_PICK_MOVE = kit.defineScreenCommand({
   id: "library-pick-move",
+  readsSubjects: workdesksReadsOf,
   title: "Pick the neighbour",
   run: (ctx, a, { to }: { to: PickTo }) => {
-    const ids = paneIdsOf(ctx.folders, unreadableItemsIn(ctx), openedIn(ctx))
+    const ids = paneIdsOf(ctx.folders, unreadableItemsIn(ctx), openedIn(ctx), desksIn(ctx))
     const i = ids.indexOf(ctx.pluginState(LIBRARY_PICKED) ?? "")
     const next = i < 0 ? ids[0] : ids[pickedAfter(to, i, ids.length, ctx.pluginState(LIBRARY_COLUMNS) ?? 1)]
     if (next !== undefined) a.updatePluginState(LIBRARY_PICKED, () => next)

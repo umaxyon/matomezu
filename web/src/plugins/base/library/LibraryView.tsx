@@ -11,27 +11,30 @@ import { useContextMenu, useToggledMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { useCatalog, useMatomezuState, useReadState } from "../../../ui/store-context"
-import { useActions, useUserSetting } from "../../../ui/view-hooks"
+import { useUserSetting } from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import type { Workdesk } from "../participant/workdesks"
 import { SplitHandle } from "../utils/SplitHandle"
 import {
   LIBRARY_ADD_PAGE_MENU,
+  LIBRARY_BOOK_NEW,
   LIBRARY_CONTENTS_AROUND_SCOPE,
   LIBRARY_CONTENTS_SCOPE,
   LIBRARY_ENTRY_CONTEXT,
   LIBRARY_ENTRY_OPEN,
   LIBRARY_FOLDER_CONTEXT,
+  LIBRARY_FOLDER_NEW,
   LIBRARY_FOUND_SCOPE,
+  LIBRARY_PAGE_NEW,
   LIBRARY_SCOPE,
   LIBRARY_TREE_AROUND_SCOPE,
   LIBRARY_TREE_SCOPE,
 } from "./commands"
-import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG } from "./dialog"
-import { holderForNew, holderForNewPage } from "./entries"
+import { holderForNewPage } from "./entries"
 import { FoundView } from "./FoundView"
 import { HistoryButtons } from "./HistoryButtons"
-import { useKeepFocusIn, useLibraryRows, useNameOf } from "./hooks"
+import { useKeepFocusIn, useLibraryRows, useNameOf, useWorkdesks } from "./hooks"
 import { CHEVRON, RowIcon, TRASH } from "./icons"
 import styles from "./LibraryView.module.css"
 import { MoveClashConfirm } from "./MoveClashConfirm"
@@ -60,6 +63,7 @@ import { TrashView } from "./TrashView"
 import { CONTENT_MIN_WIDTH, DEFAULT_TREE_WIDTH, TREE_MIN_WIDTH, treeWidthAt } from "./tree-width"
 import { UnreadableView } from "./UnreadableView"
 import { type LibraryDrag, useLibraryDrag } from "./useLibraryDrag"
+import { createdIn, deskTitleOf, isDeskRow } from "./workdesk-rows"
 
 // 一番上に並ぶフォルダの行（書庫ホームとゴミ箱と、設定がオンなら読めない物のフォルダ。名前は画面が付ける）
 const topRowsOf = (unreadableShown: boolean): readonly LibraryRow[] =>
@@ -76,7 +80,7 @@ const TOPS_WITH_UNREADABLE = topRowsOf(true)
 
 // フォルダ folder の直下の行
 const useRowsIn = (folder: string): readonly LibraryRow[] =>
-  useLibraryRows(folder, (s, naming) => rowsIn(s, folder, naming))
+  useLibraryRows(folder, (s, naming, desks) => rowsIn(s, folder, naming, desks))
 
 interface Handlers {
   opened: string
@@ -104,10 +108,13 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const setFolder = useSetPluginState(kit, LIBRARY_FOLDER)
   const picked = usePluginState(kit, LIBRARY_PICKED)
   const setPicked = useSetPluginState(kit, LIBRARY_PICKED)
-  const opened = useMatomezuState(s => openedFolderOf(s.folders, value))
-  const path = useMatomezuState(useShallow(s => pathTo(s.folders, opened)))
+  const desks = useWorkdesks()
+  const opened = useMatomezuState(s => openedFolderOf(s.folders, value, desks))
+  const path = useMatomezuState(useShallow(s => pathTo(s.folders, opened, desks)))
   const catalog = useCatalog().core
-  const titles = useMatomezuState(useShallow(s => path.map(id => folderTitle(s, id, namingOf(catalog, s.settings)))))
+  const titles = useMatomezuState(
+    useShallow(s => path.map(id => folderTitle(s, id, namingOf(catalog, s.settings), desks))),
+  )
   const rows = useRowsIn(opened)
   const unreadableShown = useUserSetting(SHOW_UNREADABLE_FOLDER.id) === true
   // 読めない物のフォルダの直下の物の数（在る間は、設定がオフでも、ツリーの下に出して開けるようにする）
@@ -118,18 +125,20 @@ export function LibraryView({ className }: { className?: string } = {}) {
     setPicked,
   )
   // 新しいブック・フォルダを作る先（開いているのがブック・バインダなら、それを入れているフォルダ。ゴミ箱なら無い）
-  const into = useMatomezuState(s => holderForNew(s.folders, opened))
-  const pageInto = useMatomezuState(s => holderForNewPage(s.folders, opened))
+  // 作業机とその下では、ワークルームのフォルダが作る先（作れないので、ボタンは押せない）
+  const pageInto = useMatomezuState(s => holderForNewPage(s.folders, createdIn(s.folders, opened)))
+  const bookNew = useCommand(LIBRARY_BOOK_NEW.id, { folder: opened })
+  const folderNew = useCommand(LIBRARY_FOLDER_NEW.id, { folder: opened })
+  const pageNew = useCommand(LIBRARY_PAGE_NEW.id, { folder: opened })
   const addPageMenu = useToggledMenu(LIBRARY_ADD_PAGE_MENU)
   const addPage = useRef<HTMLSpanElement>(null)
-  const { openDialog } = useActions()
   const unfolded = unfoldedOf(usePluginState(kit, LIBRARY_UNFOLDED))
   const setUnfolded = useSetPluginState(kit, LIBRARY_UNFOLDED)
   const readUnfolded = useReadPluginState(kit, LIBRARY_UNFOLDED)
   const shown = new Set(unfolded)
   // 行へ移る: 開くフォルダ・選ぶ行・ツリーで中を出すフォルダを置き直す
   const arrive = (row: { id: string; holder: string; holds: boolean }) => {
-    const next = arrivedAt(read().folders, row, unfolded)
+    const next = arrivedAt(read().folders, row, unfolded, desks)
     if (next.folder !== opened) setFolder(next.folder)
     setPicked(next.picked)
     if (next.unfolded !== unfolded) setUnfolded([...next.unfolded])
@@ -161,11 +170,11 @@ export function LibraryView({ className }: { className?: string } = {}) {
     if (!now.includes(id) && read().folders[id] !== undefined && id !== TRASH_ID) setUnfolded([...now, id])
   })
   // Tab で止まる行: ツリーは今いる行（出ていなければ書庫ホーム）、右の枠は選んでいる行（無ければ最初の行）
-  const current = useMatomezuState(st => treeCurrentOf(st.folders, opened, picked))
+  const current = useMatomezuState(st => treeCurrentOf(st.folders, opened, picked, desks))
   const treeStop = useMatomezuState(
     st =>
       tabStopOf(
-        treeRowsOf(st.folders, unfolded, unreadableShown).map(r => r.id),
+        treeRowsOf(st.folders, unfolded, unreadableShown, desks).map(r => r.id),
         current,
         HOME_ID,
       ) ?? HOME_ID,
@@ -310,26 +319,25 @@ export function LibraryView({ className }: { className?: string } = {}) {
             </nav>
             {opened !== TRASH_ID && opened !== UNREADABLE_ID && (
               <div className={styles.tools}>
-                {into !== undefined && (
-                  <>
-                    <ActionButton raised onClick={() => openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into })}>
-                      <span className={styles.create}>
-                        <RowIcon row={{ kind: "book", type: NO_TYPE }} className={styles.icon} />
-                        {t("Create book")}
-                      </span>
-                    </ActionButton>
-                    <ActionButton raised onClick={() => openDialog(LIBRARY_NEW_FOLDER_DIALOG.id, { into })}>
-                      <span className={styles.create}>
-                        <RowIcon row={{ kind: "folder", type: NO_TYPE }} className={styles.icon} />
-                        {t("New folder")}
-                      </span>
-                    </ActionButton>
-                  </>
-                )}
+                {/* ブック・フォルダを作る先は、コマンドが決める（ゴミ箱の外なら、どこにも在る） */}
+                <ActionButton raised disabled={!bookNew.enabled} onClick={() => bookNew.run({ folder: opened })}>
+                  <span className={styles.create}>
+                    <RowIcon row={{ kind: "book", type: NO_TYPE }} className={styles.icon} />
+                    {t("Create book")}
+                  </span>
+                </ActionButton>
+                <ActionButton raised disabled={!folderNew.enabled} onClick={() => folderNew.run({ folder: opened })}>
+                  <span className={styles.create}>
+                    <RowIcon row={{ kind: "folder", type: NO_TYPE }} className={styles.icon} />
+                    {t("New folder")}
+                  </span>
+                </ActionButton>
+
                 {pageInto !== undefined && (
                   <span ref={addPage} onPointerDown={addPageMenu.pressed}>
                     <ActionButton
                       raised
+                      disabled={!pageNew.enabled}
                       onClick={() => {
                         const r = addPage.current?.getBoundingClientRect()
                         if (r) addPageMenu.open({ x: r.left, y: r.bottom + 4 }, { folder: pageInto })
@@ -403,9 +411,11 @@ const dragMarks = (drag: LibraryDrag | null, zone: string, row: string) => ({
   "data-drop": drag?.aim?.zone === zone && drag.aim.row === row ? drag.aim.where : undefined,
 })
 
-// フォルダ id の名前（名前を持たない物・無い物は NO_TITLE）
-const folderTitle = (s: MatomezuState, id: string, naming: Naming): string =>
-  titleOf(s, "folder", id, naming) ?? NO_TITLE
+// フォルダ id の名前（作業机とその下の行も。名前を持たない物・無い物は NO_TITLE）
+const folderTitle = (s: MatomezuState, id: string, naming: Naming, desks: readonly Workdesk[]): string =>
+  (isDeskRow(id)
+    ? deskTitleOf(desks, s.folders, id, real => titleOf(s, s.folders[real] ? "folder" : "page", real, naming))
+    : titleOf(s, "folder", id, naming)) ?? NO_TITLE
 
 // ツリーの 1 行と、中を出していればその下の行
 function TreeNode({

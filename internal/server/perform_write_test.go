@@ -411,9 +411,10 @@ func TestBulkInputsAreTheUnionOfTheActions(t *testing.T) {
 		t.Fatalf("two pages = %v", got)
 	}
 	added := step("@matomezu/base:page-add", `{"type":"@matomezu/drawing:drawing","title":"追加"}`, &engine.On{Book: "b1"}, "p3")
-	// システムフォルダの行は、並びの順を問わない
-	if got := folders(added, update("p3")); len(got) < 4 || !slices.Equal(got[:4], []string{"b1", "b2", storage.HomeID, storage.TrashID}) ||
-		!slices.Equal(slices.Sorted(slices.Values(got[4:])), slices.Sorted(slices.Values(documentsOf(t, hub)))) {
+	// システムフォルダの行は、並びの順を問わない。バックヤードは最後
+	if got := folders(added, update("p3")); len(got) < 5 || !slices.Equal(got[:4], []string{"b1", "b2", storage.HomeID, storage.TrashID}) ||
+		!slices.Equal(slices.Sorted(slices.Values(got[4:len(got)-1])), slices.Sorted(slices.Values(documentsOf(t, hub)))) ||
+		got[len(got)-1] != ticketsHistoryYard {
 		t.Fatalf("a page the bulk adds = %v", got)
 	}
 	if got := folders(update("p9"), update("p1")); !slices.Equal(got, []string{"b1", storage.HomeID}) {

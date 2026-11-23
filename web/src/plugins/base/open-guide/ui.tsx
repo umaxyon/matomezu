@@ -40,7 +40,7 @@ function OpenGuide() {
           </BirdWalk>
         </div>
         <h1 className={styles.title}>{title}</h1>
-        <p className={styles.how}>{t("Ask your AI to “run matomezu open”, or run it in a terminal")}</p>
+        <p className={styles.how}>{t("Ask your AI to “run {command}”, or run it in a terminal", { command })}</p>
         <div className={styles.terminal}>
           <div className={styles.bar}>
             <span className={styles.dot} />

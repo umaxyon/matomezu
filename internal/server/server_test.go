@@ -1992,3 +1992,22 @@ func TestAddedPluginsAreOffUntilEnabled(t *testing.T) {
 		t.Fatalf("event after disabling = %s", got)
 	}
 }
+
+// AI がワーカーブックにページを足すと、まだブックが無ければ作ってバックヤードに置く（書庫の全部を渡す頼みは、バックヤードの行も渡す）。2 つ目は同じブックに足す
+func TestTheAIAddsAPageToANewWorkerBookInTheBackyard(t *testing.T) {
+	s := newServer(t, nil)
+	ai := writerAI(t, s.URL)
+	add := `{"action":"@matomezu/base:worker-page-add","args":{"type":"@matomezu/drawing:drawing","title":"memo"}}`
+	_, first := send(t, "POST", s.URL+"/api/ai/perform", add, ai)
+	var done struct {
+		Ok     bool
+		Result struct{ Book string }
+	}
+	if json.Unmarshal([]byte(first), &done) != nil || !done.Ok || done.Result.Book == "" {
+		t.Fatalf("first worker-page-add = %s", first)
+	}
+	_, second := send(t, "POST", s.URL+"/api/ai/perform", strings.Replace(add, "memo", "memo 2", 1), ai)
+	if !strings.Contains(second, `"book":"`+done.Result.Book+`"`) {
+		t.Fatalf("second worker-page-add = %s, want the book %s", second, done.Result.Book)
+	}
+}

@@ -1,6 +1,7 @@
 // 書庫の画面のプラグイン状態（描いているスクリーン 1 枚ごと。ツリーの幅と読めない物の知らせは窓ごと）
 import { z } from "zod"
 import { kit } from "../kit"
+import { workdesksOf, workdesksReadsOf } from "../participant/workdesks"
 import { openedFolderOf, shownFoldersOf, unfoldedOf } from "./outline"
 import { TREE_MIN_WIDTH } from "./tree-width"
 
@@ -36,12 +37,20 @@ export const LIBRARY_TREE_WIDTH = kit.definePluginState({
   address: "replace",
 })
 
-// 書庫の画面（LibraryView）の書庫アピアランス: 右の枠で開いているフォルダと、ツリーで中を出しているフォルダを見せている。
+// 書庫の画面（LibraryView）の書庫アピアランス: 右の枠で開いているフォルダと、ツリーで中を出しているフォルダを見せている（作業机とその下の行は、実の物）。
 // LibraryView を置くスクリーンの定義が、libraryAppearances で名指す
 export const LIBRARY_APPEARANCE = kit.defineLibraryAppearance({
   id: "library",
-  shownFolders: (folders, read) =>
-    shownFoldersOf(folders, openedFolderOf(folders, read(LIBRARY_FOLDER)), unfoldedOf(read(LIBRARY_UNFOLDED))),
+  readsSubjects: workdesksReadsOf,
+  shownFolders: (folders, read, records, catalog) => {
+    const desks = workdesksOf(catalog, records, folders)
+    return shownFoldersOf(
+      folders,
+      openedFolderOf(folders, read(LIBRARY_FOLDER), desks),
+      unfoldedOf(read(LIBRARY_UNFOLDED)),
+      desks,
+    )
+  },
 })
 
 // 読めない物が移った・戻ったときの知らせを閉じたか（窓ごと。読み直すと消える。値が無ければ、まだ閉じていない）。描き直しても、閉じた知らせは出さない

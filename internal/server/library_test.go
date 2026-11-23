@@ -111,9 +111,10 @@ func TestBooksInFoldersAreBooksOfTheHub(t *testing.T) {
 	if got := folders(update("s1"), update("p1")); !slices.Equal(got, []string{"b2", "f1", "b1", "d2", "d1", storage.HomeID}) {
 		t.Fatalf("pages in two books = %v", got)
 	}
-	// 一覧が対象なら、全部のブックと、書庫ホーム・ゴミ箱を先にした、書庫ホーム・ゴミ箱・フォルダの全部（起動したときに足したドキュメントも）
-	if got := folders(step("@matomezu/base:book-create", `{"title":"N"}`, nil)); len(got) < 5 || !slices.Equal(got[:5], []string{"b1", "b2", "f1", storage.HomeID, storage.TrashID}) ||
-		!slices.Equal(slices.Sorted(slices.Values(got[5:])), slices.Sorted(slices.Values(append([]string{"d1", "d2"}, documentsOf(t, hub)...)))) {
+	// 一覧が対象なら、全部のブックと、書庫ホーム・ゴミ箱を先にした、書庫ホーム・ゴミ箱・フォルダの全部（起動したときに足したシステムフォルダも）と、最後にバックヤード
+	if got := folders(step("@matomezu/base:book-create", `{"title":"N"}`, nil)); len(got) < 6 || !slices.Equal(got[:5], []string{"b1", "b2", "f1", storage.HomeID, storage.TrashID}) ||
+		!slices.Equal(slices.Sorted(slices.Values(got[5:len(got)-1])), slices.Sorted(slices.Values(append([]string{"d1", "d2"}, documentsOf(t, hub)...)))) ||
+		got[len(got)-1] != ticketsHistoryYard {
 		t.Fatalf("a list action = %v", got)
 	}
 }

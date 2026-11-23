@@ -13,10 +13,25 @@ import {
   UNREADABLE_ID,
   type UnreadableRef,
 } from "../../../core/folders"
-import { atOutsidePagePlace, foldersOver, inTrash } from "../../../core/folders-tree"
+import { atOutsidePagePlace, foldersOver, inTrash, systemFolderOf } from "../../../core/folders-tree"
 import type { UnreadableItem } from "../../../core/folders-unreadable"
 import type { MovedIfOff } from "../../../core/unreadable"
+import type { Workdesk } from "../participant/workdesks"
 import { restoreTargetOf } from "./entries"
+import { WORKROOMS } from "./system-folders"
+import {
+  type DeskPlace,
+  deskBookRowId,
+  deskEntryRowId,
+  deskPathOf,
+  deskPlaceOf,
+  deskRowId,
+  GONE,
+  isDeskRow,
+  NO_DESKS,
+  realOf,
+  workroomsFolderOf,
+} from "./workdesk-rows"
 
 // 行 1 つ（描くのに要る物だけ）。title は名前（名前の無い物は NO_TITLE）、type はページのタイプの id（バインダなら入れるページのタイプ。無ければ NO_TYPE）、
 // readable は読めるか（表に無い物は false）
@@ -27,6 +42,8 @@ export interface LibraryRow {
   type: string
   readable: boolean
   locked: boolean // ロック中のページかブック
+  desk?: { bird: string; palette: string } // 作業机の行: そのワークルームの鳥と配色
+  nothingIn?: true // 作業机の下の、中に出す物も開く物も無い行（実のブックがまだ無いワーカーブック）。薄くしない
 }
 export const NO_TITLE = ""
 export const NO_TYPE = ""
@@ -59,11 +76,80 @@ function rowOf(library: Library, r: AnyEntryRef, naming: Naming): LibraryRow {
   }
 }
 
-// フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下の行（並びの順。フォルダが無ければ空）
-export function rowsIn(library: Library, folder: string, naming: Naming): readonly LibraryRow[] {
-  const entries = entriesIn(library.folders, folder)
-  return entries.length === 0 ? NO_ROWS : entries.map(r => rowOf(library, r, naming))
+// フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ。作業机とその下の行も）の直下の行（並びの順。フォルダが無ければ空）。
+// ワークルームのフォルダの直下は、作業机 desks
+export function rowsIn(
+  library: Library,
+  folder: string,
+  naming: Naming,
+  desks: readonly Workdesk[],
+): readonly LibraryRow[] {
+  const under = childrenOf(library.folders, folder, desks)
+  if (under === undefined) {
+    const entries = entriesIn(library.folders, folder)
+    return entries.length === 0 ? NO_ROWS : entries.map(r => rowOf(library, r, naming))
+  }
+  return under.length === 0 ? NO_ROWS : under.map(c => c.row(library, naming))
 }
+
+// 作業机とその下の行 1 つ: id と種類と、中へ入れるか holds、描く行 row
+interface DeskChild {
+  id: string
+  kind: EntryKind
+  holds: boolean
+  row(library: Library, naming: Naming): LibraryRow
+}
+
+// フォルダ folder の直下の、作業机とその下の行（ワークルームのフォルダなら作業机、作業机とその下の行なら、その下の行）。ほかのフォルダなら undefined
+function childrenOf(folders: Folders, folder: string, desks: readonly Workdesk[]): readonly DeskChild[] | undefined {
+  if (systemFolderOf(folders[folder]) === WORKROOMS.id) return desks.map(deskChild)
+  const place = deskPlaceOf(desks, folders, folder)
+  if (place === undefined) return undefined
+  if (place === GONE) return []
+  if (place.at === "desk") return [bookChild(place.desk)]
+  const real = place.real
+  if (real === undefined || place.id !== folder) return []
+  return entriesIn(folders, real).map(r => ({
+    id: deskEntryRowId(place.desk.room, r.id),
+    kind: r.kind,
+    holds: r.kind !== "page" && folders[r.id] !== undefined,
+    row: (library, naming) => ({ ...rowOf(library, r, naming), id: deskEntryRowId(place.desk.room, r.id) }),
+  }))
+}
+
+const deskChild = (desk: Workdesk): DeskChild => ({
+  id: deskRowId(desk.room),
+  kind: "folder",
+  holds: true,
+  row: () => ({
+    kind: "folder",
+    id: deskRowId(desk.room),
+    title: desk.title,
+    type: NO_TYPE,
+    readable: true,
+    locked: false,
+    desk: { bird: desk.bird, palette: desk.palette },
+  }),
+})
+
+const bookChild = (desk: Workdesk): DeskChild => ({
+  id: deskBookRowId(desk.room),
+  kind: "book",
+  holds: desk.book !== undefined,
+  row: (library, naming) => ({
+    kind: "book",
+    id: deskBookRowId(desk.room),
+    title: (desk.book && titleOf(library, "book", desk.book, naming)) || desk.bookTitle,
+    type: NO_TYPE,
+    readable: true,
+    locked: false,
+    ...(desk.book === undefined ? { nothingIn: true as const } : {}),
+  }),
+})
+
+// 作業机とその下の行 place が、中へ入れる行か
+const deskHolds = (folders: Folders, place: DeskPlace): boolean =>
+  place.at === "desk" ? true : place.at === "book" ? place.real !== undefined : folders[place.real] !== undefined
 
 // ゴミ箱の行 1 つ: 行と、入れた時刻 trashed と、戻すと入るフォルダの id into（元いたフォルダ。戻れなければ、その上の今も在るフォルダ）と、その名前 place（名前の無い物は NO_TITLE）
 export interface TrashRow extends LibraryRow {
@@ -108,10 +194,15 @@ function unreadableOrder(items: readonly UnreadableItem[]): readonly UnreadableI
 
 // 書庫の画面の右の枠が見せている行の id（見せる順）: 開いているフォルダ opened がゴミ箱・読めない物のフォルダ（直下の物 unreadable）なら、その一覧の順、ほかは並びの順。
 // ビューと、右の枠で行を選ぶコマンドが、同じ順を使う
-export function paneIdsOf(folders: Folders, unreadable: readonly UnreadableItem[], opened: string): readonly string[] {
+export function paneIdsOf(
+  folders: Folders,
+  unreadable: readonly UnreadableItem[],
+  opened: string,
+  desks: readonly Workdesk[],
+): readonly string[] {
   if (opened === TRASH_ID) return trashNewestFirst(trashRefsOf(folders)).map(r => r.id)
   if (opened === UNREADABLE_ID) return unreadableOrder(unreadable).map(i => i.id)
-  return entriesIn(folders, opened).map(r => r.id)
+  return childrenOf(folders, opened, desks)?.map(c => c.id) ?? entriesIn(folders, opened).map(r => r.id)
 }
 
 // 読めない物の行 1 つ: 読めない物のフォルダの直下の物の id と名前 title。並びの要素が形に合えば（fits）、種類 kind・在った所 place・訳の番号 code・
@@ -207,25 +298,40 @@ export function unreadableRowsOf(
 }
 
 // 行の中へ入れるか（右の枠にその中身を出せるか）: フォルダ・ブック・バインダで、表に在る物
-export const holdsRows = (row: LibraryRow): boolean => row.kind !== "page" && row.readable
+export const holdsRows = (row: LibraryRow): boolean => row.kind !== "page" && row.readable && row.nothingIn !== true
 
 // 書庫の画面で開いているフォルダ: 値 folder のフォルダが在ればそれ、無ければ（値が無いときも）書庫ホーム。ゴミ箱の中のフォルダは開けないので、ゴミ箱。
 // 読めない物のフォルダは、書庫の表に無くても開ける（ツリーに出していなくても、ツリーの下の「⚠ 読めない物」から開く）
-export const openedFolderOf = (folders: Folders, folder: string | undefined): string =>
-  folder === UNREADABLE_ID
-    ? UNREADABLE_ID
-    : folder === undefined || !folders[folder]
-      ? HOME_ID
-      : inTrash(folders, folder)
-        ? TRASH_ID
-        : folder
+// 作業机とその下の行は、その行が今在れば、それ。無くなっていれば、残っている一番近い上の行（作業机も無ければ、ワークルームのフォルダ）
+export const openedFolderOf = (folders: Folders, folder: string | undefined, desks: readonly Workdesk[]): string =>
+  folder !== undefined && isDeskRow(folder)
+    ? openedDeskRow(folders, folder, desks)
+    : folder === UNREADABLE_ID
+      ? UNREADABLE_ID
+      : folder === undefined || !folders[folder]
+        ? HOME_ID
+        : inTrash(folders, folder)
+          ? TRASH_ID
+          : folder
+
+function openedDeskRow(folders: Folders, folder: string, desks: readonly Workdesk[]): string {
+  const place = deskPlaceOf(desks, folders, folder)
+  if (place === undefined || place === GONE) return workroomsFolderOf(folders) ?? HOME_ID
+  if (deskHolds(folders, place)) return place.id
+  return place.at === "entry" ? deskBookRowId(place.desk.room) : deskRowId(place.desk.room)
+}
 
 // ツリーで中を出しているフォルダ: 値 unfolded が無ければ、書庫ホームだけ
 const AT_FIRST: readonly string[] = [HOME_ID]
 export const unfoldedOf = (unfolded: readonly string[] | undefined): readonly string[] => unfolded ?? AT_FIRST
 
 // パンくず: 一番上（書庫ホームかゴミ箱）からフォルダ folder までの、フォルダの id の列
-export function pathTo(folders: Folders, folder: string): string[] {
+// 作業机とその下の行なら、ワークルームのフォルダまでの道に、作業机からその行までを続ける
+export function pathTo(folders: Folders, folder: string, desks: readonly Workdesk[]): string[] {
+  const place = deskPlaceOf(desks, folders, folder)
+  const rooms = place === undefined ? undefined : workroomsFolderOf(folders)
+  if (place !== undefined && place !== GONE && rooms !== undefined)
+    return [...pathTo(folders, rooms, desks), ...deskPathOf(folders, place)]
   return [
     ...foldersOver(folders, folder)
       .map(f => f.id)
@@ -242,11 +348,12 @@ function outsideBinderOver(folders: Folders, page: string): Folder | undefined {
 }
 
 // ブックの外のページ page の置き場所: 書庫ホームから、そのページ（ブックの外のバインダの中のページなら、そのバインダ）の入っているフォルダまでの、フォルダの id の列
-// （書庫ホームに直に在れば、書庫ホームだけ）。ステージで開けるブックの外のページの置き場所（core/folders-tree.ts の atOutsidePagePlace）にも、ブックの外のバインダの中にも無ければ空
+// （書庫ホームに直に在れば、書庫ホームだけ）。ステージで開けるブックの外のページの置き場所（core/folders-tree.ts の atOutsidePagePlace）にも、ブックの外のバインダの中にも無ければ空。
+// ブックの外のページは作業机の下に無いので、作業机は渡さない
 export function outsidePagePlaceOf(folders: Folders, page: string): string[] {
   const entry = atOutsidePagePlace(folders, page) ? page : outsideBinderOver(folders, page)?.id
   const holder = entry === undefined ? undefined : foldersOver(folders, entry)[0]
-  return holder ? pathTo(folders, holder.id) : []
+  return holder ? pathTo(folders, holder.id, NO_DESKS) : []
 }
 
 // 行を開いたとき（2 回押し）の行き先: フォルダは中へ入る、ブックとその中のページ・バインダはブックを窓に出す、ブックの外のページはそのページを、
@@ -259,7 +366,18 @@ export type OpenTarget =
   | typeof NOT_OPENED
 export const NOT_OPENED = "not-opened"
 
-export function openTargetOf(folders: Folders, row: Pick<LibraryRow, "id" | "kind" | "readable">): OpenTarget {
+// 作業机とその下の行: 作業机は中へ入る、ワーカーブックとその中の物は実の物で開く（実のブックがまだ無ければ開かない）
+export function openTargetOf(
+  folders: Folders,
+  row: Pick<LibraryRow, "id" | "kind" | "readable">,
+  desks: readonly Workdesk[],
+): OpenTarget {
+  const place = deskPlaceOf(desks, folders, row.id)
+  if (place !== undefined) {
+    if (place === GONE) return NOT_OPENED
+    if (place.at === "desk") return { to: "folder", folder: place.id }
+    return place.real === undefined ? NOT_OPENED : openTargetOf(folders, { ...row, id: place.real }, desks)
+  }
   if (!row.readable || row.id === TRASH_ID || inTrash(folders, row.id)) return NOT_OPENED
   if (row.kind === "folder") return { to: "folder", folder: row.id }
   if (row.kind === "book") return { to: "book", book: row.id }
@@ -277,12 +395,22 @@ export function openTargetOf(folders: Folders, row: Pick<LibraryRow, "id" | "kin
 
 // 書庫の画面が、中身を並べて見せているフォルダ: 右の枠で開いているフォルダ opened（ゴミ箱を開いていればゴミ箱）と、ツリーで中を出しているフォルダ
 // （unfolded のうち、上のフォルダが全部 unfolded に在る物。ゴミ箱の中は、ツリーに出さない）
-export function shownFoldersOf(folders: Folders, opened: string, unfolded: readonly string[]): string[] {
+// 作業机とその下の行は、実の物の id で答える（実の物の無い行は答えない）
+export function shownFoldersOf(
+  folders: Folders,
+  opened: string,
+  unfolded: readonly string[],
+  desks: readonly Workdesk[],
+): string[] {
   const open = new Set(unfolded)
-  const inTree = unfolded.filter(
-    id => id !== TRASH_ID && folders[id] !== undefined && foldersOver(folders, id).every(f => open.has(f.id)),
+  const inTree = unfolded.filter(id =>
+    isDeskRow(id)
+      ? pathTo(folders, id, desks)
+          .slice(0, -1)
+          .every(f => open.has(f))
+      : id !== TRASH_ID && folders[id] !== undefined && foldersOver(folders, id).every(f => open.has(f.id)),
   )
-  return [...new Set([opened, ...inTree])]
+  return [...new Set([opened, ...inTree].map(id => realOf(desks, folders, id)).filter(id => !isDeskRow(id)))]
 }
 
 // ツリーで中を出せる行か: 中へ入れる行で、ゴミ箱でない（ゴミ箱の中は、ツリーに出さない）。holds は、中へ入れる行か
@@ -294,9 +422,10 @@ export function arrivedAt(
   folders: Folders,
   row: { id: string; holder: string; holds: boolean },
   now: readonly string[],
+  desks: readonly Workdesk[],
 ): { folder: string; picked: string | undefined; unfolded: readonly string[] } {
   const folder = row.holds ? row.id : row.holder
-  const over = row.holds ? pathTo(folders, folder).slice(0, -1) : pathTo(folders, folder)
+  const over = row.holds ? pathTo(folders, folder, desks).slice(0, -1) : pathTo(folders, folder, desks)
   const more = over.filter(id => !now.includes(id))
   return {
     folder,
@@ -322,19 +451,26 @@ export const topIdsOf = (unreadableShown: boolean): readonly string[] =>
   unreadableShown ? TOP_IDS_WITH_UNREADABLE : TOP_IDS
 
 // ツリーに出ている行（上から順）: 一番上の行（topIdsOf）と、中を出しているフォルダ unfolded の下の行
-export function treeRowsOf(folders: Folders, unfolded: readonly string[], unreadableShown: boolean): TreeRow[] {
+// （ワークルームのフォルダの下は、作業机とその下の行。desks は作業机）
+export function treeRowsOf(
+  folders: Folders,
+  unfolded: readonly string[],
+  unreadableShown: boolean,
+  desks: readonly Workdesk[],
+): TreeRow[] {
   const open = new Set(unfolded)
-  const under = (id: string, holder: string, kind: EntryKind): TreeRow[] => {
-    // 一番上の行は、表に行が無くても（何も入れた事のないゴミ箱）、中へ入れる
-    const holds = id === holder || (kind !== "page" && folders[id] !== undefined)
+  const under = (id: string, holder: string, holds: boolean): TreeRow[] => {
     if (!unfoldable(id, holds)) return [{ id, holder, holds, unfolded: NOT_UNFOLDABLE }]
     const shown = open.has(id)
-    return [
-      { id, holder, holds, unfolded: shown },
-      ...(shown ? entriesIn(folders, id).flatMap(r => under(r.id, id, r.kind)) : []),
-    ]
+    if (!shown) return [{ id, holder, holds, unfolded: false }]
+    const projected = childrenOf(folders, id, desks)
+    const below = projected
+      ? projected.map(c => ({ id: c.id, holds: c.holds }))
+      : entriesIn(folders, id).map(r => ({ id: r.id, holds: r.kind !== "page" && folders[r.id] !== undefined }))
+    return [{ id, holder, holds, unfolded: true }, ...below.flatMap(c => under(c.id, id, c.holds))]
   }
-  return topIdsOf(unreadableShown).flatMap(id => under(id, id, "folder"))
+  // 一番上の行は、表に行が無くても（何も入れた事のないゴミ箱）、中へ入れる
+  return topIdsOf(unreadableShown).flatMap(id => under(id, id, true))
 }
 
 // 行の並び ids のうち、Tab で止まる行: 止めたい行 want が並びに在ればそれ、無ければ fallback（言わなければ最初の行。並びが空なら undefined）
@@ -343,5 +479,14 @@ export function tabStopOf(ids: readonly string[], want: string | undefined, fall
 }
 
 // ツリーで今いる行: 中へ入れない行（ページなど）を選んでいればその行、ほかは、右の枠に中身を出しているフォルダ opened
-export const treeCurrentOf = (folders: Folders, opened: string, picked: string | undefined): string =>
-  picked !== undefined && folders[picked] === undefined ? picked : opened
+export function treeCurrentOf(
+  folders: Folders,
+  opened: string,
+  picked: string | undefined,
+  desks: readonly Workdesk[],
+): string {
+  if (picked === undefined) return opened
+  const place = deskPlaceOf(desks, folders, picked)
+  const holds = place === undefined ? folders[picked] !== undefined : place !== GONE && deskHolds(folders, place)
+  return holds ? opened : picked
+}

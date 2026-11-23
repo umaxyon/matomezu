@@ -142,6 +142,7 @@ export function createUnseenChanges(deps: {
           folders,
           readFor(splitId(display.id).owner, id),
           readerOf(catalog, sourceOf(records), reads),
+          catalog,
         ) ?? [])
           shown.add(folder)
       }

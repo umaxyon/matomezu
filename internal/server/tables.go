@@ -226,6 +226,17 @@ func (h *Hub) openRows() []json.RawMessage {
 	return out
 }
 
+// backyardRows は、バックヤードの行の全部（id の順。中のブックは渡さない。エンジンに渡す。h.mu を持って呼ぶ）
+func (h *Hub) backyardRows() []json.RawMessage {
+	out := []json.RawMessage{}
+	for _, id := range slices.Sorted(maps.Keys(h.folders)) {
+		if h.folders[id].role == storage.RoleBackyard {
+			out = append(out, h.folders[id].body)
+		}
+	}
+	return out
+}
+
 // entriesNotInBooks は、書庫ホーム・ゴミ箱・フォルダの直下に在るページとバインダの id の全部（ブックに入っていない物。openIDs の順、その中は並びの順。h.mu を持って呼ぶ）
 func (h *Hub) entriesNotInBooks() []string {
 	out := []string{}

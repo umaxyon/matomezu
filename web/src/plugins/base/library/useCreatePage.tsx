@@ -1,6 +1,7 @@
 // 書庫でページを作る関数: アクション page-create でフォルダ folder（書庫ホーム・フォルダ・ブック・ブックの外のバインダ）にページを作り、
 // 出来た物（バインダを作ったらそのバインダ、ほかはページ）が、書庫の画面で開いているフォルダの直下に在れば、それを選ぶ。断られたら、断りをトーストに出す。
 // 作れたかを返す
+
 import { placeOf } from "../../../core/entries"
 import type { ArgsOf } from "../../../core/perform"
 import { useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
@@ -13,6 +14,7 @@ import { titleTaken } from "../utils/refusal"
 import { openedFolderOf } from "./outline"
 import { PAGE_CREATE } from "./page-create"
 import { LIBRARY_FOLDER, LIBRARY_PICKED } from "./state"
+import { NO_DESKS } from "./workdesk-rows"
 
 export function useCreatePage(): (folder: string, args: ArgsOf<typeof PAGE_ADD.id>) => boolean {
   const { perform, showToast } = useActions()
@@ -33,7 +35,8 @@ export function useCreatePage(): (folder: string, args: ArgsOf<typeof PAGE_ADD.i
     }
     const made = done.result.binder ?? done.result.page
     const { folders } = read()
-    if (placeOf(folders, made)?.holder.id === openedFolderOf(folders, readOpened())) pick(made)
+    // 作業机の下には作れないので、作業机は渡さない
+    if (placeOf(folders, made)?.holder.id === openedFolderOf(folders, readOpened(), NO_DESKS)) pick(made)
     return true
   }
 }

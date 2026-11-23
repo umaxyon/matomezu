@@ -1,7 +1,7 @@
 package launch
 
-// Claude Desktop だけを入れた人には PATH に claude が無い。Desktop は Code タブのために Claude Code の CLI を自分の置き場（<置き場>\claude-code\<版>\<hash>\claude.exe）に置き、
-// その CLI も %USERPROFILE%\.claude（~/.claude）のプラグインを読み書きするので、matomezu はそれでプラグインを入れる。
+// Claude Desktop だけを入れた人には PATH に claude が無い。Desktop は Code タブのために Claude Code の CLI を自分の置き場の claude-code/<版>/<hash>/ に置き
+// （Windows は claude.exe、macOS は claude.app/Contents/MacOS/claude）、その CLI も ~/.claude のプラグインを読み書きするので、matomezu はそれでプラグインを入れる。
 // 置き場は Anthropic が公に決めた物ではないので、見つからなければ NotFoundMessage で断る
 
 import (
@@ -13,12 +13,15 @@ import (
 const NotFoundMessage = "Claude Code was not found. Install the Claude Code CLI, or open the Code tab in Claude Desktop once, then run this again"
 
 // RestartDesktopMessage は、Desktop の置き場の CLI でプラグインを入れたあとに出す文（Node と matomezu を入れる前から立っている Desktop は、古い PATH のままで matomezu を見つけられない）
-const RestartDesktopMessage = "If Claude Desktop was running, quit it completely (from the system tray too) and start it again so that it finds matomezu."
+const RestartDesktopMessage = "If Claude Desktop was running, quit it completely (on Windows, from the system tray too; on macOS, with Cmd+Q) and start it again so that it finds matomezu."
 
-// Exe は、OS goos での CLI の実行ファイルの名前
+// Exe は、OS goos で Desktop が置く CLI の実行ファイルの、<hash> のフォルダからの道
 func Exe(goos string) string {
-	if goos == "windows" {
+	switch goos {
+	case "windows":
 		return "claude.exe"
+	case "darwin":
+		return filepath.Join("claude.app", "Contents", "MacOS", "claude")
 	}
 	return "claude"
 }
@@ -28,9 +31,12 @@ type DesktopCLI struct {
 	Version, Path string
 }
 
-// DesktopRoots は、Desktop が CLI を置く claude-code のフォルダの候補。goos が windows なら appData（%APPDATA%）と、
-// ストアの形（MSIX）で入れた Desktop が書き込みを移す localAppData（%LOCALAPPDATA%）\Packages\Claude_*\LocalCache\Roaming の下
-func DesktopRoots(goos, appData, localAppData string) []string {
+// DesktopRoots は、Desktop が CLI を置く claude-code のフォルダの候補。goos が darwin なら home の Library/Application Support の下。
+// windows なら appData（%APPDATA%）と、ストアの形（MSIX）で入れた Desktop が書き込みを移す localAppData（%LOCALAPPDATA%）\Packages\Claude_*\LocalCache\Roaming の下
+func DesktopRoots(goos, home, appData, localAppData string) []string {
+	if goos == "darwin" && home != "" {
+		return []string{filepath.Join(home, "Library", "Application Support", "Claude", "claude-code")}
+	}
 	if goos != "windows" {
 		return nil
 	}

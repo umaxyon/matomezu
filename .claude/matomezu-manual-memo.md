@@ -13,6 +13,22 @@ npm で入れます。node と npm が要ります。
 
 - Claude Code と Codex のプラグインも一緒に入ります。AI に組み込むのは、別に 1 度だけ行います（16 章「Claude Code のプラグイン」「Codex のプラグイン」）
 - opencode のプラグインは、別に入れます（16 章「opencode のプラグイン」）
+- Windows の PowerShell で打つときは、下の「Windows の PowerShell で止められたとき」を先に見ます
+
+#### Windows の PowerShell で止められたとき
+
+PowerShell は、初めの設定のままだと、npm と matomezu を止めます。`npm.ps1` や `matomezu.ps1` の名前と、`PSSecurityException` が出て、何も起きません。
+
+次のどちらかで打てるようになります。
+
+| やり方 | 打つ物 |
+|---|---|
+| 実行ポリシーを 1 度だけ変える | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` を打つ。そのあとは、この章のとおりに打てる |
+| 変えずに、`.cmd` を付けて打つ | `npm.cmd i -g matomezu`・`matomezu.cmd plugin install claude`・`matomezu.cmd open` のように、`npm` と `matomezu` のあとに `.cmd` を付ける |
+
+- `.cmd` を付けた打ち方は、コマンドプロンプトでも PowerShell でも通ります
+- Windows で npm から入れたときは、matomezu が出す打つ物の案内も `.cmd` 付きになります。画面の案内（開き方・更新）は `matomezu.cmd open`・`matomezu.cmd update`、ターミナルに出る npm の案内は `npm.cmd` です。AI に打たせるコマンドも `matomezu.cmd` になります
+- volta などで入れて `matomezu` が `.cmd` でないときは、`.cmd` を付けずに出ます
 
 使える OS: Linux・macOS・Windows（64 ビット。Linux と macOS は Arm も）。
 
@@ -43,7 +59,7 @@ npm で入れた matomezu のフォルダの下にあります。場所は `mato
 
 | AI | プラグインを新しくする |
 |---|---|
-| Claude Code | `matomezu plugin install claude` を打つ。すでに開いている Claude Code で使うときは、その会話で `/reload-plugins` を実行する |
+| Claude Code | `matomezu plugin install claude` を打つ。すでに開いている Claude Code で使うときは、その会話で `/reload-plugins` を実行する。Claude Desktop だけを入れているときは、Desktop を起動し直す（16 章「Claude Desktop だけを入れているとき」） |
 | Codex | `matomezu plugin install codex` を打つ。そのあと Codex を起動し直す |
 | opencode | matomezu-opencode を、本体と同じ版にそろえる |
 
@@ -64,7 +80,7 @@ AI の名前を省くと、入っている Claude Code と Codex のプラグイ
 matomezu を外すときは、npm で消す前に、AI からプラグインを外します。
 
 1. `matomezu plugin remove` を打つ（`matomezu plugin-remove` でも同じ）
-2. Claude Code・Codex・opencode を終える
+2. Claude Code・Claude Desktop・Codex・opencode を終える
 3. `npm uninstall -g matomezu` を打つ
 
 1 で行う事:
@@ -130,7 +146,7 @@ matomezu の画面は、`matomezu start --open` や `matomezu open` で開いた
 
 - インコの顔
 - 「AI に「matomezu open を実行して」と頼むか、ターミナルで実行してください」の 1 行
-- ターミナルの絵と、その中の `$ matomezu open`
+- ターミナルの絵と、その中の `$ matomezu open`（Windows で npm から入れたときは `$ matomezu.cmd open`）
 - ターミナルの絵の右上の「コピー」のボタン
 
 開くには、次のどちらかをします。
@@ -140,7 +156,7 @@ matomezu の画面は、`matomezu start --open` や `matomezu open` で開いた
 
 matomezu が、既定のブラウザの新しいタブで開きます。案内のタブは、そのまま残ります。要らなければ閉じます。既定でないブラウザで案内が出ていたときは、そのブラウザは使えるようになりません（既定のブラウザで使います）。案内の言葉は、ブラウザの言語で選びます。
 
-「コピー」を押すと、`matomezu open` がクリップボードに入ります。ターミナルに貼り付けて実行できます。
+「コピー」を押すと、ターミナルの絵の中のコマンド（`matomezu open` か `matomezu.cmd open`）がクリップボードに入ります。ターミナルに貼り付けて実行できます。
 
 - 押したあと、しばらくボタンの字が「コピーしました」に替わります
 - コピーできなかったときは、「コピーできません」に替わります
@@ -173,6 +189,7 @@ AI には MCP でつなぎます。つなぐコマンドは `matomezu mcp` で�
 
 - Claude Code は、matomezu のプラグインを入れてつなぎます。MCP の登録はプラグインが行います（16 章「Claude Code のプラグイン」）
 - Windows の Claude Desktop の Code タブからは、WSL に入れた matomezu とプラグインでつなぎます（16 章「Claude Desktop の Code タブから使う」）
+- Claude Desktop だけを入れていて、ターミナルの Claude Code が無いときも、プラグインを入れられます（16 章「Claude Desktop だけを入れているとき」）
 - Codex も、matomezu のプラグインを入れてつなぎます（16 章「Codex のプラグイン」）
 - opencode も、matomezu のプラグインを入れてつなぎます（16 章「opencode のプラグイン」）
 - matomezu を起動し直したら、Claude Code では /mcp でつなぎ直します
@@ -3940,6 +3957,25 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 注: matomezu のリポジトリから試すときは、`claude plugin marketplace add （matomezu のリポジトリ）/clients/claude-code` で登録し、`claude plugin install matomezu@matomezu` で入れます。この方法で入れたプラグインは、`claude plugin update matomezu@matomezu` で更新します。
 注: Windows（WSL でない）でも、そのまま使えます。
 注: Claude Desktop の Code タブから使うときは、下の「Claude Desktop の Code タブから使う」を見ます。
+注: ターミナルの Claude Code を入れず、Claude Desktop だけを入れているときは、下の「Claude Desktop だけを入れているとき」を見ます。
+
+#### Claude Desktop だけを入れているとき
+
+Windows と macOS では、ターミナルの Claude Code（`claude` のコマンド）が無くても、`matomezu plugin install claude` でプラグインを入れられます。Claude Desktop が Code タブのために置いた Claude Code を使います。
+
+1. Claude Desktop の Code タブを 1 度開く
+2. node と npm を入れ、`npm i -g matomezu` で matomezu を入れる（1 章「入れる」）
+3. `matomezu plugin install claude` を打つ
+4. 終わりに「Claude Desktop を完全に閉じて起動し直す」という案内が出たら、そのとおりにする（下の注）
+
+- `matomezu plugin enable claude`・`matomezu plugin disable claude`・`matomezu plugin remove` も、同じように通ります（1 章「プラグインの利用を一時的に止める」「外す」）
+- ターミナルの Claude Code があるときは、そちらを使います
+
+注: 4 の案内は `If Claude Desktop was running, quit it completely (on Windows, from the system tray too; on macOS, with Cmd+Q) and start it again so that it finds matomezu.` です。Desktop が動いていたときに、閉じて起動し直します。Windows はタスクトレイからも閉じます。macOS は Cmd+Q で閉じます。matomezu を入れる前から動いていた Desktop は、そのままでは matomezu を見つけられないためです。
+注: Code タブを 1 度も開いていないと、3 で `Claude Code was not found. Install the Claude Code CLI, or open the Code tab in Claude Desktop once, then run this again` と出て、入りません。Code タブを開いてから、もう一度 3 を打ちます。
+注: Windows の PowerShell で 3 が止められたときは、1 章「Windows の PowerShell で止められたとき」を見ます。
+
+【未確認】入れたあと、Desktop の Code タブ（WSL を選ばない環境）で参加を頼む手順と画面の言葉。
 
 #### 道具の許可
 
@@ -3981,6 +4017,8 @@ npm で消したときに気づけるのは、次の所だけです。
 ### Claude Desktop の Code タブから使う
 
 Windows の Claude Desktop の Code タブからも、WSL に入れた matomezu に参加できます。Windows に matomezu を入れなくて構いません。
+
+注: この節は、WSL に入れた matomezu を使う手順です。Windows や macOS に matomezu を入れて、Desktop だけでプラグインを入れるときは、上の「Claude Desktop だけを入れているとき」を見ます。
 
 Code タブで WSL を環境に選ぶと、WSL の中で Claude Code が動きます。WSL に入れた matomezu のプラグインが、そのまま効きます。
 
