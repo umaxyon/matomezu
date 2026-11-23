@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
-import { findShape, type ItemPage, type PlacedShape, replaceShape } from "../../../web/src/core/placed"
+import { type ItemPage, type PlacedShape, replaceShape } from "../../../web/src/core/placed"
 import { settledDraft } from "../../../web/src/plugins/paper/placing/draft"
-import { CORE_CATALOG } from "../../support"
+import { CORE_CATALOG, shapeOf } from "../../support"
 
 // ダイアログの下書きを重ねたページの整え（paper の settledDraft）: 下書きで変わった形は、どの深さの子でも形の整えに通す
 
@@ -38,7 +38,7 @@ const page = {
 test("箱の中のリストのチェックリストを外す下書きは、そのリストの整えに通り、行のチェックが消える", () => {
   const draft = replaceShape(page, "l1", s => ({ ...s, props: { ...s.props, checklist: false } }) as PlacedShape)!
   const settled = settledDraft(CORE_CATALOG, page, draft)
-  const rows = (findShape(settled, "l1")!.shape as unknown as typeof list).children
+  const rows = (shapeOf(settled, "l1").shape as unknown as typeof list).children
   expect(rows.map(r => "checked" in r.props)).toEqual([false, false])
 })
 

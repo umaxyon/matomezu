@@ -92,9 +92,12 @@ export function walkShapes(page: ItemPage): ShapeOnPage[] {
   return walk(shapesOf(page), null, { x: 0, y: 0 })
 }
 
-// ページの中のどの深さの形も、id で探す
-export const findShape = (page: ItemPage, id: string): ShapeOnPage | undefined =>
-  walkShapes(page).find(s => s.shape.id === id)
+// アイテムが無いときの値（ページに id のアイテムが無い）
+export const NO_ITEM = "none"
+
+// ページの中のどの深さの形も、id で探す（無ければ NO_ITEM）
+export const findShape = (page: ItemPage, id: string): ShapeOnPage | typeof NO_ITEM =>
+  walkShapes(page).find(s => s.shape.id === id) ?? NO_ITEM
 
 // id の形を f の返す形に置き換えたページ（どの深さでも。f が null を返せば子孫ごと除く）。形が無ければ null
 export function replaceShape(
@@ -145,8 +148,8 @@ export function byConnector(catalog: CoreCatalog, page: ItemPage): [ConnectorIte
 // ページの形 id（どの深さの形でも）が、つなげる形（connectable）か
 // 機能台帳に無い形は、何ができるか分からないので、つなげる物として扱う（前につないだ線のあるブックを読めるように）
 export function connectableShape(catalog: CoreCatalog, page: ItemPage, id: string): boolean {
-  const shape = findShape(page, id)?.shape
-  return !!shape && isConnectable(catalog, shape)
+  const found = findShape(page, id)
+  return found !== NO_ITEM && isConnectable(catalog, found.shape)
 }
 
 const isConnectable = (catalog: CoreCatalog, shape: PlacedShape): boolean => {

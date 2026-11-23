@@ -3,7 +3,7 @@
 
 import { readablePage, restoreBooks } from "../core/book"
 import { slideIsBackground } from "../core/def/page-type"
-import { findShape, type ItemPage, pageItemsOf, walkShapes } from "../core/placed"
+import { findShape, type ItemPage, NO_ITEM, pageItemsOf, walkShapes } from "../core/placed"
 import { aiPlacedOf, aiPlacedOfPage } from "../plugins/base"
 import type { Assembled } from "../store/plugin"
 
@@ -40,7 +40,8 @@ export function pageForAi(of: Assembled, page: string): string {
 // engine.ts の matomezuAiItem の中身
 export function itemForAi(page: string, id: string): string {
   const body = JSON.parse(page) as ItemPage
-  const shape = findShape(body, id)?.shape
+  const found = findShape(body, id)
+  const shape = found === NO_ITEM ? undefined : found.shape
   const item = shape ?? pageItemsOf(body).find(i => i.id === id)
   if (!item) return JSON.stringify(null)
   const ids = shape ? walkShapes({ ...body, items: [shape] }).map(s => s.shape.id) : [id]

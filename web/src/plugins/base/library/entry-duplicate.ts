@@ -1,7 +1,7 @@
 // 書庫からページ・バインダを写す: entry-duplicate は、ページ・バインダ（ブックの中でも外でも）を、すぐ後ろに複製する（本体はページタブの page-duplicate・binder-duplicate と同じ）。
 // 書庫が対象。本体が同じなので、ページのタイプが本体のアクションを外していれば（without）、これもそのタイプで断る
 import { z } from "zod"
-import { findBinder, findPage, NO_PAGE } from "../../../core/book"
+import { findBinder, findPage, NO_BINDER, NO_PAGE } from "../../../core/book"
 import type { ActionContext, Declined } from "../../../core/def/action"
 import { freeTitle, isMoveRefusal, placedMade, titlesIn } from "../../../core/entries"
 import type { Library } from "../../../core/folders"
@@ -29,7 +29,7 @@ function copiedInOutsideBinder(library: Library, binder: string, entry: string, 
   const done = duplicatedPage(ctx.catalog, { id: was.id, lineup: [was] }, entry, undefined, ctx.newId)
   if (!done || "declined" in done) return done
   const now = findBinder(done.book, was.id)
-  return now ? { next: withBinderEntry(library, was, now), result: { entry: done.page } } : null
+  return now !== NO_BINDER ? { next: withBinderEntry(library, was, now), result: { entry: done.page } } : null
 }
 
 // 書庫ホームかフォルダの直下に在る、ブックの外のページ・バインダ entry を、同じフォルダのすぐ後ろに複製した書庫（バインダは中のページごと。名前は、そのフォルダのほかの物と重ならない番号付き）
@@ -63,7 +63,8 @@ function copiedOutsideBooks(library: Library, entry: string, ctx: ActionContext)
   const lone = { id: holder.id, lineup: [binder] }
   const done = duplicatedBinder(ctx.catalog, lone, entry, titled(binder.title), ctx.newId)
   if (!done || "declined" in done) return done
-  return placed(findBinder(done.book, done.binder))
+  const copy = findBinder(done.book, done.binder)
+  return placed(copy === NO_BINDER ? undefined : copy)
 }
 
 export const ENTRY_DUPLICATE = kit.defineAction({
@@ -84,9 +85,10 @@ export const ENTRY_DUPLICATE = kit.defineAction({
     }
     const kind = library.folders[args.entry]?.folderRole === "binder" ? "binder" : "page"
     const page = findPage(book, args.entry)
+    const binder = findBinder(book, args.entry)
     const allowed =
       kind === "binder"
-        ? typeLets(ctx.catalog, BINDER_DUPLICATE.id, findBinder(book, args.entry)?.pageType)
+        ? typeLets(ctx.catalog, BINDER_DUPLICATE.id, binder === NO_BINDER ? undefined : binder.pageType)
         : typeLets(ctx.catalog, PAGE_DUPLICATE.id, page === NO_PAGE ? undefined : page.page.type)
     if (!allowed) return null
     const done =

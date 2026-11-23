@@ -86,15 +86,15 @@ export function PageList() {
   const shownBinder = useOutsideBinder()
   const outside = shownBinder === NO_OUTSIDE_BINDER ? undefined : shownBinder
   const binderId = book ? binderOf(book, opened) : NO_BINDER
-  const binder = outside ?? (book && binderId !== NO_BINDER ? findBinder(book, binderId) : undefined)
-  const pages = outside ? outside.lineup : book && binder ? pagesIn(book, binder.id) : []
+  const binder = outside ?? (book && binderId !== NO_BINDER ? findBinder(book, binderId) : NO_BINDER)
+  const pages = outside ? outside.lineup : book && binder !== NO_BINDER ? pagesIn(book, binder.id) : []
   const drag = useTabDrag(
     list,
     pages.map(p => p.id),
     "y",
   )
   const outermost = (outside ?? book)?.id
-  if (outermost === undefined || !binder || !openPage.enabled) return null
+  if (outermost === undefined || binder === NO_BINDER || !openPage.enabled) return null
   const shown = shownPageId(opened)
   const last = pages.at(-1)
   return (

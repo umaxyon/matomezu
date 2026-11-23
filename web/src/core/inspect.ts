@@ -3,7 +3,7 @@
 // ステップ（steps）は見る順に並べ、最初に値のあったステップで決まる（決まった後のステップも並べる）。ステップの出どころは文ではなくデータで返す
 
 import { type Actor, canAct, isAI, isVisitor, USER } from "./actor"
-import { findBinder, findPage, foundPage, pagesOf } from "./book"
+import { findBinder, findPage, foundPage, NO_BINDER, pagesOf } from "./book"
 import type { ActionId, SubjectId } from "./catalog"
 import { type CoreCatalog, pageType } from "./core-catalog"
 import {
@@ -98,6 +98,12 @@ export interface AskedPage {
 }
 
 // ctx は行う文脈（コントロールセンターと、在れば core が持たせたレコードの読み口と書庫のフォルダ。認可ステップの読み口とバックヤードに使う）
+// id のバインダが入れるページのタイプ（バインダが無ければ undefined）
+function typeOfBinder(book: Book, id: string): string | undefined {
+  const binder = findBinder(book, id)
+  return binder === NO_BINDER ? undefined : binder.pageType
+}
+
 export function inspect(
   catalog: CoreCatalog,
   query: Query,
@@ -203,7 +209,7 @@ function typesAt(
     // 表に無い物は、タイプが分からないので使えない
     return every(
       where.entries
-        .map(id => foundPage(findPage(book, id))?.type ?? findBinder(book, id)?.pageType)
+        .map(id => foundPage(findPage(book, id))?.type ?? typeOfBinder(book, id))
         .map(type => (type !== undefined && catalog.pageTypes.has(type) ? type : undefined)),
     )
   const pages = pagesOf(book)

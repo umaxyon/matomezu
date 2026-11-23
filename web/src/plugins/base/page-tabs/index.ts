@@ -164,7 +164,7 @@ export const PAGE_ADD_AFTER = kit.defineCommand({
     if (book === NO_LINEUP) return
     const at = findPage(book, page)
     if (at === NO_PAGE) return
-    const siblings = siblingsOf(book, page) ?? []
+    const siblings = siblingsOf(book, page)
     const index = siblings.findIndex(e => e.id === page) + 1
     const done = a.perform(
       PAGE_ADD.id,
@@ -219,7 +219,8 @@ export const BINDER_SETTINGS = kit.defineCommand({
   permissionScope: { entry: "binder" },
   title: "Settings...",
   run: (ctx, a, { binder }: BinderSettingsArgs) => {
-    if (ctx.book !== NO_BOOK && findBinder(ctx.book, binder)) a.openDialog(BINDER_SETTINGS_DIALOG.id, { binder })
+    if (ctx.book !== NO_BOOK && findBinder(ctx.book, binder) !== NO_BINDER)
+      a.openDialog(BINDER_SETTINGS_DIALOG.id, { binder })
   },
   when: ctx => ctx.book !== NO_BOOK,
 })

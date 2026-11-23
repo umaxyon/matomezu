@@ -3,7 +3,7 @@
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { ShapeData } from "../../../core/def/item"
 import type { Point, Rect, Size } from "../../../core/geom"
-import { findShape, type ItemPage, type PlacedShape } from "../../../core/placed"
+import { findShape, type ItemPage, NO_ITEM, type PlacedShape } from "../../../core/placed"
 import { roomOf } from "./grow"
 import { gapOf, replaceShapePushing } from "./items"
 import { NEST_PADDING, placedSize, rectsOf, shapeDefOf } from "./placed"
@@ -40,8 +40,9 @@ export function frameOf(catalog: CoreCatalog, page: ItemPage, parent: string | n
     const paper = roomOf(catalog, page)
     return { parent, origin: { x: 0, y: 0 }, paper, rects: rectsOf(catalog, page) }
   }
-  const shape = findShape(page, parent)?.shape
-  if (!shape) return null
+  const found = findShape(page, parent)
+  if (found === NO_ITEM) return null
+  const shape = found.shape
   const origin = childOrigin(catalog, shape)
   return { parent, origin, paper: CHILD_AREA, rects: childRects(catalog, shape, origin) }
 }
@@ -49,7 +50,7 @@ export function frameOf(catalog: CoreCatalog, page: ItemPage, parent: string | n
 // ページ page で、形 id が並ぶ Frame（ページの形なら紙、子の形なら親の子の領域）。無い形なら null
 export function frameAround(catalog: CoreCatalog, page: ItemPage, id: string): Frame | null {
   const found = findShape(page, id)
-  return found ? frameOf(catalog, page, found.parent) : null
+  return found !== NO_ITEM ? frameOf(catalog, page, found.parent) : null
 }
 
 // Frame の中の四角を、データの位置にしたもの（Frame の左上を足す）

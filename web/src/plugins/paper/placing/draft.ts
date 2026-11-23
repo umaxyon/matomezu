@@ -4,6 +4,7 @@ import {
   type CoreCatalog,
   findShape,
   type ItemPage,
+  NO_ITEM,
   type PlacedShape,
   replaceShape,
   walkShapes,
@@ -15,8 +16,8 @@ export function settledDraft(catalog: CoreCatalog, page: ItemPage, draft: ItemPa
   if (draft === page) return draft
   let settled = draft
   for (const { shape } of walkShapes(draft)) {
-    const before = findShape(page, shape.id)?.shape
-    if (!before || !ownChanged(shape, before)) continue
+    const before = findShape(page, shape.id)
+    if (before === NO_ITEM || !ownChanged(shape, before.shape)) continue
     const settle = shapeDefOf(catalog, shape.item)?.[kit.name("settle")]
     if (settle)
       settled = replaceShape(settled, shape.id, s => settle(s as never, before as never) as PlacedShape) ?? settled

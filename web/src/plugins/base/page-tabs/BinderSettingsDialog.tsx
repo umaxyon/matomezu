@@ -5,7 +5,7 @@
 // 左下の赤い削除のボタンは、上に重ねたモーダルで確かめてから binder-remove を行う（中のページごと消える）。認可ステップが止めていれば押せない
 
 import { useId, useState } from "react"
-import { findBinder, pagesIn } from "../../../core/book"
+import { findBinder, NO_BINDER, pagesIn } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import { ORIENTATIONS, type Orientation } from "../../../core/def/paper"
 import { NO_BOOK } from "../../../store/commands/def"
@@ -30,10 +30,10 @@ export function BinderSettingsDialog({ args, onClose }: DialogProps<BinderSettin
   const book = useBook()
   const outside = useOutsideBinder()
   const lineup = openedLineup(book, outside)
-  const binder = lineup !== NO_LINEUP ? findBinder(lineup, args.binder) : undefined
-  const type = binder ? catalog.pageTypes.get(binder.pageType) : undefined
-  const first = lineup !== NO_LINEUP && binder ? pagesIn(lineup, binder.id)[0] : undefined
-  const [title, setTitle] = useState(binder?.title ?? "")
+  const binder = lineup !== NO_LINEUP ? findBinder(lineup, args.binder) : NO_BINDER
+  const type = binder !== NO_BINDER ? catalog.pageTypes.get(binder.pageType) : undefined
+  const first = lineup !== NO_LINEUP && binder !== NO_BINDER ? pagesIn(lineup, binder.id)[0] : undefined
+  const [title, setTitle] = useState(binder !== NO_BINDER ? binder.title : "")
   const [paper, setPaper] = useState(first?.paper ?? type?.paper.default ?? "")
   const [orientation, setOrientation] = useState<Orientation>(
     first?.orientation ?? type?.paper.orientation ?? "portrait",
@@ -42,11 +42,12 @@ export function BinderSettingsDialog({ args, onClose }: DialogProps<BinderSettin
   const updatable = useAllowedOn(BINDER_UPDATE.id, { binder: args.binder }, on).ok
   // ブックの外のバインダの名前は、書庫の entry-rename で変える
   const renamable =
-    useAllowedOn(ENTRY_RENAME.id, { entry: args.binder, title: binder?.title ?? "" }).ok || book !== NO_BOOK
+    useAllowedOn(ENTRY_RENAME.id, { entry: args.binder, title: binder !== NO_BINDER ? binder.title : "" }).ok ||
+    book !== NO_BOOK
   const removable = useAllowedOn(BINDER_REMOVE.id, { binder: args.binder }, on).ok
   const [confirming, setConfirming] = useState(false)
   const perform = usePerform()
-  if (lineup === NO_LINEUP || !binder || !type) return null
+  if (lineup === NO_LINEUP || binder === NO_BINDER || !type) return null
   const papers = pageType(catalog, binder.pageType).paper.allowed
   // 変えた項目（紙と向きは、中にページがあるときだけ）
   const patch = {

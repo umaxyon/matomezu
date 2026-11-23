@@ -10,7 +10,7 @@ import {
   type PageRow,
 } from "../web/src/core/folders"
 import { tablesOf } from "../web/src/core/folders-books"
-import type { ItemPage } from "../web/src/core/placed"
+import { findShape, type ItemPage, NO_ITEM, type ShapeOnPage } from "../web/src/core/placed"
 import type { AnyPage, BinderEntry, Book, StageLineup } from "../web/src/core/schema/book"
 import { NO_SETTINGS } from "../web/src/core/settings"
 import { NO_PAGE, NO_PAPER, NO_PLACING, openedPage, type Placing, paperOf, placement } from "../web/src/core/stage"
@@ -202,4 +202,11 @@ export function pageOf(book: StageLineup, id: string): ItemPage {
   const found = findPage(book, id)
   if (found === NO_PAGE) throw new Error(`no page ${id}`)
   return found.page
+}
+
+// ページ page の形 id（どの深さの子の形も。無ければ投げる）
+export function shapeOf(page: ItemPage, id: string): ShapeOnPage {
+  const found = findShape(page, id)
+  if (found === NO_ITEM) throw new Error(`no shape ${id}`)
+  return found
 }

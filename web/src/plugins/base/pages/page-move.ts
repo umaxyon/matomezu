@@ -17,8 +17,8 @@ export const PAGE_MOVE = kit.defineAction({
   args: ARGS,
   permissionScope: { entry: "page" },
   run: (book, args) => {
-    const siblings = findPage(book, args.page) !== NO_PAGE && siblingsOf(book, args.page)
-    if (!siblings) return null
+    if (findPage(book, args.page) === NO_PAGE) return null
+    const siblings = siblingsOf(book, args.page)
     const ids = siblings.map(e => e.id)
     const from = ids.indexOf(args.page)
     const to = args.index ?? ids.length - 1

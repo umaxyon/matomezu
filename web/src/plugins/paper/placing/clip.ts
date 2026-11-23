@@ -10,6 +10,7 @@ import {
   type Declined,
   findShape,
   type ItemPage,
+  NO_ITEM,
   type PlacedConnector,
   type PlacedShape,
   type Point,
@@ -109,6 +110,12 @@ export interface Pasted {
 
 // 写しをページに貼ったページ。写しが使えない（ブックで使えないアイテム・テーマ・写せない形・壊れた線）・入れる先が無い・紙に収まらないなら null、
 // ほかの形を動かすことになる（crowd が push でない）・空きが無いなら、断りの文
+// ページ page の形 id が、子を入れられる形か（無い形なら、入れられない）
+function nests(catalog: CoreCatalog, page: ItemPage, id: string): boolean {
+  const found = findShape(page, id)
+  return found !== NO_ITEM && !!shapeDefOf(catalog, found.shape.item)?.capabilities.includes("nests")
+}
+
 export function pasted(
   catalog: CoreCatalog,
   page: ItemPage,
@@ -132,11 +139,7 @@ export function pasted(
   const box = boxOf(catalog, copy.shapes)
   const parent = args.parent ?? null
   if (!box) return null
-  if (
-    parent !== null &&
-    !shapeDefOf(catalog, findShape(page, parent)?.shape.item ?? "")?.capabilities.includes("nests")
-  )
-    return null
+  if (parent !== null && !nests(catalog, page, parent)) return null
   const push = args.crowd === "push"
   const grows = new Set(parent === null ? [] : [parent, ...ancestorsOf(page, parent)])
   // 範囲の左上を at にして貼ったページと、動いたほかの形
@@ -150,7 +153,7 @@ export function pasted(
           ? placeItem(catalog, placed, { ...s, ...to })
           : placeChild(catalog, placed, parent, { ...s, ...to }, to)
     }
-    if (!placed || !copy.shapes.every(s => findShape(placed, s.id))) return null
+    if (!placed || !copy.shapes.every(s => findShape(placed, s.id) !== NO_ITEM)) return null
     const withLines = { ...placed, items: [...pageItemsOf(placed), ...copy.connectors] }
     return { next: withLines, moved: movedShapes(catalog, page, placed, new Set(), grows) }
   }

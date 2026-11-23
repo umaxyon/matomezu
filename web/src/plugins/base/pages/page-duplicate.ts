@@ -60,7 +60,7 @@ export function duplicatedPage<B extends StageLineup>(
   const problem = duplicateProblem(catalog, at.page)
   if (problem === "content") return UNRENEWABLE_DECLINED
   if (problem) return null
-  const siblings = siblingsOf(book, page) ?? []
+  const siblings = siblingsOf(book, page)
   const titles = siblings.map(e => e.title)
   if (title !== undefined && titles.includes(title)) return null
   const { id: _id, locked: _locked, ...content } = at.page

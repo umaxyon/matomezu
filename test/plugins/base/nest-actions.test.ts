@@ -2,7 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
-import { findShape, type ItemPage, walkShapes } from "../../../web/src/core/placed"
+import { type ItemPage, walkShapes } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
 import { childOrigin, frameOf, freeSpotIn } from "../../../web/src/plugins/base/place/frame"
@@ -18,7 +18,7 @@ import {
   placeTarget,
   placingShape,
 } from "../../../web/src/plugins/paper/placing/items"
-import { CORE_CATALOG, newStore, pageOf } from "../../support"
+import { CORE_CATALOG, newStore, pageOf, shapeOf } from "../../support"
 
 const NEST = "@matomezu/box:shape-nest-box"
 const LIST = "@matomezu/list:shape-list"
@@ -31,7 +31,7 @@ const place = (store: ReturnType<typeof newStore>, args: object) => {
   const done = run(store, "@matomezu/paper:item-place", { item: NEST, w: 200, h: 100, ...args })
   return done.ok ? (done.result as { item: string }).item : null
 }
-const at = (store: ReturnType<typeof newStore>, id: string) => findShape(page(store), id)
+const at = (store: ReturnType<typeof newStore>, id: string) => shapeOf(page(store), id)
 const ids = (store: ReturnType<typeof newStore>) => walkShapes(page(store)).map(s => [s.shape.id, s.parent])
 
 // 何も書いていない内包ボックスの子の領域の左上（親の左上から。上も左と同じ NEST_PADDING）

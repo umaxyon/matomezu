@@ -2,11 +2,11 @@
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
-import { connectorsOf, findShape, type ItemPage, shapesOf, walkShapes } from "../../../web/src/core/placed"
+import { connectorsOf, type ItemPage, shapesOf, walkShapes } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
 import { type Clip, clipOf, nearestPaste } from "../../../web/src/plugins/paper/placing/clip"
-import { CORE_CATALOG, newStore, pageOf, sizedStore } from "../../support"
+import { CORE_CATALOG, newStore, pageOf, shapeOf, sizedStore } from "../../support"
 
 const NEST = "@matomezu/box:shape-nest-box"
 const BOX = "@matomezu/art:shape-pc"
@@ -41,7 +41,7 @@ test("形を写して貼ると、新しい id の形が増え、元の形はそ�
   const made = [first, second].map(d => (d.ok ? (d.result as { items: string[] }).items[0] : "") as string)
   expect(new Set([a, ...made]).size).toBe(3)
   expect(ids(store).sort()).toEqual([a, ...made].sort())
-  expect(findShape(page(store), made[0] as string)?.at).toEqual({ x: 300, y: 0 })
+  expect(shapeOf(page(store), made[0] as string).at).toEqual({ x: 300, y: 0 })
 })
 
 test("子孫と中の線を一緒に写し、写した形どうしの線に付け替える。外の形への線は写さない", () => {
@@ -85,8 +85,8 @@ test("祖先も選んでいる形は根にしない。子だけ選んだとき�
   const only = clipFrom(store, [child])
   expect(only.shapes.map(s => s.id)).toEqual([child])
   expect(only.shapes[0]).toMatchObject({
-    x: findShape(page(store), child)?.at.x,
-    y: findShape(page(store), child)?.at.y,
+    x: shapeOf(page(store), child).at.x,
+    y: shapeOf(page(store), child).at.y,
   })
 })
 
@@ -97,7 +97,7 @@ test("入れ物を選んで貼ると、その入れ物の中に入る", () => {
   const done = paste(store, clipFrom(store, [a]), { parent: nest })
   expect(done.ok).toBe(true)
   const made = (done.ok ? (done.result as { items: string[] }).items[0] : "") as string
-  expect(findShape(page(store), made)?.parent).toBe(nest)
+  expect(shapeOf(page(store), made).parent).toBe(nest)
 })
 
 test("写せない形（データ）を含めば、写しにならず、貼るアクションも断る", () => {
@@ -106,7 +106,7 @@ test("写せない形（データ）を含めば、写しにならず、貼る�
   const nest = place(store, NEST, { at: { x: 400, y: 0 }, w: 300, h: 200 })
   expect(clipOf(CORE_CATALOG, page(store), [data])).toBe("uncopyable")
   expect(clipOf(CORE_CATALOG, page(store), [nest])).not.toBe("uncopyable")
-  const raw = findShape(page(store), data)?.shape
+  const raw = shapeOf(page(store), data).shape
   expect(paste(store, { shapes: [{ ...raw, x: 0, y: 300 }], connectors: [] } as never).ok).toBe(false)
 })
 
@@ -198,9 +198,9 @@ test("貼るときに入れ物を 1 つ選んでいれば、その中に入る�
   store.actions.select("s1", [nest])
   command(store, "paper-paste")
   const [made] = selection(store)
-  expect(findShape(page(store as never), made as string)?.parent).toBe(nest)
+  expect(shapeOf(page(store as never), made as string).parent).toBe(nest)
   // 内包ボックスは入れ物なので、入れ物でない形（データ以外の leaf）を選ぶ代わりに、子の形（入れ物）の隣を見る
-  const child = findShape(page(store as never), made as string)
+  const child = shapeOf(page(store as never), made as string)
   expect(child?.shape.item).toBe(NEST)
 })
 
@@ -211,7 +211,7 @@ test("複製は、選んだ形を同じ親の中の少し右下に貼る。写�
   expect(command(store, "paper-duplicate")).toBe(true)
   const [made] = selection(store)
   expect(made).not.toBe(a)
-  expect(findShape(page(store as never), made as string)?.at).toEqual({ x: 56, y: 56 })
+  expect(shapeOf(page(store as never), made as string).at).toEqual({ x: 56, y: 56 })
   expect(frameClip(store)).toBeUndefined()
 })
 
@@ -233,5 +233,5 @@ test("写した入れ物を選んだまま貼ると、その中でなく隣に�
   const [made] = selection(store)
   expect(made).not.toBe(a)
   expect(shapesOf(page(store as never))).toHaveLength(2)
-  expect(findShape(page(store as never), made as string)?.parent).toBeNull()
+  expect(shapeOf(page(store as never), made as string).parent).toBeNull()
 })

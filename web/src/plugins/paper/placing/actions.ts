@@ -6,6 +6,7 @@ import {
   type CoreCatalog,
   findShape,
   type ItemPage,
+  NO_ITEM,
   type PlacedShape,
   type Point,
   replaceShape,
@@ -50,8 +51,9 @@ const ON_PAPER = { presentations: [kit.name("paper")] }
 // 形 next を、ページの形なら置き換えて紙の中で押し（replacePushing。shrink なら押した列を縮める）、子の形なら置き換えて親の中で押す（縮めない。replaceChild）。
 // どちらも、子の領域より左や上に来た子は、並びを崩さずに右や下へずらす（本文が伸びたときなど。settleChildren）
 function replaceAnywhere(catalog: CoreCatalog, page: ItemPage, next: PlacedShape, shrink: boolean): ItemPage | null {
-  const parent = findShape(page, next.id)?.parent
-  if (parent === undefined) return null
+  const found = findShape(page, next.id)
+  if (found === NO_ITEM) return null
+  const parent = found.parent
   const settled = settleChildren(catalog, next)
   return parent === null ? replacePushing(catalog, page, settled, shrink) : replaceChild(catalog, page, settled)
 }
@@ -99,8 +101,10 @@ export const ITEM_PLACE = kit.defineAction({
         parent === null
           ? placeItem(ctx.catalog, page, { ...item, ...at })
           : placeChild(ctx.catalog, page, parent, item, at)
-      const found = next && findShape(next, item.id)?.shape
-      return next && found ? { next, found, moved: movedShapes(ctx.catalog, page, next, new Set(), grows) } : null
+      const placed = next ? findShape(next, item.id) : NO_ITEM
+      return next && placed !== NO_ITEM
+        ? { next, found: placed.shape, moved: movedShapes(ctx.catalog, page, next, new Set(), grows) }
+        : null
     }
     // 置けて、refuse ならほかの形を動かさない空き
     const calm = (at: Point) => {
@@ -203,14 +207,14 @@ export const ITEM_REPARENT = kit.defineAction({
   permissionScope: { item: "item" },
   run: (page, args, ctx) => {
     const found = findShape(page, args.item)
-    if (!found || found.parent === args.parent) return null
+    if (found === NO_ITEM || found.parent === args.parent) return null
     // 抜いたページ（線の整えはまだかけない。抜いた形につながる線を残すため）
     const out = replaceShape(page, args.item, () => null)
     if (!out) return null
     const shape = found.shape
     // 入れる先は抜いたあとのページで探す（自分か自分の子孫の中へは、見つからないので断る）
     const into = args.parent === null ? null : findShape(out, args.parent)
-    if (args.parent !== null && !into) return null
+    if (into === NO_ITEM) return null
     const origin = into?.at ?? { x: 0, y: 0 }
     const free = subtreeOf(page, args.item)
     const grows = new Set([
@@ -251,8 +255,9 @@ export const ITEM_UPDATE = kit.defineAction({
   }),
   permissionScope: { item: "item" },
   run: (page, args, ctx) => {
-    const now = findShape(page, args.item)?.shape
-    if (!now) return null
+    const found = findShape(page, args.item)
+    if (found === NO_ITEM) return null
+    const now = found.shape
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
     const parsed = parsePlaced(ctx.catalog, { ...now, props })
     // テーマは、渡した props に書いたときだけ確かめる（使えないテーマが残っていても、ほかの項目は直せる）
@@ -291,8 +296,10 @@ export const ITEM_RESIZE = kit.defineAction({
   }),
   permissionScope: { item: "item" },
   run: (page, args, ctx) => {
-    const now = findShape(page, args.item)?.shape
-    if (!now || !ctx.catalog.items.get(now.item)?.capabilities.includes("resizable")) return null
+    const found = findShape(page, args.item)
+    if (found === NO_ITEM) return null
+    const now = found.shape
+    if (!ctx.catalog.items.get(now.item)?.capabilities.includes("resizable")) return null
     const size = placedSize(ctx.catalog, now)
     if (!size) return null
     const def = shapeDefOf(ctx.catalog, now.item)

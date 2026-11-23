@@ -4,6 +4,7 @@ import {
   type CoreCatalog,
   findShape,
   type ItemPage,
+  NO_ITEM,
   NO_PROPS,
   type PlacedShape,
   type Point,
@@ -141,9 +142,9 @@ export function reparentedAt(
 ): ItemPage | null {
   const found = findShape(page, item)
   const out = replaceShape(page, item, () => null)
-  if (!found || !out || found.parent === parent) return null
+  if (found === NO_ITEM || !out || found.parent === parent) return null
   const into = parent === null ? null : findShape(out, parent)
-  if (parent !== null && !into) return null
+  if (into === NO_ITEM) return null
   if (!into) return placeItem(catalog, out, { ...found.shape, ...where })
   return placeChild(catalog, out, into.shape.id, found.shape, {
     x: where.x - into.at.x,
@@ -162,10 +163,11 @@ export function nearestReparent(
 ): Point | null {
   const found = findShape(page, item)
   const into = parent !== null ? findShape(page, parent) : null
-  if (!found) return null
-  const target = into
-    ? { x: into.at.x + childOrigin(catalog, into.shape).x, y: into.at.y + childOrigin(catalog, into.shape).y }
-    : found.at
+  if (found === NO_ITEM) return null
+  const target =
+    into && into !== NO_ITEM
+      ? { x: into.at.x + childOrigin(catalog, into.shape).x, y: into.at.y + childOrigin(catalog, into.shape).y }
+      : found.at
   return stepToward(at, target, p => reparentedAt(catalog, page, item, parent, p) !== null)
 }
 

@@ -4,7 +4,7 @@
 
 import { useCallback, useLayoutEffect, useMemo } from "react"
 import { USER } from "../core/actor"
-import { NO_ITEM, withSettings } from "../core/book"
+import { withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, isInStageEntry, isOnPage, type PageTarget, type Where } from "../core/def/action"
@@ -17,6 +17,7 @@ import { permittedIn } from "../core/perform-world"
 import {
   findShape,
   type ItemPage,
+  NO_ITEM,
   type PlacedItem,
   type PlacedOf,
   type PlacedShape,
@@ -95,7 +96,8 @@ export function useItem<Id extends ItemId>(page: string, item: string, id?: Id):
     const opened = openedOf(s, scope)
     const p = opened ? openedPageById(s, opened, page) : null
     // ページのアイテムか、どの深さの子の形も
-    const found = p && (p.items?.find(i => i.id === item) ?? findShape(p, item)?.shape)
+    const shape = p ? findShape(p, item) : NO_ITEM
+    const found = p && (p.items?.find(i => i.id === item) ?? (shape === NO_ITEM ? undefined : shape.shape))
     return found && (id === undefined || found.item === id) ? (found as unknown as PlacedOf<Id>) : NO_ITEM
   })
 }

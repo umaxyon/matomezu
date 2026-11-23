@@ -7,6 +7,7 @@ import {
   findShape,
   type MessageKey,
   NO_CONTEXT_MENU,
+  NO_ITEM,
   NO_PAPER,
   NO_PLACING,
   NO_PROPS,
@@ -101,8 +102,8 @@ function editable(ctx: CommandContext): boolean {
     | undefined
   if (target?.item === undefined) return true
   if (amongSelected(ctx.stage.selection, target.item)) return false
-  const placed = hasOpenedPage(ctx) && findShape(ctx.page, target.item)?.shape
-  const def = placed && shapeDefOf(ctx.catalog, placed.item)
+  const placed = hasOpenedPage(ctx) ? findShape(ctx.page, target.item) : NO_ITEM
+  const def = placed !== NO_ITEM && shapeDefOf(ctx.catalog, placed.shape.item)
   return def ? shapeDialogs(def).edit !== undefined : false
 }
 
@@ -115,8 +116,8 @@ export const PAPER_EDIT = kit.defineCommand({
   title: "Settings",
   run: (ctx, a, { item }: { item: string }) => {
     if (!hasOpenedPage(ctx)) return
-    const placed = findShape(ctx.page, item)?.shape
-    const def = placed && shapeDefOf(ctx.catalog, placed.item)
+    const placed = findShape(ctx.page, item)
+    const def = placed !== NO_ITEM && shapeDefOf(ctx.catalog, placed.shape.item)
     const dialog = def && shapeDialogs(def).edit
     if (!dialog) return
     a.openDialog(dialog, { page: ctx.page.id, item })
@@ -131,7 +132,7 @@ export function itemsSelected(ctx: CommandContext): boolean {
   if (!hasOpenedPage(ctx) || selection.length === 0) return false
   const page = ctx.page
   const connectors = new Set(connectorsOf(page).map(c => c.id))
-  return selection.every(id => connectors.has(id) || findShape(page, id) !== undefined)
+  return selection.every(id => connectors.has(id) || findShape(page, id) !== NO_ITEM)
 }
 
 // 選んでいるアイテムを全部消し、選択を外す（アイテムだけを選んでいるときに出す）
@@ -193,7 +194,7 @@ export const PAPER_REPARENT = kit.defineCommand({
     if (!hasOpenedPage(ctx)) return
     const page = ctx.page
     const found = findShape(page, args.item)
-    if (!found) return
+    if (found === NO_ITEM) return
     const by = toPaperDelta(ctx.stage, args.by)
     const on = { page: page.id }
     if (found.parent === args.parent) {
@@ -218,8 +219,9 @@ export const PAPER_RESIZE = kit.defineCommand({
     const paper = areaOf(ctx.stage)
     if (!hasOpenedPage(ctx) || paper === NO_PAPER) return
     const page = ctx.page
-    const placed = findShape(page, args.item)?.shape
-    if (!placed) return
+    const found = findShape(page, args.item)
+    if (found === NO_ITEM) return
+    const placed = found.shape
     const to = stretchedBy(ctx.catalog, placed, args.edges, toPaperDelta(ctx.stage, args.by), paper)
     if (to) a.perform(ITEM_RESIZE.id, { item: placed.id, ...to }, { page: page.id })
   },

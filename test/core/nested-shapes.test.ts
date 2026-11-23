@@ -2,11 +2,18 @@
 
 import { describe, expect, test } from "bun:test"
 import { checkBooks, pagesOf, restoreBooks } from "../../web/src/core/book"
-import { findShape, type ItemPage, type PlacedShape, replaceShape, walkShapes } from "../../web/src/core/placed"
+import {
+  findShape,
+  type ItemPage,
+  NO_ITEM,
+  type PlacedShape,
+  replaceShape,
+  walkShapes,
+} from "../../web/src/core/placed"
 import { shownRects } from "../../web/src/plugins/base/place/items"
 import { NEST_PADDING, placedSize } from "../../web/src/plugins/base/place/placed"
 import { drawingPage, testBook } from "../lineup"
-import { CORE_CATALOG } from "../support"
+import { CORE_CATALOG, shapeOf } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
 const LIST = "@matomezu/list:shape-list"
@@ -78,13 +85,13 @@ describe("子までたどる・探す・置き換える", () => {
 
   test("どの深さの形も id で探せる。線や無い id は見つからない", () => {
     expect(findShape(page, "c")).toMatchObject({ parent: "b", at: { x: 111, y: 72 } })
-    expect(findShape(page, "l1")).toBeUndefined()
-    expect(findShape(page, "z")).toBeUndefined()
+    expect(findShape(page, "l1")).toBe(NO_ITEM)
+    expect(findShape(page, "z")).toBe(NO_ITEM)
   })
 
   test("深い形を置き換えると、その親たちだけを作り直す（ほかの形と線はそのまま）", () => {
     const next = replaceShape(page, "c", s => ({ ...s, x: 9 }))!
-    expect(findShape(next, "c")?.at).toEqual({ x: 119, y: 72 })
+    expect(shapeOf(next, "c").at).toEqual({ x: 119, y: 72 })
     expect(next.items?.[1]).toBe(page.items?.[1])
     expect(next.items?.[2]).toBe(page.items?.[2])
   })

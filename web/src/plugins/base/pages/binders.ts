@@ -8,6 +8,7 @@ import {
   findBinder,
   lineupOf,
   moveEntry,
+  NO_BINDER,
   pagesIn,
   putBinder,
   putPage,
@@ -44,7 +45,7 @@ export const BINDER_UPDATE = kit.defineAction({
   run: (book, args, ctx) => {
     const binder = findBinder(book, args.binder)
     const { title, paper, orientation } = args
-    if (!binder || (title === undefined && paper === undefined && orientation === undefined)) return null
+    if (binder === NO_BINDER || (title === undefined && paper === undefined && orientation === undefined)) return null
     if (title !== undefined && lineupOf(book).some(e => e.id !== args.binder && e.title === title)) return null
     const named = title === undefined ? book : putBinder(book, args.binder, f => ({ ...f, title }))
     if (paper === undefined && orientation === undefined) return { next: named, result: {} }
@@ -81,7 +82,7 @@ export const BINDER_MOVE = kit.defineAction({
     const ids = lineupOf(book).map(e => e.id)
     const from = ids.indexOf(args.binder)
     const to = args.index ?? ids.length - 1
-    if (!findBinder(book, args.binder) || to > ids.length - 1 || to === from) return null
+    if (findBinder(book, args.binder) === NO_BINDER || to > ids.length - 1 || to === from) return null
     return { next: moveEntry(book, args.binder, to), result: {} }
   },
 })
@@ -115,7 +116,7 @@ export function duplicatedBinder<B extends StageLineup>(
   newId: () => string,
 ): { book: B; binder: string; pages: string[] } | Declined | null {
   const source = findBinder(book, binder)
-  if (!source) return null
+  if (source === NO_BINDER) return null
   const titles = lineupOf(book).map(e => e.title)
   if (title !== undefined && titles.includes(title)) return null
   // 中の物の id は、ページごとに振り直す（ブックのどの id とも、写しどうしでも重ならない。core が run の振る id を重ねない）
@@ -152,7 +153,7 @@ export const BINDER_REMOVE = kit.defineAction({
   args: z.strictObject({ binder: BINDER }),
   permissionScope: { entry: "binder" },
   run: (book, args) => {
-    if (!findBinder(book, args.binder)) return null
+    if (findBinder(book, args.binder) === NO_BINDER) return null
     return { next: removeBinder(book, args.binder), result: {} }
   },
 })

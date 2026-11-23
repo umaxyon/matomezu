@@ -2,7 +2,7 @@
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
-import { NO_ITEM } from "../../web/src/core/book"
+import { NO_ITEM } from "../../web/src/core/placed"
 import { NO_PAGE } from "../../web/src/core/stage"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"

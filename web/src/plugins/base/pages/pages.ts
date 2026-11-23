@@ -61,9 +61,9 @@ export function paperChoicesFor(catalog: CoreCatalog, book: StageLineup, page: P
 
 // バインダ binder（id）のページの紙と向きを、まとめて choice にできるか: choice が、バインダに入るタイプの規定の紙と向きのとき
 export function canPaperBinder(catalog: CoreCatalog, book: StageLineup, binder: string, choice: PaperChoice): boolean {
-  const type = findBinder(book, binder)?.pageType
-  if (type === undefined) return false
-  return canChoose({ papers: paperRule(catalog, type).allowed, orientations: ORIENTATIONS }, choice)
+  const found = findBinder(book, binder)
+  if (found === NO_BINDER) return false
+  return canChoose({ papers: paperRule(catalog, found.pageType).allowed, orientations: ORIENTATIONS }, choice)
 }
 
 // アクションのあとのページ page を、増やす向きに合わせて整えたもの: 左・上へ増やすなら空きの印刷区画を持たせ、アクションの前のページ before では

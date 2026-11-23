@@ -4,6 +4,7 @@ import {
   type CoreCatalog,
   findShape,
   type ItemPage,
+  NO_ITEM,
   type PlacedShape,
   type Point,
   type Rect,
@@ -34,7 +35,8 @@ export function shownShape(
   stretching: { item: string; edges: Edges; by: Point } | null,
   paper: Size | null,
 ): PlacedShape {
-  const item = findShape(shownPage, placed.id)?.shape ?? placed
+  const found = findShape(shownPage, placed.id)
+  const item = found === NO_ITEM ? placed : found.shape
   const st = stretching
   if (!st || st.item !== item.id || !paper) return item
   const to = stretchedBy(catalog, item, st.edges, st.by, paper)

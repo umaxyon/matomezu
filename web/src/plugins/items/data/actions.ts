@@ -1,6 +1,6 @@
 // データのアクション: 中身の表を丸ごと入れ替える（data-set）。見た目・文字・軸も一緒に変えられる
 import { z } from "zod"
-import { findShape, type PlacedShape } from "../../../plugin-api"
+import { findShape, NO_ITEM, type PlacedShape } from "../../../plugin-api"
 import { contentIdMaker, replaceShapePushing, roomOf, textPatch, widenForCaption } from "../../base"
 import { settleAxes } from "./axes"
 import {
@@ -104,8 +104,9 @@ export const DATA_SET = kit.defineAction({
   }),
   permissionScope: { item: "item" },
   run: (page, args, ctx) => {
-    const now = findShape(page, args.item)?.shape
-    if (!now || now.item !== DATA.id) return null
+    const found = findShape(page, args.item)
+    if (found === NO_ITEM || found.shape.item !== DATA.id) return null
+    const now = found.shape
     const before = now.table
     if (args.columns.length === 0) {
       if (args.rows.length > 0) return null

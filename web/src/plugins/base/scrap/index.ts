@@ -5,7 +5,7 @@ import { type CatalogCheckDef, type CoreCatalog, type ItemId, pageType } from ".
 import type { ShapeData } from "../../../core/def/item"
 import type { EditList } from "../../../core/def/page-type"
 import { problem } from "../../../core/errors"
-import { findShape } from "../../../core/placed"
+import { findShape, NO_ITEM } from "../../../core/placed"
 import { sameData } from "../../../core/same"
 import type { CommandContext } from "../../../store/commands/def"
 import { NO_CONTEXT_MENU } from "../../../store/context-menus"
@@ -64,9 +64,10 @@ export const SCRAP_CUT_COMMAND = kit.defineCommand({
 // 右クリックした形 item が、スクラップフレームなら、その項目のスクラップ（違えば null）
 function scrapOf(ctx: CommandContext, item: string | undefined): Scrap | null {
   if (item === undefined) return null
-  const placed = hasOpenedPage(ctx) ? findShape(ctx.page, item)?.shape : undefined
-  const def = placed && (ctx.catalog.items.get(placed.item) as { scrapFrame?: true } | undefined)
-  return placed && def?.scrapFrame === true ? (placed.props as Scrap) : null
+  const placed = hasOpenedPage(ctx) ? findShape(ctx.page, item) : NO_ITEM
+  if (placed === NO_ITEM) return null
+  const def = ctx.catalog.items.get(placed.shape.item) as { scrapFrame?: true } | undefined
+  return def?.scrapFrame === true ? (placed.shape.props as Scrap) : null
 }
 
 // 元のページを開く: 右クリックしたスクラップ（スクラップフレームの形）の、指すページを、このステージで開く。指す先が無ければ何もしない

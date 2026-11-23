@@ -5,7 +5,7 @@
 // 操作はデータを書き換えず、新しい値を返す（変わらなければ同じものを返す）
 
 import { anchorIds } from "./annotation"
-import { findBinder, findPage, foundPage, lineupOf, NO_BINDER, NO_PAGE, pagesOf } from "./book"
+import { findBinder, findPage, foundPage, lineupOf, NO_BINDER, NO_PAGE, pagesIn, pagesOf } from "./book"
 import type { ItemId } from "./catalog"
 import type { CoreCatalog, PageTypeId } from "./core-catalog"
 import { isInStageEntry } from "./def/action"
@@ -362,7 +362,7 @@ function openedFirst(catalog: CoreCatalog, book: Book): Opened {
 // ブック book のバインダ binder を開いた形: 中の最初のページ（空なら、バインダ。バインダが無ければ何も開かない）
 function openedIn(catalog: CoreCatalog, book: Book, binder: string): Opened {
   const found = findBinder(book, binder)
-  if (!found) return { kind: "none", outermost: entryOf(book) }
+  if (found === NO_BINDER) return { kind: "none", outermost: entryOf(book) }
   const [first] = found.lineup
   return first
     ? openedAt(catalog, entryOf(book), first)
@@ -409,7 +409,7 @@ export function openPage(catalog: CoreCatalog, stage: Stage, book: Book, page: s
 // 開いているブックのバインダを開く（中の最初のページ。空ならバインダ）。そのバインダのページか、そのバインダをもう開いていれば、印刷プレビューを閉じるだけ
 export function openBinder(catalog: CoreCatalog, stage: Stage, book: Book, binder: string): Stage {
   const o = stage.opened
-  if (o === NOTHING_OPENED || o.outermost.id !== book.id || !findBinder(book, binder)) return stage
+  if (o === NOTHING_OPENED || o.outermost.id !== book.id || findBinder(book, binder) === NO_BINDER) return stage
   if (binderOf(book, o) === binder) return closePrintPreview(stage)
   if (editingBackground(stage)) return stage
   return settle(leave(opening(edited(stage), openedIn(catalog, book, binder))), ORIGIN)
@@ -540,8 +540,8 @@ function neighbourOf(catalog: CoreCatalog, book: Book, was: Opened, before?: Boo
   const left = new Map(pagesOf(book).map(p => [p.id, p]))
   const near = (ids: readonly string[], id: string): Page | undefined => nearIn(ids, id, left)
   const binder = before ? binderOf(before, was) : was.kind === "binder" ? was.binder : NO_BINDER
-  if (binder !== NO_BINDER && findBinder(book, binder)) {
-    const inBinder = (b: Book) => (findBinder(b, binder)?.lineup ?? []).map(e => e.id)
+  if (binder !== NO_BINDER && findBinder(book, binder) !== NO_BINDER) {
+    const inBinder = (b: Book) => pagesIn(b, binder).map(e => e.id)
     const now = new Set(inBinder(book))
     const next =
       was.kind === "page" && before

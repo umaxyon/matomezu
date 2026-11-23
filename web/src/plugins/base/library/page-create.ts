@@ -3,7 +3,7 @@
 // 入れるフォルダを言わなければ、日付フォルダ（date-folder.ts）の末尾に入る。
 // 本体が同じなので、ページのタイプが page-add を外していれば（without）、これもそのタイプで断る
 import { z } from "zod"
-import { findBinder } from "../../../core/book"
+import { findBinder, NO_BINDER } from "../../../core/book"
 import { type ActionContext, CREATES_NOTHING } from "../../../core/def/action"
 import { isMoveRefusal, placedMade, titlesIn } from "../../../core/entries"
 import { HOME_ID, type HomeOrFolder, type Library } from "../../../core/folders"
@@ -55,8 +55,10 @@ export const PAGE_CREATE = kit.defineAction({
         { ...args, into: { binder: folder } },
         ctx,
       )
-      const now = done && findBinder(done.book, binder.id)
-      return done && now ? { next: withBinderEntry(library, binder, now), result: { ...done.result, folder } } : null
+      const now = done ? findBinder(done.book, binder.id) : NO_BINDER
+      return done && now !== NO_BINDER
+        ? { next: withBinderEntry(library, binder, now), result: { ...done.result, folder } }
+        : null
     }
     if (!holder || !holdsEntries(library.folders, folder)) return null
     // 書庫ホームでは、先頭に並ぶシステムフォルダより前に置けない

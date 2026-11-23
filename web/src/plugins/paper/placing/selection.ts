@@ -8,6 +8,7 @@ import {
   connectorsOf,
   findShape,
   type ItemPage,
+  NO_ITEM,
   type Point,
   type Rect,
   walkShapes,
@@ -64,10 +65,11 @@ const holds = (value: unknown, id: string): boolean =>
 // 深い形をその祖先に置き換える（同じ形は 1 つにまとめる）。つなぐものはそのまま。同じ階層なら同じ値
 export function sameLevel(page: ItemPage, ids: readonly string[]): readonly string[] {
   const ancestors = (id: string): string[] => {
-    const parent = findShape(page, id)?.parent ?? null
+    const found = findShape(page, id)
+    const parent = found === NO_ITEM ? null : found.parent
     return parent === null ? [] : [...ancestors(parent), parent]
   }
-  const chains = new Map(ids.filter(id => findShape(page, id) !== undefined).map(id => [id, ancestors(id)]))
+  const chains = new Map(ids.filter(id => findShape(page, id) !== NO_ITEM).map(id => [id, ancestors(id)]))
   const all = [...chains.values()]
   let depth = 0
   while (all.length > 0 && all.every(c => c.length > depth && c[depth] === all[0]?.[depth])) depth++
@@ -78,7 +80,7 @@ export function sameLevel(page: ItemPage, ids: readonly string[]): readonly stri
 
 // 選んだ物 ids のうち、ドラッグで動かす形（選択に混じったつなぐものは動かさず、両端の形に付いてくる）
 export const shapesIn = (page: ItemPage, ids: readonly string[]): readonly string[] =>
-  ids.filter(id => findShape(page, id) !== undefined)
+  ids.filter(id => findShape(page, id) !== NO_ITEM)
 
 // 範囲のドラッグで、押した点 a と今の点 b（紙の上）を角にする四角
 export const sweptBox = (a: Point, b: Point): Rect => ({

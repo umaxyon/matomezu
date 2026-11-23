@@ -425,13 +425,11 @@ export const pagesOf = (book: StageLineup): readonly ItemPage[] =>
 export const bindersOf = (book: StageLineup): readonly BinderEntry[] =>
   book.lineup.flatMap(e => (e.kind === "binder" ? [e] : []))
 
-// ページがバインダに入っていないときの値（findPage の binder・binderOf）
+// バインダが無いときの値（ページがバインダに入っていない findPage の binder・binderOf。id のバインダが無い findBinder）
 export const NO_BINDER = "none"
 
 // ページが無いときの値（開いているページが無い・ページを開いていない・id のページが無い）
 export const NO_PAGE = "none"
-// アイテムが無いときの値（ページに id のアイテムが無い）
-export const NO_ITEM = "none"
 
 // id のページと、それが入っているバインダ（並びに直に入っているページは binder が NO_BINDER。無ければ NO_PAGE）
 export function findPage(
@@ -453,18 +451,22 @@ export function findPage(
 export const foundPage = (found: ReturnType<typeof findPage>): ItemPage | undefined =>
   found === NO_PAGE ? undefined : found.page
 
-// id の要素（ページかバインダ）と同じブックかバインダの並び: 並びに直に入っている要素ならブックの並び、バインダの中のページならそのバインダの並び（無ければ undefined）
-export function siblingsOf(book: StageLineup, id: string): readonly LineupEntry[] | undefined {
+// id の要素（ページかバインダ）と同じブックかバインダの並び: 並びに直に入っている要素ならブックの並び、バインダの中のページならそのバインダの並び
+// （要素が無ければ空。在れば、その要素が並びに入っている）
+export function siblingsOf(book: StageLineup, id: string): readonly LineupEntry[] {
   if (book.lineup.some(e => e.id === id)) return book.lineup
-  return bindersOf(book).find(f => f.lineup.some(p => p.id === id))?.lineup
+  return bindersOf(book).find(f => f.lineup.some(p => p.id === id))?.lineup ?? []
 }
 
 // バインダ binder の中のページを、並びの順に（バインダが無ければ空）
-export const pagesIn = (book: StageLineup, binder: string): readonly ItemPage[] =>
-  findBinder(book, binder)?.lineup ?? []
+export const pagesIn = (book: StageLineup, binder: string): readonly ItemPage[] => {
+  const found = findBinder(book, binder)
+  return found === NO_BINDER ? [] : found.lineup
+}
 
-export const findBinder = (book: StageLineup, id: string): BinderEntry | undefined =>
-  bindersOf(book).find(f => f.id === id)
+// id のバインダ（無ければ NO_BINDER）
+export const findBinder = (book: StageLineup, id: string): BinderEntry | typeof NO_BINDER =>
+  bindersOf(book).find(f => f.id === id) ?? NO_BINDER
 
 // 並びのページを 1 枚ずつ f で替える（バインダの中も。f が undefined を返したページは除く）
 function mapPages<B extends StageLineup>(book: B, f: (page: AnyPage) => AnyPage | undefined): B {
@@ -525,7 +527,7 @@ export function addPage<B extends StageLineup>(
   }
   if (!("binder" in into))
     return { book: { ...book, lineup: insertAt<LineupEntry>(book.lineup, entry, into.index) }, page: id }
-  if (!findBinder(book, into.binder)) return undefined
+  if (findBinder(book, into.binder) === NO_BINDER) return undefined
   const lineup = book.lineup.map(e =>
     e.kind === "binder" && e.id === into.binder ? { ...e, lineup: insertAt(e.lineup, entry, into.index) } : e,
   )

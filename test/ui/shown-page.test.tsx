@@ -3,7 +3,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, render } from "@testing-library/react"
 import { pagesOf } from "../../web/src/core/book"
-import { findShape, type ItemPage } from "../../web/src/core/placed"
+import type { ItemPage } from "../../web/src/core/placed"
 import { NO_PAGE } from "../../web/src/core/stage"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
@@ -12,7 +12,7 @@ import { StageScope } from "../../web/src/ui/scope"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { useShownPage } from "../../web/src/ui/view-hooks"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { sequence, showFirstBook } from "../support"
+import { sequence, shapeOf, showFirstBook } from "../support"
 
 afterEach(cleanup)
 
@@ -53,7 +53,7 @@ test("内包ボックスの中のリストの設定ダイアログの下書き�
     </MatomezuProvider>,
   )
   const caption = (page: ItemPage | typeof NO_PAGE) =>
-    (findShape(page as ItemPage, child)!.shape.props as { caption: string }).caption
+    (shapeOf(page as ItemPage, child).shape.props as { caption: string }).caption
   expect(caption(shown)).toBe("下書き")
   expect(caption(pagesOf(instance.state.getState().books.b1!)[0]!)).toBe("前")
 })

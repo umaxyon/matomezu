@@ -10,6 +10,7 @@ import {
   findShape,
   type ItemPage,
   isShape,
+  NO_ITEM,
   type PlacedConnector,
   type PlacedItem,
   type PlacedShape,
@@ -257,7 +258,7 @@ export function placedAt(catalog: CoreCatalog, page: ItemPage, rects: ReadonlyMa
 // 無いアイテムを含むなら null
 export function removeItems(catalog: CoreCatalog, page: ItemPage, ids: readonly string[]): ItemPage | null {
   const targets = new Set(ids)
-  const found = (p: ItemPage, id: string) => pageItemsOf(p).some(i => i.id === id) || findShape(p, id) !== undefined
+  const found = (p: ItemPage, id: string) => pageItemsOf(p).some(i => i.id === id) || findShape(p, id) !== NO_ITEM
   if (![...targets].every(id => found(page, id))) return null
   // ページのアイテムはまとめて除き、子の形は 1 つずつ除く（先に除いた祖先の子孫は、もう無い）
   let next: ItemPage = { ...page, items: pageItemsOf(page).filter(i => !targets.has(i.id)) }
@@ -268,7 +269,7 @@ export function removeItems(catalog: CoreCatalog, page: ItemPage, ids: readonly 
 // ページの形 id の、一番上の祖先（ページの形）の id。ページの形なら自分。無ければ null
 function rootOf(page: ItemPage, id: string): string | null {
   const found = findShape(page, id)
-  if (!found) return null
+  if (found === NO_ITEM) return null
   return found.parent === null ? id : rootOf(page, found.parent)
 }
 

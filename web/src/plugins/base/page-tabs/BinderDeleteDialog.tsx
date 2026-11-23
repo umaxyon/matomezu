@@ -1,6 +1,6 @@
 // バインダを消す前に確かめるダイアログ: ページタブのバインダの右クリックのメニューから開く。消す（アクション binder-remove）と中のページごと消え戻せないので、押す前に知らせる。断られたら開いたままにする
 
-import { findBinder } from "../../../core/book"
+import { findBinder, NO_BINDER } from "../../../core/book"
 import { NO_BOOK } from "../../../store/commands/def"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
@@ -16,15 +16,15 @@ export function BinderDeleteDialog({ args, onClose }: DialogProps<BinderSettings
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const book = useBook()
-  const binder = book === NO_BOOK ? undefined : findBinder(book, args.binder)
-  const type = binder ? catalog.pageTypes.get(binder.pageType) : undefined
+  const binder = book === NO_BOOK ? NO_BINDER : findBinder(book, args.binder)
+  const type = binder !== NO_BINDER ? catalog.pageTypes.get(binder.pageType) : undefined
   const removable = useAllowedOn(
     BINDER_REMOVE.id,
     { binder: args.binder },
     book === NO_BOOK ? undefined : { book: book.id },
   ).ok
   const perform = usePerform()
-  if (!binder || !type) return null
+  if (binder === NO_BINDER || !type) return null
   return (
     <Dialog
       title={t("Delete {type}", { type: t(type.title) })}

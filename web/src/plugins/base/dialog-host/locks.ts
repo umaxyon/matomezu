@@ -1,5 +1,5 @@
 // ダイアログが開いている間に掛ける編集ロックの所
-import { findBinder, findPage } from "../../../core/book"
+import { findBinder, findPage, NO_BINDER } from "../../../core/book"
 import type { StageLineup } from "../../../core/schema/book"
 import { NO_PAGE } from "../../../core/stage"
 import { NO_LINEUP } from "../page-tabs/opened-lineup"
@@ -15,7 +15,11 @@ export function locksOf(
   for (const id of ids) {
     const inLineup = lineup !== NO_LINEUP
     const within =
-      inLineup && findPage(lineup, id) !== NO_PAGE ? id : inLineup && findBinder(lineup, id) ? lineup.id : shown
+      inLineup && findPage(lineup, id) !== NO_PAGE
+        ? id
+        : inLineup && findBinder(lineup, id) !== NO_BINDER
+          ? lineup.id
+          : shown
     if (within !== NO_PAGE) locks.set(within, [...(locks.get(within) ?? []), id])
   }
   return [...locks].map(([within, ids]) => ({ within, ids }))

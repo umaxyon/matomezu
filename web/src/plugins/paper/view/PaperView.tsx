@@ -22,6 +22,7 @@ import {
   findShape,
   type ItemPage,
   NO_AREA,
+  NO_ITEM,
   NO_PAGE,
   NO_PAPER,
   NO_PLACING,
@@ -354,8 +355,8 @@ function PageItems({
       // 入れ替えが起きたら覚える（このドラッグの終わりまで）
       const plan = dragging(catalog, page, id, by, d.came)
       const moved = ([k, r]: [string, Rect]) => {
-        const now = findShape(page, k)?.shape
-        return k !== id && (r.x !== now?.x || r.y !== now?.y)
+        const now = findShape(page, k)
+        return k !== id && (now === NO_ITEM || r.x !== now.shape.x || r.y !== now.shape.y)
       }
       if ([...(plan ?? [])].some(moved)) d.swapped = true
     }

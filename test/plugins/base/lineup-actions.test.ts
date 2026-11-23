@@ -67,7 +67,7 @@ describe("page-add", () => {
 describe("バインダのアクション", () => {
   test("名前を変える・動かす（同じ並びの中）。ほかと同じ名前は断る", () => {
     const renamed = run(book, BINDER_UPDATE.id, { binder: "f1", title: "発表" })
-    expect(renamed.ok && findBinder(renamed.next, "f1")?.title).toBe("発表")
+    expect(renamed.ok && findBinder(renamed.next, "f1")).toMatchObject({ title: "発表" })
     expect(run(book, BINDER_UPDATE.id, { binder: "f1", title: "ページ 1" }).ok).toBe(false)
     const moved = run(book, BINDER_MOVE.id, { binder: "f1", index: 0 })
     expect(moved.ok && lineupOf(moved.next).map(e => e.id)).toEqual(["f1", "p1"])
