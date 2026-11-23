@@ -69,15 +69,22 @@
 }
 /* 右の下の枠の、ホストの詳しい所 */
 .detail {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  height: 100%;
 }
-.head {
+.unpair {
+  position: absolute;
+  right: 8px;
+  bottom: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+}
+.unpairButton {
+  width: 24px;
+  height: 24px;
+  border-color: var(--skin-border-strong);
 }
 .title {
   margin: 0;

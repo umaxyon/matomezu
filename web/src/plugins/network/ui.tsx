@@ -4,7 +4,7 @@ import { definePluginUi, defineWidget } from "../../plugin-api/ui"
 import { defineBookmarks, defineSettingsCategory } from "../base/ui"
 import { NETWORK_PLUGIN } from "."
 import { BELOW_PARTICIPANTS, PICKED_DETAIL } from "./control-center-ids"
-import { PAIRING_DIALOG, PAIRING_REQUEST_DIALOG, PORT_REPICK_DIALOG } from "./dialogs"
+import { PAIRING_DIALOG, PAIRING_REQUEST_DIALOG, PORT_REPICK_DIALOG, UNPAIR_DIALOG } from "./dialogs"
 import { kit } from "./kit"
 import { HostNameSetting, NetworkCategory } from "./NetworkCategory"
 import { OtherHosts } from "./OtherHosts"
@@ -14,6 +14,7 @@ import { PairingRequestBookmarks, PairingRequestDialog, PairingRequestWatch } fr
 import { PortRepickDialog } from "./PortRepickDialog"
 import { PAIRED_HOST } from "./pairing"
 import { CONNECT_HOSTS, HOST_NAME } from "./settings"
+import { UnpairDialog } from "./UnpairDialog"
 
 export const NETWORK_CATEGORY = defineSettingsCategory({
   id: kit.name("settings"),
@@ -49,6 +50,7 @@ export const NETWORK_UI = definePluginUi(NETWORK_PLUGIN, {
     [PORT_REPICK_DIALOG.id]: PortRepickDialog,
     [PAIRING_DIALOG.id]: PairingDialog,
     [PAIRING_REQUEST_DIALOG.id]: PairingRequestDialog,
+    [UNPAIR_DIALOG.id]: UnpairDialog,
   },
 })
 

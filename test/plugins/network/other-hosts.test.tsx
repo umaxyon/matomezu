@@ -45,7 +45,7 @@ function open() {
   return { store, asked, connect, peers }
 }
 
-test("「ほかのホスト」の節は、つなぐが入のときだけ出し、出したらつながりを確かめてもらう。行を選ぶと右下に詳しい所、ペアリングを解くと選んでいないのと同じ", async () => {
+test("「ほかのホスト」の節は、つなぐが入のときだけ出し、出したらつながりを確かめてもらう。行を選ぶと右下に詳しい所、ペアリングを解く（確かめてから）と選んでいないのと同じ", async () => {
   const { store, asked, connect, peers } = open()
   expect(screen.queryByText("ほかのホスト")).toBeNull()
   connect()
@@ -70,6 +70,10 @@ test("「ほかのホスト」の節は、つなぐが入のときだけ出し�
   expect(within(panel()).getByText("（taro）")).toBeTruthy()
   expect(within(panel()).getByText("BBBB BBBB BBBB BBBB …")).toBeTruthy()
   fireEvent.click(within(panel()).getByRole("button", { name: "ペアリングを解く" }))
+  const confirm = screen.getByRole("dialog", { name: "ペアリングを解く" })
+  expect(within(confirm).getByText("相手のホストにも知らせます。またつなぐには、もう一度ペアリングします")).toBeTruthy()
+  fireEvent.click(within(confirm).getByRole("button", { name: "解く" }))
+  expect(screen.queryByRole("dialog")).toBeNull()
   expect(Object.keys(store.state.getState().records[PAIRED_HOST.id] ?? {})).toEqual([])
   expect(within(panel()).queryByText("（taro）")).toBeNull()
 })

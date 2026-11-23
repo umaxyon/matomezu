@@ -9,3 +9,6 @@ export const PAIRING_DIALOG = kit.defineDialog({ id: "pairing" })
 
 // ほかのホストから届いたペアリングの頼み（しおりから開く）: 頼み request（レコードの id）の中身と接続確認コード、断る・受け入れる
 export const PAIRING_REQUEST_DIALOG = kit.defineDialogWith<{ request: string }>()({ id: "pairing-request" })
+
+// ペアリングを解く確かめ（詳しい所の右下のアイコンから開く）: ペアリングしたホスト pairedHost（レコードの id）
+export const UNPAIR_DIALOG = kit.defineDialogWith<{ pairedHost: string }>()({ id: "unpair" })

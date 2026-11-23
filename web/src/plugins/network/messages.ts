@@ -36,6 +36,11 @@ export const NETWORK_MESSAGES = defineMessages({
     ja: "鍵が合いません。ペアリングを解いて、もう一度つないで下さい",
   },
   Unpair: { en: "Unpair", ja: "ペアリングを解く" },
+  "Unpair button": { en: "Unpair", ja: "解く" },
+  "Unpairing tells the other host too": {
+    en: "The other host is told too. To connect again, pair again",
+    ja: "相手のホストにも知らせます。またつなぐには、もう一度ペアリングします",
+  },
   "Found hosts": { en: "Found hosts", ja: "見つかったホスト" },
   Searching: { en: "Searching", ja: "探しています" },
   "Paired hosts and this host are not listed": {
