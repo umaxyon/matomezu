@@ -54,7 +54,9 @@ const ticketUrl = (ticket: string) =>
     }),
   )}`
 
-test("チケットのワーカーブックは、ページが足されると参加者一覧の番号の行と「作業ブック」から開ける", async ({ page }) => {
+test("チケットのワーカーブックは、ページが足されると参加者一覧の番号の行と「作業ブック」から開ける", async ({
+  page,
+}) => {
   await page.goto(CONTROL_CENTER_URL)
   const made = await perform(page, "@matomezu/taskboard:project-add", { prefix: "W-" })
   const added = await perform(page, "@matomezu/taskboard:ticket-add", {
