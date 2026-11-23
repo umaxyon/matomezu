@@ -1,13 +1,13 @@
 // 左の列のワークルーム/参加者の一覧。管理者の行は高く、頭に王冠。空室の行は空の丸と（空室）、準備中は鳥を薄くして（準備中）。
 // 名前の下は、参加済みと空室ではスロット workroom-row-line に置かれたウィジェットが出す（今のタスクなど。空室かも渡す）。行を選ぶボタンは行の全体に敷き、
 // その上に見た目を重ねる（スロットの物が自分のボタンを持てるように。見た目のうちボタンだけが押しを受け、ほかの所の押しは下の選ぶボタンへ通す）。
-// ワークルームの下に、ビジター（ワークルームを持たない、読むだけの参加者）の節を出す（いなければ節ごと出さない）。ワークルームとビジターは、どちらか一方だけを選ぶ
+// ワークルームの下に、ビジター（ワークルームを持たない、読むだけの参加者）の節を出す（いなければ節ごと出さない）。選ぶのは、選んでいる物（PICKED）の 1 つ
 import { useState } from "react"
 import { Slot, useMessages, usePluginState, useSetPluginState } from "../../plugin-api/ui"
 import { visitorName } from "../base"
 import { Band, Panel, useRowSlide, useVisitorRows, useWorkroomRows, VisitorIcon } from "../base/ui"
 import { BIRD_SIZE, Bird } from "./Bird"
-import { PICKED_ROOM, PICKED_VISITOR } from "./control-center"
+import { PARTICIPANT_KIND, PICKED, WORKROOM_KIND } from "./control-center"
 import { kit } from "./kit"
 import styles from "./ParticipantListView.module.css"
 import { orderHeld, orderRows, type RowDetail, rowDetail } from "./rows"
@@ -24,19 +24,10 @@ export function ParticipantListView() {
   const rows = held ? orderHeld(ordered, held) : ordered
   const hold = () => setHeld(h => h ?? ordered.map(r => r.room.id))
   const { register } = useRowSlide(rows.map(r => r.room.id))
-  const picked = usePluginState(kit, PICKED_ROOM)
-  const setPicked = useSetPluginState(kit, PICKED_ROOM)
+  const picked = usePluginState(kit, PICKED)
+  const setPicked = useSetPluginState(kit, PICKED)
   const visitors = useVisitorRows()
-  const pickedVisitor = usePluginState(kit, PICKED_VISITOR)
-  const setPickedVisitor = useSetPluginState(kit, PICKED_VISITOR)
-  const pick = (room: string | undefined) => {
-    setPicked(room)
-    setPickedVisitor(undefined)
-  }
-  const pickVisitor = (participant: string) => {
-    setPickedVisitor(participant)
-    setPicked(undefined)
-  }
+  const isPicked = (kind: string, id: string) => picked?.kind === kind && picked.id === id
   const detailText = (d: RowDetail) => (d === "preparing" ? t("(preparing)") : null)
   return (
     <Panel className={styles.list}>
@@ -53,7 +44,7 @@ export function ParticipantListView() {
               key={row.room.id}
               ref={register(row.room.id)}
               className={styles.row}
-              data-selected={picked === row.room.id && pickedVisitor === undefined}
+              data-selected={isPicked(WORKROOM_KIND, row.room.id)}
               data-admin={row.admin}
               data-workroom={row.room.id}
             >
@@ -61,7 +52,7 @@ export function ParticipantListView() {
                 type="button"
                 className={styles.cover}
                 aria-label={row.room.name}
-                onClick={() => pick(row.room.id)}
+                onClick={() => setPicked({ kind: WORKROOM_KIND, id: row.room.id })}
               />
               <div className={styles.face}>
                 <span className={styles.lead}>
@@ -90,10 +81,14 @@ export function ParticipantListView() {
               <li
                 key={row.participant.id}
                 className={styles.row}
-                data-selected={pickedVisitor === row.participant.id}
+                data-selected={isPicked(PARTICIPANT_KIND, row.participant.id)}
                 data-visitor={row.participant.id}
               >
-                <button type="button" className={styles.pick} onClick={() => pickVisitor(row.participant.id)}>
+                <button
+                  type="button"
+                  className={styles.pick}
+                  onClick={() => setPicked({ kind: PARTICIPANT_KIND, id: row.participant.id })}
+                >
                   <span className={styles.lead}>
                     <VisitorIcon size={BIRD_SIZE} />
                   </span>

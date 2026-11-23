@@ -124,6 +124,8 @@ export {
   useFolderEntries,
   useFollowsSelection,
   useHighlightRanges,
+  useAskHosts,
+  useHostPeers,
   useHostStatus,
   useInPlaceInput,
   useLeftSidePanel,

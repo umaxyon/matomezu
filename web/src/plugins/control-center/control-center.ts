@@ -52,11 +52,20 @@ export const CONTENT_AREA = kit.definePluginState({
 export type ContentArea = "projects" | "library"
 export const contentAreaOf = (value: ContentArea | undefined): ContentArea => value ?? "projects"
 
-// 選んでいるワークルームの id（スクリーン 1 枚ごとの状態。読み直すと消える。ワークルームが無くなれば、選んでいないのと同じ）
-export const PICKED_ROOM = kit.definePluginStateOf<string>()({ id: "picked-room", scope: "screen" })
-
-// 選んでいるビジターの参加者の id（スクリーン 1 枚ごと。ワークルームとビジターは、どちらか一方だけを選ぶ。参加者が居なくなれば、選んでいないのと同じ）
-export const PICKED_VISITOR = kit.definePluginStateOf<string>()({ id: "picked-visitor", scope: "screen" })
+// 選んでいる物（画面の場所に入れるプラグイン状態。スクリーン 1 枚ごとの値で、履歴には積まない）: 種類の id（kind）とレコードの id。どれか 1 つだけを選ぶ。
+// ワークルーム（base の workroom）とビジター（base の participant）は右の下の枠にコントロールセンターが描き、ほかの種類はスロット picked-detail のその種類の物が描く。
+// ほかのプラグインは、宣言の id で書く（ほかのホストの行など）。選んだ物が無くなれば、選んでいないのと同じ
+// 右の下の枠にコントロールセンターが描く種類（base の物。別のプラグインの定義は id で選ぶ）
+export const WORKROOM_KIND = "@matomezu/base:workroom"
+export const PARTICIPANT_KIND = "@matomezu/base:participant"
+const PICKED_SCHEMA = z.object({ kind: z.string().min(1), id: z.string().min(1) })
+export type Picked = z.infer<typeof PICKED_SCHEMA>
+export const PICKED = kit.definePluginState({
+  id: "picked",
+  scope: "screen",
+  schema: PICKED_SCHEMA,
+  address: "replace",
+})
 
 // 書庫の画面を最大化しているか（スクリーン 1 枚ごとの状態。読み直すと消える）
 export const LIBRARY_MAXIMIZED = kit.definePluginStateOf<boolean>()({ id: "library-maximized", scope: "screen" })

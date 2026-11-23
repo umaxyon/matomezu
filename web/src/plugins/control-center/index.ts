@@ -6,8 +6,7 @@ import {
   CONTROL_CENTER,
   CONTROL_CENTER_SCREEN,
   LIBRARY_MAXIMIZED,
-  PICKED_ROOM,
-  PICKED_VISITOR,
+  PICKED,
   VISITOR_LEAVE_DIALOG,
   WORKROOM_LEAVE_DIALOG,
 } from "./control-center"
@@ -18,8 +17,8 @@ export {
   CONTROL_CENTER,
   CONTROL_CENTER_SCREEN,
   LIBRARY_MAXIMIZED,
-  PICKED_ROOM,
-  PICKED_VISITOR,
+  PICKED,
+  type Picked,
   VISITOR_LEAVE_DIALOG,
   WORKROOM_LEAVE_DIALOG,
 } from "./control-center"
@@ -28,7 +27,7 @@ export const CONTROL_CENTER_PLUGIN = defineBuiltin(
   kit.plugin({
     controlCenters: [CONTROL_CENTER],
     screens: [CONTROL_CENTER_SCREEN],
-    pluginStates: [CONTENT_AREA, PICKED_ROOM, PICKED_VISITOR, LIBRARY_MAXIMIZED],
+    pluginStates: [CONTENT_AREA, PICKED, LIBRARY_MAXIMIZED],
     dialogs: [WORKROOM_LEAVE_DIALOG, VISITOR_LEAVE_DIALOG],
   }),
 )
@@ -42,8 +41,7 @@ declare module "../../core/catalog" {
   }
   interface PluginStateTable {
     "@matomezu/control-center:content-area": typeof CONTENT_AREA
-    "@matomezu/control-center:picked-room": typeof PICKED_ROOM
-    "@matomezu/control-center:picked-visitor": typeof PICKED_VISITOR
+    "@matomezu/control-center:picked": typeof PICKED
     "@matomezu/control-center:library-maximized": typeof LIBRARY_MAXIMIZED
   }
   interface DialogTable {

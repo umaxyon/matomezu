@@ -1,31 +1,35 @@
 // 右の下のワークルームの枠: 選んでいる参加者の鳥・名前・管理者の王冠（管理者なら金、ほかは薄い灰色。押すと管理者にする）・情報（最終アクセス・ブランチ（あれば）・model・os）・カレントチケット・チケット履歴。
 // 情報の列の右下に退室のアイコン。情報の列の右には、スロット workroom-columnsに置かれたウィジェットの列（カレントチケット・チケット履歴など）が並ぶ。
-// ビジターを選んでいれば、ビジターの印・呼び名・（ビジター（読むだけ））・情報と、右下に外すアイコン（確かめのダイアログを開く）
-import { Slot, useActions, useAllowedOn, useMessages } from "../../plugin-api/ui"
+// ワークルームとビジターのほかの種類を選んでいれば、スロット picked-detail のその種類の物が枠の中を描く。ビジターを選んでいれば、ビジターの印・呼び名・（ビジター（読むだけ））・情報と、右下に外すアイコン（確かめのダイアログを開く）
+import { KindSlot, Slot, useActions, useAllowedOn, useMessages } from "../../plugin-api/ui"
 import { type VisitorRow, visitorName, type WorkroomRow } from "../base"
 import { CrownIcon, Elapsed, IconButton, Panel, Tip, useWorkroomActions, VisitorIcon } from "../base/ui"
 import { BIRD_SIZE, Bird } from "./Bird"
-import { VISITOR_LEAVE_DIALOG, WORKROOM_LEAVE_DIALOG } from "./control-center"
+import { type Picked, VISITOR_LEAVE_DIALOG, WORKROOM_LEAVE_DIALOG } from "./control-center"
 import { LeaveIcon, TrashIcon } from "./icons"
 import { kit } from "./kit"
 import { lastAccessOf } from "./rows"
-import { WORKROOM_COLUMNS } from "./slots"
+import { PICKED_DETAIL, WORKROOM_COLUMNS } from "./slots"
 import text from "./text.module.css"
 import styles from "./WorkroomView.module.css"
 
 export function WorkroomView({
   row,
   visitor,
+  detail,
   hidden,
 }: {
   row: WorkroomRow | undefined
   visitor: VisitorRow | undefined
+  detail: Picked | undefined
   hidden: boolean
 }) {
   const t = useMessages(kit)
   return (
     <Panel className={styles.room} data-max={hidden} data-workroom-panel>
-      {visitor ? (
+      {detail ? (
+        <KindSlot name={PICKED_DETAIL} kind={detail.kind} props={{ id: detail.id }} />
+      ) : visitor ? (
         <Visitor row={visitor} />
       ) : row && row.state === "empty" ? (
         <Empty row={row} />
