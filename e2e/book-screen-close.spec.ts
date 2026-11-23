@@ -111,13 +111,14 @@ test("ブックスクリーンを 2 枚分割で開くと 2 段で見え、そ�
   await page.screenshot({ path: "test-results/book-screen-footer-two.png" })
 })
 
-// 動きの途中の位置を、コマごとに記録する（ブックスクリーンの左端と、コントロールセンターのスクリーンの高さ）
+// 動きの途中の位置を、動きが止まるまでコマごとに記録する（ブックスクリーンの左端と、コントロールセンターのスクリーンの高さ）
 const track = (page: Page) =>
   page.evaluate(
     () =>
       new Promise<{ t: number; book: number | null; center: number; leaving: number | null }[]>(done => {
         const out: { t: number; book: number | null; center: number; leaving: number | null }[] = []
         const start = performance.now()
+        let began = false
         const step = () => {
           const book = document.querySelector<HTMLElement>("[data-current][data-row='true']:not([data-leaving])")
           const leaving = document.querySelector<HTMLElement>("[data-leaving]")
@@ -130,8 +131,11 @@ const track = (page: Page) =>
             center: plain ? plain.getBoundingClientRect().height : 0,
             leaving: leaving ? leaving.getBoundingClientRect().left : null,
           })
-          if (performance.now() - start < 900) requestAnimationFrame(step)
-          else done(out)
+          // 動き（滑る・縮む）が始まって、止まるまで記録する
+          const moving = document.getAnimations().some(x => x.playState === "running")
+          if (moving) began = true
+          if (began && !moving) done(out)
+          else requestAnimationFrame(step)
         }
         requestAnimationFrame(step)
       }),
