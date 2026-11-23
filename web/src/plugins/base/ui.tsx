@@ -89,7 +89,14 @@ import { WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/ui"
 
 export { BirdWalk } from "./birds/ui"
-export { BOOKMARKS, type Bookmark, type BookmarkTone, defineBookmarks, useShowBookmarks } from "./bookmarks/ui"
+export {
+  BOOKMARKS,
+  type Bookmark,
+  type BookmarkTone,
+  defineBookmarks,
+  LETTER_ICON,
+  useShowBookmarks,
+} from "./bookmarks/ui"
 export { type CodeSpan, highlightCode } from "./code-highlight/ui"
 export {
   AtCorner,
@@ -207,7 +214,17 @@ import type { PrintSheetProps } from "./print-preview/ui"
 
 // ページの設定の項目とステージエントリが持つ設定の項目のコンポーネントの並び（ページのタイプの設定のダイアログが使う）
 export { type SettingsPatch, useSettingControls } from "./book-settings/ui"
-export { useAskHosts, useHostPeers, useHostStatus } from "./host/ui"
+export {
+  type FoundHost,
+  type HostPairing,
+  type HostPeers,
+  type HostRequest,
+  type HostStatus,
+  type PeerLive,
+  useAskHosts,
+  useHostPeers,
+  useHostStatus,
+} from "./host/ui"
 export type { RightSidePanelOpen } from "./right-side-panel/ui"
 export {
   RIGHT_SIDE_PANEL,

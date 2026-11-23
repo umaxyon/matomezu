@@ -1,0 +1,115 @@
+/* ほかのホストの節: コントロールセンターのワークルームの一覧と同じ並びの行 */
+.section {
+  flex: none;
+  max-height: 40%;
+}
+.heading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--skin-text-muted);
+}
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--skin-text-muted);
+}
+.rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0 calc(-1 * var(--panel-pad-x));
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.row {
+  border-bottom: 1px solid var(--skin-border);
+}
+.row:last-child {
+  border-bottom: 0;
+}
+.row[data-selected="true"] {
+  background: var(--skin-accent-subtle);
+  box-shadow: inset 2px 0 0 var(--skin-accent);
+}
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px calc(var(--panel-pad-x) + 3px);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.name {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* ● つながっている・○ つながっていない */
+.dot {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border: 1.5px solid var(--skin-text-muted);
+  border-radius: 50%;
+}
+.dot[data-connected="true"] {
+  border-color: var(--skin-accent);
+  background: var(--skin-accent);
+}
+/* 右の下の枠の、ホストの詳しい所 */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.user {
+  font-weight: 400;
+  color: var(--skin-text-muted);
+}
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 13px;
+}
+.facts dt {
+  color: var(--skin-text-muted);
+}
+.facts dd {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+.facts code {
+  font-family: monospace;
+}
+.seen {
+  margin-left: 16px;
+  color: var(--skin-text-muted);
+}
+.warn {
+  margin: 0;
+  font-size: 13px;
+  color: var(--skin-danger);
+}
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+}

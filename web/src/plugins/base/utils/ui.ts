@@ -2,6 +2,7 @@
 
 import { isMac } from "../../../ui/keys"
 
+export { type MarqueeText, useArrivalMarquee } from "./arrival-marquee"
 export { Band } from "./Band"
 export { BookIcon, BookOpenIcon } from "./book-icons"
 export { belowOf, type Choice, ChoiceBubble } from "./ChoiceBubble"
@@ -12,6 +13,7 @@ export { GearIcon } from "./gear-icon"
 export { IconButton } from "./IconButton"
 export { LineIcon } from "./icon"
 export { MaxButton } from "./MaxButton"
+export { useOpenDialogInRecentStage } from "./open-dialog-in-recent-stage"
 export { Panel } from "./Panel"
 export { PaperFrame } from "./PaperFrame"
 export { type SideTab, SideTabs } from "./SideTabs"

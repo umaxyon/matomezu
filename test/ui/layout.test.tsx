@@ -96,6 +96,8 @@ describe("UI マッピング", () => {
       "E211 layout no-stages: slot @matomezu/control-center:projects is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/control-center:workroom-columns is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/control-center:workroom-row-line is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/control-center:below-participants is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/control-center:picked-detail is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:one-screen is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:split-rows is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-top is not opened by any placed widget",

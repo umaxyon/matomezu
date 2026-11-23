@@ -87,7 +87,7 @@ test("覚えたポートが使われていれば［別のポートにする］�
     plugins: BUILTIN_UI,
     hostsHost: {
       ask: async r => {
-        asked.push(r)
+        if (r.kind === "repick-port") asked.push(r)
       },
     },
   })
