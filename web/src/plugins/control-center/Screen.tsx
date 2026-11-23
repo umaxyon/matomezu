@@ -3,7 +3,7 @@
 // プロジェクトの画面は上にタスクボードの置き場、下にワークルーム。書庫は最大化できる。最大化の間（書庫の最大化と、中身が名乗った最大化）は、枠が出ていく（retreatOf）。
 // コンテンツエリアに出す画面は、このスクリーンの値として画面の場所に入る（CONTENT_AREA。値が無ければプロジェクト）。選んでいる物（ワークルーム・ビジター・ほかの種類のどれか 1 つ）も画面の場所に入る（PICKED。履歴には積まない）。書庫の最大化は、このスクリーンの中だけ
 import { useState } from "react"
-import { Slot, usePluginState, useRecord, useSetPluginState } from "../../plugin-api/ui"
+import { Slot, useKindView, usePluginState, useRecord, useSetPluginState } from "../../plugin-api/ui"
 import { Panel, useControlCenterMaximized, useVisitorRows, useWorkroomRows } from "../base/ui"
 import {
   CONTENT_AREA,
@@ -12,6 +12,7 @@ import {
   LIBRARY_MAXIMIZED,
   PARTICIPANT_KIND,
   PICKED,
+  type Picked,
   WORKROOM_KIND,
 } from "./control-center"
 import { kit } from "./kit"
@@ -20,7 +21,7 @@ import { ParticipantListView } from "./ParticipantListView"
 import { pickedRow, retreatOf } from "./rows"
 import styles from "./Screen.module.css"
 import { ScreenPane } from "./ScreenPane"
-import { BELOW_PARTICIPANTS, PROJECTS, SIDE } from "./slots"
+import { BELOW_PARTICIPANTS, PICKED_DETAIL, PROJECTS, SIDE } from "./slots"
 import { UserPanel } from "./UserPanel"
 import { WorkroomView } from "./WorkroomView"
 
@@ -38,10 +39,7 @@ export function ControlCenterScreen() {
   const pickedOf = (kind: string) => (chosen?.kind === kind ? chosen.id : undefined)
   const picked = pickedRow(rows, pickedOf(WORKROOM_KIND))
   const visitor = visitors.find(v => v.participant.id === pickedOf(PARTICIPANT_KIND))
-  // ほかの種類は、そのレコードが在るときだけ（無くなれば選んでいないのと同じ）
-  const other = chosen && chosen.kind !== WORKROOM_KIND && chosen.kind !== PARTICIPANT_KIND ? chosen : undefined
-  const otherRecord = useRecord((other?.kind ?? WORKROOM_KIND) as Parameters<typeof useRecord>[0], other?.id ?? "")
-  const detail = other && otherRecord ? other : undefined
+  const detail = useOtherPicked(chosen)
   // 最初の表示では滑り込ませず、画面を替えたあとから滑り込ませる
   const [switched, setSwitched] = useState(false)
   const show = (to: ContentArea) => {
@@ -74,4 +72,13 @@ export function ControlCenterScreen() {
       </div>
     </div>
   )
+}
+
+// ワークルーム・ビジターのほかの種類を選んでいれば、その物。そのレコードが在り、その種類を名乗るウィジェットがスロット picked-detail に在るときだけ（無ければ選んでいないのと同じ）
+function useOtherPicked(chosen: Picked | undefined): Picked | undefined {
+  const other = chosen && chosen.kind !== WORKROOM_KIND && chosen.kind !== PARTICIPANT_KIND ? chosen : undefined
+  // 種類が無いときも、フックを同じ順で呼ぶため、在る種類（ワークルーム）を空の id で問う
+  const record = useRecord((other?.kind ?? WORKROOM_KIND) as Parameters<typeof useRecord>[0], other?.id ?? "")
+  const view = useKindView(PICKED_DETAIL, other?.kind)
+  return other && record && view ? other : undefined
 }

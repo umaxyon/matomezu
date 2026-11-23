@@ -124,3 +124,24 @@ test("届いた頼みはしおりとダイアログに出し、断ると消え�
   expect(Object.keys(store.state.getState().records[PAIRING_REQUEST.id] ?? {})).toEqual([])
   expect(screen.queryByRole("button", { name: "ほかのホストからつなぐ頼みが届きました" })).toBeNull()
 })
+
+test("受け入れられても、ペアリングしたホストが届くまでは開いたまま。届いたら閉じ、その行を選び、終わった様子を消してもらう", () => {
+  const { store, asked, connect, peers } = open()
+  connect()
+  fireEvent.click(screen.getByRole("button", { name: "ホストをつなぐ" }))
+  peers([], { addr: "192.168.11.20:7240", name: "win-lan", hostId: B, phase: "accepted", code: "482913" })
+  expect(screen.getByRole("dialog", { name: "ホストをつなぐ" })).toBeTruthy()
+  asked.length = 0
+  act(() => {
+    store.actions.perform("@matomezu/network:paired-host-add", {
+      hostId: B,
+      nameAtPairing: "win-lan",
+      userNameAtPairing: "taro",
+      addr: "",
+    })
+  })
+  expect(screen.queryByRole("dialog", { name: "ホストをつなぐ" })).toBeNull()
+  expect(asked).toEqual([{ kind: "end-pairing" }])
+  const panel = document.querySelector("[data-workroom-panel]") as HTMLElement
+  expect(within(panel).getByRole("button", { name: "ペアリングを解く" })).toBeTruthy()
+})

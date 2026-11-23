@@ -5,7 +5,7 @@
 import { type FormEvent, useEffect, useId, useState } from "react"
 import { type DialogProps, useMessages, useRecords, useSetPluginStateById } from "../../plugin-api/ui"
 import { ActionButton, Dialog, type FoundHost, type HostPairing, useAskHosts, useHostPeers } from "../base/ui"
-import { PICKED_STATE } from "./control-center-ids"
+import { CONTROL_CENTER_SCREEN, PICKED_STATE } from "./control-center-ids"
 import { kit } from "./kit"
 import styles from "./Pairing.module.css"
 import { PAIRED_HOST } from "./pairing"
@@ -14,7 +14,7 @@ export function PairingDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
   const pairing = useHostPeers()?.pairing
   const ask = useAskHosts()
-  // どの閉じ方でも（×・Esc・外側・受け入れられたあと）、頼みを取り下げ、終わった様子を消す（Esc はキーバインドが閉じるので、ダイアログが消えるときに頼む）
+  // どの閉じ方でも（×・Esc・外側・受け入れられたあと）、頼みを取り下げ、終わった様子を消す（Esc はキーバインドが閉じるので、ダイアログが消えるときに頼む）。頼んでいないときも送る（常駐は何もしない）。［つなぐ］の様子が届く前に閉じても漏らさないため
   useEffect(
     () => () => {
       void ask({ kind: "end-pairing" }).catch(() => {})
@@ -112,7 +112,8 @@ function Asked({ pairing, onClose }: { pairing: HostPairing; onClose: () => void
   const accepted = pairing.phase === "accepted" && paired !== undefined
   useEffect(() => {
     if (!accepted || !paired) return
-    setById(PICKED_STATE, { kind: PAIRED_HOST.id, id: paired.id })
+    // ダイアログはスクリーンの外に描くので、コントロールセンターのスクリーンを名指す
+    setById(PICKED_STATE, { kind: PAIRED_HOST.id, id: paired.id }, { screenDef: CONTROL_CENTER_SCREEN })
     onClose()
   }, [accepted, paired, setById, onClose])
   const name = pairing.name || pairing.addr

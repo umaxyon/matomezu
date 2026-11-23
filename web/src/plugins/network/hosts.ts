@@ -1,25 +1,21 @@
 // ほかのホストの行の中身: ペアリングしたホストのレコードに、常駐だけが持つ様子（つながっているか・今の名前など）をホスト id で重ねる
 import type { PairedHost } from "./pairing"
 
-// 常駐だけが持つ様子のうち、行に使う物（base の Live）
-interface Live {
+// 常駐だけが持つ様子（base の PeerLive）の、行に使う所。形は呼ぶ側が決める
+interface LiveName {
   hostId: string
-  connected: boolean
-  lastSeen?: string
-  addr?: string
   name?: string
   userName?: string
-  keyMismatch?: boolean
 }
 
-export interface HostRow {
+export interface HostRow<L extends LiveName = LiveName> {
   record: PairedHost
-  live: Live | undefined
+  live: L | undefined
   name: string // 今のホスト名（つながったときに聞いた物。無ければペアリングしたときの名前）
   userName: string
 }
 
-export const hostRows = (records: readonly PairedHost[], live: readonly Live[]): HostRow[] =>
+export const hostRows = <L extends LiveName>(records: readonly PairedHost[], live: readonly L[]): HostRow<L>[] =>
   records.map(record => {
     const l = live.find(x => x.hostId === record.hostId)
     return {
