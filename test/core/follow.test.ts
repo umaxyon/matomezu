@@ -273,3 +273,82 @@ test("応じる側が、アクションの前と同じ値を作り直して返�
     records: [{ subject: CARD, id: "c1", record: { id: "c1", label: "b" } }],
   })
 })
+
+// バックヤードの中に行う事: カードを消したら、自分のバックヤードの、そのカードの workKey のブックを完全に消す
+const YARD_DEF = "@ex/tally:yard"
+const PURGE_CARD: FollowStepDef = {
+  watches: CARD as never,
+  writes: [],
+  backyards: [YARD_DEF],
+  follow: c =>
+    c.after === "removed"
+      ? { backyard: [{ backyard: YARD_DEF, key: { subject: CARD, id: c.id }, does: "purge" }] }
+      : {},
+}
+const yardPlugins = (step: FollowStepDef) => plugins({ backyards: [{ id: YARD_DEF }], followSteps: [step] } as never)
+
+test("フォローステップが書くバックヤードは、自分のプラグインが定義した物だけ（台帳アセンブルで E320）", () => {
+  const others = plugins(
+    { followSteps: [{ ...PURGE_CARD, backyards: ["@ex/echo:yard"] }] } as never,
+    {
+      backyards: [{ id: "@ex/echo:yard" }],
+    } as never,
+  )
+  expect(() => assemble(others, CENTER)).toThrow(/E320/)
+  expect(() => assemble(yardPlugins({ ...PURGE_CARD, backyards: ["@ex/card:none"] }), CENTER)).toThrow(/E320/)
+})
+
+test("宣言に無いバックヤードの中に行う事を返したら、きっかけのアクションごと断る", () => {
+  const step: FollowStepDef = { ...PURGE_CARD, backyards: [] }
+  const c = assemble(plugins({ backyards: [{ id: YARD_DEF }], followSteps: [step] } as never), CENTER).catalog.core
+  expect(performIn(world(), "@ex/card:card-remove", {}, { record: "c1" }, { ...ctx, catalog: c, ...at })).toMatchObject(
+    {
+      ok: false,
+      reason: "refused",
+    },
+  )
+})
+
+test("バックヤードの行は在るが、ブックの行を持っていなければ needs-rows でそのブックを名指す。ブックが無ければ何もしない", () => {
+  const c = assemble(yardPlugins(PURGE_CARD), CENTER).catalog.core
+  const yardId = `library-backyard-${YARD_DEF}`
+  const w = (lineup: unknown[]): World => ({
+    ...world(),
+    folders: { [yardId]: { folderRole: "backyard", id: yardId, backyard: YARD_DEF, lineup } as never },
+  })
+  const remove = (x: World) => performIn(x, "@ex/card:card-remove", {}, { record: "c1" }, { ...ctx, catalog: c, ...at })
+  expect(remove(w([{ kind: "book", id: "b1", workKey: { subject: CARD, id: "c1" } }]))).toEqual({
+    ok: false,
+    reason: "needs-rows",
+    books: ["b1"],
+  })
+  expect(remove(w([]))).toMatchObject({ ok: true })
+})
+
+test("見る種類をメソッドで指すと、そのメソッドを持つ種類の全部を見る。答える種類が無くても warning を出さない", () => {
+  const seen: string[] = []
+  const step: FollowStepDef = {
+    watches: { having: "completesWork" },
+    writes: [],
+    follow: c => {
+      seen.push(c.subject)
+      return {}
+    },
+  }
+  const none = assemble(plugins({ followSteps: [step] } as never), CENTER).catalog.core
+  expect(none.warnings.filter(x => x.code === "W034")).toEqual([])
+  const having = assemble(
+    [
+      ...plugins({ followSteps: [step] } as never).filter(p => (p.id as string) !== "@ex/card"),
+      defineBuiltin({
+        id: "@ex/card",
+        subjects: [subject(CARD, { completesWork: () => false })],
+        actions: [RENAME, REMOVE, PEEK],
+        controlCenters: [{ id: CENTER, actions: [], subjects: "all" }],
+      } as never),
+    ],
+    CENTER,
+  ).catalog.core
+  performIn(world(), "@ex/card:card-rename", { label: "b" }, { record: "c1" }, { ...ctx, catalog: having, ...at })
+  expect(seen).toEqual([CARD])
+})
