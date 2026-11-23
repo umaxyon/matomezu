@@ -28,5 +28,14 @@ export const PARTICIPANT_DIALOG_VIEWS = {
 
 export { AdminCrown, CrownIcon } from "./AdminCrown"
 export { BirdFaceView } from "./BirdFaceView"
-export { useOwnBookPages, useVisitorRows, useWorkroomActions, useWorkroomRows, type WorkroomActions } from "./hooks"
+export {
+  useOwnBookPages,
+  useVisitorRows,
+  useWorkerBook,
+  useWorkroomActions,
+  useWorkroomRows,
+  useWorkroomWorkerBook,
+  type WorkroomActions,
+} from "./hooks"
 export { VisitorIcon } from "./VisitorIcon"
+export { WorkerBookPages } from "./WorkerBookPages"

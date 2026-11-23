@@ -108,6 +108,7 @@ export {
   MY_WORKDESK,
   minSize,
   NEST_PADDING,
+  NO_WORKER_BOOK,
   newClash,
   nextItemId,
   PAGE_PAPER_COLOR,

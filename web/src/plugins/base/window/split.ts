@@ -107,6 +107,14 @@ export function planOpen(
   return { screens, leaving }
 }
 
+// ブックスクリーンを「分割で開く」ときの入れ方: 分けていなければ起点の下。分けていれば、起点を替える（keepHere が false）か、
+// 起点を残してもう片方の段を替える（keepHere が true。起点が上なら下、下なら上）。index は起点の並びの中の位置
+export function bookSplitWay(inSplit: boolean, index: number, keepHere: boolean): "after" | "before" | "in-place" {
+  if (!inSplit) return "after"
+  if (!keepHere) return "in-place"
+  return index > 0 ? "before" : "after"
+}
+
 // 分けた並びの index 番目（上から）を、開いたスクリーン added に替える（そこにあった物は外れる）
 export function planAt(split: readonly string[], index: number, added: string): SplitPlan {
   const was = split[index]

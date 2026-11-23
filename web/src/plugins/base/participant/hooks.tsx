@@ -1,11 +1,16 @@
 // 参加者・ワークルームのレコードと、最後に呼ばれた時刻・モデルとブランチを読むフック
 import { useCallback, useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { backyardBookOf, rowsWithin } from "../../../core/entries"
+import type { WorkKey } from "../../../core/folders"
+import { readerOf, sourceOf } from "../../../core/record-source"
+import type { Records } from "../../../core/records"
 import { isParticipantAlive } from "../../../core/settings"
 import type { ParticipantLive } from "../../../store/state"
 import { useMatomezuState } from "../../../ui/store-context"
 import { useActions, useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
+import { TICKETS_HISTORY } from "../library/backyards"
 import { refusalMessage } from "../utils/refusal"
 import {
   ADMIN_MARK,
@@ -20,6 +25,7 @@ import {
 import { workroomActivityOf } from "./activity"
 import { adminRoomOf, type VisitorRow, visitorRows, type WorkroomRow, workroomRows } from "./rows"
 import { ownBookPagesOf } from "./workdesks"
+import { type FoundWorkerBook, NO_WORKER_BOOK, workerBookOf, workerBookReadsOf } from "./worker-book"
 
 // 参加者のレコード（種類 PARTICIPANT。要求が届いた順）と、ワークルームのレコード（作った順）
 const sorted = <T extends { id: string }>(records: Readonly<Record<string, unknown>> | undefined, key: keyof T) =>
@@ -127,4 +133,24 @@ export function useWorkroomActions(): WorkroomActions {
 // ワークルーム room 自身のワーカーブックのページの数（ワークルームを消す・引き継がずに入り直すと消える。ブックが無ければ 0）
 export function useOwnBookPages(room: string): number {
   return useMatomezuState(s => ownBookPagesOf(s.folders, room))
+}
+
+// workKey が key のワーカーブック（tickets-history の中の実のブック）と、その中のページ（まだ無ければ NO_WORKER_BOOK）。ページが足されると描き直す
+export function useWorkerBook(key: WorkKey): FoundWorkerBook | typeof NO_WORKER_BOOK {
+  const book = useMatomezuState(s => backyardBookOf(s, TICKETS_HISTORY.id, key))
+  const pages = useMatomezuState(useShallow(s => (book === undefined ? [] : rowsWithin(s.folders, book).pages)))
+  return useMemo(() => (book === undefined ? NO_WORKER_BOOK : { book, pages }), [book, pages])
+}
+
+// ワークルーム room のワーカーブック（今の作業の物。作業が無いか、ワーカーブックを持てない作業なら、ワークルーム自身の物）
+export function useWorkroomWorkerBook(room: string): FoundWorkerBook | typeof NO_WORKER_BOOK {
+  const catalog = useCoreCatalog()
+  const key = useMatomezuState(
+    useShallow(s => {
+      const read = readerOf(catalog, sourceOf(s.records as Records), workerBookReadsOf(catalog))
+      const { workKey } = workerBookOf(catalog, read, room)
+      return [workKey.subject, workKey.id] as const
+    }),
+  )
+  return useWorkerBook(useMemo(() => ({ subject: key[0], id: key[1] }), [key[0], key[1]]))
 }

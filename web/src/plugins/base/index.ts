@@ -341,12 +341,13 @@ export {
 export { itemMinimapMarks, type MinimapMark } from "./minimap"
 export type { PageProblem } from "./pages"
 export { addPageIn, type PageFieldsWay, pageFieldsWay } from "./pages"
-export type { ParticipantCategory, VisitorRow, WorkroomRow, WorkroomState } from "./participant"
+export type { FoundWorkerBook, ParticipantCategory, VisitorRow, WorkroomRow, WorkroomState } from "./participant"
 export {
   adminWorkroom,
   isAdminActor,
   JOINED_MESSAGE,
   myWorkdeskIn,
+  NO_WORKER_BOOK,
   participantCategory,
   READS_ADMIN,
   READS_WORKROOM_KEYS,

@@ -10,6 +10,7 @@
   list-style: none;
 }
 .row {
+  position: relative;
   border-bottom: 1px solid var(--skin-border);
 }
 .row:last-child {
@@ -19,6 +20,7 @@
   background: var(--skin-accent-subtle);
   box-shadow: inset 2px 0 0 var(--skin-accent);
 }
+.face,
 .pick {
   display: flex;
   align-items: center;
@@ -33,12 +35,28 @@
   text-align: left;
   cursor: pointer;
 }
+/* ワークルームの行: 選ぶボタン（cover）を行の全体に敷き、見た目（face）を上に重ねる。face の中の押せるボタンだけが押しを受ける */
+.cover {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.face {
+  position: relative;
+  pointer-events: none;
+}
+.face button:not(:disabled) {
+  pointer-events: auto;
+}
 .lead {
   display: flex;
   flex: none;
 }
 /* 管理者の行は、王冠が上にはみ出さないよう、鳥を上寄せで下げる */
-.row[data-admin="true"] .pick {
+.row[data-admin="true"] .face {
   align-items: flex-start;
   min-height: var(--admin-row-height);
 }

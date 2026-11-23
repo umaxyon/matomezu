@@ -19,6 +19,7 @@ export interface TicketScreenState {
   body: boolean
   maximized: boolean
   question?: string
+  workBook?: boolean // 作業履歴（ワーカーブックのページの一覧）を右に出しているか。出すと本文は閉じる（逆も）
 }
 
 export const TICKET_SCREEN_STATE = kit.definePluginStateOf<TicketScreenState>()({

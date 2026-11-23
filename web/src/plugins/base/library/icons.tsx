@@ -19,7 +19,7 @@ const BINDER = icon(
     <path d="M9 4v16M12.5 9h3.5M12.5 13h3.5" />
   </>,
 )
-const PAGE = icon(
+export const PAGE = icon(
   <>
     <path d="M7 3h7l4 4v14H7z" />
     <path d="M14 3v4h4" />

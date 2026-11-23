@@ -3,8 +3,9 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { sameData } from "../../../core/same"
-import { currentScreen, type WindowState } from "../../../core/window"
+import { currentScreen, screenOfStage, type WindowState } from "../../../core/window"
 import { type Actions, SCREEN_REFUSED } from "../../../store/actions"
+import { NO_STAGE } from "../../../store/dialogs"
 import type { MatomezuState } from "../../../store/state"
 import { useUpdatePluginState } from "../../../ui/plugin-state-hooks"
 import { useScreenContext } from "../../../ui/screen-context"
@@ -74,6 +75,9 @@ export interface ScreenSplit {
   open<P>(opening: Opening<P>, how: "after" | "before" | "in-place", max: number): void
   // 分けた並びの index 番目（上から）を、開いたスクリーンに替える（分けていなければ、1 枚で開く）
   openAt<P>(opening: Opening<P>, index: number): void
+  // ブック book（page を名指せばそのページ）を窓に出し（showBookStage）、出したブックスクリーンを、分けられるなら起点の後ろ・前・代わりに入れる（max 枚まで）。
+  // そのブックスクリーンがもう並びに在れば、その段をカレントにして光らせる。窓に無いブックなら何もせず false
+  showBook(book: string, page: string | undefined, how: "after" | "before" | "in-place", max: number): boolean
   count: number // 分けて並べている枚数（分けていなければ 0）
   defs: readonly string[] // 分けて並べているスクリーンの定義の id（上から。分けていなければ空）
   close(): void // 起点のスクリーンを閉じる（並びが 1 枚になれば、並びから外していた物を上に戻す）
@@ -126,6 +130,21 @@ export function useScreenSplit(): ScreenSplit {
     open: ({ def, props }, how, max) => {
       const added = actions.openScreenId(def.id, props)
       if (added !== SCREEN_REFUSED && tallNow()) apply(planOpen(split, here.id, added, how, max))
+    },
+    showBook: (book, page, how, max) => {
+      const stage = actions.showBookStage(book, page)
+      if (stage === NO_STAGE) return false
+      // 出すときに上限を超えたブックスクリーンが閉じることがあるので、並びは出したあとの窓から読み直す
+      const win = read().window
+      const added = screenOfStage(win, stage)?.id
+      const now = splitIn(win)
+      if (added === undefined || !tallNow()) return true
+      if (now.includes(added)) {
+        flash(was => ({ screen: added, n: (was?.n ?? 0) + 1 }))
+        return true
+      }
+      apply(planOpen(now, here.id, added, how, max))
+      return true
     },
     close: () => closeOne(here.id),
     closeOf: (def, props) => {

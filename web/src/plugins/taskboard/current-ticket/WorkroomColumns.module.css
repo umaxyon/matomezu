@@ -79,3 +79,34 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 参加者の行の、本を頭に付けた番号の行（押すとワーカーブックを開く。ページが無ければ本を薄くして押せない） */
+.bookLine {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bookLine:not(:disabled):hover .line {
+  color: var(--skin-accent);
+  text-decoration: underline;
+}
+.bookIcon {
+  display: flex;
+  flex: none;
+  color: var(--skin-accent);
+}
+.bookLine:disabled {
+  cursor: inherit;
+}
+.bookLine:disabled .bookIcon {
+  color: var(--skin-text-muted);
+  opacity: 0.45;
+}

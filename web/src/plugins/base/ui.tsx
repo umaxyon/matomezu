@@ -167,9 +167,12 @@ export {
   CrownIcon,
   useOwnBookPages,
   useVisitorRows,
+  useWorkerBook,
   useWorkroomActions,
   useWorkroomRows,
+  useWorkroomWorkerBook,
   VisitorIcon,
+  WorkerBookPages,
   type WorkroomActions,
 } from "./participant/ui"
 export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-preview/ui"
@@ -240,11 +243,15 @@ export { useUpdateStatus } from "./update/ui"
 export * from "./utils/ui"
 export {
   BOOK_SCREEN,
+  type BookOpenChoiceOptions,
+  type BookShower,
   SCREEN_FOOTER,
   type ScreenSplit,
+  useBookOpenChoice,
   useControlCenterMaximize,
   useControlCenterMaximized,
   useScreenSplit,
+  useShowBook,
   useShowControlCenter,
 } from "./window/ui"
 export { defineWorkspace, STAGE_BASE_SLOTS } from "./workspace/ui"

@@ -26,6 +26,7 @@ export const TICKET_SCREEN_MESSAGES = defineMessages({
   "Edit the name": { en: "Edit the name", ja: "名前を編集" },
   "Ticket name": { en: "Ticket name", ja: "チケットの名前" },
   Body: { en: "Body", ja: "本文" },
+  "Work history": { en: "Work history", ja: "作業履歴" },
   "Body (markdown)": { en: "Body (markdown)", ja: "本文（マークダウン）" },
   "No body": { en: "(No body)", ja: "（本文なし）" },
   "How to show the body": { en: "How to show the body", ja: "本文の見せ方" },

@@ -8,4 +8,6 @@ export const WINDOW_MESSAGES = defineMessages({
   "Close screen": { en: "Close screen", ja: "スクリーンを閉じる" },
   "Close the last opened screen": { en: "Close the last opened screen", ja: "最後に開いたスクリーンを閉じる" },
   "Control center": { en: "Control center", ja: "コントロールセンター" },
+  "Open book": { en: "Open", ja: "開く" },
+  "Open book split": { en: "Open split", ja: "分割で開く" },
 })

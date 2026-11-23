@@ -82,7 +82,7 @@ export const VISITOR_JOINED_MESSAGE = kit.message("Joined matomezu as a visitor 
 
 export { myWorkdeskIn } from "./my-workdesk"
 export { SESSION_RENAME, workTitleIn } from "./work-title"
-export { WORKER_BOOK } from "./worker-book"
+export { type FoundWorkerBook, NO_WORKER_BOOK, WORKER_BOOK } from "./worker-book"
 export { FOLLOW_WORK_ENDED, FOLLOW_WORKROOM_GONE, WORK_SUBJECTS_CHECK } from "./worker-book-follow"
 export { WORKER_PAGE_ADD } from "./worker-page-add"
 

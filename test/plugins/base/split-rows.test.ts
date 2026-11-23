@@ -2,6 +2,7 @@
 import { expect, test } from "bun:test"
 import {
   behindOf,
+  bookSplitWay,
   planAt,
   planClose,
   planExpand,
@@ -127,4 +128,22 @@ test("ステージを並べるスクリーンが並びに居るとき: 閉じる
   applySplit(store.actions, read, planExpand([book, ticket], ticket))
   expect(read().window.screens.some(s => s.id === book)).toBe(true)
   expect(read().window.arrangement).toBe("@matomezu/base:one-screen")
+})
+
+test("ブックスクリーンを分割で開く入れ方: 分けていなければ下。分けていれば、起点を替えるか、起点を残してもう片方の段を替える", () => {
+  expect(bookSplitWay(false, -1, false)).toBe("after")
+  expect(bookSplitWay(false, -1, true)).toBe("after")
+  expect(bookSplitWay(true, 0, false)).toBe("in-place")
+  expect(bookSplitWay(true, 1, false)).toBe("in-place")
+  // 起点を残す（チケットスクリーン）: 上からなら下の段、下からなら上の段に入り、2 段のまま
+  expect(bookSplitWay(true, 0, true)).toBe("after")
+  expect(bookSplitWay(true, 1, true)).toBe("before")
+  expect(planOpen(["t1", "t2"], "t1", "b", bookSplitWay(true, 0, true), 2)).toEqual({
+    screens: ["t1", "b"],
+    leaving: ["t2"],
+  })
+  expect(planOpen(["t1", "t2"], "t2", "b", bookSplitWay(true, 1, true), 2)).toEqual({
+    screens: ["b", "t2"],
+    leaving: ["t1"],
+  })
 })

@@ -1,5 +1,6 @@
 // 左の列のワークルーム/参加者の一覧。管理者の行は高く、頭に王冠。空室の行は空の丸と（空室）、準備中は鳥を薄くして（準備中）。
-// 下の 1 行は、参加済みではスロット workroom-row-line に置かれたウィジェットが出す（今のタスクなど）。
+// 名前の下は、参加済みではスロット workroom-row-line に置かれたウィジェットが出す（今のタスクなど）。行を選ぶボタンは行の全体に敷き、
+// その上に見た目を重ねる（スロットの物が自分のボタンを持てるように。見た目のうちボタンだけが押しを受け、ほかの所の押しは下の選ぶボタンへ通す）。
 // ワークルームの下に、ビジター（ワークルームを持たない、読むだけの参加者）の節を出す（いなければ節ごと出さない）。ワークルームとビジターは、どちらか一方だけを選ぶ
 import { useState } from "react"
 import { Slot, useMessages, usePluginState, useSetPluginState } from "../../plugin-api/ui"
@@ -56,7 +57,13 @@ export function ParticipantListView() {
               data-admin={row.admin}
               data-workroom={row.room.id}
             >
-              <button type="button" className={styles.pick} onClick={() => pick(row.room.id)}>
+              <button
+                type="button"
+                className={styles.cover}
+                aria-label={row.room.name}
+                onClick={() => pick(row.room.id)}
+              />
+              <div className={styles.face}>
                 <span className={styles.lead}>
                   <Bird row={row} />
                 </span>
@@ -67,7 +74,7 @@ export function ParticipantListView() {
                     <Slot name={WORKROOM_ROW_LINE} props={{ workroom: row.room.id, admin: row.admin }} />
                   ) : null}
                 </span>
-              </button>
+              </div>
             </li>
           )
         })}

@@ -1,9 +1,9 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
 // 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
-import { type CSSProperties, type MouseEvent, useEffect, useId, useRef, useState } from "react"
+import { type CSSProperties, type MouseEvent, type ReactNode, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { type Naming, namingOf, titleOf } from "../../../core/entries"
+import { type Naming, namingOf, rowsWithin, titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
 import type { MatomezuState } from "../../../store/state"
 import { useCommand } from "../../../ui/commands"
@@ -16,6 +16,7 @@ import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import type { Workdesk } from "../participant/workdesks"
 import { SplitHandle } from "../utils/SplitHandle"
+import { useBookOpenChoice } from "../window/useBookOpenChoice"
 import {
   LIBRARY_ADD_PAGE_MENU,
   LIBRARY_BOOK_NEW,
@@ -63,7 +64,7 @@ import { TrashView } from "./TrashView"
 import { CONTENT_MIN_WIDTH, DEFAULT_TREE_WIDTH, TREE_MIN_WIDTH, treeWidthAt } from "./tree-width"
 import { UnreadableView } from "./UnreadableView"
 import { type LibraryDrag, useLibraryDrag } from "./useLibraryDrag"
-import { createdIn, deskTitleOf, isDeskRow } from "./workdesk-rows"
+import { createdIn, deskPlaceOf, deskTitleOf, GONE, isDeskRow } from "./workdesk-rows"
 
 // 一番上に並ぶフォルダの行（書庫ホームとゴミ箱と、設定がオンなら読めない物のフォルダ。名前は画面が付ける）
 const topRowsOf = (unreadableShown: boolean): readonly LibraryRow[] =>
@@ -377,26 +378,18 @@ export function LibraryView({ className }: { className?: string } = {}) {
                 {...pick.list}
               >
                 {rows.map(row => (
-                  <li key={row.id}>
-                    <button
-                      type="button"
-                      className={styles.entry}
-                      {...pick.row(row.id)}
-                      data-holder={opened}
-                      {...dragMarks(drag, LIBRARY_CONTENTS_SCOPE, row.id)}
-                      onDoubleClick={() => handlers.open(row)}
-                      onContextMenu={e => {
-                        setPicked(row.id)
-                        handlers.menu(e, row)
-                      }}
-                    >
-                      <RowIcon row={row} className={styles.bigIcon} />
-                      <span className={row.readable ? styles.caption : `${styles.caption} ${styles.unreadable}`}>
-                        {nameOf(row)}
-                      </span>
-                      {!row.readable && <span className={styles.note}>{t("Cannot be read")}</span>}
-                    </button>
-                  </li>
+                  <ContentEntry
+                    key={row.id}
+                    row={row}
+                    pressProps={pick.row(row.id)}
+                    holder={opened}
+                    drag={drag}
+                    onOpen={() => handlers.open(row)}
+                    onMenu={e => {
+                      setPicked(row.id)
+                      handlers.menu(e, row)
+                    }}
+                  />
                 ))}
               </ul>
             )}
@@ -422,6 +415,72 @@ const folderTitle = (s: MatomezuState, id: string, naming: Naming, desks: readon
     : titleOf(s, "folder", id, naming)) ?? NO_TITLE
 
 // ツリーの 1 行と、中を出していればその下の行
+// 右の枠の中身の 1 つ（大きなアイコンと名前）。押して選び、ダブルクリックで開く（ページの在るワーカーブックは useRowPress）
+function ContentEntry({
+  row,
+  pressProps,
+  holder,
+  drag,
+  onOpen,
+  onMenu,
+}: {
+  row: LibraryRow
+  pressProps: { onClick: () => void } & Record<string, unknown>
+  holder: string
+  drag: LibraryDrag | null
+  onOpen: () => void
+  onMenu: (e: MouseEvent) => void
+}) {
+  const t = useMessages(kit)
+  const nameOf = useNameOf()
+  const { onClick, ...marks } = pressProps
+  const press = useRowPress(row.id, onClick, onOpen)
+  return (
+    <li>
+      {press.bubble}
+      <button
+        type="button"
+        className={styles.entry}
+        {...marks}
+        data-holder={holder}
+        {...dragMarks(drag, LIBRARY_CONTENTS_SCOPE, row.id)}
+        onClick={press.onClick}
+        onDoubleClick={press.onDoubleClick}
+        onContextMenu={onMenu}
+      >
+        <RowIcon row={row} className={styles.bigIcon} />
+        <span className={row.readable ? styles.caption : `${styles.caption} ${styles.unreadable}`}>{nameOf(row)}</span>
+        {!row.readable && <span className={styles.note}>{t("Cannot be read")}</span>}
+      </button>
+    </li>
+  )
+}
+
+// 書庫の行 id がワーカーブックの行で、その実のブックにページが在れば、実のブックの id（ほかは undefined）
+function useOpenableWorkerBook(id: string): string | undefined {
+  const desks = useWorkdesks()
+  return useMatomezuState(s => {
+    if (!isDeskRow(id)) return undefined
+    const place = deskPlaceOf(desks, s.folders, id)
+    if (place === undefined || place === GONE || place.at !== "book" || place.real === undefined) return undefined
+    return rowsWithin(s.folders, place.real).pages.length > 0 ? place.real : undefined
+  })
+}
+
+// 行の押し方: ページの在るワーカーブックの行は、クリックで行を選ぶ物 click を行ってから「開く／分割で開く」、ダブルクリックで開く（open）。
+// ほかの行は、クリックで click、ダブルクリックで open
+function useRowPress(
+  id: string,
+  click: () => void,
+  open: () => void,
+): { onClick: (e: MouseEvent<HTMLElement>) => void; onDoubleClick: (() => void) | undefined; bubble: ReactNode } {
+  const book = useOpenableWorkerBook(id)
+  const choice = useBookOpenChoice({ book: book ?? "", full: open, onClick: click })
+  return book === undefined
+    ? { onClick: () => click(), onDoubleClick: open, bubble: null }
+    : { onClick: choice.onClick, onDoubleClick: undefined, bubble: choice.bubble }
+}
+
 function TreeNode({
   row,
   holder,
@@ -440,8 +499,14 @@ function TreeNode({
   // ゴミ箱の中は、ツリーに出さない
   const unfolds = unfoldable(row.id, holds)
   const open = unfolds && handlers.shown.has(row.id)
+  const press = useRowPress(
+    row.id,
+    () => (holds ? handlers.enter(row.id) : handlers.pick(row, holder)),
+    () => handlers.open(row),
+  )
   return (
     <li>
+      {press.bubble}
       <div className={styles.node} style={{ paddingLeft: depth * 14 }}>
         {unfolds ? (
           <button
@@ -467,8 +532,8 @@ function TreeNode({
           {...dragMarks(handlers.drag, LIBRARY_TREE_SCOPE, row.id)}
           aria-current={holds && row.id === handlers.opened ? "true" : undefined}
           aria-pressed={!holds && row.id === handlers.picked}
-          onClick={() => (holds ? handlers.enter(row.id) : handlers.pick(row, holder))}
-          onDoubleClick={() => handlers.open(row)}
+          onClick={press.onClick}
+          onDoubleClick={press.onDoubleClick}
           onContextMenu={e => {
             if (row.id !== TRASH_ID && row.id !== UNREADABLE_ID) handlers.menu(e, row)
           }}
