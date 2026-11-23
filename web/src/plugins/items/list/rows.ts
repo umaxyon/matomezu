@@ -29,7 +29,8 @@ export function findList(page: ItemPage, list: string): PlacedList | null {
 
 // ページのリストを next に置き換えたページ（どの深さの子の形も置き換える）
 export function withList(page: ItemPage, next: PlacedList): ItemPage {
-  return replaceShape(page, next.id, () => next) ?? page
+  const replaced = replaceShape(page, next.id, () => next)
+  return replaced === NO_ITEM ? page : replaced
 }
 
 // 行を見せる順（行の番号の並び）: チェックリストでチェック済みの行を先頭か最後に寄せる（checkedOrder。ほかの順はデータのまま。データの順は変えない）

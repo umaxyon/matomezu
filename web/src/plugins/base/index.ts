@@ -369,6 +369,7 @@ export {
   alignPadding,
   allRectsOf,
   apart,
+  CANNOT_PLACE,
   CANNOT_RESIZE,
   CHILD_AREA,
   childOrigin,

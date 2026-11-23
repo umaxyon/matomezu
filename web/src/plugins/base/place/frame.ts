@@ -5,7 +5,7 @@ import type { ShapeData } from "../../../core/def/item"
 import type { Point, Rect, Size } from "../../../core/geom"
 import { findShape, type ItemPage, NO_ITEM, type PlacedShape } from "../../../core/placed"
 import { roomOf } from "./grow"
-import { gapOf, replaceShapePushing } from "./items"
+import { CANNOT_PLACE, gapOf, replaceShapePushing } from "./items"
 import { NEST_PADDING, placedSize, rectsOf, shapeDefOf } from "./placed"
 import { GAP, inPaper, newClash, planPlace, pushFrom, tooClose } from "./push"
 
@@ -61,14 +61,14 @@ export const toData = (frame: Frame, rects: ReadonlyMap<string, Rect>): Map<stri
   new Map([...rects].map(([id, r]) => [id, { ...r, x: r.x + frame.origin.x, y: r.y + frame.origin.y }]))
 
 // 子の領域の Frame の四角 after を、親の子の位置にしたページ。put の形は、同じ id の子と置き換えるか、末尾に足す（位置は after から）。
-// 親は子に合わせて育ち、一番上の祖先でページの形を押す（replaceShapePushing）。無い親・紙に収まらないなら null
+// 親は子に合わせて育ち、一番上の祖先でページの形を押す（replaceShapePushing）。無い親・紙に収まらないなら CANNOT_PLACE
 export function commitChildren(
   catalog: CoreCatalog,
   page: ItemPage,
   frame: Frame & { parent: string },
   after: ReadonlyMap<string, Rect>,
   put: readonly PlacedShape[] = [],
-): ItemPage | null {
+): ItemPage | typeof CANNOT_PLACE {
   const at = (s: PlacedShape): PlacedShape => {
     const r = after.get(s.id)
     return r ? { ...s, x: r.x + frame.origin.x, y: r.y + frame.origin.y } : s
@@ -93,32 +93,33 @@ export function settleChildren(catalog: CoreCatalog, shape: PlacedShape): Placed
 }
 
 // 形 shape を、形 parent の子の領域に置いたページ（at は親の左上から。子の領域より左や上なら、子の領域の左上へ寄せる）。
-// 重なった子は右へ、駄目なら下へ押す（紙に置くときと同じ。縮めない）。無い親・紙に収まらないなら null
+// 重なった子は右へ、駄目なら下へ押す（紙に置くときと同じ。縮めない）。無い親・紙に収まらないなら CANNOT_PLACE
 export function placeChild(
   catalog: CoreCatalog,
   page: ItemPage,
   parent: string,
   shape: PlacedShape,
   at: Point,
-): ItemPage | null {
+): ItemPage | typeof CANNOT_PLACE {
   const frame = frameOf(catalog, page, parent)
   const size = placedSize(catalog, shape)
-  if (frame === NO_FRAME || !size) return null
+  if (frame === NO_FRAME || !size) return CANNOT_PLACE
   const rect = { x: Math.max(0, at.x - frame.origin.x), y: Math.max(0, at.y - frame.origin.y), ...size }
   const after = planPlace(frame.rects, shape.id, rect, frame.paper, undefined, gapOf(catalog, page))
-  return after && commitChildren(catalog, page, { ...frame, parent }, after, [shape])
+  if (!after) return CANNOT_PLACE
+  return commitChildren(catalog, page, { ...frame, parent }, after, [shape])
 }
 
-// 子の形を next に置き換え、近づきすぎた兄弟を親の中で押してどけたページ（縮めない）。子の領域より左や上・押せない・紙に収まらないなら null
-export function replaceChild(catalog: CoreCatalog, page: ItemPage, next: PlacedShape): ItemPage | null {
+// 子の形を next に置き換え、近づきすぎた兄弟を親の中で押してどけたページ（縮めない）。子の領域より左や上・押せない・紙に収まらないなら CANNOT_PLACE
+export function replaceChild(catalog: CoreCatalog, page: ItemPage, next: PlacedShape): ItemPage | typeof CANNOT_PLACE {
   const frame = frameAround(catalog, page, next.id)
   const size = placedSize(catalog, next)
-  if (frame === NO_FRAME || frame.parent === null || !size) return null
+  if (frame === NO_FRAME || frame.parent === null || !size) return CANNOT_PLACE
   const rect = { x: next.x - frame.origin.x, y: next.y - frame.origin.y, ...size }
-  if (!inPaper(rect, frame.paper)) return null
+  if (!inPaper(rect, frame.paper)) return CANNOT_PLACE
   const gap = gapOf(catalog, page)
   const after = pushFrom(frame.rects, next.id, rect, frame.paper, undefined, gap)
-  if (!after || newClash(frame.rects, after, gap)) return null
+  if (!after || newClash(frame.rects, after, gap)) return CANNOT_PLACE
   return commitChildren(catalog, page, { ...frame, parent: frame.parent }, after, [next])
 }
 

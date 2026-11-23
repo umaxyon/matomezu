@@ -33,6 +33,7 @@ export {
 export type { GrowFrom } from "./items"
 export {
   adaptPage,
+  CANNOT_PLACE,
   FAMILY_TITLE_CHECK,
   followConnectors,
   gapOf,

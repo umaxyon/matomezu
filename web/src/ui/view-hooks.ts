@@ -136,7 +136,8 @@ export function useShownPage(): ItemPage | typeof NO_PAGE {
       ({ ...i, props: { ...(i.props as object), ...preview.props }, ...preview.content }) as PlacedItem
     const top = page.items?.find(i => i.id === preview.item)
     if (top) return { ...page, items: (page.items ?? []).map(i => (i === top ? shown(i) : i)) }
-    return replaceShape(page, preview.item, s => shown(s) as PlacedShape) ?? page
+    const replaced = replaceShape(page, preview.item, s => shown(s) as PlacedShape)
+    return replaced === NO_ITEM ? page : replaced
   }, [page, outermost, preview])
 }
 

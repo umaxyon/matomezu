@@ -16,6 +16,7 @@ import {
   walkShapes,
 } from "../../../plugin-api"
 import {
+  CANNOT_PLACE,
   type CANNOT_RESIZE,
   childOrigin,
   commitChildren,
@@ -90,24 +91,24 @@ export function movableTogether(catalog: CoreCatalog, page: ItemPage, ids: reado
 }
 
 // ページのアイテム ids（どれも同じ Frame の形）を by だけ動かす（drag.ts。1 つなら入れ替え・向こう側へ寄せる・手前へ戻す、何個かならまとめて手前へ戻す）。
-// came はドラッグの通り道で覚えた、相手ごとの先端が来た向き（無ければ始めの位置から見た向き）。無いアイテム・収まらないなら null
+// came はドラッグの通り道で覚えた、相手ごとの先端が来た向き（無ければ始めの位置から見た向き）。無いアイテム・収まらないなら CANNOT_PLACE
 export function moveItems(
   catalog: CoreCatalog,
   page: ItemPage,
   ids: readonly string[],
   by: Point,
   came?: Came,
-): ItemPage | null {
+): ItemPage | typeof CANNOT_PLACE {
   const frame = ids[0] !== undefined ? frameAround(catalog, page, ids[0]) : NO_FRAME
-  if (frame === NO_FRAME) return null
+  if (frame === NO_FRAME) return CANNOT_PLACE
   // どれも同じ Frame の形（ページの形と子の形、親の違う子は一緒に動かさない）
-  if (!ids.every(id => frame.rects.has(id))) return null
+  if (!ids.every(id => frame.rects.has(id))) return CANNOT_PLACE
   const gap = gapOf(catalog, page)
   const after =
     ids.length === 1
       ? dropRects(frame.rects, ids[0] as string, by, came, frame.paper, gap)
       : dropManyRects(frame.rects, new Set(ids), by, frame.paper, gap)
-  if (!after) return null
+  if (!after) return CANNOT_PLACE
   // 両端の形が同じだけ動いたつなぐもの（線の手直しなど）も一緒にずらす（大きさの変わった形は、動いたとは見ない）
   const moved = new Map<string, Point>()
   for (const [id, r] of after) {
@@ -120,7 +121,7 @@ export function moveItems(
   return commitChildren(catalog, followed, { ...frame, parent: frame.parent }, after)
 }
 
-// moveItems が収まらないとき（null）、画面のドラッグを離したときの動かす量: by を紙の端まで切り詰め（clampBy）、それでも収まらなければ、
+// moveItems が収まらないとき（CANNOT_PLACE）、画面のドラッグを離したときの動かす量: by を紙の端まで切り詰め（clampBy）、それでも収まらなければ、
 // 始めの位置へ 1px ずつ（大きい方の軸で数えた歩数。400 まで）戻して、最初に収まる量（stepToward）。決まった手順なので同じ入力なら同じ結果。収まる量が無ければ null
 export function nearestMove(
   catalog: CoreCatalog,
@@ -132,10 +133,10 @@ export function nearestMove(
   const frame = ids[0] !== undefined ? frameAround(catalog, page, ids[0]) : NO_FRAME
   if (frame === NO_FRAME) return null
   const to = clampBy(frame.rects, ids, by, frame.paper)
-  return stepToward(to, { x: 0, y: 0 }, p => moveItems(catalog, page, ids, p, came) !== null)
+  return stepToward(to, { x: 0, y: 0 }, p => moveItems(catalog, page, ids, p, came) !== CANNOT_PLACE)
 }
 
-// 付け替えで形 item を、紙の上の where へ移して形 parent の中へ入れた（null はページへ出した）ページ。入れられなければ null
+// 付け替えで形 item を、紙の上の where へ移して形 parent の中へ入れた（null はページへ出した）ページ。入れられなければ CANNOT_PLACE
 // （action の item-reparent と同じ決まり。抜いて、親の子の領域の左上より左や上なら寄せて入れる）
 export function reparentedAt(
   catalog: CoreCatalog,
@@ -143,12 +144,12 @@ export function reparentedAt(
   item: string,
   parent: string | null,
   where: Point,
-): ItemPage | null {
+): ItemPage | typeof CANNOT_PLACE {
   const found = findShape(page, item)
   const out = replaceShape(page, item, () => null)
-  if (found === NO_ITEM || !out || found.parent === parent) return null
+  if (found === NO_ITEM || out === NO_ITEM || found.parent === parent) return CANNOT_PLACE
   const into = parent === null ? null : findShape(out, parent)
-  if (into === NO_ITEM) return null
+  if (into === NO_ITEM) return CANNOT_PLACE
   if (!into) return placeItem(catalog, out, { ...found.shape, ...where })
   return placeChild(catalog, out, into.shape.id, found.shape, {
     x: where.x - into.at.x,
@@ -172,7 +173,7 @@ export function nearestReparent(
     into && into !== NO_ITEM
       ? { x: into.at.x + childOrigin(catalog, into.shape).x, y: into.at.y + childOrigin(catalog, into.shape).y }
       : found.at
-  return stepToward(at, target, p => reparentedAt(catalog, page, item, parent, p) !== null)
+  return stepToward(at, target, p => reparentedAt(catalog, page, item, parent, p) !== CANNOT_PLACE)
 }
 
 // 点 from から to へ向けて 1px ずつ（大きい方の軸で数えた歩数。400 まで）寄せて、最初に fits を通す点（from から試す）
@@ -278,14 +279,14 @@ export function placeTarget(
   if (!size) return null
   const under = innermostAt(catalog, page, pointer)
   if (!under) {
-    const fits = placeItem(catalog, page, { ...shape, ...at }) !== null
+    const fits = placeItem(catalog, page, { ...shape, ...at }) !== CANNOT_PLACE
     return { parent: null, at, free: false, shown: at, fits }
   }
   if (nests(catalog, under.shape.item)) {
     const inner = { x: at.x - under.at.x, y: at.y - under.at.y }
     const origin = childOrigin(catalog, under.shape)
     const shown = { x: under.at.x + Math.max(inner.x, origin.x), y: under.at.y + Math.max(inner.y, origin.y) }
-    const fits = placeChild(catalog, page, under.shape.id, shape, inner) !== null
+    const fits = placeChild(catalog, page, under.shape.id, shape, inner) !== CANNOT_PLACE
     return { parent: under.shape.id, at: inner, free: false, shown, fits }
   }
   const spot = freeAt(catalog, page, under.parent, size)

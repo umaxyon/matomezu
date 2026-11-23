@@ -28,6 +28,7 @@ test("matomezu が出す名前", () => {
     "AnchorsArg",
     "BACKGROUND_PRINT",
     "BODY_MAX",
+    "CANNOT_PLACE",
     "CANNOT_RESIZE",
     "CHILD_AREA",
     "ColorSchema",

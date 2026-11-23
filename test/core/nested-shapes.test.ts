@@ -90,19 +90,19 @@ describe("子までたどる・探す・置き換える", () => {
   })
 
   test("深い形を置き換えると、その親たちだけを作り直す（ほかの形と線はそのまま）", () => {
-    const next = replaceShape(page, "c", s => ({ ...s, x: 9 }))!
+    const next = replaceShape(page, "c", s => ({ ...s, x: 9 })) as ItemPage
     expect(shapeOf(next, "c").at).toEqual({ x: 119, y: 72 })
     expect(next.items?.[1]).toBe(page.items?.[1])
     expect(next.items?.[2]).toBe(page.items?.[2])
   })
 
   test("null を返すと子孫ごと除く。子が無くなった親は shapes を持たない。無い id なら null", () => {
-    const next = replaceShape(page, "b", () => null)!
+    const next = replaceShape(page, "b", () => null) as ItemPage
     expect(walkShapes(next).map(s => s.shape.id)).toEqual(["a", "d", "e"])
-    const empty = replaceShape(next, "d", () => null)!
+    const empty = replaceShape(next, "d", () => null) as ItemPage
     expect(empty.items?.[0]).not.toHaveProperty("shapes")
-    expect(replaceShape(page, "z", s => s)).toBeNull()
-    expect(replaceShape(page, "l1", s => s)).toBeNull()
+    expect(replaceShape(page, "z", s => s)).toBe(NO_ITEM)
+    expect(replaceShape(page, "l1", s => s)).toBe(NO_ITEM)
   })
 })
 

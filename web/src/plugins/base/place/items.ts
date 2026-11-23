@@ -115,13 +115,16 @@ export function shapeThemeFits(catalog: CoreCatalog, type: string, item: { item:
   return theme === undefined || (typeof theme === "string" && themeFits(catalog, type, theme))
 }
 
+// 置く・置き換える・消す・どけるができない（無いアイテム・はみ出す・押した相手が収まらない）
+export const CANNOT_PLACE = "cannot"
+
 // 押したあとのページ next を、線を整えて返す（tidyPage）。ただし、紙 paper の中にあった形と新しく置いた形が、描く大きさ（placedSize）で紙からはみ出すなら null。
 // 押す計画の四角と描く大きさがずれても（子を持つ形は子より小さく描けないなど）、紙の外へは書かない。前から紙の外にある形は問わない
-function pushedPage(catalog: CoreCatalog, page: ItemPage, next: ItemPage, paper: Size): ItemPage | null {
+function pushedPage(catalog: CoreCatalog, page: ItemPage, next: ItemPage, paper: Size): ItemPage | typeof CANNOT_PLACE {
   const was = rectsOf(catalog, page)
   for (const [id, r] of rectsOf(catalog, next)) {
     const old = was.get(id)
-    if ((!old || inPaper(old, paper)) && !inPaper(r, paper)) return null
+    if ((!old || inPaper(old, paper)) && !inPaper(r, paper)) return CANNOT_PLACE
   }
   return tidyPage(catalog, next)
 }
@@ -178,11 +181,11 @@ export function unpinPage<P extends ItemPage>(catalog: CoreCatalog, page: P): P 
 }
 
 // ページにアイテムを置く（id は nextItemId で振ったもの）。重なった相手は右へ、駄目なら下へ押し、それも駄目なら押した列を縮めて右へ・下へ（push.ts の planPlace）。
-// はみ出す所・押した相手が収まらないなら null
-export function placeItem(catalog: CoreCatalog, page: ItemPage, item: PlacedShape): ItemPage | null {
+// はみ出す所・押した相手が収まらないなら CANNOT_PLACE
+export function placeItem(catalog: CoreCatalog, page: ItemPage, item: PlacedShape): ItemPage | typeof CANNOT_PLACE {
   const paper = roomOf(catalog, page)
   const size = placedSize(catalog, item)
-  if (!size) return null
+  if (!size) return CANNOT_PLACE
   const after = planPlace(
     rectsOf(catalog, page),
     item.id,
@@ -191,7 +194,8 @@ export function placeItem(catalog: CoreCatalog, page: ItemPage, item: PlacedShap
     floorsOf(catalog, page),
     gapOf(catalog, page),
   )
-  return after && pushedPage(catalog, page, { ...page, items: [...placedAt(catalog, page, after), item] }, paper)
+  if (!after) return CANNOT_PLACE
+  return pushedPage(catalog, page, { ...page, items: [...placedAt(catalog, page, after), item] }, paper)
 }
 
 // 描いている形の四角（紙の上）: 形ごとの左上と大きさに、ドラッグでずらして描く量（shift）を足したもの（大きさの分からない形は入れない）。
@@ -216,16 +220,16 @@ export function shownRects(
 }
 
 // ページのアイテムを next に置き換え、近づきすぎた相手を押してどける（push.ts）。shrink なら、押した列が紙からはみ出すとき縮めて収める。
-// 無いアイテム・id の違うもの・はみ出す・押した相手が紙に収まらないなら null
+// 無いアイテム・id の違うもの・はみ出す・押した相手が紙に収まらないなら CANNOT_PLACE
 export function replacePushing(
   catalog: CoreCatalog,
   page: ItemPage,
   next: PlacedShape,
   shrink: boolean,
-): ItemPage | null {
+): ItemPage | typeof CANNOT_PLACE {
   const paper = roomOf(catalog, page)
   const size = placedSize(catalog, next)
-  if (!size || !shapesOf(page).some(i => i.id === next.id)) return null
+  if (!size || !shapesOf(page).some(i => i.id === next.id)) return CANNOT_PLACE
   const before = rectsOf(catalog, page)
   const gap = gapOf(catalog, page)
   const after = pushFrom(
@@ -236,7 +240,7 @@ export function replacePushing(
     shrink ? floorsOf(catalog, page) : undefined,
     gap,
   )
-  if (!after || newClash(before, after, gap)) return null
+  if (!after || newClash(before, after, gap)) return CANNOT_PLACE
   const items = placedAt(catalog, page, after).map(i => (i.id === next.id ? next : i))
   return pushedPage(catalog, page, { ...page, items }, paper)
 }
@@ -255,14 +259,21 @@ export function placedAt(catalog: CoreCatalog, page: ItemPage, rects: ReadonlyMa
 }
 
 // ページのアイテム ids（形も線も、どの深さの子の形も）を消す。形は子孫ごと消え、消した形につながる線も消える（tidyPage）。
-// 無いアイテムを含むなら null
-export function removeItems(catalog: CoreCatalog, page: ItemPage, ids: readonly string[]): ItemPage | null {
+// 無いアイテムを含むなら CANNOT_PLACE
+export function removeItems(
+  catalog: CoreCatalog,
+  page: ItemPage,
+  ids: readonly string[],
+): ItemPage | typeof CANNOT_PLACE {
   const targets = new Set(ids)
   const found = (p: ItemPage, id: string) => pageItemsOf(p).some(i => i.id === id) || findShape(p, id) !== NO_ITEM
-  if (![...targets].every(id => found(page, id))) return null
+  if (![...targets].every(id => found(page, id))) return CANNOT_PLACE
   // ページのアイテムはまとめて除き、子の形は 1 つずつ除く（先に除いた祖先の子孫は、もう無い）
   let next: ItemPage = { ...page, items: pageItemsOf(page).filter(i => !targets.has(i.id)) }
-  for (const id of targets) next = replaceShape(next, id, () => null) ?? next
+  for (const id of targets) {
+    const out = replaceShape(next, id, () => null)
+    if (out !== NO_ITEM) next = out
+  }
   return tidyPage(catalog, next)
 }
 
@@ -274,23 +285,24 @@ function rootOf(page: ItemPage, id: string): string | null {
 }
 
 // ページのどの深さの形 id も f の返す形に置き換え、変えたあとの一番上の祖先の大きさで、近づきすぎたページの形を押してどける（縮めない。replacePushing）。
-// f が null を返せば子孫ごと除く（祖先は縮むだけなので押さない）。無い形・はみ出す・押した相手が紙に収まらないなら null
+// f が null を返せば子孫ごと除く（祖先は縮むだけなので押さない）。無い形・はみ出す・押した相手が紙に収まらないなら CANNOT_PLACE
 export function replaceShapePushing(
   catalog: CoreCatalog,
   page: ItemPage,
   id: string,
   f: (shape: PlacedShape) => PlacedShape | null,
-): ItemPage | null {
+): ItemPage | typeof CANNOT_PLACE {
   const root = rootOf(page, id)
-  const next = root && replaceShape(page, id, f)
-  if (!root || !next) return null
+  if (root === null) return CANNOT_PLACE
+  const next = replaceShape(page, id, f)
+  if (next === NO_ITEM) return CANNOT_PLACE
   const grown = shapesOf(next).find(s => s.id === root)
   return grown ? replacePushing(catalog, page, grown, false) : tidyPage(catalog, next)
 }
 
 // ページの形 a と b の組が、間隔の下限（gapOf。線でつないだあとなど）より近ければ、a はそのままで b の側をどける
-// （離れていた方の向きへ。押した先も押し、紙の端で詰まれば押された形を縮める）。どけられなければ null。近くなければそのまま
-export function keepApart(catalog: CoreCatalog, page: ItemPage, a: string, b: string): ItemPage | null {
+// （離れていた方の向きへ。押した先も押し、紙の端で詰まれば押された形を縮める）。どけられなければ CANNOT_PLACE。近くなければそのまま
+export function keepApart(catalog: CoreCatalog, page: ItemPage, a: string, b: string): ItemPage | typeof CANNOT_PLACE {
   const paper = roomOf(catalog, page)
   const before = rectsOf(catalog, page)
   const ra = before.get(a)
@@ -301,6 +313,6 @@ export function keepApart(catalog: CoreCatalog, page: ItemPage, a: string, b: st
   const len = axis === "x" ? "w" : "h"
   const at = ahead ? ra[axis] + ra[len] + gap(a, b) : ra[axis] - gap(a, b) - rb[len]
   const after = pushFrom(before, b, { ...rb, [axis]: at }, paper, floorsOf(catalog, page), gap)
-  if (!after || newClash(before, after, gap)) return null
+  if (!after || newClash(before, after, gap)) return CANNOT_PLACE
   return pushedPage(catalog, page, { ...page, items: placedAt(catalog, page, after) }, paper)
 }

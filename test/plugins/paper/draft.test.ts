@@ -36,7 +36,11 @@ const page = {
 } as unknown as ItemPage
 
 test("箱の中のリストのチェックリストを外す下書きは、そのリストの整えに通り、行のチェックが消える", () => {
-  const draft = replaceShape(page, "l1", s => ({ ...s, props: { ...s.props, checklist: false } }) as PlacedShape)!
+  const draft = replaceShape(
+    page,
+    "l1",
+    s => ({ ...s, props: { ...s.props, checklist: false } }) as PlacedShape,
+  ) as ItemPage
   const settled = settledDraft(CORE_CATALOG, page, draft)
   const rows = (shapeOf(settled, "l1").shape as unknown as typeof list).children
   expect(rows.map(r => "checked" in r.props)).toEqual([false, false])

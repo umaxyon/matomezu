@@ -14,6 +14,7 @@ import {
 } from "../../../plugin-api"
 import {
   allRectsOf,
+  CANNOT_PLACE,
   nextItemId,
   placeChild,
   placedSize,
@@ -50,9 +51,14 @@ const ON_PAPER = { presentations: [kit.name("paper")] }
 
 // 形 next を、ページの形なら置き換えて紙の中で押し（replacePushing。shrink なら押した列を縮める）、子の形なら置き換えて親の中で押す（縮めない。replaceChild）。
 // どちらも、子の領域より左や上に来た子は、並びを崩さずに右や下へずらす（本文が伸びたときなど。settleChildren）
-function replaceAnywhere(catalog: CoreCatalog, page: ItemPage, next: PlacedShape, shrink: boolean): ItemPage | null {
+function replaceAnywhere(
+  catalog: CoreCatalog,
+  page: ItemPage,
+  next: PlacedShape,
+  shrink: boolean,
+): ItemPage | typeof CANNOT_PLACE {
   const found = findShape(page, next.id)
-  if (found === NO_ITEM) return null
+  if (found === NO_ITEM) return CANNOT_PLACE
   const parent = found.parent
   const settled = settleChildren(catalog, next)
   return parent === null ? replacePushing(catalog, page, settled, shrink) : replaceChild(catalog, page, settled)
@@ -101,8 +107,8 @@ export const ITEM_PLACE = kit.defineAction({
         parent === null
           ? placeItem(ctx.catalog, page, { ...item, ...at })
           : placeChild(ctx.catalog, page, parent, item, at)
-      const placed = next ? findShape(next, item.id) : NO_ITEM
-      return next && placed !== NO_ITEM
+      const placed = next !== CANNOT_PLACE ? findShape(next, item.id) : NO_ITEM
+      return next !== CANNOT_PLACE && placed !== NO_ITEM
         ? { next, found: placed.shape, moved: movedShapes(ctx.catalog, page, next, new Set(), grows) }
         : null
     }
@@ -169,7 +175,8 @@ export const ITEM_MOVE = kit.defineAction({
   permissionScope: { items: "items" },
   run: (page, args, ctx) => {
     const next = moveItems(ctx.catalog, page, args.items, args.by, args.came)
-    if (!next || args.crowd === "push") return next && { next, result: {} }
+    if (next === CANNOT_PLACE) return null
+    if (args.crowd === "push") return { next, result: {} }
     const before = allRectsOf(ctx.catalog, page)
     const after = allRectsOf(ctx.catalog, next)
     const free = new Set(args.items.flatMap(id => [...subtreeOf(page, id)]))
@@ -210,7 +217,7 @@ export const ITEM_REPARENT = kit.defineAction({
     if (found === NO_ITEM || found.parent === args.parent) return null
     // 抜いたページ（線の整えはまだかけない。抜いた形につながる線を残すため）
     const out = replaceShape(page, args.item, () => null)
-    if (!out) return null
+    if (out === NO_ITEM) return null
     const shape = found.shape
     // 入れる先は抜いたあとのページで探す（自分か自分の子孫の中へは、見つからないので断る）
     const into = args.parent === null ? null : findShape(out, args.parent)
@@ -226,7 +233,7 @@ export const ITEM_REPARENT = kit.defineAction({
       const next = into
         ? placeChild(ctx.catalog, out, into.shape.id, shape, { x: where.x - origin.x, y: where.y - origin.y })
         : placeItem(ctx.catalog, out, { ...shape, ...where })
-      return next ? { next, moved: movedShapes(ctx.catalog, page, next, free, grows) } : null
+      return next !== CANNOT_PLACE ? { next, moved: movedShapes(ctx.catalog, page, next, free, grows) } : null
     }
     const tried = tryAt(args.at ?? found.at)
     if (!tried) return null
@@ -269,10 +276,10 @@ export const ITEM_UPDATE = kit.defineAction({
     const item =
       (shapeDefOf(ctx.catalog, parsed.item)?.[kit.name("settle")]?.(parsed, now) as PlacedShape | undefined) ?? parsed
     const wide = widenForCaption(ctx.catalog, page, now, item)
-    const next =
-      replaceAnywhere(ctx.catalog, page, wide, false) ??
-      (wide !== item ? replaceAnywhere(ctx.catalog, page, item, false) : null)
-    return next && { next, result: {} }
+    // 広げて置けなければ、広げずに置く
+    const widened = replaceAnywhere(ctx.catalog, page, wide, false)
+    const next = widened === CANNOT_PLACE && wide !== item ? replaceAnywhere(ctx.catalog, page, item, false) : widened
+    return next !== CANNOT_PLACE ? { next, result: {} } : null
   },
 })
 
@@ -316,7 +323,7 @@ export const ITEM_RESIZE = kit.defineAction({
     const item = resized && fitted ? { ...resized, h: fitted.h } : resized
     if (!item) return null
     const next = replaceAnywhere(ctx.catalog, page, item, true)
-    return next && { next, result: {} }
+    return next !== CANNOT_PLACE ? { next, result: {} } : null
   },
 })
 
@@ -332,6 +339,6 @@ export const ITEM_REMOVE = kit.defineAction({
   permissionScope: { items: "items" },
   run: (page, args, ctx) => {
     const next = removeItems(ctx.catalog, page, args.items)
-    return next && { next, result: {} }
+    return next !== CANNOT_PLACE ? { next, result: {} } : null
   },
 })

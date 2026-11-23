@@ -20,6 +20,7 @@ import {
   walkShapes,
 } from "../../../plugin-api"
 import {
+  CANNOT_PLACE,
   placeChild,
   placedSize,
   placeItem,
@@ -144,16 +145,18 @@ export function pasted(
   const grows = new Set(parent === null ? [] : [parent, ...ancestorsOf(page, parent)])
   // 範囲の左上を at にして貼ったページと、動いたほかの形
   const tryAt = (at: Point) => {
-    let placed: ItemPage | null = page
+    let placed: ItemPage | typeof CANNOT_PLACE = page
     for (const s of copy.shapes) {
       const to = { x: at.x + s.x - box.origin.x, y: at.y + s.y - box.origin.y }
-      if (placed === null) break
+      if (placed === CANNOT_PLACE) break
       placed =
         parent === null
           ? placeItem(catalog, placed, { ...s, ...to })
           : placeChild(catalog, placed, parent, { ...s, ...to }, to)
     }
-    if (!placed || !copy.shapes.every(s => findShape(placed, s.id) !== NO_ITEM)) return null
+    if (placed === CANNOT_PLACE) return null
+    const pasted = placed
+    if (!copy.shapes.every(s => findShape(pasted, s.id) !== NO_ITEM)) return null
     const withLines = { ...placed, items: [...pageItemsOf(placed), ...copy.connectors] }
     return { next: withLines, moved: movedShapes(catalog, page, placed, new Set(), grows) }
   }

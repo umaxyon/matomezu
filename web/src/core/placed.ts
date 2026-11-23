@@ -99,14 +99,14 @@ export const NO_ITEM = "none"
 export const findShape = (page: ItemPage, id: string): ShapeOnPage | typeof NO_ITEM =>
   walkShapes(page).find(s => s.shape.id === id) ?? NO_ITEM
 
-// id の形を f の返す形に置き換えたページ（どの深さでも。f が null を返せば子孫ごと除く）。形が無ければ null
+// id の形を f の返す形に置き換えたページ（どの深さでも。f が null を返せば子孫ごと除く）。形が無ければ NO_ITEM
 export function replaceShape(
   page: ItemPage,
   id: string,
   f: (shape: PlacedShape) => PlacedShape | null,
-): ItemPage | null {
+): ItemPage | typeof NO_ITEM {
   const items = replaceIn(pageItemsOf(page), id, f)
-  return items && { ...page, items }
+  return items ? { ...page, items } : NO_ITEM
 }
 
 // 並びの中の id の形を置き換えた並び（子の並びもたどる。子の並びが空になれば shapes を持たない）。無ければ null

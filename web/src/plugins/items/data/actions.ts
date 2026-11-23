@@ -1,7 +1,7 @@
 // データのアクション: 中身の表を丸ごと入れ替える（data-set）。見た目・文字・軸も一緒に変えられる
 import { z } from "zod"
-import { findShape, NO_ITEM, type PlacedShape } from "../../../plugin-api"
-import { contentIdMaker, replaceShapePushing, roomOf, textPatch, widenForCaption } from "../../base"
+import { findShape, type ItemPage, NO_ITEM, type PlacedShape } from "../../../plugin-api"
+import { CANNOT_PLACE, contentIdMaker, replaceShapePushing, roomOf, textPatch, widenForCaption } from "../../base"
 import { settleAxes } from "./axes"
 import {
   BAR_DIRECTIONS,
@@ -86,9 +86,22 @@ function keepsIds(now: readonly { id: string }[] | undefined, given: readonly (s
   return ids.every(id => known.has(id)) && new Set(ids).size === ids.length
 }
 
+// 形の候補 shapes を順に put で置き、最初に置けたページ（どれも置けなければ CANNOT_PLACE）
+function firstPlaced(
+  shapes: readonly PlacedShape[],
+  put: (shape: PlacedShape) => ItemPage | typeof CANNOT_PLACE,
+): ItemPage | typeof CANNOT_PLACE {
+  for (const s of shapes) {
+    const next = put(s)
+    if (next !== CANNOT_PLACE) return next
+  }
+  return CANNOT_PLACE
+}
+
 // データ item の表を、columns と rows で丸ごと入れ替える。props を書けば、見た目・文字・軸も一緒に変える（item-update と同じく書いた項目だけ。軸は列の位置で書く）。
 // 表の見た目なら、表と文字の領域が全部見える大きさ（紙の端まで）に合わせ、ほかの見た目でキャプションが変わったら、見える幅まで広げる（widenForCaption）。
 // 列が無ければ表を消す（No Data に戻す）。行のセルが列の数と型に合わない・今の表に無い id を書いた・props が無い位置を書いたか項目に合わない・データでないなら断る
+
 export const DATA_SET = kit.defineAction({
   id: "data-set",
   attach: { items: [DATA.id] },
@@ -116,10 +129,9 @@ export const DATA_SET = kit.defineAction({
       const { table: _, ...rest } = now
       const emptied = { ...rest, props }
       const shown = widenForCaption(ctx.catalog, page, now, emptied as PlacedShape)
-      const next =
-        replaceShapePushing(ctx.catalog, page, args.item, () => shown) ??
-        (shown !== emptied ? replaceShapePushing(ctx.catalog, page, args.item, () => emptied) : null)
-      return next && { next, result: { columns: [], rows: [] } }
+      const tries = [shown, ...(shown !== emptied ? [emptied as PlacedShape] : [])]
+      const next = firstPlaced(tries, s => replaceShapePushing(ctx.catalog, page, args.item, () => s))
+      return next !== CANNOT_PLACE ? { next, result: { columns: [], rows: [] } } : null
     }
     const columnIds = args.columns.map(c => c.id)
     const rowIds = args.rows.map(r => r.id)
@@ -146,15 +158,12 @@ export const DATA_SET = kit.defineAction({
     const item = { ...now, props, table: table.data }
     // 表に合わせないときは、キャプションが見える幅まで広げる（広げて置けなければ、大きさはそのまま）
     const shown = fitted ? item : widenForCaption(ctx.catalog, page, now, item as PlacedShape)
-    const next =
-      (fitted && replaceShapePushing(ctx.catalog, page, args.item, () => ({ ...item, ...fitted }))) ??
-      (shown !== item ? replaceShapePushing(ctx.catalog, page, args.item, () => shown) : null) ??
-      replaceShapePushing(ctx.catalog, page, args.item, () => item)
-    return (
-      next && {
-        next,
-        result: { columns, rows },
-      }
-    )
+    const tries = [
+      ...(fitted ? [{ ...item, ...fitted }] : []),
+      ...(shown !== item ? [shown] : []),
+      item,
+    ] as PlacedShape[]
+    const next = firstPlaced(tries, s => replaceShapePushing(ctx.catalog, page, args.item, () => s))
+    return next !== CANNOT_PLACE ? { next, result: { columns, rows } } : null
   },
 })
