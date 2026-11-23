@@ -1,5 +1,6 @@
 import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 import { browserMenuStopped } from "./helpers/browser-menu"
+import { stillBox } from "./helpers/motion"
 import { addFromTabs, openNewBookDialog } from "./helpers/new-book"
 import { openGeneral } from "./helpers/settings"
 import { lowerLibrary, splitWith } from "./helpers/split"
@@ -82,7 +83,7 @@ test("分割した右のステージを閉じると、左のステージが画�
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(1)
   await expect(page.getByRole("button", { name: "ステージを閉じる" })).toHaveCount(0)
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
-  expect(await page.getByRole("region", { name: "ステージ" }).boundingBox()).toEqual(full)
+  expect(await stillBox(page.getByRole("region", { name: "ステージ" }))).toEqual(full)
 })
 
 test("ハンドの道具ではドラッグで紙がずれ、ずらせるのは紙の周りの余白までで止まる", async ({ page }) => {

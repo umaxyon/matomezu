@@ -77,7 +77,8 @@ export function ScreensView() {
   // ブックスクリーンを閉じたら、その間はコントロールセンターの側を滑らせずに出す（閉じた物が、上から右へ出ていく）
   const lastBooks = useRef(stageScreens)
   const [instant, setInstant] = useState(false)
-  if (lastBooks.current.some(id => !stageScreens.includes(id)) && !instant) setInstant(true)
+  const bookClosed = lastBooks.current.some(id => !stageScreens.includes(id))
+  if (bookClosed && !instant) setInstant(true)
   lastBooks.current = stageScreens
   useEffect(() => {
     if (!instant) return
@@ -97,6 +98,27 @@ export function ScreensView() {
   if (gone.length > 0)
     setLeaving([...leaving, ...gone.map(screen => ({ screen, row: last.current.rows.get(screen.id) ?? null }))])
   last.current = { screens: opened, rows: new Map(plainScreens.map(id => [id, rowOf(id)])) }
+  // 窓いっぱいに見せるブックスクリーンが替わったら、新しく見せる物を、上から右から滑り込ませる（over。その間、コントロールセンターの側は動かさずに残す）。
+  // 閉じたスクリーンの後ろから出てきたときは、滑らせない
+  const wholeBook = !mixed && currentKind === "book-screen" ? book : undefined
+  const lastWhole = useRef(wholeBook)
+  const [over, setOver] = useState<string | undefined>(undefined)
+  if (wholeBook !== lastWhole.current) {
+    lastWhole.current = wholeBook
+    if (wholeBook !== undefined && !bookClosed && gone.length === 0 && over !== wholeBook) setOver(wholeBook)
+  }
+  useEffect(() => {
+    if (over === undefined) return
+    // 滑り込み終えたら、残したコントロールセンターの側を、動かさずに消す
+    const timer = setTimeout(
+      () => {
+        setOver(undefined)
+        setInstant(true)
+      },
+      reduced() ? 0 : SLIDE_MS,
+    )
+    return () => clearTimeout(timer)
+  }, [over])
   useEffect(() => {
     if (leaving.length === 0) return
     const timer = setTimeout(() => setLeaving([]), reduced() ? 0 : SLIDE_MS)
@@ -116,6 +138,7 @@ export function ScreensView() {
             footer={footer}
             currentInRow={row !== null && id === current}
             fresh={!first.current?.includes(id)}
+            over={over === id}
             inert={mixed ? row === null : currentKind !== "book-screen" || id !== book}
             onPress={() => {
               if (row !== null && id !== current) makeScreenCurrent(id)
@@ -128,6 +151,7 @@ export function ScreensView() {
         data-current={mixed ? "plain-screen" : currentKind}
         data-mixed={mixed}
         data-instant={instant}
+        data-held={over !== undefined}
         inert={!mixed && currentKind !== "plain-screen"}
       >
         <div className={styles.body}>
@@ -236,6 +260,7 @@ function BookScreen({
   footer,
   currentInRow,
   fresh,
+  over,
   inert,
   onPress,
 }: {
@@ -246,6 +271,7 @@ function BookScreen({
   footer: boolean
   currentInRow: boolean
   fresh: boolean
+  over: boolean
   inert: boolean
   onPress: () => void
 }) {
@@ -259,11 +285,15 @@ function BookScreen({
     setEntered(false)
     setWaits(true)
   }
+  // 窓いっぱいに見せ始めた物は、ほかのスクリーンの上を右から滑り込む
+  const wasOver = useRef(false)
+  if (over && !wasOver.current && entered) setEntered(false)
   const box = useRef<HTMLDivElement>(null)
   const read = useReadState()
   useSlideOutWhenClosed(box, screen, read)
   useEffect(() => {
     wasInRow.current = inRow
+    wasOver.current = over
   })
   useSlideFrames(entered, true, setEntered, waits, setWaits)
   return (
@@ -274,6 +304,7 @@ function BookScreen({
       data-row={inRow}
       data-in={entered}
       data-late={waits}
+      data-over={over}
       data-footer={footer}
       ref={box}
       style={row ? ({ "--row-index": row.index, "--row-of": row.of } as CSSProperties) : undefined}

@@ -3,6 +3,7 @@ import { SAMPLE_BOOKS } from "../../test/sample-books"
 import { pagesIn } from "../books"
 import { BOOK_SCREEN_URL, bookScreenUrl, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
 import { aiPerform } from "../helpers/ai"
+import { stillBox } from "../helpers/motion"
 import { addBox } from "../helpers/paper"
 import { openGeneral } from "../helpers/settings"
 import { storedBook, storedBooks, storedPageVersion } from "../helpers/stored"
@@ -174,7 +175,7 @@ test("線は箱より手前に描かれ、選択の道具で押すと選ばれ�
   await expect(line("l1")).toBeVisible()
   await expect(line("l1")).toContainText("申請")
   await expect(line("l1").locator("path")).toHaveCount(1) // 終点の矢印
-  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  const paper = await stillBox(page.getByRole("img", { name: "紙" }))
   const at = (x: number, y: number) => ({ x: paper.x + x, y: paper.y + y })
   // a の右の辺から b の左の辺へ、y = 132 の横の線。キャプションを避けた所を押す
   const p = at(230, 132)
