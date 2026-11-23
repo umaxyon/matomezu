@@ -3,7 +3,7 @@
 // ドラッグの間の途中の線の先と相手だけをビューに持つ
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import { type CoreCatalog, type ItemPage, NO_PAPER, type Point, type Rect } from "../../../plugin-api"
-import { useCommand, useToPaper } from "../../../plugin-api/ui"
+import { NO_POINT, useCommand, useToPaper } from "../../../plugin-api/ui"
 import { LINE_DRAW } from "./commands"
 import { portAt, targetsFrom } from "./connect"
 import type { Side } from "./route"
@@ -19,7 +19,7 @@ export interface Link {
 
 const SLOP = 3
 
-export function useLinkDrag(catalog: CoreCatalog, localOf: (e: PointerEvent<Element>) => Point | null) {
+export function useLinkDrag(catalog: CoreCatalog, localOf: (e: PointerEvent<Element>) => Point | typeof NO_POINT) {
   const draw = useCommand(LINE_DRAW.id)
   const toPaperAt = useToPaper()
   const link = useRef<Link | null>(null)
@@ -55,9 +55,9 @@ export function useLinkDrag(catalog: CoreCatalog, localOf: (e: PointerEvent<Elem
     },
     move(e: PointerEvent<Element>) {
       const l = link.current
-      const at = l?.pointer === e.pointerId ? localOf(e) : null
-      const on = at && toPaperAt(at)
-      if (!l || !on || on === NO_PAPER) return
+      const at = l?.pointer === e.pointerId ? localOf(e) : NO_POINT
+      const on = at === NO_POINT ? NO_PAPER : toPaperAt(at)
+      if (!l || on === NO_PAPER) return
       // ポインタの下の、一番手前の形（線は飛ばす）。引ける相手でなければ相手は無し
       const shape = document
         .elementsFromPoint(e.clientX, e.clientY)
@@ -73,7 +73,7 @@ export function useLinkDrag(catalog: CoreCatalog, localOf: (e: PointerEvent<Elem
       setTip(null)
       const at = localOf(e)
       const moved = Math.abs(e.clientX - l.start.x) > SLOP || Math.abs(e.clientY - l.start.y) > SLOP
-      if (drop && moved && target && at) draw.run({ from: l.from, side: l.side, to: target, at })
+      if (drop && moved && target && at !== NO_POINT) draw.run({ from: l.from, side: l.side, to: target, at })
     },
   }
 }

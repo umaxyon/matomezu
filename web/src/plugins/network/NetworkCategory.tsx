@@ -5,6 +5,7 @@ import { type UserSettingControlProps, useMessages, useSettings } from "../../pl
 import {
   ActionButton,
   NO_HOST_STATUS,
+  NO_PORT,
   SettingRow,
   TextSettingControl,
   UserSettings,
@@ -42,7 +43,7 @@ export function NetworkCategory() {
         <div className={styles.rows}>
           <SettingRow label={t("Listening at")}>
             <span className={styles.addrs}>
-              {(status.addrs ?? []).map(a => (
+              {status.addrs.map(a => (
                 <Address key={a} text={`${a}:${status.port}`} />
               ))}
             </span>
@@ -53,10 +54,12 @@ export function NetworkCategory() {
         </div>
       )}
       {status.failed === "port-in-use" && (
-        <p className={styles.note}>{t("Port {port} is used by another program", { port: status.port ?? "" })}</p>
+        <p className={styles.note}>
+          {t("Port {port} is used by another program", { port: status.port === NO_PORT ? "" : status.port })}
+        </p>
       )}
       {status.failed === "listen" && <p className={styles.note}>{t("Could not open the entrance for other hosts")}</p>}
-      {status.wsl && status.port !== undefined && <WslGuide port={status.port} />}
+      {status.wsl && status.port !== NO_PORT && <WslGuide port={status.port} />}
     </>
   )
 }

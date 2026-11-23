@@ -45,7 +45,11 @@ export type GrowRule =
 
 // 決め方 rule の種類: 利用者が選べる増やす向きの一覧（最初のものが既定）、タイプが向きを決める by-type、どのページもいつも可変ページの always、
 // 可変ページを作れない none（rule が無い）
-export const growKindOf = (rule: GrowRule | undefined): readonly GrowChoice[] | "by-type" | "always" | "none" =>
+export const growKindOf = ({
+  grow: rule,
+}: {
+  grow?: GrowRule
+}): readonly GrowChoice[] | "by-type" | "always" | "none" =>
   !rule ? "none" : "always" in rule ? "always" : "choices" in rule ? rule.choices : "by-type"
 
 // 可変ページの増やす向きの決め方（定義オブジェクトの拡張ポイントに書き足す。無ければ可変ページを作れない。ページを持つタイプだけが使う）
@@ -93,13 +97,13 @@ export function printAreaLines(
 
 // タイプ type のページを、可変ページにする・やめるを選べるか（いつも可変ページのタイプは選べない）
 export function canGrow(catalog: CoreCatalog, type: string): boolean {
-  const kind = growKindOf(pageType(catalog, type).grow)
+  const kind = growKindOf(pageType(catalog, type))
   return kind !== "none" && kind !== "always"
 }
 
 // タイプ type で利用者が選べる増やす向き（最初のものが既定）。タイプが決めるなら空
 export function growChoices(catalog: CoreCatalog, type: string): readonly GrowChoice[] {
-  const kind = growKindOf(pageType(catalog, type).grow)
+  const kind = growKindOf(pageType(catalog, type))
   return typeof kind === "string" ? [] : kind
 }
 

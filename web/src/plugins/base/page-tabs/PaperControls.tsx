@@ -25,6 +25,7 @@ import {
 } from "../pages/pages"
 import { canGrow, growChoices, withGrows } from "../place/grow"
 import { PaperFields } from "./PaperFields"
+import { NO_LINEUP } from "./useNewPage"
 
 // 増やす向きの名前
 const GROW_TITLES = {
@@ -40,6 +41,9 @@ export interface PaperValue {
   orientation: Orientation
   grows: Page["grows"]
 }
+
+// 紙の入力Form で変えた項目（変えていない項目は持たない。ページを作るなら全部）
+export type PaperPatch = { paper?: Page["paper"]; orientation?: Page["orientation"]; grows?: Page["grows"] | false }
 
 // 紙の入力Form を出さないときの値（描くと何も出ない）
 const NO_CONTROLS: ReactNode = null
@@ -61,7 +65,7 @@ function usePaperForm(
   const choices = growChoices(catalog, type)
   const chosen = value.grows === true ? undefined : value.grows // 選んでいる増やす向き
   // 変えた項目（ページを作るなら全部）
-  const patch = {
+  const patch: PaperPatch = {
     ...(!page || value.paper !== page.paper ? { paper: value.paper } : {}),
     ...(!page || value.orientation !== page.orientation ? { orientation: value.orientation } : {}),
     ...(!page || value.grows !== page.grows ? { grows: value.grows ?? false } : {}),
@@ -123,13 +127,9 @@ function usePaperForm(
 }
 
 // ページを作るダイアログの紙の入力Form: 並び lineup（ブックか、ブックの外のバインダ 1 つの並び）の所 place（紙をそろえる相手が決まる）に足す、タイプ type のページ。タイプの規定の既定から始める
-export function usePaperControls(
-  lineup: StageLineup | undefined,
-  type: string | undefined,
-  place: PaperPlace = "lineup",
-) {
+export function usePaperControls(lineup: StageLineup | typeof NO_LINEUP, type: string, place: PaperPlace = "lineup") {
   const catalog = useCatalog().core
-  const known = lineup && type !== undefined
+  const known = lineup !== NO_LINEUP
   return usePaperForm(
     type,
     null,

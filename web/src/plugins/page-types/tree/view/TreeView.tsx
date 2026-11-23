@@ -40,6 +40,7 @@ import {
 import { growOf, NO_DRAFT, NO_GROW, NO_HOLDER, pageContext, refusalMessage, settingValue } from "../../../base"
 import {
   NO_SWATCHES,
+  NO_WRITING,
   NOT_COMPOSING,
   NOT_PRESSED,
   PaperFrame,
@@ -175,7 +176,7 @@ const Tree = memo(function Tree({
   const writing = writingCaption({ stage }) && selected !== null
   // キャプションの入力Form（書いている字は TREE_DRAFT）
   const caption = useInPlaceInput(kit, TREE_DRAFT, {
-    target: selected ?? undefined,
+    target: selected ?? NO_WRITING,
     active: writing,
     keyScope: TREE_EDIT_KEY_SCOPE.id,
     commit: TREE_EDIT_COMMIT.id,

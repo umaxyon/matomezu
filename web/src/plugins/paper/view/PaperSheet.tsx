@@ -6,6 +6,7 @@ import { allowedItems, type CoreCatalog, type ItemPage, type PlacedShape } from 
 import {
   type ItemViewProps,
   NO_HOVER,
+  NO_POINT,
   type ShapeScene,
   TokenScope,
   useCoreCatalog,
@@ -38,7 +39,7 @@ export function PaperSheet({ zoom, page, column, row, paper }: PrintSheetProps) 
     busy: false,
     selectable: false,
     hover: NO_HOVER,
-    localOf: () => null,
+    localOf: () => NO_POINT,
   }
   const connectors = allowedItems(catalog, page).flatMap(c => {
     const view = ui.connectors.get(c)?.view

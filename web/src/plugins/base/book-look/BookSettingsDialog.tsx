@@ -37,12 +37,12 @@ export function BookSettingsDialog({ onClose }: DialogProps) {
   // 認可ステップが止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）
   const update = useAllowed(BOOK_UPDATE.id)
   const blocked = !update.ok && update.permission !== NO_PERMISSION && !(update.permission === LOCK.id && !locked)
-  const settings = useSettingControls({ of: "outermost", book })
+  const settings = useSettingControls({ of: "outermost", book: shownBook })
   const id = book?.id
   // バックヤードのブック（ワーカーブックなど）は鍵を出さない
   const yard = useMatomezuState(s => id !== undefined && inBackyard(s.folders, id))
   const changed = Object.keys(settings.patch).length > 0
-  const problems = usePageProblems(book ? withSettings(book, settings.patch) : undefined)
+  const problems = usePageProblems(book ? withSettings(book, settings.patch) : NO_BOOK)
   useEffect(() => {
     previewDialog(changed && id ? { outermost: id, props: settings.patch } : NO_DIALOG_PREVIEW)
   }, [changed, id, settings.patch, previewDialog])

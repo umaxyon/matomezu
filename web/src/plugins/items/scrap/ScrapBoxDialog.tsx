@@ -11,6 +11,7 @@ import {
   ColorPicker,
   Dialog,
   Form,
+  NO_COLOR,
   NO_SWATCHES,
   Problem,
   rowClass,
@@ -38,7 +39,7 @@ function Editor({ args, start, onClose }: { args: ShapeEditArgs; start: ScrapPro
   const { line, ...scrap } = value
   const swatches = useSwatches(usePageTheme(), SCRAP_LINE)
   // 枠線だけを変える（色の「なし」は項目を外す）
-  const withLine = (next: string | undefined) => setValue(next === undefined ? scrap : { ...scrap, line: next })
+  const withLine = (next: string | typeof NO_COLOR) => setValue(next === NO_COLOR ? scrap : { ...scrap, line: next })
   const [refused, setRefused] = useState<string | null>(null)
   const form = "scrap-box-edit-form"
   return (
@@ -78,12 +79,12 @@ function Editor({ args, start, onClose }: { args: ShapeEditArgs; start: ScrapPro
               <Switch
                 label={t("Border")}
                 checked={line !== NO_LINE}
-                onChange={on => withLine(on ? undefined : NO_LINE)}
+                onChange={on => withLine(on ? NO_COLOR : NO_LINE)}
               />
               {swatches !== NO_SWATCHES && line !== NO_LINE && (
                 <ColorPicker
                   label={t("Border color")}
-                  value={line}
+                  value={line ?? NO_COLOR}
                   palette={swatches.palette}
                   none={swatches.none}
                   onChange={withLine}

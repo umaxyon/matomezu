@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useActions, useCoreCatalog, useMessages } from "../../../../plugin-api/ui"
 import { refusalMessage } from "../../../base"
-import { ColorPicker, Stand, type Swatch } from "../../../base/ui"
+import { ColorPicker, NO_COLOR, Stand, type Swatch } from "../../../base/ui"
 import { kit } from "../kit"
 import styles from "./NodeColorStand.module.css"
 import { useNodeWrite } from "./useNodeWrite"
@@ -90,11 +90,11 @@ export function NodeColorStand({
         />
         <ColorPicker
           label={t("Any color")}
-          value={picked ? picked.color : color}
+          value={(picked ? picked.color : color) ?? NO_COLOR}
           palette={swatches.palette}
           none={swatches.none}
           disabled={!allowed}
-          onChange={next => setPicked({ color: next })}
+          onChange={next => setPicked({ color: next === NO_COLOR ? undefined : next })}
         />
       </div>
     </Stand>

@@ -6,6 +6,7 @@ import { withSettings } from "../../../core/book"
 import { NOT_SET } from "../../../core/def/setting"
 import type { Book, Page } from "../../../core/schema/book"
 import { NO_PAGE } from "../../../core/stage"
+import { NO_BOOK } from "../../../store/commands/def"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
@@ -14,8 +15,8 @@ import { outermostSettingDefs, ownSettings, settingDefs } from "."
 // 変えた項目（項目の id → 値。消すなら null）
 export type SettingsPatch = Readonly<Record<string, unknown>>
 
-// 項目を持つ所: ページ（変えるページ）か、ステージエントリのブック
-export type SettingsAt = { of: "page"; page: Page | null } | { of: "outermost"; book: Book | undefined }
+// 項目を持つ所: ページ（変えるページ。無ければ NO_PAGE）か、ステージエントリのブック（無ければ NO_BOOK）
+export type SettingsAt = { of: "page"; page: Page | typeof NO_PAGE } | { of: "outermost"; book: Book | typeof NO_BOOK }
 
 // only を渡せば、その id の項目だけを並べる
 export function useSettingControls(at: SettingsAt, only?: readonly string[]) {
@@ -23,21 +24,21 @@ export function useSettingControls(at: SettingsAt, only?: readonly string[]) {
   const catalog = useCatalog().core
   const ui = useUiCatalog()
   const [patch, setPatch] = useState<SettingsPatch>({})
-  const holder = at.of === "page" ? at.page : at.book
+  const holder = at.of === "page" ? (at.page === NO_PAGE ? null : at.page) : at.book === NO_BOOK ? null : at.book
   const all =
     at.of === "page"
-      ? at.page
+      ? at.page !== NO_PAGE
         ? settingDefs(catalog, at.page.type)
         : []
-      : at.book
+      : at.book !== NO_BOOK
         ? outermostSettingDefs(catalog)
         : []
   const defs = all.filter(d => !only || only.includes(d.id))
-  const draftPage = at.of === "page" && at.page ? withSettings<Page>(at.page, patch) : NO_PAGE // 変えている項目を重ねたページ
+  const draftPage = at.of === "page" && at.page !== NO_PAGE ? withSettings<Page>(at.page, patch) : NO_PAGE // 変えている項目を重ねたページ
   const controls = defs.flatMap(def => {
     const view = ui.settingViews.get(def.id)
     if (!view) return []
-    const own = ownSettings(holder ?? null)[def.id]
+    const own = ownSettings(holder)[def.id]
     const value = def.id in patch ? (patch[def.id] ?? NOT_SET) : (own ?? NOT_SET)
     const Control = view.control
     return [

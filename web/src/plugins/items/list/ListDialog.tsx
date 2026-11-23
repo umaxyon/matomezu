@@ -28,6 +28,7 @@ import {
   dividerClass,
   Form,
   inlineClass,
+  NO_COLOR,
   NO_SWATCHES,
   Problem,
   pairClass,
@@ -273,10 +274,10 @@ function ListDialog({
               <span>{t("Color")}</span>
               <ColorPicker
                 label={t("Color")}
-                value={color}
+                value={color ?? NO_COLOR}
                 palette={swatches.palette}
                 none={swatches.none}
-                onChange={setColor}
+                onChange={c => setColor(c === NO_COLOR ? undefined : c)}
               />
             </span>
           )}

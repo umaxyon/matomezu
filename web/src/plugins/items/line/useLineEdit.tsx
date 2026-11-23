@@ -4,7 +4,7 @@
 // 端を運ぶ間は、つなぎ替えられる形と今の形のほかを薄くし、ポインタの下のつなぎ替えられる形を相手として強調する。Escape で取りやめ
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import { type CoreCatalog, type ItemPage, NO_PAPER, type Point } from "../../../plugin-api"
-import { useAllowed, useCommand, usePerform, useToPaper } from "../../../plugin-api/ui"
+import { NO_POINT, useAllowed, useCommand, usePerform, useToPaper } from "../../../plugin-api/ui"
 import { LINE_UPDATE } from "./actions"
 import { LINE_RECONNECT_DROP } from "./commands"
 import { reconnectTargets } from "./connect"
@@ -40,7 +40,7 @@ export interface LineScene {
 
 const SLOP = 3 // 札は、これだけ動かすまではドラッグにしない（押して離せば線を選ぶだけ）
 
-export function useLineEdit(catalog: CoreCatalog, localOf: (e: PointerEvent<Element>) => Point | null) {
+export function useLineEdit(catalog: CoreCatalog, localOf: (e: PointerEvent<Element>) => Point | typeof NO_POINT) {
   const perform = usePerform()
   const drop = useCommand(LINE_RECONNECT_DROP.id)
   const toPaperAt = useToPaper()
@@ -75,7 +75,7 @@ export function useLineEdit(catalog: CoreCatalog, localOf: (e: PointerEvent<Elem
 
   const paperAt = (e: PointerEvent<Element>): Point | null => {
     const at = localOf(e)
-    const on = at && toPaperAt(at)
+    const on = at === NO_POINT ? NO_PAPER : toPaperAt(at)
     return on === NO_PAPER ? null : on
   }
   const begin = (e: PointerEvent<Element>, line: string, what: Kind) => {
@@ -137,7 +137,7 @@ export function useLineEdit(catalog: CoreCatalog, localOf: (e: PointerEvent<Elem
       clear()
       if (!commit || !d.moved || !line || !drawn) return
       const w = d.what
-      if (w.kind === "end" && to && at) return drop.run({ line: line.id, end: w.end, item: to, at })
+      if (w.kind === "end" && to && at !== NO_POINT) return drop.run({ line: line.id, end: w.end, item: to, at })
       const props = w.kind === "via" ? viaSettled(line, drawn, scene.rects, scene.elbow) : line.props
       const keys =
         w.kind === "via"

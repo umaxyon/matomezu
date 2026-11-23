@@ -126,6 +126,7 @@ export {
   NO_SPOT,
   NO_WORKER_BOOK,
   NOT_CALLED,
+  NOT_DRAWN,
   NOT_REQUESTED,
   newClash,
   nextItemId,

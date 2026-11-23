@@ -40,8 +40,11 @@ declare module "../../../core/catalog" {
 interface MinimapOn {
   readonly setting: SettingReader
   readonly grow: GrowSides | typeof NO_GROW
-  readonly drawn: (item: string) => readonly MinimapMark[] | undefined
+  readonly drawn: (item: string) => readonly MinimapMark[] | typeof NOT_DRAWN // 紙が描いたつなぐものの絵（描いていなければ NOT_DRAWN）
 }
+
+// 紙がつなぐものの絵を描いていないときの値（MinimapOn の drawn）
+export const NOT_DRAWN = "none"
 
 const rectMark = (r: Rect): MinimapMark => ({ kind: "rect", x: r.x, y: r.y, w: r.w, h: r.h })
 
@@ -49,7 +52,7 @@ const rectMark = (r: Rect): MinimapMark => ({ kind: "rect", x: r.x, y: r.y, w: r
 export function minimapMarks(
   catalog: CoreCatalog,
   page: ItemPage,
-  drawn: (item: string) => readonly MinimapMark[] | undefined = () => undefined,
+  drawn: (item: string) => readonly MinimapMark[] | typeof NOT_DRAWN = () => NOT_DRAWN,
 ): readonly MinimapMark[] {
   const type = pageType(catalog, page.type)
   const minimap = catalog.presentations.get(type.presentation)?.minimap
@@ -66,7 +69,7 @@ export function itemMinimapMarks(catalog: CoreCatalog, page: ItemPage, { setting
   const marks: MinimapMark[] = []
   for (const [def, list] of byConnector(catalog, page)) {
     const shown = drawn(def.id)
-    if (shown) {
+    if (shown !== NOT_DRAWN) {
       marks.push(...shown)
       continue
     }

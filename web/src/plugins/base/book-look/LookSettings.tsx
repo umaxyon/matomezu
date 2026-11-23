@@ -9,7 +9,7 @@ import { NO_PAGE } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import type { SettingControlProps } from "../../../ui/plugin"
 import { useCatalog } from "../../../ui/store-context"
-import { ColorPicker } from "../dialog-host/ColorPicker"
+import { ColorPicker, NO_COLOR } from "../dialog-host/ColorPicker"
 import { controlClass, Field, rowClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { PAGE_PAPER_COLOR, pageTokens } from "./look"
@@ -59,10 +59,10 @@ export function PaperColorSetting({ label, value, page, onChange, onReset }: Set
       <span>{label}</span>
       <ColorPicker
         label={label}
-        value={settingOr(value, undefined)}
+        value={settingOr(value, NO_COLOR)}
         palette={swatches}
         none={none}
-        onChange={hex => (hex === undefined ? onReset() : onChange(hex))}
+        onChange={hex => (hex === NO_COLOR ? onReset() : onChange(hex))}
       />
     </div>
   )

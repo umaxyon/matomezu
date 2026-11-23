@@ -9,7 +9,7 @@ import { type ReactNode, useState } from "react"
 import { type ItemProps, NO_PAGE } from "../../../plugin-api"
 import { type ItemViewProps, useMessages, usePerform, useStage } from "../../../plugin-api/ui"
 import { stagePageId } from "../../base"
-import { TextBlockView, useBodyGrips, useThemeVars } from "../../base/ui"
+import { NO_THEME, TextBlockView, useBodyGrips, useThemeVars } from "../../base/ui"
 import { areasOf } from "./areas"
 import { ChartView } from "./ChartView"
 import styles from "./DataItemView.module.css"
@@ -23,7 +23,7 @@ type DataProps = ItemProps<typeof DATA.id>
 
 export function DataItemView({ props, content, size, id }: ItemViewProps<DataProps, { readonly table?: Table }>) {
   const t = useMessages(kit)
-  const vars = useThemeVars(props.theme, DATA_TOKENS)
+  const vars = useThemeVars(props.theme ?? NO_THEME, DATA_TOKENS)
   const at = useStage()
   const page = stagePageId(at)
   const perform = usePerform()

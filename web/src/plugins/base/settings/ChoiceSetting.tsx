@@ -3,7 +3,7 @@
 import type { ReactNode } from "react"
 import { settingOr } from "../../../core/def/setting"
 import type { SettingControlProps } from "../../../ui/plugin"
-import { Choices, rowClass } from "../dialog-host/FormParts"
+import { Choices, NO_CHOICE, rowClass } from "../dialog-host/FormParts"
 
 export function ChoiceSetting<V extends string>({
   label,
@@ -20,11 +20,11 @@ export function ChoiceSetting<V extends string>({
       <span>{label}</span>
       <Choices<V>
         label={label}
-        value={settingOr(value, settingOr(inherited, undefined))}
+        value={settingOr(value, settingOr(inherited, NO_CHOICE))}
         options={options}
         clearable // 既定の無い項目は、値が無ければどれも選んでいない（選んでいる物をもう一度押しても消さない）
         onChange={v => {
-          if (v === undefined) return
+          if (v === NO_CHOICE) return
           if (v === inherited) onReset()
           else onChange(v)
         }}

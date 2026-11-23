@@ -97,13 +97,13 @@ export function useSwatches(looks: string, fill: TokenDef): Swatches | typeof NO
 const NO_VARS: CSSProperties = {}
 
 // 描くページの中の形に当てたテーマ theme の、テーマキー defs の値の CSS 変数
-// （当てていないか、ページのタイプが使えないテーマなら空。ページのテーマのまま描く。book-look/theme-types.ts）
-export function useThemeVars(theme: string | undefined, defs: readonly TokenDef[]): CSSProperties {
+// （当てていない NO_THEME か、ページのタイプが使えないテーマなら空。ページのテーマのまま描く。book-look/theme-types.ts）
+export function useThemeVars(theme: string | typeof NO_THEME, defs: readonly TokenDef[]): CSSProperties {
   const catalog = useCatalog().core
   const scope = useScope()
   const type = useMatomezuState(s => pageTypeOf(s, scope))
   return useMemo(() => {
-    if (!theme || type === undefined || !themeFits(catalog, type, theme)) return NO_VARS
+    if (theme === NO_THEME || type === undefined || !themeFits(catalog, type, theme)) return NO_VARS
     const owners = new Set(defs.map(d => splitId(d.id).owner))
     const [owner] = owners // テーマキーの持ち主（アイテムのプラグイン）は 1 つ
     return themeVars(resolveTokens(catalog, theme, defs), owners.size === 1 && owner ? owner : undefined)

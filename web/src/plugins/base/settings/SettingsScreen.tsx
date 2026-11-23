@@ -18,9 +18,10 @@ export function SettingsScreen({ initial }: { initial?: string } = {}) {
   })
   const [current, setCurrent] = useState<string | undefined>(initial)
   const shown = categories.find(s => s.id === current) ?? categories[0]
+  if (!shown) return null
   return (
-    <SideTabs tabs={categories} selected={shown?.id} onSelect={setCurrent}>
-      {shown && <shown.View />}
+    <SideTabs tabs={categories} selected={shown.id} onSelect={setCurrent}>
+      <shown.View />
     </SideTabs>
   )
 }

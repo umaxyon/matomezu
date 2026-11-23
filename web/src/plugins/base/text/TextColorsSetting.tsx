@@ -3,7 +3,7 @@ import { settingOr } from "../../../core/def/setting"
 import { useMessages } from "../../../ui/i18n"
 import type { UserSettingControlProps } from "../../../ui/plugin"
 import { useCatalog } from "../../../ui/store-context"
-import { ColorPicker } from "../dialog-host/ColorPicker"
+import { ColorPicker, NO_COLOR } from "../dialog-host/ColorPicker"
 import { rowClass, Section } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { type TextColorValues, withTextColor } from "./text-colors"
@@ -19,11 +19,11 @@ export function TextColorsSetting({ label, value, onChange, onReset }: UserSetti
           <span>{t(c.title)}</span>
           <ColorPicker
             label={t(c.title)}
-            value={own?.[c.id]}
+            value={own?.[c.id] ?? NO_COLOR}
             palette={[]}
             none={c.color}
             onChange={hex => {
-              const next = withTextColor(own, c.id, hex)
+              const next = withTextColor(own, c.id, hex === NO_COLOR ? undefined : hex)
               if (next === undefined) onReset()
               else onChange(next)
             }}

@@ -64,7 +64,7 @@ export function PageSettingsDialogView({ page: id, onClose, children, fields, dr
   // 削除できるか（ページとブックのロック・ほかの認可ステップも見る）
   const removable = useAllowed(PAGE_REMOVE.id, { page: id }).ok
   const [confirming, setConfirming] = useState(false)
-  const settings = useSettingControls({ of: "page", page })
+  const settings = useSettingControls({ of: "page", page: byId })
   const paper = usePagePaperControls(page)
   const { previewDialog } = useActions()
   const perform = usePerform()

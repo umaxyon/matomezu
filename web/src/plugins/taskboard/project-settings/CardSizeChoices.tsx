@@ -1,6 +1,6 @@
 // チケットサイズを選ぶボタンの並び: プロジェクトは L・M・S から 1 つ、レーンは左端の「継承」（プロジェクトのサイズに従う）と L・M・S から 1 つ
 import { useMessages } from "../../../plugin-api/ui"
-import { Choices, ChoiceText, InheritChoices } from "../../base/ui"
+import { Choices, ChoiceText, InheritChoices, NO_CHOICE } from "../../base/ui"
 import { kit } from "../kit"
 import { CARD_SIZES, type CardSize, INHERIT_CARD_SIZE } from "../project"
 
@@ -33,9 +33,9 @@ export function LaneCardSizeChoices({
     <InheritChoices
       label={t("Ticket size")}
       inherit={{ label: t("Inherit"), title: t("Follow the project's ticket size") }}
-      value={value === INHERIT_CARD_SIZE ? undefined : value}
+      value={value === INHERIT_CARD_SIZE ? NO_CHOICE : value}
       options={useOptions()}
-      onChange={size => onChange(size ?? INHERIT_CARD_SIZE)}
+      onChange={size => onChange(size === NO_CHOICE ? INHERIT_CARD_SIZE : size)}
     />
   )
 }

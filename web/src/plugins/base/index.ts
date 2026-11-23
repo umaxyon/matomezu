@@ -341,7 +341,7 @@ export {
   wordLinksOf,
 } from "./markdown"
 // 拡張ポイントに書き足した物の型（定義を書くプラグインが使う。追加プラグインには matomezu から出す）
-export { itemMinimapMarks, type MinimapMark } from "./minimap"
+export { itemMinimapMarks, type MinimapMark, NOT_DRAWN } from "./minimap"
 export type { PageProblem } from "./pages"
 export { addPageIn, type PageFieldsWay, pageFieldsWay } from "./pages"
 export {

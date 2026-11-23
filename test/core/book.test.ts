@@ -84,7 +84,7 @@ describe("並び", () => {
     expect(added).toMatchObject({ page: "n1", binder: "n2" })
     expect(lineupOf(added.book).map(e => e.id)).toEqual(["n2", "p1", "f1", "t1"])
     expect(findPage(added.book, "n1")).toMatchObject({ binder: { id: "n2" } })
-    const empty = addBinder(mixed, { title: "空", pageType: SLIDE }, undefined, sequence("n"))
+    const empty = addBinder(mixed, { title: "空", pageType: SLIDE }, sequence("n"))
     expect(empty.binder).toBe("n1")
     expect(lineupOf(empty.book).at(-1)).toEqual({ kind: "binder", id: "n1", title: "空", pageType: SLIDE, lineup: [] })
   })

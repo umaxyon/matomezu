@@ -38,6 +38,7 @@ import {
 } from "../../../plugin-api"
 import {
   NO_HOVER,
+  NO_POINT,
   type ShapeScene,
   TokenScope,
   useActions,
@@ -118,7 +119,7 @@ export function PaperView() {
   const [pointer, setPointer] = useState<Point | null>(null)
   const placing = stage !== NO_STAGE && stage.placing !== NO_PLACING
   const pans = stage !== NO_STAGE && stage.pans
-  const localOf = useCallback((e: PointerEvent<Element>) => ref.current && local(e, ref.current), [])
+  const localOf = useCallback((e: PointerEvent<Element>) => (ref.current ? local(e, ref.current) : NO_POINT), [])
   const catalog = useCoreCatalog()
   const shownPage = usePage()
   const page = shownPage === NO_PAGE ? undefined : shownPage
@@ -196,7 +197,7 @@ export function PaperView() {
 }
 
 // localOf はポインタの位置を、紙のビューの左上から見た位置にする
-type LocalOf = (e: PointerEvent<Element>) => Point | null
+type LocalOf = (e: PointerEvent<Element>) => Point | typeof NO_POINT
 
 function Content({
   stage,
@@ -360,8 +361,8 @@ function PageItems({
     const by = toPaperDelta(stage, screen)
     if (d.reparent) {
       const at = localOf(e)
-      const point = at && toPaperAt(at)
-      setTarget(point && point !== NO_PAPER ? dropTarget(catalog, page, d.items[0] as string, point) : null)
+      const point = at === NO_POINT ? NO_PAPER : toPaperAt(at)
+      setTarget(point !== NO_PAPER ? dropTarget(catalog, page, d.items[0] as string, point) : null)
     } else if (d.items.length === 1 && opened) {
       const id = d.items[0] as string
       d.came = trackDrag(catalog, page, id, d.prev, by, d.came)

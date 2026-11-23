@@ -3,7 +3,7 @@
 
 export { useCommand } from "../ui/commands"
 export type { ConnectorUi, ShapeMarks, ShapeScene } from "../ui/connector"
-export { KEEP_ALL, NO_HOVER, NO_TARGET, ShapeMarksProvider, useShapeMarks } from "../ui/connector"
+export { KEEP_ALL, NO_HOVER, NO_POINT, NO_TARGET, ShapeMarksProvider, useShapeMarks } from "../ui/connector"
 export { useContextMenu } from "../ui/context-menu"
 export { useMessages, useT } from "../ui/i18n"
 export type { ContextMenuEntry, LayoutDef, MenuItem, WidgetDef, WidgetPlace } from "../ui/layout"

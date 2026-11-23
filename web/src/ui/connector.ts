@@ -21,11 +21,13 @@ export interface ShapeScene {
   busy: boolean // 形を動かしているか、大きさを変えている間
   selectable: boolean // 選択の道具で、置こうとしていないとき
   hover: string | typeof NO_HOVER // ポインタを乗せている形（乗せていなければ NO_HOVER）
-  localOf(e: PointerEvent<Element>): Point | null // ポインタの位置を、ビューの左上から見た位置にする
+  localOf(e: PointerEvent<Element>): Point | typeof NO_POINT // ポインタの位置を、ビューの左上から見た位置にする（ビューを描いていなければ NO_POINT）
 }
 
 // ポインタをどの形にも乗せていないときの値
 export const NO_HOVER = "none"
+// ポインタの位置を測るビューが無いときの値
+export const NO_POINT = "none"
 // だれも薄くしないときの、残す形の値
 export const KEEP_ALL = "all"
 // 相手として強調する形が無いときの値

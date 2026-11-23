@@ -29,6 +29,8 @@ import {
   DividerField,
   Field,
   Form,
+  NO_CHOICE,
+  NO_COLOR,
   NO_SWATCHES,
   Problem,
   rowClass,
@@ -214,9 +216,9 @@ function BoxDialog({
           aside={
             <Choices<VAlign>
               label={t("Vertical position")}
-              value={vAlign}
+              value={vAlign ?? NO_CHOICE}
               options={vAligns}
-              onChange={setVAlign}
+              onChange={v => setVAlign(v === NO_CHOICE ? undefined : v)}
               clearable
             />
           }
@@ -240,10 +242,10 @@ function BoxDialog({
             <span>{t("Color")}</span>
             <ColorPicker
               label={t("Color")}
-              value={color}
+              value={color ?? NO_COLOR}
               palette={swatches.palette}
               none={swatches.none}
-              onChange={setColor}
+              onChange={c => setColor(c === NO_COLOR ? undefined : c)}
             />
           </div>
         )}

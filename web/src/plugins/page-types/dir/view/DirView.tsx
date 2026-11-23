@@ -30,6 +30,7 @@ import {
 import { growOf, NO_DRAFT, NO_GROW, pageContext } from "../../../base"
 import {
   FolderIcon,
+  NO_WRITING,
   NOT_COMPOSING,
   NOT_PRESSED,
   PaperFrame,
@@ -127,7 +128,7 @@ const Rows = memo(function Rows({
   const writing = writingName({ stage })
   const picking = usingPencil && stage.editing === KIND_PICK
   // 名前と説明の入力Form（書いている字は名前が DIR_DRAFT、説明が DIR_NOTE_DRAFT。名前と説明を同時には書かない）
-  const edit = { target: selected, keyScope: DIR_EDIT_KEY_SCOPE.id, commit: DIR_EDIT_COMMIT.id }
+  const edit = { target: selected ?? NO_WRITING, keyScope: DIR_EDIT_KEY_SCOPE.id, commit: DIR_EDIT_COMMIT.id } as const
   const nameInput = useInPlaceInput(kit, DIR_DRAFT, { ...edit, active: writing })
   const noteInput = useInPlaceInput(kit, DIR_NOTE_DRAFT, { ...edit, active: writingNote({ stage }) })
   const text = nameInput.text === NO_DRAFT ? null : nameInput.text

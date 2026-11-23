@@ -11,7 +11,7 @@ import {
 } from "../../../ui/plugin-state-hooks"
 import { kit } from "../kit"
 import { usePrinting } from "../print-preview/printing"
-import type { MinimapMark } from "./marks"
+import { type MinimapMark, NOT_DRAWN } from "./marks"
 import { type DrawnTable, MINIMAP_DRAWN } from "./states"
 
 export type { DrawnTable }
@@ -60,8 +60,8 @@ export function useDrawnMinimap(item: string, page: string, marks: readonly Mini
 // 描いている場所のステージに置いた絵の表。置き直すまで同じ表を返す
 export const useDrawnTable = (): DrawnTable => usePluginState(kit, MINIMAP_DRAWN)
 
-// 表 table の、つなぐもの item がページ page に描いた絵（無ければ undefined）
-export function drawnOn(table: DrawnTable, item: string, page: string): readonly MinimapMark[] | undefined {
+// 表 table の、つなぐもの item がページ page に描いた絵（無ければ NOT_DRAWN）
+export function drawnOn(table: DrawnTable, item: string, page: string): readonly MinimapMark[] | typeof NOT_DRAWN {
   const d = table[item]
-  return d?.page === page ? d.marks : undefined
+  return d?.page === page ? d.marks : NOT_DRAWN
 }

@@ -570,8 +570,8 @@ export function moveEntry<B extends StageLineup>(book: B, id: string, index: num
 export function addBinder<B extends StageLineup>(
   book: B,
   binder: NewBinder,
-  index: number | undefined,
   newId: () => string,
+  index?: number,
 ): { book: B; binder: string } {
   const made: BinderEntry = { ...binder, kind: "binder", id: freshPageId(newId, lineupIds(book)), lineup: [] }
   return { book: { ...book, lineup: insertAt<LineupEntry>(book.lineup, made, index) }, binder: made.id }

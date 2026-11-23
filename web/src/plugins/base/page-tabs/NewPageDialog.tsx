@@ -30,7 +30,7 @@ function NewPageForm({ to, type, onDone }: { to: NewPage; type: string; onDone: 
   // 新しいバインダを作るか（まとまるタイプで、入れるバインダが決まっていない）
   const newBinder = place === "new-binder"
   const [title, setTitle] = useState(newBinder ? titles.binder : titles.page)
-  const paper = usePaperControls(to.lineup === NO_LINEUP ? undefined : to.lineup, type, place)
+  const paper = usePaperControls(to.lineup, type, place)
   const into = newBinder ? { into: { newBinder: title } } : place === "lineup" ? {} : { into: place }
   return (
     <Form

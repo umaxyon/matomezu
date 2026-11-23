@@ -124,8 +124,8 @@ export function duplicatedBinder<B extends StageLineup>(
   const made = addBinder(
     book,
     { ...rest, title: title ?? freeTitle(source.title, titles) },
-    lineupOf(book).findIndex(e => e.id === source.id) + 1,
     newId,
+    lineupOf(book).findIndex(e => e.id === source.id) + 1,
   )
   let next = made.book
   const pages: string[] = []

@@ -3,7 +3,7 @@
 import { useRef, useState } from "react"
 import { NO_OUTERMOST } from "../../../../plugin-api"
 import { useActions, useCommand, useMessages } from "../../../../plugin-api/ui"
-import { ColorPicker, NO_SWATCHES, useOutermostOf, usePageTheme, useSwatches } from "../../../base/ui"
+import { ColorPicker, NO_COLOR, NO_SWATCHES, useOutermostOf, usePageTheme, useSwatches } from "../../../base/ui"
 import { SLIDE_SET } from "../commands"
 import { kit } from "../kit"
 import {
@@ -73,11 +73,11 @@ export function StyleFields({ subjects }: { subjects: readonly StyleSubject[] })
         {label}
         <ColorPicker
           label={label}
-          value={outline ? (str(key) === NO_OUTLINE ? undefined : (str(key) ?? swatches.none)) : str(key)}
+          value={outline ? (str(key) === NO_OUTLINE ? NO_COLOR : (str(key) ?? swatches.none)) : (str(key) ?? NO_COLOR)}
           palette={swatches.palette}
           none={swatches.none}
           disabled={!set.enabled}
-          onChange={v => change({ [key]: v ?? (outline ? NO_OUTLINE : null) })}
+          onChange={v => change({ [key]: v !== NO_COLOR ? v : outline ? NO_OUTLINE : null })}
         />
       </span>
     )

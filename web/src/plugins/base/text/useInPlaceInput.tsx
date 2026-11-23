@@ -22,6 +22,9 @@ export interface InPlaceWritten {
   composing: string | typeof NOT_COMPOSING
 }
 
+// 書いている物が無いときの値（useInPlaceInput の target。物の id はどんな文字列にもなり得るので、文字列でない値）
+export const NO_WRITING: unique symbol = Symbol("no writing")
+
 export function useInPlaceInput(
   owner: Parameters<typeof usePluginState>[0],
   state: InPlaceDraftState,
@@ -30,7 +33,7 @@ export function useInPlaceInput(
     active,
     keyScope,
     commit,
-  }: { target: string | undefined; active: boolean; keyScope: string; commit: CommandId },
+  }: { target: string | typeof NO_WRITING; active: boolean; keyScope: string; commit: CommandId },
 ) {
   const draft = usePluginState(owner, state)
   const setDraft = useSetPluginState(owner, state)
@@ -41,7 +44,7 @@ export function useInPlaceInput(
   useEffect(() => {
     if (left) resetDraft()
   }, [left, resetDraft])
-  const text = active && target !== undefined && draft !== NO_STATE && draft.target === target ? draft.text : NO_DRAFT
+  const text = active && target !== NO_WRITING && draft !== NO_STATE && draft.target === target ? draft.text : NO_DRAFT
   const written: InPlaceWritten = {
     text, // 書いている字（書いていない・まだ変えていなければ NO_DRAFT）
     composing: active && composing !== null ? composing : NOT_COMPOSING, // 変換中の字（変換していなければ NOT_COMPOSING）
@@ -54,7 +57,7 @@ export function useInPlaceInput(
       multiline: false,
       data: { "data-key-scope": keyScope },
       onChange: (next: string) => {
-        if (target !== undefined) setDraft({ target, text: next })
+        if (target !== NO_WRITING) setDraft({ target, text: next })
       },
       onCompose: setComposing,
       onPointerDown: (e: PointerEvent) => e.stopPropagation(),

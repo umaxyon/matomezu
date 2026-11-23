@@ -28,7 +28,15 @@ import {
   useStage,
 } from "../../../plugin-api/ui"
 import { DRAG_START, resolveTokens } from "../../base"
-import { GhostArea, modPressed, useAnchorRef, useFollowsSelection, useRevealable, useThemeVars } from "../../base/ui"
+import {
+  GhostArea,
+  modPressed,
+  NO_THEME,
+  useAnchorRef,
+  useFollowsSelection,
+  useRevealable,
+  useThemeVars,
+} from "../../base/ui"
 import { LIST_ADD_ROW, LIST_CHECK, LIST_EDIT_ROW, LIST_MOVE_ROW, LIST_STRETCH_ROW } from "./commands"
 import { edgeScroller } from "./edge-scroll"
 import { kit } from "./kit"
@@ -94,7 +102,7 @@ export function ListView({
   const catalog = useCoreCatalog()
   const rows: readonly ListRow[] = content.children ?? []
   const theme = props.theme
-  const vars = useThemeVars(theme, LOOK_TOKENS)
+  const vars = useThemeVars(theme ?? NO_THEME, LOOK_TOKENS)
   const add = useCommand(LIST_ADD_ROW.id)
   const edit = useCommand(LIST_EDIT_ROW.id)
   const check = useCommand(LIST_CHECK.id)
