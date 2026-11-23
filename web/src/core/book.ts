@@ -500,14 +500,14 @@ export type NewPageInto = PageInto | { newBinder: NewBinder; index?: number }
 export type NewPage = Omit<ItemPage, "id">
 export type NewBinder = Omit<BinderEntry, "id" | "kind" | "lineup">
 
-// ページ page（id を持たない中身）を into の所に足したブックと、振ったページの id（一緒にバインダを作ったなら、その id も）。名指したバインダが無ければ NO_BINDER。
+// ページ page（id を持たない中身）を into の所に足したブックと、振ったページの id と、一緒に作ったバインダの id（作らなければ NO_BINDER）。名指したバインダが無ければ NO_BINDER。
 // id は newId の値そのまま（uuid）で、ブックのほかのページ・バインダと重ならない。ページの id を決めて足す口は無い（id はここで振る）
 export function addPage<B extends StageLineup>(
   book: B,
   page: NewPage,
   into: NewPageInto,
   newId: () => string,
-): { book: B; page: string; binder?: string } | typeof NO_BINDER {
+): { book: B; page: string; binder: string | typeof NO_BINDER } | typeof NO_BINDER {
   const taken = lineupIds(book)
   const id = freshPageId(newId, taken)
   const { kind, ...rest } = page
@@ -526,12 +526,16 @@ export function addPage<B extends StageLineup>(
     }
   }
   if (!("binder" in into))
-    return { book: { ...book, lineup: insertAt<LineupEntry>(book.lineup, entry, into.index) }, page: id }
+    return {
+      book: { ...book, lineup: insertAt<LineupEntry>(book.lineup, entry, into.index) },
+      page: id,
+      binder: NO_BINDER,
+    }
   if (findBinder(book, into.binder) === NO_BINDER) return NO_BINDER
   const lineup = book.lineup.map(e =>
     e.kind === "binder" && e.id === into.binder ? { ...e, lineup: insertAt(e.lineup, entry, into.index) } : e,
   )
-  return { book: { ...book, lineup }, page: id }
+  return { book: { ...book, lineup }, page: id, binder: NO_BINDER }
 }
 
 // ブック book から、id が page のページを除く

@@ -8,6 +8,7 @@ import { useEffect, useId, useState } from "react"
 import { withSettings } from "../../../core/book"
 import { inBackyard } from "../../../core/entries"
 import { NO_BOOK } from "../../../store/commands/def"
+import { NO_DIALOG_PREVIEW } from "../../../store/dialogs"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useMatomezuState } from "../../../ui/store-context"
@@ -43,7 +44,7 @@ export function BookSettingsDialog({ onClose }: DialogProps) {
   const changed = Object.keys(settings.patch).length > 0
   const problems = usePageProblems(book ? withSettings(book, settings.patch) : undefined)
   useEffect(() => {
-    previewDialog(changed && id ? { outermost: id, props: settings.patch } : null)
+    previewDialog(changed && id ? { outermost: id, props: settings.patch } : NO_DIALOG_PREVIEW)
   }, [changed, id, settings.patch, previewDialog])
   if (!book) return null
   const ready = title.trim() !== "" && problems.length === 0

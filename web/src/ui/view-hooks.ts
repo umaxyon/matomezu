@@ -49,6 +49,7 @@ import {
   windowActionsOf,
 } from "../store/actions"
 import { NO_BOOK, NO_OUTSIDE_BINDER } from "../store/commands/def"
+import { NO_DIALOG_PREVIEW } from "../store/dialogs"
 import { worldOf } from "../store/world"
 import { useStageAt } from "./at-hooks"
 import type { UiCatalog } from "./plugin"
@@ -105,11 +106,11 @@ export function useItem<Id extends ItemId>(page: string, item: string, id?: Id):
 // 描くページのブックに、ダイアログの下書き（ブックの設定の項目の、まだ確定していない値）を重ねたブック。プレゼンテーションが描くのに使う（開いている物がブックでなければ NO_BOOK）
 export function useShownBook(): Book | typeof NO_BOOK {
   const book = useBook()
-  const preview = useMatomezuState(s => s.dialog?.preview ?? null)
+  const preview = useMatomezuState(s => s.dialog?.preview ?? NO_DIALOG_PREVIEW)
   return useMemo(() => {
     if (
       book === NO_BOOK ||
-      !preview ||
+      preview === NO_DIALOG_PREVIEW ||
       preview.outermost !== book.id ||
       preview.item !== undefined ||
       preview.page !== undefined
@@ -126,9 +127,9 @@ export function useShownPage(): ItemPage | typeof NO_PAGE {
   const page = usePage()
   const scope = useScope()
   const outermost = useMatomezuState(s => openedOf(s, scope)?.outermost)
-  const preview = useMatomezuState(s => s.dialog?.preview ?? null)
+  const preview = useMatomezuState(s => s.dialog?.preview ?? NO_DIALOG_PREVIEW)
   return useMemo(() => {
-    if (page === NO_PAGE || !preview || preview.outermost !== outermost) return page
+    if (page === NO_PAGE || preview === NO_DIALOG_PREVIEW || preview.outermost !== outermost) return page
     if (preview.item === undefined)
       return preview.page === undefined || preview.page === page.id ? withSettings(page, preview.props) : page
     // ページのアイテムか、どの深さの子の形も

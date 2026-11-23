@@ -4,9 +4,11 @@
 import { expect, test } from "bun:test"
 import { NO_CONTROL_CENTER } from "../web/src/core/def/action"
 import type { Book } from "../web/src/core/schema/book"
+import type { Opened, Placing, StageMode } from "../web/src/core/stage"
 import { NO_PAPER, NO_PLACING, NOTHING_OPENED, newStage, shownPageId } from "../web/src/core/stage"
 import { NO_TOOL } from "../web/src/core/tools"
 import { screenOf } from "../web/src/core/window"
+import type { StageView } from "../web/src/core/workspace"
 import { stageView, toolOf } from "../web/src/core/workspace"
 import * as api from "../web/src/plugin-entry/index"
 import * as ui from "../web/src/plugin-entry/ui"
@@ -14,8 +16,11 @@ import * as plugin from "../web/src/plugins/base"
 import * as pluginUi from "../web/src/plugins/base/ui"
 import { boundActions, windowActionsOf } from "../web/src/store/actions"
 import { commandContext, commandDef } from "../web/src/store/commands"
+import type { CalledScreen, CommandContext, ScreenCommandContext } from "../web/src/store/commands/def"
 import { NO_BOOK, NO_PAGE } from "../web/src/store/commands/def"
+import type { OpenedContextMenu } from "../web/src/store/context-menus"
 import { NO_CONTEXT_MENU } from "../web/src/store/context-menus"
+import type { OpenedDialog } from "../web/src/store/dialogs"
 import { NO_DIALOG } from "../web/src/store/dialogs"
 import * as testing from "../web/src/testing"
 import { CORE_CATALOG, newStore, pageOf } from "./support"
@@ -56,6 +61,7 @@ test("matomezu が出す名前", () => {
     "NO_CONTEXT_MENU",
     "NO_CONTROL_CENTER",
     "NO_DIALOG",
+    "NO_DIALOG_PREVIEW",
     "NO_EXTENT",
     "NO_FRAME",
     "NO_GROW",
@@ -526,6 +532,55 @@ test("matomezu/testing が出す名前", () => {
     "stagePlacesOf",
     "withStagePlaces",
   ])
+})
+
+// 型 T（ユニオンなら、そのどれか）の、任意のフィールド（?:）と、値の型に null か undefined を含むフィールドの名前（値が unknown のフィールドは、渡す値の形を決めないので除く）
+type NoneKeys<T> = T extends unknown
+  ? {
+      [K in keyof T]-?: {} extends Pick<T, K>
+        ? K
+        : unknown extends T[K]
+          ? never
+          : null extends T[K]
+            ? K
+            : undefined extends T[K]
+              ? K
+              : never
+    }[keyof T]
+  : never
+// 型 T のどのフィールドも、無いことを null・undefined・任意のフィールドで表していなければ true（していれば、そのフィールドの名前の型になり、true を置けない）
+type NoneFree<T> = [NoneKeys<T>] extends [never] ? true : NoneKeys<T>
+
+// コマンドの文脈と、プラグインに見せるステージ（と、その中のステージの物）のフィールドは、無いことを名前の付いた定数で表す（型の確かめ。違えば typecheck が通らない）
+const noneFree: readonly true[] = [
+  true satisfies NoneFree<ScreenCommandContext>,
+  true satisfies NoneFree<CommandContext>,
+  true satisfies NoneFree<CalledScreen>,
+  true satisfies NoneFree<OpenedDialog>,
+  true satisfies NoneFree<OpenedContextMenu>,
+  true satisfies NoneFree<StageView>,
+  true satisfies NoneFree<Opened>,
+  true satisfies NoneFree<StageMode>,
+  true satisfies NoneFree<Placing>,
+]
+
+// 値 v の中（配列・オブジェクトをたどる。関数と、ブック・台帳など、たどらない物 skip は除く）に null か undefined があれば、その所の名前
+function noneAt(v: unknown, at: string, skip: ReadonlySet<unknown>): string[] {
+  if (v === null || v === undefined) return [at]
+  if (typeof v !== "object" || skip.has(v)) return []
+  return Object.entries(v).flatMap(([k, x]) => noneAt(x, `${at}.${k}`, skip))
+}
+
+test("コマンドの文脈とプラグインに見せるステージのフィールドは、null・undefined・任意のフィールドにしない（無いことは名前の付いた定数）", () => {
+  expect(noneFree.length).toBe(9)
+  for (const books of [undefined, []] as const) {
+    const store = newStore(books === undefined ? {} : { books })
+    const state = store.state.getState()
+    const ctx = commandContext(store.catalog.core, NO_CONTROL_CENTER, state, "s1", "@matomezu/base:stage-split")!
+    // ブック・ページ・台帳・設定・フォルダの表は、プラグインのデータの形（任意のフィールドを持つ）なので、たどらない
+    const skip = new Set<unknown>([ctx.catalog, ctx.book, ctx.page, ctx.outsideBinder, ctx.settings, ctx.folders])
+    expect(noneAt(ctx, "ctx", skip)).toEqual([])
+  }
 })
 
 test("プラグインに見せるステージ（StageView）のフィールド", () => {

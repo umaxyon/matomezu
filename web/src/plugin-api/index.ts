@@ -148,7 +148,7 @@ export type { CalledScreen, CommandContext, ScreenCommandContext } from "../stor
 export { NO_BOOK, NO_OUTSIDE_BINDER, NO_PAGE } from "../store/commands/def"
 export { NO_CONTEXT_MENU } from "../store/context-menus"
 export type { NewPageDialogArgs, PageSettingsArgs } from "../store/dialogs"
-export { NO_DIALOG, shapeDialogs } from "../store/dialogs"
+export { NO_DIALOG, NO_DIALOG_PREVIEW, shapeDialogs } from "../store/dialogs"
 export type { OwnedMessages } from "../store/kit"
 export { pluginKit } from "../store/kit"
 export type { Plugin } from "../store/plugin"

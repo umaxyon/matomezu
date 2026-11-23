@@ -8,7 +8,7 @@ import type { ArgsOf, Refused, ResultOf, TargetOf } from "../core/perform"
 import type { Editing } from "../core/stage"
 import type { CommandArgs, CommandId } from "./commands"
 import type { MenuOpens } from "./context-menus"
-import type { DialogArgs, DialogPreview } from "./dialogs"
+import type { DialogArgs, DialogPreview, NO_DIALOG_PREVIEW } from "./dialogs"
 import type { KeyReach } from "./keys"
 import type { ToastInput } from "./state"
 
@@ -48,8 +48,8 @@ export interface WindowActions {
   // ほかの窓だけが知る事（ほかの窓の編集ロックなど）で断られたことを、利用者に知らせたいときに使う
   performConfirmed<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Promise<Performed<Id> | HostRefused>
   closeDialog(): void
-  // 開いているダイアログの下書きを置く（null で消す）。ダイアログを閉じると下書きも消える
-  previewDialog(preview: DialogPreview | null): void
+  // 開いているダイアログの下書きを置く（NO_DIALOG_PREVIEW で消す）。ダイアログを閉じると下書きも消える
+  previewDialog(preview: DialogPreview | typeof NO_DIALOG_PREVIEW): void
   submitDialog(): void // 開いているダイアログに、決めるように頼む（枠が中身の form を送る）
   // 押したキー（そろえた書き方）を、開いているメニュー・ダイアログ・カレントのステージの範囲で引き、当たったコマンドを行う。
   // 範囲は狭い方から順に引き、その場で使えるコマンドに当たった所で行う（使えないキーバインドは無いものとして、次の範囲の同じキーを探す）。scopes は押した所の要素が名乗ったプラグインの範囲。

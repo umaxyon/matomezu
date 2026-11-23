@@ -5,7 +5,7 @@
 // キャプションで間隔が広がって押した形が紙に収まらなければ、閉じずに理由を出す
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { findShape, type MessageKey, NO_ITEM, NO_OUTERMOST, NO_PAGE } from "../../../plugin-api"
+import { findShape, type MessageKey, NO_DIALOG_PREVIEW, NO_ITEM, NO_OUTERMOST, NO_PAGE } from "../../../plugin-api"
 import {
   type DialogProps,
   useActions,
@@ -89,7 +89,9 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
     endHead !== (line?.props.endHead ?? "")
   const preview = useCallback(
     (look: Look | null) =>
-      previewDialog(look && outermost !== NO_OUTERMOST ? { outermost, item: args.item, props: look } : null),
+      previewDialog(
+        look && outermost !== NO_OUTERMOST ? { outermost, item: args.item, props: look } : NO_DIALOG_PREVIEW,
+      ),
     [outermost, args.item, previewDialog],
   )
   useEffect(() => {

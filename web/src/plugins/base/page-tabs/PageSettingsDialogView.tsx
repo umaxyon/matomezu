@@ -12,6 +12,7 @@ import { withSettings } from "../../../core/book"
 import { NO_OUTERMOST } from "../../../core/folders-tree"
 import type { Page } from "../../../core/schema/book"
 import { NO_PAGE } from "../../../core/stage"
+import { NO_DIALOG_PREVIEW } from "../../../store/dialogs"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
 import {
@@ -71,7 +72,9 @@ export function PageSettingsDialogView({ page: id, onClose, children, fields, dr
   const changed = Object.keys(settings.patch).length > 0
   useEffect(() => {
     previewDialog(
-      changed && outermost !== NO_OUTERMOST && pageId ? { outermost, page: pageId, props: settings.patch } : null,
+      changed && outermost !== NO_OUTERMOST && pageId
+        ? { outermost, page: pageId, props: settings.patch }
+        : NO_DIALOG_PREVIEW,
     )
   }, [changed, outermost, pageId, settings.patch, previewDialog])
   if (!page) return null

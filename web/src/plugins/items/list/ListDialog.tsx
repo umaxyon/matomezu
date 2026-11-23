@@ -8,7 +8,14 @@
 // 追加は決めた項目の値を、開いた側が渡した置き方（ShapeAddArgs の place）に渡す（置く・選ぶ・断りの文は開いた側が持つ）。編集はリストの項目を書き換える（item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { type ItemProps, type MessageKey, NO_ITEM, NO_OUTERMOST, type ShapeAddArgs } from "../../../plugin-api"
+import {
+  type ItemProps,
+  type MessageKey,
+  NO_DIALOG_PREVIEW,
+  NO_ITEM,
+  NO_OUTERMOST,
+  type ShapeAddArgs,
+} from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -95,7 +102,7 @@ export function EditListDialog({ args, onClose }: DialogProps<{ page: string; it
   // 行の高さの下書き（rowLines）は、行の行数を書き換えた行の並びとして見せる（項目の下書きを当てたリストで数える）
   const preview = useCallback(
     (look: Look | null, rowLines?: RowsLines) => {
-      if (!look || outermost === NO_OUTERMOST || !found) return previewDialog(null)
+      if (!look || outermost === NO_OUTERMOST || !found) return previewDialog(NO_DIALOG_PREVIEW)
       const content =
         rowLines === undefined
           ? undefined

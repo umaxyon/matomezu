@@ -4,7 +4,7 @@
 // 編集だけに「行を削除」があり、押すと確かめずに行を消して閉じる（row-remove）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { type MessageKey, NO_ITEM, NO_OUTERMOST } from "../../../plugin-api"
+import { type MessageKey, NO_DIALOG_PREVIEW, NO_ITEM, NO_OUTERMOST } from "../../../plugin-api"
 import { type DialogProps, useActions, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import {
   ActionButton,
@@ -63,7 +63,7 @@ export function EditRowDialog({ args, onClose }: DialogProps<{ page: string; lis
                 children: rows.map(r => (r.id === args.row ? { ...r, props: { ...r.props, ...text } } : r)),
               },
             }
-          : null,
+          : NO_DIALOG_PREVIEW,
       ),
     [outermost, rows, args.list, args.row, previewDialog],
   )

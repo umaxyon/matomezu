@@ -75,8 +75,11 @@ export interface OpenedDialog {
   screen: string // 開いたスクリーンの id（ステージから開いたなら、そのステージを並べているスクリーン）
   args: unknown // 開くときに渡した値（id で型が決まる）
   submitted: number // 決めるように頼まれた回数（ダイアログの枠が見て、中身の form を送る）
-  preview: DialogPreview | null // 選んだ値を、決める前に重ねて見せる下書き（このダイアログを閉じれば消える）
+  preview: DialogPreview | typeof NO_DIALOG_PREVIEW // 選んだ値を、決める前に重ねて見せる下書き（このダイアログを閉じれば消える。置いていなければ NO_DIALOG_PREVIEW）
 }
+
+// 開いているダイアログの preview の、下書きを置いていないときの値（previewDialog に渡すと、置いた下書きを消す）
+export const NO_DIALOG_PREVIEW = "none"
 
 // ダイアログの下書き: ステージエントリ outermost（ブックか、ブックの外のページ）のアイテム item の項目に props を重ねて描く（データは変えない。この窓の中だけ）。
 // item が無く page があればそのページの、どちらも無ければブックの、設定の項目の変更が props（項目の id → 値。null は消す）

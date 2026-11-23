@@ -112,7 +112,7 @@ import {
   type ResetPluginStateAt,
   type UpdatePluginStateAt,
 } from "./commands/def"
-import { NO_STAGE, type OpenedPlace, openedAt } from "./dialogs"
+import { NO_DIALOG_PREVIEW, NO_STAGE, type OpenedPlace, openedAt } from "./dialogs"
 import { findKey, type KeyTable, keyScopes, keyTable } from "./keys"
 import { assemble, type Plugin } from "./plugin"
 import {
@@ -660,14 +660,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     openDialog: (at, id, ...args) => {
       if (!defs.catalog.store.dialogs.has(id)) fail("E108", { id })
       const place = placeOpenedFrom(at)
-      if (place) setState({ dialog: { id, ...place, args: args[0], submitted: 0, preview: null } })
+      if (place) setState({ dialog: { id, ...place, args: args[0], submitted: 0, preview: NO_DIALOG_PREVIEW } })
     },
     closeDialog: () => {
       if (getState().dialog) setState({ dialog: null })
     },
     previewDialog: preview => {
       const { dialog } = getState()
-      if (dialog && (dialog.preview !== null || preview !== null)) setState({ dialog: { ...dialog, preview } })
+      if (dialog && (dialog.preview !== NO_DIALOG_PREVIEW || preview !== NO_DIALOG_PREVIEW))
+        setState({ dialog: { ...dialog, preview } })
     },
     submitDialog: () => {
       const { dialog } = getState()

@@ -3,7 +3,14 @@
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
 // 追加は決めた項目の値を、開いた側が渡した置き方（ShapeAddArgs の place）に渡す（置く・選ぶ・断りの文は開いた側が持つ）。編集は絵の項目を書き換える（アクション item-update）
 import { useCallback, useEffect, useId, useState } from "react"
-import { type ItemProps, type MessageKey, NO_ITEM, NO_OUTERMOST, type ShapeAddArgs } from "../../../plugin-api"
+import {
+  type ItemProps,
+  type MessageKey,
+  NO_DIALOG_PREVIEW,
+  NO_ITEM,
+  NO_OUTERMOST,
+  type ShapeAddArgs,
+} from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -58,7 +65,9 @@ export function EditArtDialog({ args, onClose }: DialogProps<{ page: string; ite
   const preview = useCallback(
     (color: ArtProps["color"] | null) =>
       previewDialog(
-        color !== null && outermost !== NO_OUTERMOST ? { outermost, item: args.item, props: { color } } : null,
+        color !== null && outermost !== NO_OUTERMOST
+          ? { outermost, item: args.item, props: { color } }
+          : NO_DIALOG_PREVIEW,
       ),
     [outermost, args.item, previewDialog],
   )

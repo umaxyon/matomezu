@@ -127,7 +127,7 @@ export function withNewPage<B extends StageLineup>(
     book: next,
     result: {
       page: made.page,
-      ...(made.binder === undefined ? {} : { binder: made.binder }),
+      ...(made.binder === NO_BINDER ? {} : { binder: made.binder }),
       ...(written.result === undefined ? {} : { fields: written.result }),
     },
   }
