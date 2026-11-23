@@ -6,6 +6,7 @@ import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hook
 import { useLayout, useUiCatalog } from "../../../ui/store-context"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { WIDE_SEARCH_WORDS_KEY_SCOPE } from "./index"
 import { WIDE_SEARCH_MODES, type WideSearchModeProps } from "./slots"
 import { WIDE_SEARCH_MODE } from "./state"
 import styles from "./WideSearch.module.css"
@@ -37,6 +38,9 @@ export function WideSearchPanel() {
       <input
         className={controlClass}
         aria-label={t("Search words")}
+        data-key-scope={WIDE_SEARCH_WORDS_KEY_SCOPE.id}
+        // biome-ignore lint/a11y/noAutofocus: 開いたら、すぐ打てるように検索語のテキストFormに焦点を置く（ボタンで開いても、キーで開いても）
+        autoFocus
         value={term}
         onChange={e => setTerm(e.target.value)}
       />

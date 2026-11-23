@@ -1,4 +1,4 @@
-// 横断検索: コントロールセンターの虫メガネで左サイドパネルに開く。全文で打つと横断検索の当たりが並び、押すとチケットスクリーンが開く（パネルは開いたまま）。
+// 横断検索: コントロールセンターの虫メガネか Ctrl+Shift+F で左サイドパネルに開く。全文で打つと横断検索の当たりが並び、押すとチケットスクリーンが開く（パネルは開いたまま）。
 // チケットモードは、パネルを開いたままボードを絞り（書庫が前なら引っ込めてボードを出し）、閉じても絞ったままにして、ボードの上の印の × で戻す
 import { CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
@@ -54,6 +54,19 @@ test("虫メガネで左サイドパネルに横断検索が開き、全文で�
   ).toBeVisible()
   await expect(side.getByRole("textbox", { name: "検索する言葉" })).toBeVisible()
   expect(hit).not.toBe("")
+})
+
+test("コントロールセンターで Ctrl+Shift+F を押すと横断検索が開いて検索する言葉の入力に焦点が来て、その中でもう一度押すと閉じる", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  const words = panel(page).getByRole("textbox", { name: "検索する言葉" })
+  await expect(page.getByRole("button", { name: "横断検索" })).toBeVisible()
+  await page.keyboard.press("Control+Shift+F")
+  await expect(words).toBeFocused()
+  await expect(page.getByRole("button", { name: "横断検索" })).toHaveAttribute("aria-pressed", "true")
+  await page.keyboard.press("Control+Shift+F")
+  await expect(words).toHaveCount(0)
 })
 
 test("チケットモードは、パネルを開いたままボードを絞り、閉じても残り、パネルを開き直して印の × で戻る", async ({

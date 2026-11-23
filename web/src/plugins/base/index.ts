@@ -283,7 +283,7 @@ import { HAND_TOOL, SELECT_TOOL, TOOL_NEXT } from "./tool-switch"
 import type {} from "./toolbox"
 import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
 import { UPDATE_CHECK } from "./update"
-import { WIDE_SEARCH_MODE } from "./wide-search"
+import { WIDE_SEARCH_KEYS, WIDE_SEARCH_MODE, WIDE_SEARCH_TOGGLE, WIDE_SEARCH_WORDS_KEY_SCOPE } from "./wide-search"
 import {
   BOOK_SCREEN_CLOSE,
   BOOK_SCREEN_DEF,
@@ -644,6 +644,7 @@ export const BASE = defineBuiltin(
       MARK_NEW,
       RIGHT_SIDE_PANEL_CLOSE,
       LEFT_SIDE_PANEL_CLOSE,
+      WIDE_SEARCH_TOGGLE,
       PRINT_PREVIEW_OPEN,
       PRINT_PREVIEW_FIT,
       PRINT,
@@ -697,6 +698,7 @@ export const BASE = defineBuiltin(
       RIGHT_SIDE_PANEL_KEY_SCOPE,
       LEFT_SIDE_PANEL_KEY_SCOPE,
       SEARCH_KEY_SCOPE,
+      WIDE_SEARCH_WORDS_KEY_SCOPE,
       NOTE_TEXT_KEY_SCOPE,
       LIBRARY_KEY_SCOPE,
       LIBRARY_TREE_KEY_SCOPE,
@@ -719,6 +721,7 @@ export const BASE = defineBuiltin(
       ...SPLIT_KEYS,
       ...PRINT_KEYS,
       ...SEARCH_KEYS,
+      ...WIDE_SEARCH_KEYS,
       ...NOTE_KEYS,
     ],
   }),
@@ -957,6 +960,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:search-replace-one": typeof SEARCH_REPLACE_ONE
     "@matomezu/base:search-replace-all": typeof SEARCH_REPLACE_ALL
     "@matomezu/base:left-side-panel-close": typeof LEFT_SIDE_PANEL_CLOSE
+    "@matomezu/base:wide-search-toggle": typeof WIDE_SEARCH_TOGGLE
   }
   interface LibraryAppearanceTable {
     "@matomezu/base:library": typeof LIBRARY_APPEARANCE
@@ -995,6 +999,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:right-side-panel": typeof RIGHT_SIDE_PANEL_KEY_SCOPE // 右サイドパネルの中にフォーカスがある間のキー
     "@matomezu/base:left-side-panel": typeof LEFT_SIDE_PANEL_KEY_SCOPE // 左サイドパネルの中にフォーカスがある間のキー
     "@matomezu/base:search": typeof SEARCH_KEY_SCOPE // 検索ダイアログの入力Formの中のキー
+    "@matomezu/base:wide-search-words": typeof WIDE_SEARCH_WORDS_KEY_SCOPE // 横断検索の検索語のテキストFormの中のキー
     "@matomezu/base:note-text": typeof NOTE_TEXT_KEY_SCOPE // 右サイドパネルの伝言のテキストFormの中のキー
     "@matomezu/base:library-tree": typeof LIBRARY_TREE_KEY_SCOPE // 書庫の画面のツリーの中にフォーカスがある間のキー
     "@matomezu/base:library-contents": typeof LIBRARY_CONTENTS_KEY_SCOPE // 書庫の画面の右の枠の中身の中にフォーカスがある間のキー
