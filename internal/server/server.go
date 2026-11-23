@@ -164,9 +164,18 @@ func Handler(o Options) http.Handler {
 		writeJSON(w, map[string]bool{"ok": true})
 	}))
 	mux.Handle("POST /api/hosts/pair", o.screen(o.startPairing))
-	mux.Handle("POST /api/hosts/pair/end", o.screen(func(w http.ResponseWriter, _ *http.Request) { o.Hub.EndPairing(); writeJSON(w, map[string]bool{"ok": true}) }))
-	mux.Handle("POST /api/hosts/check", o.screen(func(w http.ResponseWriter, _ *http.Request) { o.Hub.CheckPeers(); writeJSON(w, map[string]bool{"ok": true}) }))
-	mux.Handle("POST /api/hosts/discover", o.screen(func(w http.ResponseWriter, _ *http.Request) { o.Hub.Discover(); writeJSON(w, map[string]bool{"ok": true}) }))
+	mux.Handle("POST /api/hosts/pair/end", o.screen(func(w http.ResponseWriter, _ *http.Request) {
+		o.Hub.EndPairing()
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
+	mux.Handle("POST /api/hosts/check", o.screen(func(w http.ResponseWriter, _ *http.Request) {
+		o.Hub.CheckPeers()
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
+	mux.Handle("POST /api/hosts/discover", o.screen(func(w http.ResponseWriter, _ *http.Request) {
+		o.Hub.Discover()
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
 	mux.Handle("POST /api/update/ask", o.screen(o.askUpdate))
 	mux.Handle("POST /api/unreadable/if-off", o.screen(o.movedIfOff))
 	mux.Handle("GET /api/ai/view", o.ai(o.aiView))
