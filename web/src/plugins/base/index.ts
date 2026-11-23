@@ -274,6 +274,8 @@ import {
   STAGE_SPLIT,
   STAGE_STATES,
   STAGE_UNSPLIT,
+  STAGE_WIDEN,
+  type WIDE_STAGE,
 } from "./stage"
 import { REVEAL_REQUEST_STATES, type REVEALING_STATE } from "./stand"
 import { PAGE_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
@@ -587,6 +589,7 @@ export const BASE = defineBuiltin(
       STAGE_SPLIT,
       STAGE_UNSPLIT,
       STAGE_CLOSE,
+      STAGE_WIDEN,
       BACKGROUND_TOGGLE,
       BACKGROUND_EDIT,
       BACKGROUND_END,
@@ -914,6 +917,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
     "@matomezu/base:stage-unsplit": typeof STAGE_UNSPLIT
     "@matomezu/base:stage-close": typeof STAGE_CLOSE
+    "@matomezu/base:stage-widen": typeof STAGE_WIDEN
     "@matomezu/base:background-toggle": typeof BACKGROUND_TOGGLE
     "@matomezu/base:background-edit": typeof BACKGROUND_EDIT
     "@matomezu/base:background-end": typeof BACKGROUND_END
@@ -990,6 +994,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:print-ready": typeof PRINT_READY_STATE
     "@matomezu/base:print-measures": typeof PRINT_MEASURES
     "@matomezu/base:content-hidden": typeof CONTENT_HIDDEN
+    "@matomezu/base:wide-stage": typeof WIDE_STAGE
     "@matomezu/base:print-areas-hidden": typeof PRINT_AREAS_HIDDEN
     "@matomezu/base:minimap-drawn": typeof MINIMAP_DRAWN
     "@matomezu/base:mail-bird-visit": typeof MAIL_BIRD_VISIT

@@ -56,7 +56,11 @@ test("並べ方のボタンは上の行の左端に並び、画面を分割し�
   await (await fromMenu(page, "画面を分割")).click()
   const stage = page.locator("[data-stage]").first()
   const bar = (await stage.getByRole("toolbar", { name: "ペイン" }).boundingBox())!
-  const close = (await page.getByRole("button", { name: "ステージを閉じる" }).first().boundingBox())!
+  const close = (await page
+    .getByRole("button", { name: "ステージを閉じる" })
+    .and(page.locator(":not([data-footer-close])"))
+    .first()
+    .boundingBox())!
   const left = (await stage.boundingBox())!.x
   expect(bar.x - left).toBeLessThan(20)
   expect(bar.x + bar.width).toBeLessThan(close.x)

@@ -14,6 +14,7 @@ import { NO_STAGE } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { LIBRARY_SCREEN } from "../library/screen"
 import { SPLIT_ROWS, splitOf } from "../window/split"
+import { WIDE_STAGE } from "./states"
 
 const isSplit = (ctx: CommandContext) => workspaceOf(ctx).stages.length > 1
 
@@ -45,6 +46,18 @@ export const STAGE_UNSPLIT = kit.defineCommand({
   active: isSplit, // 分割の切り替えのボタンで、分割していることを押されている見た目で示す
 })
 
+// 分けたステージのうち、呼ばれたステージだけを広げて見せる（もう一度で戻す）
+export const STAGE_WIDEN = kit.defineCommand({
+  id: "stage-widen",
+  title: "Maximize stage",
+  run: (ctx, a) => {
+    const here = calledStageOf(ctx)
+    if (here) a.updatePluginState(WIDE_STAGE, now => (now === here.id ? undefined : here.id))
+  },
+  when: isSplit,
+  active: ctx => ctx.pluginState(WIDE_STAGE) === calledStageOf(ctx)?.id,
+})
+
 export const STAGE_CLOSE = kit.defineCommand({
   id: "stage-close",
   title: "Close stage",
@@ -58,4 +71,4 @@ export {
   BACKGROUND_PRINT_SET,
   BACKGROUND_TOGGLE,
 } from "./background"
-export { type CONTENT_HIDDEN, type PRINT_AREAS_HIDDEN, STAGE_STATES } from "./states"
+export { type CONTENT_HIDDEN, type PRINT_AREAS_HIDDEN, STAGE_STATES, WIDE_STAGE } from "./states"

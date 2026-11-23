@@ -97,21 +97,20 @@ export function ScreensView() {
       {stageScreens.map(id => {
         const row = rowOf(id)
         return (
-          <div
+          <BookScreen
             key={id}
-            className={styles.bookScreen}
-            data-current={mixed ? "book-screen" : currentKind}
-            data-shown={id === book}
-            data-row={row !== null}
-            data-footer={footer}
-            style={row ? ({ "--row-index": row.index, "--row-of": row.of } as CSSProperties) : undefined}
-            inert={mixed ? id !== splitBook : currentKind !== "book-screen" || id !== book}
-            onPointerDownCapture={() => {
+            screen={id}
+            current={mixed ? "book-screen" : currentKind}
+            shown={id === book || (mixed && row !== null)}
+            row={row}
+            footer={footer}
+            entering={row !== null && id === current}
+            late={starting && row !== null && id === current}
+            inert={mixed ? row === null : currentKind !== "book-screen" || id !== book}
+            onPress={() => {
               if (row !== null && id !== current) makeScreenCurrent(id)
             }}
-          >
-            <ScreenView screen={id} />
-          </div>
+          />
         )
       })}
       <section
@@ -200,6 +199,69 @@ function useMarkFits(mixed: boolean, low: boolean) {
 // closed を渡すと、閉じたスクリーンを、位置を戻した形で描いた次のコマに右へ滑り出させる（最初から右に描くと、動かずに消える）。
 // row があれば、上下に分けた並びの位置と高さで描く（無ければ、窓いっぱい）。重なりは layer。見えていない物は、操作も読み上げも受けない。
 // flash が増えると、枠を一瞬光らせて消す
+// ブックスクリーン 1 枚。上下に分けた並びに新しく入る物（entering。並びに入っていなかった物が、カレントスクリーンとして入る）は、右から滑り込む
+// （分け始めは、上の物が縮み終えてから。late）。並びの中で位置が替わるだけのときと、並びの外の物は滑らない
+function BookScreen({
+  screen,
+  current,
+  shown,
+  row,
+  footer,
+  entering,
+  late,
+  inert,
+  onPress,
+}: {
+  screen: string
+  current: string
+  shown: boolean
+  row: Row | null
+  footer: boolean
+  entering: boolean
+  late: boolean
+  inert: boolean
+  onPress: () => void
+}) {
+  const inRow = row !== null
+  const wasInRow = useRef(inRow)
+  // 並びに入った瞬間に、右の外から始める
+  const [entered, setEntered] = useState(true)
+  const [waits, setWaits] = useState(false)
+  if (inRow && !wasInRow.current && entering && entered) {
+    setEntered(false)
+    setWaits(late)
+  }
+  useEffect(() => {
+    wasInRow.current = inRow
+  })
+  useEffect(() => {
+    if (entered) return
+    const frame = requestAnimationFrame(() => setEntered(true))
+    return () => cancelAnimationFrame(frame)
+  }, [entered])
+  useEffect(() => {
+    if (!waits || !entered) return
+    const timer = setTimeout(() => setWaits(false), reduced() ? 0 : SLIDE_MS * 2)
+    return () => clearTimeout(timer)
+  }, [waits, entered])
+  return (
+    <div
+      className={styles.bookScreen}
+      data-current={current}
+      data-shown={shown}
+      data-row={inRow}
+      data-in={entered}
+      data-late={waits}
+      data-footer={footer}
+      style={row ? ({ "--row-index": row.index, "--row-of": row.of } as CSSProperties) : undefined}
+      inert={inert}
+      onPointerDownCapture={onPress}
+    >
+      <ScreenView screen={screen} />
+    </div>
+  )
+}
+
 function PlainScreen({
   screen,
   top,

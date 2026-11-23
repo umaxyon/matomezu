@@ -68,6 +68,8 @@ import {
   BOOK_CONTENT,
   BOOK_VIEW,
   CLOSE_BUTTON,
+  FOOTER_CLOSE_BUTTON,
+  FOOTER_MAXIMIZE_BUTTON,
   PAPER_LAYER,
   PRINT_AREA_LAYER,
   PRINT_AREA_TOGGLE,
@@ -335,6 +337,8 @@ export const BASE_UI = definePluginUi(BASE, {
     PAGE_TABS,
     PAGE_LIST,
     CLOSE_BUTTON,
+    FOOTER_CLOSE_BUTTON,
+    FOOTER_MAXIMIZE_BUTTON,
     GENERAL_CATEGORY,
     KEYS_CATEGORY,
     PLUGINS_CATEGORY,
@@ -464,6 +468,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:page-tabs": typeof PAGE_TABS
     "@matomezu/base:page-list": typeof PAGE_LIST
     "@matomezu/base:close-button": typeof CLOSE_BUTTON
+    "@matomezu/base:footer-close-button": typeof FOOTER_CLOSE_BUTTON
+    "@matomezu/base:footer-maximize-button": typeof FOOTER_MAXIMIZE_BUTTON
     "@matomezu/base:settings-general": typeof GENERAL_CATEGORY
     "@matomezu/base:settings-keys": typeof KEYS_CATEGORY
     "@matomezu/base:settings-plugins": typeof PLUGINS_CATEGORY

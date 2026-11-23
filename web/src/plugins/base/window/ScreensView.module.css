@@ -91,11 +91,21 @@
   top: var(--row-top);
   height: var(--row-height);
 }
-/* 上下に分けた並びに入ったブックスクリーン: 下の行の上の残りを、並びの枚数で等分した位置と高さに置く（ステージを並べないスクリーンの行と同じ動き） */
+/* 上下に分けた並びに入ったブックスクリーン: 下の行の上の残りを、並びの枚数で等分した位置と高さに置く（ステージを並べないスクリーンの行と同じ動き）。
+   並びに新しく入る物は、右から滑り込む（分け始めは、上の物が縮み終えてから） */
 .bookScreen {
+  transform: translateX(0);
   transition:
+    transform var(--screen-slide) ease,
     top var(--screen-slide) ease,
     height var(--screen-slide) ease;
+}
+.bookScreen[data-in="false"] {
+  transform: translateX(100%);
+  transition: none;
+}
+.bookScreen[data-late="true"] {
+  transition-delay: var(--screen-slide);
 }
 @media (prefers-reduced-motion: reduce) {
   .bookScreen {

@@ -5,6 +5,7 @@
 // 分けているときは、カレントのステージの下の行の色を少し変えて示す。左の列の幅を arrangement の share の割合にし、列の境目をドラッグすると share が変わる（ダブルクリックで真ん中に戻る）。
 // ドラッグでは、並べた枠の左からポインタまでの長さと枠の幅をそのまま store に渡す（境目の部品は SplitHandle。割合の計算と収め方は workspace の側）。
 // 列の右に右サイドパネルを置く。開いている間は、開いたステージの列を広げ、もう片方の列の幅を 0 にする（share は変えないので、閉じれば元の割合に戻る）。
+// フッタの「□」でステージを広げている間（WIDE_STAGE）も同じ。
 // 左サイドパネルは窓の左（window/WindowView.tsx）にあり、開けばこの画面ごと押し縮める。
 // 開いた物を見せ、閉じたら見え方を戻すのは、幅を動かし終えてから（RevealAndRestore）
 import { type CSSProperties, useLayoutEffect, useRef, useState } from "react"
@@ -12,14 +13,17 @@ import { useShallow } from "zustand/react/shallow"
 import { previewing } from "../../../core/stage"
 import { screenOf, stageIn } from "../../../core/window"
 import type { MatomezuState } from "../../../store/state"
+import { usePluginState } from "../../../ui/plugin-state-hooks"
 import { Slot } from "../../../ui/Slot"
 import { StageScope } from "../../../ui/scope"
 import { useScreenContext } from "../../../ui/screen-context"
 import { useMatomezuState, useStoreActions } from "../../../ui/store-context"
+import { kit } from "../kit"
 import { PressClosedContext, useOpenedRightSidePanel, useSidePanelSliding } from "../right-side-panel/hooks"
 import { RevealAndRestore } from "../right-side-panel/RevealAndRestore"
 import { RightSidePanel } from "../right-side-panel/RightSidePanel"
 import { columnGrow } from "../right-side-panel/state"
+import { WIDE_STAGE } from "../stage/states"
 import footerRow from "../utils/FooterRow.module.css"
 import { SplitHandle } from "../utils/SplitHandle"
 import { SLIDE_MS } from "../window/slide"
@@ -41,8 +45,9 @@ export function WorkspaceView() {
   useLayoutEffect(() => setScrollbar(scrollbarWidth()), [])
   const split = ids.length === 2
   const right = useOpenedRightSidePanel()?.stage ?? null
-  // 広げるステージ: 右サイドパネルを開いたステージ
-  const panel = right
+  const wide = usePluginState(kit, WIDE_STAGE)
+  // 広げるステージ: 右サイドパネルを開いたステージ。無ければ、フッタの「□」で広げたステージ
+  const panel = right ?? (split && wide !== undefined && ids.includes(wide) ? wide : null)
   const sliding = useSidePanelSliding(panel)
   const pressClosed = useRef(false)
   return (
