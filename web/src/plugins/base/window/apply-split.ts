@@ -56,7 +56,10 @@ export function showBookSplit(o: {
   const added = screenOfStage(win, stage)?.id
   if (added === undefined) return
   const now = before.filter(id => win.screens.some(s => s.id === id))
-  if (now.includes(added)) return o.flash(added)
+  if (now.includes(added)) {
+    o.flash(added)
+    return
+  }
   const value = win.arrangement === SPLIT_ROWS.id ? win.arrangementValue : undefined
   applySplitFrom(o.actions, win.screens, value, planOpen(now, o.here, added, how, o.max), () => o.readWindow().screens)
 }
