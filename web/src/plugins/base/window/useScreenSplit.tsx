@@ -3,15 +3,14 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { sameData } from "../../../core/same"
-import { currentScreen, recentPlainScreen, screenOfStage, type WindowState } from "../../../core/window"
+import { currentScreen, recentPlainScreen, type WindowState } from "../../../core/window"
 import { type Actions, SCREEN_REFUSED } from "../../../store/actions"
-import { NO_STAGE } from "../../../store/dialogs"
 import type { MatomezuState } from "../../../store/state"
 import { useUpdatePluginState } from "../../../ui/plugin-state-hooks"
 import { useScreenContext } from "../../../ui/screen-context"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { kit } from "../kit"
-import { applySplitFrom } from "./apply-split"
+import { applySplitFrom, showBookSplit } from "./apply-split"
 import {
   behindOf,
   planAt,
@@ -20,7 +19,6 @@ import {
   planLeaveAll,
   planOpen,
   SCREEN_FLASH,
-  SPLIT_MIN_HEIGHT,
   SPLIT_ROWS,
   type SplitPlan,
   shownSplit,
@@ -28,15 +26,7 @@ import {
   wideOf,
   withWide,
 } from "./split"
-
-const TALL = `(min-height: ${SPLIT_MIN_HEIGHT}px)`
-const subscribeTall = (changed: () => void) => {
-  if (typeof matchMedia !== "function") return () => {}
-  const query = matchMedia(TALL)
-  query.addEventListener("change", changed)
-  return () => query.removeEventListener("change", changed)
-}
-const tallNow = () => typeof matchMedia === "function" && matchMedia(TALL).matches
+import { subscribeTall, tallNow } from "./tall"
 
 // 窓が、分けて並べられる高さか
 export const useTallEnough = (): boolean => useSyncExternalStore(subscribeTall, tallNow, () => false)
@@ -85,9 +75,9 @@ export interface ScreenSplit {
   open<P>(opening: Opening<P>, how: "after" | "before" | "in-place", max: number): void
   // 分けた並びの index 番目（上から）を、開いたスクリーンに替える（分けていなければ、1 枚で開く）
   openAt<P>(opening: Opening<P>, index: number): void
-  // ブック book（page を名指せばそのページ）を窓に出し（showBookStage）、出したブックスクリーンを、分けられるなら起点の後ろ・前・代わりに入れる（max 枚まで）。
-  // そのブックスクリーンがもう並びに在れば、その段をカレントにして光らせる。窓に無いブックなら何もせず false
-  showBook(book: string, page: string | undefined, how: "after" | "before" | "in-place", max: number): boolean
+  // ブック book（page を名指せばそのページ）を窓に出し、出したブックスクリーンを、分けられるなら起点を基に並びに入れる（max 枚まで。入れ方は showBookSplit・bookSplitWay）。
+  // 窓が低ければ、分けずに窓いっぱいに出す
+  showBook(book: string, page: string | undefined, keepHere: boolean, max: number): void
   count: number // 分けて並べている枚数（分けていなければ 0）
   defs: readonly string[] // 分けて並べているスクリーンの定義の id（上から。分けていなければ空）
   close(): void // 起点のスクリーンを閉じる（並びが 1 枚になれば、並びから外していた物を上に戻す）
@@ -149,23 +139,18 @@ export function useScreenSplit(): ScreenSplit {
       const added = actions.openScreenId(def.id, props)
       if (added !== SCREEN_REFUSED && tallNow()) apply(planOpen(split, here.id, added, how, max))
     },
-    showBook: (book, page, how, max) => {
-      // 出したブックスクリーンがカレントになると、並びに入る前は「分けて見せていない」と読めるので、並びは出す前の物を使う
-      const before = splitIn(read().window)
-      const stage = actions.showBookStage(book, page)
-      if (stage === NO_STAGE) return false
-      // 出すときに上限を超えたブックスクリーンが閉じることがあるので、出したあとの窓に残っている物だけにする
-      const win = read().window
-      const added = screenOfStage(win, stage)?.id
-      const now = before.filter(id => win.screens.some(s => s.id === id))
-      if (added === undefined || !tallNow()) return true
-      if (now.includes(added)) {
-        flash(was => ({ screen: added, n: (was?.n ?? 0) + 1 }))
-        return true
-      }
-      apply(planOpen(now, here.id, added, how, max))
-      return true
-    },
+    showBook: (book, page, keepHere, max) =>
+      showBookSplit({
+        actions,
+        readWindow: () => read().window,
+        here: here.id,
+        keepHere,
+        max,
+        tall: tallNow(),
+        flash: screen => flash(was => ({ screen, n: (was?.n ?? 0) + 1 })),
+        book,
+        page,
+      }),
     close: () => closeOne(here.id),
     closeOf: (def, props) => {
       const id = find(def, props)

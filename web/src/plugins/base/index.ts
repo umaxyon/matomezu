@@ -67,7 +67,6 @@ import {
   LIBRARY_SCREEN_CLOSE,
   LIBRARY_SCREEN_EXPAND,
   LIBRARY_SCREEN_KEYS,
-  LIBRARY_SPLIT_OPENING,
   LIBRARY_TREE_AROUND_KEY_SCOPE,
   LIBRARY_TREE_FOLD_OR_PARENT,
   LIBRARY_TREE_KEY_SCOPE,
@@ -688,7 +687,6 @@ export const BASE = defineBuiltin(
       SCREEN_FLASH,
       LIBRARY_FOLDER,
       LIBRARY_PICKED,
-      LIBRARY_SPLIT_OPENING,
       LIBRARY_COLUMNS,
       LIBRARY_UNFOLDED,
       LIBRARY_QUERY,
@@ -993,7 +991,6 @@ declare module "../../core/catalog" {
     "@matomezu/base:screen-flash": typeof SCREEN_FLASH
     "@matomezu/base:library-folder": typeof LIBRARY_FOLDER
     "@matomezu/base:library-picked": typeof LIBRARY_PICKED
-    "@matomezu/base:library-split-opening": typeof LIBRARY_SPLIT_OPENING
     "@matomezu/base:unreadable-notice-closed": typeof UNREADABLE_NOTICE_CLOSED
     "@matomezu/base:library-columns": typeof LIBRARY_COLUMNS
     "@matomezu/base:library-unfolded": typeof LIBRARY_UNFOLDED

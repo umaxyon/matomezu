@@ -38,7 +38,7 @@ import {
 import { ENTRY_DUPLICATE } from "./entry-duplicate"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
 import { ENTRY_TRASH } from "./entry-trash"
-import { openFromLibrary, opensBeside } from "./open-from"
+import { openFromLibrary, openSplitFromLibrary, opensBeside } from "./open-from"
 import {
   arrivedAt,
   type BookOpened,
@@ -56,14 +56,7 @@ import {
 import { PAGE_CREATE } from "./page-create"
 import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
 import { unreadableShownIn } from "./show-unreadable"
-import {
-  LIBRARY_COLUMNS,
-  LIBRARY_FOLDER,
-  LIBRARY_PICKED,
-  LIBRARY_QUERY,
-  LIBRARY_SPLIT_OPENING,
-  LIBRARY_UNFOLDED,
-} from "./state"
+import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_UNFOLDED } from "./state"
 import { createdIn, isDeskRow, realOf } from "./workdesk-rows"
 
 // 作る物を問うときの名前（名前は問いに渡らない。行う前は許可スコープから出した所で問い、run を呼ばない。作るブックは空のブックで問う。定義と機能台帳の「認可ステップ」）
@@ -230,8 +223,7 @@ export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
   },
 })
 
-// 分割で開く: ブックとその中のページ・ワーカーブックを、上下に分けて窓に出す（右クリックのメニューの「分割で開く」と Mod+Enter。吹き出しの「分割で開く」と同じ）。
-// 分けて出すのは書庫の画面（LIBRARY_SPLIT_OPENING を受ける）
+// 分割で開く: ブックとその中のページ・ワーカーブックを、呼ばれたスクリーンを起点に上下に分けて窓に出す（右クリックのメニューの「分割で開く」と Mod+Enter。窓が低ければ窓いっぱいに）
 export const LIBRARY_ENTRY_OPEN_SPLIT = kit.defineScreenCommand({
   id: "library-entry-open-split",
   readsSubjects: workdesksReadsOf,
@@ -239,7 +231,7 @@ export const LIBRARY_ENTRY_OPEN_SPLIT = kit.defineScreenCommand({
   run: (ctx, a, named: Named | undefined) => {
     const opens = splitOpening(ctx, named)
     if (opens === undefined) return
-    a.updatePluginState(LIBRARY_SPLIT_OPENING, was => ({ ...opens, n: (was?.n ?? 0) + 1 }))
+    openSplitFromLibrary(ctx, a, opens)
   },
   when: inMenu(ctx => splitOpening(ctx)),
 })

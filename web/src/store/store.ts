@@ -105,6 +105,7 @@ import {
   calledScreenIdOf,
   givenActions,
   givenScreenWrites,
+  givenWindowReads,
   type UpdatePluginStateAt,
 } from "./commands/def"
 import { NO_STAGE, type OpenedPlace, openedAt } from "./dialogs"
@@ -623,6 +624,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const given: CommandActions = { ...windowActionsOf(actions), ...boundActions(actions, stage), updatePluginState }
       givenActions.set(given, actions)
       givenScreenWrites.set(given, updatePluginStateAt)
+      givenWindowReads.set(given, () => getState().window)
       run(call.ctx, given, args[0] as never)
       if (pending.length > 0) {
         const now = getState().pluginValues
