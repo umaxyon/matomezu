@@ -6,6 +6,7 @@
 // 計算は同じフォルダの役割ごとのファイルにあり、ここは台帳アセンブルの結果（assembled）を渡して呼ぶ。常駐が呼ぶ口（globalThis に置く matomezu で始まる関数）は、全部ここに置く
 
 import { talkActions } from "../core/annotation"
+import { hostActions } from "../core/hosts"
 import { endActions, joinActions } from "../core/participant"
 import { checkRecords, restoreRecords } from "../core/records"
 import {
@@ -16,6 +17,7 @@ import {
   isParticipantAlive,
   restoreSettings,
   updateCheckOn,
+  userNameOf,
 } from "../core/settings"
 import { warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
@@ -41,12 +43,13 @@ import {
   keysOf,
   kindsOf,
   parentsOf,
+  recordBooksOf,
   recordNeedsOf,
   searchTextsOf,
   subjectRolesOf,
   unlistedOf,
 } from "./records"
-import { joinedText, myWorkdesk, visitorJoinedText, windowWarningLines, workTitle } from "./texts"
+import { joinedText, myWorkdesk, visitorJoinedText, windowWarningLines, workroomActivities, workTitle } from "./texts"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
@@ -137,6 +140,10 @@ let lastAdded: readonly Plugin[] = []
   }
 ).matomezuAiRecords = (kind, records, where, unlisted) => aiRecordsOf(assembled, kind, records, where, unlisted)
 
+// 種類 kind のレコード ids（JSON の並び）の id → AI に見せるバックヤードのブックの並び（read_records の全文に添える。folders は書庫のフォルダの行の全部〈JSON の並び〉）
+;(globalThis as { matomezuRecordBooks?: (kind: string, ids: string, folders: string) => string }).matomezuRecordBooks =
+  (kind, ids, folders) => recordBooksOf(assembled, kind, ids, folders)
+
 // 種類 subject のレコード records（JSON。id → レコード）のうち、一覧の既定の目次に載せない物の id の並び（core/ai-list.ts の isAIListed）。横断検索が、横断検索の当たりを分けるのに引く。指す先は、ホストの読み口から引く
 ;(globalThis as { matomezuUnlistedOf?: (subject: string, records: string) => string }).matomezuUnlistedOf = (
   subject,
@@ -216,6 +223,10 @@ let lastAdded: readonly Plugin[] = []
 ;(globalThis as { matomezuEndActions?: () => string }).matomezuEndActions = () =>
   JSON.stringify(endActions(assembled.catalog.core))
 
+// ほかのホストに応じて常駐が利用者として行うアクション（runsBetweenHosts）の、役ごとの id（常駐が、ホストどうしの入口で使う）
+;(globalThis as { matomezuHostActions?: () => string }).matomezuHostActions = () =>
+  JSON.stringify(hostActions(assembled.catalog.core))
+
 // 参加者が時点 nowMs（ミリ秒）で生きているか（利用者の設定の参加の有効時間で決まる。常駐が、同じ名前の参加者を引き継げるかを決めるのに読む）
 ;(
   globalThis as { matomezuParticipantAlive?: (settings: string, calledAt: string, nowMs: number) => boolean }
@@ -226,12 +237,13 @@ let lastAdded: readonly Plugin[] = []
 ;(globalThis as { matomezuUpdateCheck?: (settings: string) => boolean }).matomezuUpdateCheck = settings =>
   updateCheckOn(assembled.catalog.core, restoreSettings(JSON.parse(settings)))
 
-// ほかのホストとつなぐかとホスト名（利用者の設定で決まる。常駐が、ホストどうしの入口を開け閉めする前に読む。ホスト名は無ければ空）
+// ほかのホストとつなぐか・ホスト名・利用者名（利用者の設定で決まる。常駐が、ホストどうしの入口を開け閉めする前に読む。ホスト名は無ければ空）
 ;(globalThis as { matomezuHostSettings?: (settings: string) => string }).matomezuHostSettings = settings => {
   const s = restoreSettings(JSON.parse(settings))
   return JSON.stringify({
     connect: connectHostsOn(assembled.catalog.core, s),
     name: hostNameOf(assembled.catalog.core, s) ?? "",
+    userName: userNameOf(assembled.catalog.core, s),
   })
 }
 
@@ -246,6 +258,10 @@ let lastAdded: readonly Plugin[] = []
 ;(
   globalThis as { matomezuWorkTitle?: (settings: string, workroom: string, name: string) => string }
 ).matomezuWorkTitle = (settings, workroom, name) => workTitle(assembled, settings, workroom, name)
+
+// ワークルームそれぞれの作業の様子（working・idle・unknown。常駐が、ほかのホストに見せるワークルームの一覧に使う）。作業はレコードから決まるので、常駐が読み口を置いている間に呼ぶ
+;(globalThis as { matomezuWorkroomActivities?: (workrooms: string) => string }).matomezuWorkroomActivities =
+  workrooms => workroomActivities(assembled, workrooms)
 
 // AI のワークルームの作業机（AI の read_folder と参加の文に出す。folders は書庫のフォルダの行の全部〈JSON の並び〉）。作業はレコードから決まるので、常駐が読み口を置いている間に呼ぶ
 ;(globalThis as { matomezuMyWorkdesk?: (workroom: string, folders: string) => string }).matomezuMyWorkdesk = (

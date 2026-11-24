@@ -8,7 +8,7 @@ import type { CatalogFollowStep, CoreCatalogParts, PluginFollowStep } from "./co
 import { attachedTo, BASE_TARGETS, changesBookOnly } from "./def/action"
 import type { FollowStepDef } from "./def/follow-step"
 import type { SettingRole } from "./def/setting"
-import { PARTICIPANT_STATES, SUBJECT_ROLE_FIELDS } from "./def/subject"
+import { SUBJECT_ROLE_FIELDS, SUBJECT_ROLE_VALUES } from "./def/subject"
 import { THEME_TOKENS } from "./def/theme"
 import { enumValuesOf } from "./enum"
 import { type Problem, problem } from "./errors"
@@ -153,6 +153,15 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     if (canceller !== undefined) problems.push(problem("E067", { id: a.id, other: canceller }))
     canceller ??= a.id
   }
+  // ほかのホストに応じて常駐が行う役（runsBetweenHosts）は、役ごとに 1 つのアクションだけが名乗り、利用者だけが行うアクションに限る（AI が知らない鍵を覚えさせられないため）
+  const hostRoles = new Map<string, string>()
+  for (const a of parts.actions) {
+    if (!a.runsBetweenHosts) continue
+    const other = hostRoles.get(a.runsBetweenHosts)
+    if (other !== undefined) problems.push(problem("E081", { id: a.id, role: a.runsBetweenHosts, other }))
+    else hostRoles.set(a.runsBetweenHosts, a.id)
+    if (!a.userOnly) problems.push(problem("E082", { id: a.id }))
+  }
   // 参加者のセッションが終わったときの役（runsWhenAIEnds）も、1 つのアクションだけが名乗る
   let ender: string | undefined
   for (const a of parts.actions) {
@@ -188,9 +197,10 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     else roleOwner.set(s.role, s.id)
     for (const field of SUBJECT_ROLE_FIELDS[s.role])
       if (!(field in s.record.shape)) problems.push(problem("E051", { id: s.id, role: s.role, field }))
-    // 参加者の state は、常駐が読む値（PARTICIPANT_STATES）をそれぞれ受け、ほかを受けない
-    if (s.role === "participants" && !takesExactly(s.record.shape.state, PARTICIPANT_STATES))
-      problems.push(problem("E130", { id: s.id, states: PARTICIPANT_STATES.join(", ") }))
+    // 常駐が値で読むフィールドは、その値（SUBJECT_ROLE_VALUES）をそれぞれ受け、ほかを受けない
+    for (const [field, values] of Object.entries(SUBJECT_ROLE_VALUES[s.role] ?? {}))
+      if (!takesExactly(s.record.shape[field], values))
+        problems.push(problem("E130", { id: s.id, role: s.role, field, values: values.join(", ") }))
   }
   // 列挙の値の data は、宣言の value の形に合う（宣言が無い値は error にせず、効かない warning にする）
   const enumTables = { enums: byId(parts.enums), enumValues: byId(parts.enumValues) }

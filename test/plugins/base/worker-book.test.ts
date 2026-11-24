@@ -28,9 +28,7 @@ describe("認可ステップを直に問う", () => {
           workroomWorkSubjects: ["t"],
           workroomWork: (room: string, read: { record(s: string, id: string): unknown }) => {
             const w = read.record("w", room) as { ticket?: string }
-            return w?.ticket
-              ? { kind: "working", title: w.ticket, key: { subject: "t", id: w.ticket }, label: w.ticket }
-              : { kind: "idle" }
+            return w?.ticket ? { kind: "working", key: { subject: "t", id: w.ticket } } : { kind: "idle" }
           },
         },
       ],
@@ -202,19 +200,21 @@ describe("ワーカーブックにページを足す（worker-page-add）", () =
 })
 
 describe("ワーカーブックを持てる作業のレコードの種類", () => {
-  // 種類 s が、ワークルームの作業として種類 kind の k1 を答え、workroomWorkSubjects に listed を書いた機能台帳（種類 t は completesWork を持ち、u は持たない）
+  // 種類 s が、ワークルームの作業として種類 kind の k1 を答え、workroomWorkSubjects に listed を書いた機能台帳
+  // （種類 t は completesWork と workRecordName を持ち、u はどちらも持たず、v は completesWork だけ持つ）
   const catalogWith = (kind: string, listed: readonly string[]) =>
     ({
       ...CORE_CATALOG,
       subjects: new Map<string, unknown>([
-        ["t", { id: "t", completesWork: () => false }],
+        ["t", { id: "t", completesWork: () => false, workRecordName: () => ({ label: "K1", name: "k1" }) }],
         ["u", { id: "u" }],
+        ["v", { id: "v", completesWork: () => false }],
         [
           "s",
           {
             id: "s",
             workroomWorkSubjects: listed,
-            workroomWork: () => ({ kind: "working", title: "k1", key: { subject: kind, id: "k1" }, label: "K1" }),
+            workroomWork: () => ({ kind: "working", key: { subject: kind, id: "k1" } }),
           },
         ],
       ]),
@@ -230,9 +230,9 @@ describe("ワーカーブックを持てる作業のレコードの種類", () =
     expect(keyOf("u", ["u"])).toEqual({ subject: WORKROOM, id: "r1" })
   })
 
-  test("workroomWorkSubjects の種類が、台帳に無いか completesWork を持たなければ、台帳アセンブルで E133", () => {
+  test("workroomWorkSubjects の種類が、台帳に無いか completesWork か workRecordName を持たなければ、台帳アセンブルで E133", () => {
     const codes = (listed: readonly string[]) => WORK_SUBJECTS_CHECK(catalogWith("t", listed)).map(p => p.code)
     expect(codes(["t"])).toEqual([])
-    expect(codes(["u", "none"])).toEqual(["E133", "E133"])
+    expect(codes(["u", "v", "none"])).toEqual(["E133", "E133", "E133"])
   })
 })

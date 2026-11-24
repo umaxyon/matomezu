@@ -2,14 +2,15 @@
 // 行は 2 行（未読の印・送り手・時刻と、題・種類の印）。行を押すと選んで見たことにする（mail-seen）。行の左のチェックボックスでチェックした郵便は、ゴミ箱から確かめてまとめて消す（同じアクションバルク）。
 // チェックはタブごとで、タブを替えると外れる。選んでいる郵便とタブはスクリーンの範囲のプラグイン状態（今のタブに無い・消えた郵便は、選んでいないのと同じ）。
 // 行き先のボタンは、上下に並んでいるブックスクリーンのカレントのステージを起点に「開く／分割で開く／左に開く／右に開く」、並んでいなければ「開く」1 つ（ブックを窓に出す）。開いても閉じない
-import { type ReactNode, useState } from "react"
+import { useState } from "react"
 import { NO_STATE } from "../../../core/def/plugin-state"
 import { screenOfStage } from "../../../core/window"
 import { NO_STAGE } from "../../../store/dialogs"
 import { useMessages } from "../../../ui/i18n"
 import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
+import { NO_KIND_VIEW, useKindView } from "../../../ui/Slot"
 import { useScreenIdHere } from "../../../ui/screen-context"
-import { useLayout, useMatomezuState, useReadState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
+import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { useActions, useAllowedOn, useCoreCatalog, useUserSetting } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { ActionButton } from "../dialog-host/FormParts"
@@ -34,7 +35,7 @@ import { type OpenChoice, type OpenChoices, openChoices, openStageOf } from "./o
 import { GONE, mailPlace } from "./place"
 import { MAILBOX_SCOPE } from "./screen"
 import { shownOf } from "./shown"
-import { MAIL_ACTIONS, type MailActionsProps } from "./slots"
+import { MAIL_ACTIONS } from "./slots"
 import { MAILBOX_PICKED, MAILBOX_SENDER_TAB } from "./states"
 
 const TITLE_CHARS = 60 // 行に出す題の字数
@@ -207,12 +208,8 @@ function Reader({ mail }: { mail: Mail }) {
   const place = mailPlace(mail, books)
   const to = place === GONE ? undefined : (place ?? undefined)
   const open = useOpenPlace(mail)
-  const placed: readonly string[] = useLayout().slots[MAIL_ACTIONS] ?? []
-  const uiWidgets = useUiCatalog().widgets
-  const actionsId = placed.find(w => uiWidgets.get(w)?.forKind === mail.mail)
-  const Actions = actionsId
-    ? (uiWidgets.get(actionsId)?.view as ((props: MailActionsProps) => ReactNode) | undefined)
-    : undefined
+  const kindView = useKindView(MAIL_ACTIONS, mail.mail)
+  const Actions = kindView === NO_KIND_VIEW ? undefined : kindView
   return (
     <article className={styles.letter}>
       <h3 className={styles.subject}>{shown?.title ?? t("Mail")}</h3>

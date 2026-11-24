@@ -33,7 +33,7 @@ export {
 } from "../ui/plugin-state-hooks"
 export { useRecord, useRecords } from "../ui/record-hooks"
 export { ScreenView } from "../ui/ScreenView"
-export { Slot } from "../ui/Slot"
+export { KindSlot, NO_KIND, NO_KIND_VIEW, Slot, useKindView } from "../ui/Slot"
 export { NO_SCREEN } from "../ui/screen-context"
 export {
   useArrangedScreens,

@@ -34,6 +34,7 @@ export const LIBRARY_MESSAGES = defineMessages({
   Library: { en: "Library", ja: "書庫" },
   "Search by name": { en: "Search by name", ja: "名前で検索" },
   Found: { en: "Found", ja: "見つかった物" },
+  "Work history": { en: "Work history", ja: "作業履歴" },
   'Names with "{word}": {count}': { en: 'Names with "{word}": {count}', ja: "「{word}」を含む名前: {count} 件" },
   'No name has "{word}"': { en: 'No name has "{word}"', ja: "「{word}」を含む名前はありません" },
   "Library tree": { en: "Library tree", ja: "書庫のツリー" },

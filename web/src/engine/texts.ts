@@ -7,7 +7,13 @@ import { translate } from "../core/i18n/i18n"
 import { sourceOf } from "../core/record-source"
 import { langOf, restoreSettings } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
-import { JOINED_MESSAGE, myWorkdeskIn, VISITOR_JOINED_MESSAGE, workTitleIn } from "../plugins/base"
+import {
+  JOINED_MESSAGE,
+  myWorkdeskIn,
+  VISITOR_JOINED_MESSAGE,
+  workroomActivitiesFrom,
+  workTitleIn,
+} from "../plugins/base"
 import type { Assembled } from "../store/plugin"
 import { hostSource } from "./records"
 
@@ -44,6 +50,12 @@ export function myWorkdesk(of: Assembled, workroom: string, folders: string): st
   const source = hostSource({}) ?? sourceOf({})
   const { folders: table } = rowsLibraryOf(JSON.parse(folders) as unknown[], {})
   return JSON.stringify(myWorkdeskIn(of.catalog.core, source, table, workroom))
+}
+
+// engine.ts の matomezuWorkroomActivities の中身: ワークルームの id の並び workrooms（JSON）それぞれの作業の様子（id → working・idle・unknown の JSON）。レコードはホストの読み口から引く
+export function workroomActivities(of: Assembled, workrooms: string): string {
+  const source = hostSource({}) ?? sourceOf({})
+  return JSON.stringify(workroomActivitiesFrom(of.catalog.core, source, JSON.parse(workrooms) as string[]))
 }
 
 const WindowWarningSchema = z.object({

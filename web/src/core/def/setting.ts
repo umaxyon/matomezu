@@ -21,6 +21,7 @@ export type SettingRole =
   | "update-check"
   | "connect-hosts"
   | "host-name"
+  | "user-name"
 
 export interface SettingDef<S extends z.ZodType = z.ZodType, Tt extends string = MessageKey> extends SettingExtras {
   id: string // 本当の id（例: @matomezu/line:line-route）

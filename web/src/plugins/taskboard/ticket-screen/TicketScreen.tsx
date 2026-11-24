@@ -78,7 +78,7 @@ function TicketBody({ ticket }: { ticket: Ticket }) {
   const canEdit = allowed.ok && !locked
   const markBodyEdited = useBodyUpdateLine(id)
   const working = useWorkingOn(ticket)
-  // このチケットのワーカーブック（ページが在るときだけ作業履歴を押せる）
+  // このチケットのワーカーブック（ページが在るときだけ「作業ブック」を押せる）
   const found = useWorkerBook(useMemo(() => ({ subject: TICKET.id, id }), [id]))
   const workPages = found === NO_WORKER_BOOK ? [] : found.pages
   const shower = useShowBook()
@@ -152,7 +152,9 @@ function TicketBody({ ticket }: { ticket: Ticket }) {
                 type="button"
                 className={styles.item}
                 aria-pressed={view.side === "body"}
-                onClick={() => set({ side: view.side === "body" ? "none" : "body", maximized: false })}
+                onClick={() => {
+                  if (view.side !== "body") set({ side: "body", maximized: false })
+                }}
               >
                 <span className={styles.itemIcon}>
                   <BodyIcon />
@@ -162,21 +164,21 @@ function TicketBody({ ticket }: { ticket: Ticket }) {
               <button
                 type="button"
                 className={styles.item}
-                aria-pressed={view.side === "work-history"}
+                aria-pressed={view.side === "work-book"}
                 disabled={found === NO_WORKER_BOOK || workPages.length === 0}
-                data-work-history
-                // クリックで右の一覧を出し入れし、ダブルクリックで全画面で開く（最初のページ）。2 回目のクリックでは出し入れしない
+                data-work-book
+                // クリックで右を本文から一覧に替え、ダブルクリックで全画面で開く（最初のページ）
                 onClick={e => {
                   if (found === NO_WORKER_BOOK) return
-                  if (e.detail <= 1)
-                    set({ side: view.side === "work-history" ? "none" : "work-history", maximized: false })
-                  else if (e.detail === 2) shower.full(found.book, workPages[0])
+                  if (e.detail <= 1) {
+                    if (view.side !== "work-book") set({ side: "work-book", maximized: false })
+                  } else if (e.detail === 2) shower.full(found.book, workPages[0])
                 }}
               >
                 <span className={styles.itemIcon}>
                   <BookIcon />
                 </span>
-                <span className={styles.itemName}>{t("Work history")}</span>
+                <span className={styles.itemName}>{t("Work book")}</span>
               </button>
             </div>
             <div className={styles.sectionHead}>{t("History")}</div>
@@ -207,14 +209,9 @@ function TicketBody({ ticket }: { ticket: Ticket }) {
               }}
             />
           </Side>
-          <Side open={view.side === "work-history" && found !== NO_WORKER_BOOK} title={t("Work history")}>
+          <Side open={view.side === "work-book" && found !== NO_WORKER_BOOK} title={t("Work book")}>
             <div className={styles.band}>
-              <span className={styles.bandTitle}>{t("Work history")}</span>
-              <span className={styles.bandEnd}>
-                <button type="button" className={styles.close} onClick={() => set({ side: "none" })}>
-                  {t("Close")}
-                </button>
-              </span>
+              <span className={styles.bandTitle}>{t("Work book")}</span>
             </div>
             {found !== NO_WORKER_BOOK ? <WorkerBookPages found={found} keepHere /> : null}
           </Side>

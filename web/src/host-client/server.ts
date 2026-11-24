@@ -20,7 +20,16 @@ import { BROKEN } from "../core/folders"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import { NOT_INSIDE, PURGED, type UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
-import type { Build, ForeignChange, HostStatus, MatomezuInstance, ParticipantLive, UpdateStatus } from "../store/state"
+import type {
+  Build,
+  ForeignChange,
+  HostPeers,
+  HostRequest,
+  HostStatus,
+  MatomezuInstance,
+  ParticipantLive,
+  UpdateStatus,
+} from "../store/state"
 import type { HostClient, Loaded } from "./client"
 import { createLinkWatch } from "./link-watch"
 import { WIDE_SEARCH_ANSWER, wideSearchParams } from "./search"
@@ -32,6 +41,7 @@ import {
   ChangedSchema,
   DataSchema,
   HelloSchema,
+  HostPeersSchema,
   HostStatusSchema,
   MOVED_IF_OFF_ANSWER,
   NoticeSchema,
@@ -71,6 +81,15 @@ export interface Events {
   on(name: string, listener: (data: string) => void): void
   onError(listener: () => void): void
   close(): void
+}
+
+// ほかのホストについての頼みごとの、常駐の口（internal/server/server.go）
+const HOSTS_PATHS: Record<HostRequest["kind"], string> = {
+  pair: "api/hosts/pair",
+  "end-pairing": "api/hosts/pair/end",
+  check: "api/hosts/check",
+  discover: "api/hosts/discover",
+  "repick-port": "api/hosts/port",
 }
 
 // 読み直しをまたいで運ぶ物（読み直す前に知らされた、読めない物のフォルダへ移った・戻った物の知らせ）の、sessionStorage の鍵
@@ -152,6 +171,7 @@ export function serverClient(net: Net = browserNet): HostClient {
   let participantCalls: Record<string, string> = {} // 参加者の id → 最後に呼ばれた時刻
   let updateStatus: UpdateStatus | undefined // 新しい版の確かめの結果（読んだか知らされた物）
   let hostStatus: HostStatus | undefined // ホストどうしの入口の様子（読んだか知らされた物）
+  let hostPeers: HostPeers | undefined // ほかのホストの様子（読んだか知らされた物）
   let participantReady: string[] = [] // 準備中でない参加者の id（増えるだけ）
   let participantLive: Record<string, ParticipantLive> = {} // 参加者の id → モデルとブランチ（どちらも無い参加者は持たない）
   let plugins: { id: string; ui: string; css?: string; disabled?: boolean }[] = []
@@ -288,6 +308,10 @@ export function serverClient(net: Net = browserNet): HostClient {
     if (data.host) {
       hostStatus = data.host
       instance?.setHostStatus(data.host)
+    }
+    if (data.hostPeers) {
+      hostPeers = data.hostPeers
+      instance?.setHostPeers(data.hostPeers)
     }
     // 参加者の様子は、読んだ物で全部を入れ替える
     participantLive = {}
@@ -434,6 +458,10 @@ export function serverClient(net: Net = browserNet): HostClient {
       hostStatus = HostStatusSchema.parse(JSON.parse(data))
       instance?.setHostStatus(hostStatus)
     })
+    on("host-peers", data => {
+      hostPeers = HostPeersSchema.parse(JSON.parse(data))
+      instance?.setHostPeers(hostPeers)
+    })
     on("annotations", data => {
       const e = AnnotationsSchema.parse(JSON.parse(data))
       noticed(() => {
@@ -572,6 +600,17 @@ export function serverClient(net: Net = browserNet): HostClient {
       if (!res?.ok) fail("E411", { workroom, status: res ? `${res.status}` : "no answer" })
       return ASK_UPDATE_ANSWER.parse(await res.json()).ok
     },
+    askHosts: async request => {
+      const { kind, ...body } = request
+      const res = await net
+        .fetch(HOSTS_PATHS[kind], {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+        .catch(() => null)
+      if (!res?.ok) fail("E413", { request: kind, status: res ? `${res.status}` : "no answer" })
+    },
     purgeUnreadable: async id => {
       const res = await sendWrite("api/unreadable/purge", { id })
       if (!res?.ok) fail("E407", { id, status: res ? `${res.status}` : "no answer" })
@@ -601,6 +640,7 @@ export function serverClient(net: Net = browserNet): HostClient {
       show()
       if (updateStatus) next.setUpdateStatus(updateStatus)
       if (hostStatus) next.setHostStatus(hostStatus)
+      if (hostPeers) next.setHostPeers(hostPeers)
       let told = ""
       let viewSeq = 0 // 知らせの番号（届く順が入れ替わっても、常駐が古い方を捨てられるように増やす）
       // 見ているものと、利用者が直している物（どちらかが変わったときと、フォーカスされたときに知らせる）

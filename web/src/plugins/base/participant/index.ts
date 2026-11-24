@@ -80,6 +80,7 @@ export const ADMIN_MARK = kit.defineSubject({
 export const JOINED_MESSAGE = kit.message("Joined matomezu. Workroom name: {name}")
 export const VISITOR_JOINED_MESSAGE = kit.message("Joined matomezu as a visitor (read only)")
 
+export { workroomActivitiesFrom } from "./activity"
 export { myWorkdeskIn } from "./my-workdesk"
 export { SESSION_RENAME, workTitleIn } from "./work-title"
 export { type FoundWorkerBook, NO_WORKER_BOOK, WORKER_BOOK } from "./worker-book"

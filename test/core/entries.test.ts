@@ -3,6 +3,7 @@
 import { describe, expect, test } from "bun:test"
 import { outsideHolds } from "../../web/src/core/book"
 import {
+  aiBackyardBooksOf,
   backyardBookOf,
   binnedBetween,
   canHold,
@@ -462,6 +463,16 @@ describe("バックヤード", () => {
     expect(placedInBackyard(made, "b9", TICKETS, { subject: "t", id: "3" })).toBe("work-key-taken")
     expect(placedInBackyard(made, "b1", TICKETS, { subject: "t", id: "8" })).toBe("no-entry")
     expect(placedInBackyard(made, "b9", "@x/y:none", { subject: "t", id: "8" })).toBe("no-folder")
+  })
+
+  test("AI に見せると名乗ったバックヤードのブックだけを、id とページの数でレコードの物として引く（read_records の全文に添える物）", () => {
+    const t = yarded()
+    expect(aiBackyardBooksOf(CORE_CATALOG, t, { subject: "t", id: "3" })).toEqual([
+      { backyard: TICKETS, book: "b3", pages: 1 },
+    ])
+    expect(aiBackyardBooksOf(CORE_CATALOG, t, { subject: "t", id: "9" })).toEqual([])
+    const unshown = { ...CORE_CATALOG, backyards: new Map([[TICKETS, { id: TICKETS }]]) }
+    expect(aiBackyardBooksOf(unshown, t, { subject: "t", id: "3" })).toEqual([])
   })
 })
 

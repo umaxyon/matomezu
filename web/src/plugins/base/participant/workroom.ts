@@ -5,7 +5,7 @@ import { BIRD_PALETTE_IDS } from "../birds/colors"
 import { kit } from "../kit"
 import type { Participant, Workroom } from "."
 
-export const WORKROOM_NAME_MAX = 20 // ワークルームの名前の長さの上限（字）
+export const WORKROOM_NAME_MAX = 20 // ワークルームの名前の長さの上限（字。常駐がホストをまたぐ封筒で確かめる workroomNameMax と同じ）
 
 export const WORKROOM = kit.defineSubject({
   id: "workroom",

@@ -57,3 +57,24 @@ test("a ticket's brief for the AI starts with its number as the board shows it: 
   expect(TICKET.aiBrief?.(ticket, withProject({ prefix: "" }))).toBe("0012 n [todo]")
   expect(TICKET.aiBrief?.(ticket, withProject("none"))).toBe("0012 n [todo]")
 })
+
+test("チケットの作業のレコードの名前: 短く呼ぶ名前はプレフィクスを付けた番号（プロジェクトが読めなければプレフィクス無し）、名前はチケットの名前", () => {
+  const ticket = TICKET.record.parse({
+    id: "t1",
+    project: "p1",
+    number: 12,
+    name: "ログイン画面",
+    body: "パスワードの確認",
+    lane: "todo",
+    tags: [],
+    priority: "medium",
+    volume: "none",
+    assignees: [],
+    createdAt: "2026-01-01T00:00:00.000Z",
+    createdBy: { kind: "user" },
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  })
+  const read = (project: unknown) => ({ record: () => project, find: () => [] })
+  expect(TICKET.workRecordName?.(ticket, read({ prefix: "M-" }))).toEqual({ label: "M-0012", name: "ログイン画面" })
+  expect(TICKET.workRecordName?.(ticket, read("none"))).toEqual({ label: "0012", name: "ログイン画面" })
+})

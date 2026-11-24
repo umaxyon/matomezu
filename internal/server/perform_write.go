@@ -263,6 +263,15 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 		h.reusePluginsForSettings(p.Client)
 		h.kickHostEntrance()
 	}
+	if len(records) > 0 {
+		h.kickRooms() // 参加・退室・ワークルームの名前・作業中と空きは、どれもレコードが変わって起きる
+	}
+	for _, r := range records {
+		if s, _ := r["subject"].(string); s != "" && (s == h.roles["paired-hosts"] || s == h.roles["pairing-requests"]) {
+			h.kickPeers()
+			break
+		}
+	}
 }
 
 // changedEvent は、1 回の Perform の changed の知らせ（hub.go の頭。settings と counters は変わったときだけ、ほかはいつも載せる。h.mu を持って呼ぶ）

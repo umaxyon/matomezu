@@ -1,10 +1,9 @@
 // コントロールセンターの左の列に置くプロジェクトの一覧: 見出しを押して開閉（最初は閉じている）。行ごとに、左のつまみのドラッグで並べ替え・タスクボードを出すチェック・名前。
 // 並びと出しているタスクボードは利用者の設定。変えさせない設定のときは、つまみもチェックも押せない
 import { useMessages, usePluginState, useRecords, useUpdatePluginState } from "../../../plugin-api/ui"
-import { Band, Panel, useRowSlide } from "../../base/ui"
+import { Band, ChevronIcon, Panel, useRowSlide } from "../../base/ui"
 import { orderedProjects, shownProjects } from "../board/shown"
 import { useBoardSettings } from "../board/useBoardSettings"
-import { ChevronIcon } from "../icons"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
 import { Grip } from "../reorder/Grip"
@@ -37,7 +36,7 @@ export function ProjectListView() {
       <Band>
         <button type="button" className={styles.head} aria-expanded={open} onClick={() => updateOpen(now => !now)}>
           <span className={styles.chevron}>
-            <ChevronIcon />
+            <ChevronIcon size={14} />
           </span>
           {t("Projects")}
         </button>

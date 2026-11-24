@@ -31,5 +31,6 @@ export const defineBookmarks = <const Id extends string>(def: {
   })
 
 export { type Bookmark, useShowBookmarks } from "./BookmarkHost"
+export { LETTER_ICON } from "./letter-icon"
 export { BOOKMARKS, type BookmarksProps } from "./slots"
 export type { BookmarkTone } from "./tones"

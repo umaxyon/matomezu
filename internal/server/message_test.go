@@ -176,7 +176,7 @@ func TestSameEnvelopeIsQueuedOnce(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
-	e := Envelope{ID: "e1", From: Address{Workroom: "ひよこ"}, To: Address{Workroom: "すずめ", Participant: b}, Text: "hi"}
+	e := delivery{to: b, envelope: Envelope{ID: "e1", From: Address{Workroom: "ひよこ"}, To: Address{Workroom: "すずめ"}, Text: "hi"}}
 	hub.mu.Lock()
 	hub.deliver(e)
 	hub.deliver(e)

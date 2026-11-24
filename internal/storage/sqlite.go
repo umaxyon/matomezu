@@ -220,6 +220,8 @@ var migrations = []string{
 	`SELECT 1;`,
 	// プロジェクトに、レーンのタイトル帯に出す物（laneShows）を足す（Go の移し替え。migrate_lane_shows.go）
 	`SELECT 1;`,
+	// ペアリングしたホストに、requests（そのホストの AI からの AI 間メッセージを、利用者の頼みとして受けるか）を足す（Go の移し替え。migrate_paired_host_requests.go）
+	`SELECT 1;`,
 	// 郵便に、送り手が AI か利用者か（senderKind）を足す（Go の移し替え。migrate_mail_sender_kind.go）
 	`SELECT 1;`,
 }
@@ -241,7 +243,8 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	34: fillCurrentWorks,
 	35: participantAdeWorkspaces,
 	36: addLaneShows,
-	37: addMailSenderKind,
+	37: addPairedHostRequests,
+	38: addMailSenderKind,
 }
 
 type sqliteStorage struct {

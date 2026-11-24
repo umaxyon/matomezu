@@ -8,15 +8,25 @@ import type { MessageKey } from "../i18n/i18n"
 import type { Order } from "../record-keys"
 import type { Warning } from "../warnings"
 
-// 常駐が種類で引く役。参加者（participants）とワークルーム（workrooms）は常駐（join・話しかけのフック）が読む。定義が役を名乗り、常駐は役で種類を引く。
+// 常駐が種類で引く役。参加者（participants）とワークルーム（workrooms）は常駐（join・話しかけのフック）が読む。ペアリングしたホスト（paired-hosts）とペアリングの頼み（pairing-requests）は、ホストどうしの入口が読む。定義が役を名乗り、常駐は役で種類を引く。
 // 役ごとに 1 つの種類だけが名乗り、読むフィールドを record に持つ（SUBJECT_ROLE_FIELDS。台帳アセンブルのときに確かめる）
 export const SUBJECT_ROLE_FIELDS = {
   participants: ["id", "state", "ai", "model", "env", "sessionName", "link", "workroom", "requestedAt", "joinedAt"],
   workrooms: ["id", "name"],
+  "paired-hosts": ["id", "hostId", "nameAtPairing", "userNameAtPairing", "addr", "pairedAt", "requests"],
+  "pairing-requests": ["id", "hostId", "name", "userName", "addr", "code", "requestedAt"],
 } as const
 export type SubjectRole = keyof typeof SUBJECT_ROLE_FIELDS
 // 参加者（役 participants）の state の値: 要求中・受け入れ済みでワークルームに入っている・受け入れ済みでワークルームを持たない（ビジター。読むだけ）。常駐もこの値で読む
 export const PARTICIPANT_STATES = ["requested", "joined", "visitor"] as const
+// ペアリングしたホスト（役 paired-hosts）の requests の値: そのホストの AI から届いた文を、受け取った AI が実行してよいか利用者に聞く（既定）・
+// 利用者の頼みとして受ける。常駐もこの値で読み、届く行に印を付けるかを決める
+export const PAIRED_HOST_REQUESTS = ["ask-user", "as-user"] as const
+// 役ごとの、常駐が値で読むフィールドと、そのフィールドがちょうど受ける値（台帳アセンブルのときに確かめる）
+export const SUBJECT_ROLE_VALUES: { readonly [R in SubjectRole]?: Readonly<Record<string, readonly string[]>> } = {
+  participants: { state: PARTICIPANT_STATES },
+  "paired-hosts": { requests: PAIRED_HOST_REQUESTS },
+}
 
 // 索引キー 1 つ: 値の型と、レコードから値を返す関数（値の無いレコードは何も返さない）。条件と並びに書けるのは、宣言した索引キーだけ（core/record-keys.ts）
 export interface RecordKeyDef<Rec = never> {

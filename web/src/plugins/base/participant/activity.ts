@@ -1,6 +1,8 @@
-// ワークルームの作業: ワークルームが今なにかに取り組んでいるか（作業中。取り組んでいる物の題名つき）、取り組んでいないか（空き）。
-// 参加者リストの並びと、AI のセッション名（作業中なら題名を添える）に使う。ほかの動きを決めない。
-// base は自分では決めず、対象の定義に書いた workroomWork に答えさせる（カレントワークを持つプラグインなど）。答える種類が無ければ unknown
+// ワークルームの作業: ワークルームが今なにかに取り組んでいるか（作業中。取り組んでいるレコードつき）、取り組んでいないか（空き）。
+// 参加者リストの並びと、AI のセッション名（作業中なら作業のレコードの名前を添える）と、ワーカーブック（作業中なら作業のレコードの物）に使う。
+// 作業のレコードの名前は、ワーカーブックの名前と書庫の検索の作業履歴にも使う
+// base は自分では決めず、対象の定義に書いた workroomWork に答えさせる（カレントワークを持つプラグインなど）。答える種類が無ければ unknown。
+// 作業のレコードの名前（番号と名前）は、そのレコードの種類の定義に書いた workRecordName に答えさせる
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { WorkKey } from "../../../core/folders"
 import { type RecordReader, type RecordSource, readerOf, sourceOf } from "../../../core/record-source"
@@ -22,21 +24,51 @@ function narrowed(reader: RecordReader, subjects: Iterable<string>): RecordReade
   }
 }
 
-// 作業中なら、取り組んでいる物の短い題名 title と、そのレコード key（種類と id）と、それを短く呼ぶ名前 label（例: チケットの番号。作業の資料のブックの名前になる）
-export type WorkroomWork = { kind: "working"; title: string; key: WorkKey; label: string } | { kind: "idle" }
+// 作業中なら、取り組んでいるレコード key（種類と id）
+export type WorkroomWork = { kind: "working"; key: WorkKey } | { kind: "idle" }
 export type WorkroomActivity = WorkroomWork["kind"]
 
 declare module "../../../core/catalog" {
   interface SubjectExtras {
-    // ワークルーム workroom の作業を答える（作業中なら、取り組んでいる物の短い題名。例: チケットの番号と名前。そのレコードと、短く呼ぶ名前も）。
+    // ワークルーム workroom の作業を答える（作業中なら、取り組んでいるレコード）。
     // read はレコードの読み口で、読めるのは workroomWorkReads に書いた種類だけ（ほかは none と空）
     workroomWork?(workroom: string, read: RecordReader): WorkroomWork
     // workroomWork が読む種類（読む id が読んだ中身で決まるので、種類ごと宣言する）
     workroomWorkReads?: readonly string[]
-    // workroomWork が答える作業のレコードの種類（key の種類）。どれも completesWork を持つ（台帳アセンブルが確かめる。E133）。
+    // workroomWork が答える作業のレコードの種類（key の種類）。どれも completesWork と workRecordName を持つ（台帳アセンブルが確かめる。E133）。
     // ここに無い種類を答えたら、その作業のワーカーブックは作らず、ワークルーム自身のブックを使う
     workroomWorkSubjects?: readonly string[]
+    // 作業のレコード record の名前（workroomWorkSubjects に書かれた種類が書く）。読めない物があって決まらなければ undefined。
+    // read はレコードの読み口で、読めるのは workRecordNameReads に書いた種類だけ（ほかは none と空）
+    workRecordName?(record: unknown, read: RecordReader): WorkRecordName | undefined
+    // workRecordName が読む種類
+    workRecordNameReads?: readonly string[]
   }
+}
+
+// 作業のレコードの名前: 短く呼ぶ名前 label（例: チケットの番号。ワーカーブックの名前になる）と、名前 name（例: チケットの名前）
+export interface WorkRecordName {
+  label: string
+  name: string
+}
+
+// 作業のレコードの名前を一続きにした題名（例「M-0177 名前」）
+export const workRecordTitleOf = (name: WorkRecordName): string => `${name.label} ${name.name}`
+
+// 機能台帳 catalog で、作業のレコードの名前を引くのに読む種類（workRecordName を持つ種類と、その workRecordNameReads）
+export const workRecordNameReadsOf = (catalog: CoreCatalog): readonly string[] => [
+  ...new Set(
+    [...catalog.subjects.values()].flatMap(s => (s.workRecordName ? [s.id, ...(s.workRecordNameReads ?? [])] : [])),
+  ),
+]
+
+// 読み口 read から、作業のレコード key の名前（種類が workRecordName を持たない・レコードが無い・決まらなければ undefined）。
+// 種類には、その workRecordNameReads の種類だけを読ませる
+export function workRecordNameOf(catalog: CoreCatalog, read: RecordReader, key: WorkKey): WorkRecordName | undefined {
+  const def = catalog.subjects.get(key.subject)
+  if (!def?.workRecordName) return undefined
+  const record = read.record(key.subject, key.id)
+  return record === NO_RECORD ? undefined : def.workRecordName(record, narrowed(read, def.workRecordNameReads ?? []))
 }
 
 // 機能台帳 catalog で、ワークルームの作業を答えるのに読む種類（どの種類の workroomWorkReads も合わせた物）
@@ -64,6 +96,22 @@ export const workroomWorkFrom = (
   workroom: string,
 ): WorkroomWork | "unknown" =>
   workroomWorkIn(catalog, readerOf(catalog, source, workroomWorkReadsOf(catalog)), workroom)
+
+// 読み口 source から、ワークルーム workrooms それぞれの作業の様子（作業中か空き。答える種類が無ければ unknown）。
+// 常駐が、ほかのホストに見せるワークルームの一覧に使う（読み口は 1 度だけ組む）
+export function workroomActivitiesFrom(
+  catalog: CoreCatalog,
+  source: RecordSource | undefined,
+  workrooms: readonly string[],
+): Record<string, WorkroomActivity | "unknown"> {
+  const read = readerOf(catalog, source, workroomWorkReadsOf(catalog))
+  const out: Record<string, WorkroomActivity | "unknown"> = {}
+  for (const id of workrooms) {
+    const work = workroomWorkIn(catalog, read, id)
+    out[id] = work === "unknown" ? work : work.kind
+  }
+  return out
+}
 
 // 画面が持つレコード records から、ワークルーム workroom の作業を答える
 export const workroomWorkOf = (

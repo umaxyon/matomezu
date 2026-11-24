@@ -1,0 +1,206 @@
+/* ほかのホストの節: コントロールセンターのワークルームの一覧と同じ並びの行 */
+.section {
+  flex: none;
+  max-height: 40%;
+}
+.heading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--skin-text-muted);
+}
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--skin-text-muted);
+}
+.rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0 calc(-1 * var(--panel-pad-x));
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.row {
+  border-bottom: 1px solid var(--skin-border);
+}
+.row:last-child {
+  border-bottom: 0;
+}
+.row[data-selected="true"] {
+  background: var(--skin-accent-subtle);
+  box-shadow: inset 2px 0 0 var(--skin-accent);
+}
+.line {
+  display: flex;
+  align-items: center;
+}
+/* ▸ 行を開く（開くと下向き） */
+.open {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 32px;
+  margin-left: calc(var(--panel-pad-x) - 4px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--skin-text-muted);
+  cursor: pointer;
+}
+.open svg {
+  transition: transform var(--motion-fast) ease;
+}
+.open[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+/* 開いたホストの下の、相手のワークルームの行 */
+.rooms {
+  margin: 0 0 6px;
+  padding: 0 var(--panel-pad-x) 0 calc(var(--panel-pad-x) + 34px);
+  font-size: 12px;
+  color: var(--skin-text-muted);
+  list-style: none;
+}
+.room {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 22px;
+}
+.roomName {
+  overflow: hidden;
+  color: var(--skin-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity {
+  flex: none;
+  margin-left: auto;
+}
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 4px calc(var(--panel-pad-x) + 3px) 4px 2px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.name {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* ● つながっている・○ つながっていない */
+.dot {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border: 1.5px solid var(--skin-text-muted);
+  border-radius: 50%;
+}
+.dot[data-connected="true"] {
+  border-color: var(--skin-accent);
+  background: var(--skin-accent);
+}
+/* 右の下の枠の、ホストの詳しい所 */
+.detail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+}
+.unpair {
+  position: absolute;
+  right: 8px;
+  bottom: 0;
+  display: flex;
+}
+.unpairButton {
+  width: 24px;
+  height: 24px;
+  border-color: var(--skin-border-strong);
+}
+/* 左に今の様子、右に頼みの扱い（狭いと下へ回る） */
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1;
+  align-items: flex-start;
+  gap: 8px 48px;
+  min-height: 0;
+  overflow: auto;
+}
+.requests {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 13px;
+}
+.requests legend {
+  padding: 0;
+  margin-bottom: 4px;
+  color: var(--skin-text-muted);
+}
+.requests label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  cursor: pointer;
+}
+.requests:disabled label {
+  cursor: default;
+}
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.user {
+  font-weight: 400;
+  color: var(--skin-text-muted);
+}
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 13px;
+}
+.facts dt {
+  color: var(--skin-text-muted);
+}
+.facts dd {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+.facts code {
+  font-family: monospace;
+}
+.seen {
+  margin-left: 16px;
+  color: var(--skin-text-muted);
+}
+.warn {
+  margin-left: 16px;
+  color: var(--skin-danger);
+}

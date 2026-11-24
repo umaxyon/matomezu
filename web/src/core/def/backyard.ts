@@ -5,6 +5,8 @@ import type { BackyardExtras } from "../catalog"
 
 export interface BackyardDef extends BackyardExtras {
   id: string // 本当の id（例: @matomezu/base:tickets-history）
+  // 中のブックを、そのブックの workKey が指すレコードの全文（read_records）に添えて AI に見せるか（書いた物だけ。一覧には出さない）
+  aiShown?: true
 }
 
 export function defineBackyard<const Id extends string>(def: BackyardDef & { id: Id }): BackyardDef & { id: Id } {

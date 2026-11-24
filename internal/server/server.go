@@ -55,7 +55,8 @@
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
 //	GET  /api/ai/join-rules  参加を頼む AI が読む手順。
 //	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom", "as", "adeWorkspace"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る）。{"ok", "participant"} か弾いた理由（join.go）
-//	POST /api/ai/message     {"to", "text"} AI 間メッセージを、ワークルーム to の参加者に送る（受け取られるまで常駐が持つ）。{"ok", "queued"} か断った理由（message.go）
+//	POST /api/ai/message     {"to", "host", "text"} AI 間メッセージを、ワークルーム to の参加者に送る（host はペアリングしたホストのホストエイリアス。受け取られるまで宛て先の常駐が持つ）。{"ok", "queued"} か断った理由（message.go）
+//	GET  /api/ai/workrooms?host=  送れるワークルームの一覧。host が無ければ、このホストの一覧とペアリングしたホストのホストエイリアス、あればそのホストの写し（peer_rooms.go の aiWorkrooms）
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた窓にブックを出す（Hub.Show）。
 //	                         窓が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す
 //
@@ -156,6 +157,26 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/screen-plugins/remove", o.screen(o.unlinkPluginsFromScreen))
 	mux.Handle("POST /api/unreadable/purge", o.screen(o.purgeUnreadable))
 	mux.Handle("POST /api/update/check", o.screen(o.checkUpdate))
+	mux.Handle("POST /api/hosts/port", o.screen(func(w http.ResponseWriter, _ *http.Request) {
+		if err := o.Hub.RepickHostPort(); err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
+	mux.Handle("POST /api/hosts/pair", o.screen(o.startPairing))
+	mux.Handle("POST /api/hosts/pair/end", o.screen(func(w http.ResponseWriter, _ *http.Request) {
+		o.Hub.EndPairing()
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
+	mux.Handle("POST /api/hosts/check", o.screen(func(w http.ResponseWriter, _ *http.Request) {
+		o.Hub.CheckPeers()
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
+	mux.Handle("POST /api/hosts/discover", o.screen(func(w http.ResponseWriter, _ *http.Request) {
+		o.Hub.Discover()
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
 	mux.Handle("POST /api/update/ask", o.screen(o.askUpdate))
 	mux.Handle("POST /api/unreadable/if-off", o.screen(o.movedIfOff))
 	mux.Handle("GET /api/ai/view", o.ai(o.aiView))
@@ -191,6 +212,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/ai/join-rules", o.ai(o.aiJoinRules))
 	mux.Handle("POST /api/ai/join", o.ai(o.aiJoin))
 	mux.Handle("POST /api/ai/message", o.ai(o.aiMessage))
+	mux.Handle("GET /api/ai/workrooms", o.ai(o.aiWorkrooms))
 	mux.Handle("/api/", http.NotFoundHandler())
 	mux.Handle("/", o.webFiles())
 	return mux
@@ -262,6 +284,7 @@ func (o Options) data(w http.ResponseWriter, _ *http.Request) {
 	}
 	if s := o.Hub.HostStatus(); s.HostID != "" {
 		data["host"] = s
+		data["hostPeers"] = o.Hub.HostPeers()
 	}
 	writeJSON(w, data)
 }
@@ -343,6 +366,23 @@ func (o Options) checkUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, s)
+}
+
+// startPairing は、画面の口: addr（番地:ポート）のホストにペアリングを頼み始める。manual は利用者が手で入れたか。様子は host-peers で知らせる
+func (o Options) startPairing(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Addr   string `json:"addr"`
+		Manual bool   `json:"manual"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&req); err != nil || req.Addr == "" {
+		http.Error(w, "the body must be {\"addr\", \"manual\"}", http.StatusBadRequest)
+		return
+	}
+	if err := o.Hub.StartPairing(req.Addr, req.Manual); err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+	writeJSON(w, map[string]bool{"ok": true})
 }
 
 // askUpdate は、画面の口: ワークルームの、参加が確定した AI に版を上げるよう頼む。AI がいなければ { ok: false, reason: "no-recipient" }

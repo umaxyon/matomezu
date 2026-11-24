@@ -148,3 +148,54 @@ func TestTheWorkdeskFollowsTheCurrentTicket(t *testing.T) {
 		t.Fatalf("workdesk = %v, want the ticket's book %s (own book %s)", ids, ticket, own)
 	}
 }
+
+// チケットの全文（read_records の id・ids）は、そのチケットのワーカーブック（AI に見せるバックヤードの物）の id とページの数を books に添える。
+// ほかのワークルームの AI も読め、ブックの無いチケットには添えない
+func TestTicketRecordsAnswerTheirWorkerBooks(t *testing.T) {
+	s, _ := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	noticeOf(t, s.URL, a)
+	as := map[string]string{aiwire.ParticipantHeader: a}
+	const ticket = "@matomezu/taskboard:ticket"
+	var project string
+	for id := range recordsOf(t, s.URL, "@matomezu/taskboard:project") {
+		project = id
+	}
+	if got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/taskboard:ticket-add","args":{"project":"`+project+`","name":"y","assignees":["ひよこ"]}}`, as); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("ticket-add = %s", got)
+	}
+	var book string
+	for _, title := range []string{"memo", "plan"} {
+		got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:worker-page-add","args":{"type":"@matomezu/markdown:markdown","title":"`+title+`"}}`, as)
+		var added struct {
+			OK     bool
+			Result struct{ Book string }
+		}
+		if json.Unmarshal([]byte(got), &added) != nil || !added.OK {
+			t.Fatalf("worker-page-add = %s", got)
+		}
+		book = added.Result.Book
+	}
+	if code, got := postPerform(t, s.URL, `{"action":"@matomezu/taskboard:ticket-add","args":{"project":"`+project+`","name":"z"},"lang":"ja","ids":["bare"],"now":"2026-11-12T00:00:00.000Z"}`); code != 200 || !strings.Contains(got, `"ok":true`) {
+		t.Fatalf("ticket-add = %s", got)
+	}
+	var worked string
+	for id := range recordsOf(t, s.URL, ticket) {
+		if id != "bare" {
+			worked = id
+		}
+	}
+	b := joinedIn(t, s.URL, "LB", "100", "SB", "からす")
+	noticeOf(t, s.URL, b)
+	bs := map[string]string{aiwire.ParticipantHeader: b}
+	want := `[{"backyard":"@matomezu/base:tickets-history","book":"` + book + `","pages":2}]`
+	if got, _ := call(t, "GET", s.URL+"/api/ai/records?kind="+ticket+"&id="+worked, "", bs); !strings.Contains(got, `"books":`+want) {
+		t.Fatalf("the worked ticket in full = %s", got)
+	}
+	if got, _ := call(t, "GET", s.URL+"/api/ai/records?kind="+ticket+"&id=bare", "", bs); strings.Contains(got, `"books"`) {
+		t.Fatalf("a ticket without a worker book = %s", got)
+	}
+	if got, _ := call(t, "GET", s.URL+"/api/ai/records?kind="+ticket+"&ids="+worked+"&ids=bare", "", bs); !strings.Contains(got, `"books":{"`+worked+`":`+want+`}`) {
+		t.Fatalf("the tickets in full = %s", got)
+	}
+}

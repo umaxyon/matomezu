@@ -8,7 +8,6 @@ import { kit } from "../kit"
 import { PROJECT, type Project } from "../project"
 import { inWorkingLane } from "../project/project"
 import type { TicketLike } from "../ticket/current"
-import { ticketLabel } from "../ticket/label"
 import { TICKET, type Ticket } from "../ticket/ticket"
 
 // カレントワークの種類の id（定義 CURRENT_WORK の workroomWork が、定義より先に使う）と、無いことを表す値
@@ -83,7 +82,7 @@ export const CURRENT_WORK = kit.defineSubject({
   aiBrief: w => w.ticket,
   workroomWorkReads: [CURRENT_WORK_ID, TICKET.id, PROJECT.id],
   workroomWorkSubjects: [TICKET.id],
-  // 参加者リストの並びとセッション名・作業の資料のブック: カレントチケットがあれば作業中で、題名はチケットの番号と名前、レコードはチケット、短く呼ぶ名前はチケットの番号
+  // 参加者リストの並びとセッション名・作業の資料のブック: カレントチケットがあれば作業中で、レコードはチケット（名前はチケットの定義の workRecordName）
   workroomWork: (workroom, read) => {
     const current = currentTicketOf(
       workroom,
@@ -91,14 +90,7 @@ export const CURRENT_WORK = kit.defineSubject({
       id => parsed(TICKET.record, read.record(TICKET.id, id)),
       id => parsed(PROJECT.record, read.record(PROJECT.id, id)),
     )
-    return current
-      ? {
-          kind: "working",
-          title: `${ticketLabel(current.project.prefix, current.ticket.number)} ${current.ticket.name}`,
-          key: { subject: TICKET.id, id: current.ticket.id },
-          label: ticketLabel(current.project.prefix, current.ticket.number),
-        }
-      : { kind: "idle" }
+    return current ? { kind: "working", key: { subject: TICKET.id, id: current.ticket.id } } : { kind: "idle" }
   },
 })
 

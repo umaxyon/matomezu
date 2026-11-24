@@ -34,7 +34,30 @@ type RecordsQuery struct {
 	Unlisted string
 }
 
+// recordBooks は、種類 kind のレコード ids のうち、AI に見せるバックヤードにブックが在る物の id → そのブックの並び（read_records の全文に添える。engine.RecordBooks）。
+// 開けないとしたブックと見えない物は添えない（read_book が断る物。作業机と同じ）
+func (h *Hub) recordBooks(kind string, ids []string) (map[string][]engine.BackyardBook, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	all, err := h.engine.RecordBooks(kind, ids, h.folderRowsHeld())
+	if err != nil {
+		return nil, err
+	}
+	out := map[string][]engine.BackyardBook{}
+	for id, books := range all {
+		kept := slices.DeleteFunc(books, func(b engine.BackyardBook) bool { return h.outOfSight(b.Book) })
+		if len(kept) > 0 {
+			out[id] = kept
+		}
+	}
+	return out, nil
+}
+
 // AIRecords は、AI に見せる種類のレコードを、取り方 q で返す。refusal は取り方が合わないときの断る理由（AI に返す英語の文）。
+// 全文（ID・IDs）には、AI に見せるバックヤードのそのレコードの物のブックを books に添える（在る物だけ。IDs はレコードの id ごと）。
 // AI に見せない種類・無い種類・無いレコード（ID のとき）は ok が false。
 // 一覧の既定の並びを持つ種類（aiList）は、置き場所の索引キーで探して並べ、返す件数だけ中身を読む（{"kind","records","total","older"}。
 // total は条件に合う全部の数、older は返した中で最後の物より後ろの数）。持たない種類は、全部を読んでエンジンが並べる（100 行まで。{"kind","records","total"}）
@@ -57,7 +80,15 @@ func (h *Hub) AIRecords(q RecordsQuery) (out json.RawMessage, refusal string, ok
 		if err != nil || r == nil {
 			return nil, "", false, err
 		}
-		out, err = json.Marshal(map[string]any{"kind": q.Kind, "record": r.Body})
+		answer := map[string]any{"kind": q.Kind, "record": r.Body}
+		books, err := h.recordBooks(q.Kind, []string{q.ID})
+		if err != nil {
+			return nil, "", false, err
+		}
+		if b, ok := books[q.ID]; ok {
+			answer["books"] = b
+		}
+		out, err = json.Marshal(answer)
 		return out, "", err == nil, err
 	}
 	if len(q.IDs) > 0 {
@@ -67,7 +98,7 @@ func (h *Hub) AIRecords(q RecordsQuery) (out json.RawMessage, refusal string, ok
 		if len(q.IDs) > aiRecordsIDsMax {
 			return nil, fmt.Sprintf("ids takes 1 to %d ids", aiRecordsIDsMax), true, nil
 		}
-		records, unknown, seen := []json.RawMessage{}, []string{}, map[string]bool{}
+		records, found, unknown, seen := []json.RawMessage{}, []string{}, []string{}, map[string]bool{}
 		for _, id := range q.IDs {
 			if seen[id] {
 				continue
@@ -81,9 +112,17 @@ func (h *Hub) AIRecords(q RecordsQuery) (out json.RawMessage, refusal string, ok
 				unknown = append(unknown, id)
 			} else {
 				records = append(records, r.Body)
+				found = append(found, id)
 			}
 		}
 		answer := map[string]any{"kind": q.Kind, "records": records}
+		books, err := h.recordBooks(q.Kind, found)
+		if err != nil {
+			return nil, "", false, err
+		}
+		if len(books) > 0 {
+			answer["books"] = books
+		}
 		if len(unknown) > 0 {
 			slices.Sort(unknown)
 			answer["unknown"] = unknown

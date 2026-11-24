@@ -43,12 +43,14 @@ type Engine struct {
 	talk         func() string
 	join         func() string
 	end          func() string
+	hosts        func() string
 	alive        func(string, string, float64) bool
 	updateCheck  func(string) bool
 	hostSettings func(string) string
 	needs        func(string, string) string
 	roles        func() string
 	aiRecords    func(string, string, string, string) string
+	recordBooks  func(string, string, string) string
 	once         func() string
 	sysFolders   func() string
 	settle       func(string, string, string, string) string
@@ -60,6 +62,7 @@ type Engine struct {
 	visitorMsg   func(string) string
 	workTitle    func(string, string, string) string
 	myWorkdesk   func(string, string) string
+	activities   func(string) string
 	live         func(string, string, string, string) string
 	forAI        func(string) string
 	briefs       func(string) string
@@ -143,6 +146,7 @@ func New() (*Engine, error) {
 		{"matomezuTalkActions", &e.talk},
 		{"matomezuJoinActions", &e.join},
 		{"matomezuEndActions", &e.end},
+		{"matomezuHostActions", &e.hosts},
 		{"matomezuParticipantAlive", &e.alive},
 		{"matomezuUpdateCheck", &e.updateCheck},
 		{"matomezuHostSettings", &e.hostSettings},
@@ -155,11 +159,13 @@ func New() (*Engine, error) {
 		{"matomezuPurgedRows", &e.purge},
 		{"matomezuSubjectRoles", &e.roles},
 		{"matomezuAiRecords", &e.aiRecords},
+		{"matomezuRecordBooks", &e.recordBooks},
 		{"matomezuRecordNeeds", &e.needs},
 		{"matomezuJoinedText", &e.joinedMsg},
 		{"matomezuVisitorJoinedText", &e.visitorMsg},
 		{"matomezuWorkTitle", &e.workTitle},
 		{"matomezuMyWorkdesk", &e.myWorkdesk},
+		{"matomezuWorkroomActivities", &e.activities},
 		{"matomezuUnexpired", &e.live},
 	} {
 		if err := vm.ExportTo(vm.Get(f.name), f.to); err != nil {
