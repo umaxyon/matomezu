@@ -1,0 +1,9 @@
+#!/bin/sh
+# コミットの前に、ステージした物へ format（bun run format と同じ biome check --write）を当てて入れ直し、そのあと lint（bun run lint と同じ biome check）で止める。
+# 入れ直しはファイルごとなので、ステージした物にステージしていない変更もあれば、それも一緒に入る。
+# 入れ方: git config core.hooksPath .githooks（リポジトリの設定なので、全部の worktree に効く）
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+bunx biome check --write --staged --no-errors-on-unmatched >/dev/null || exit 1
+git diff --name-only | grep -xF -e "$staged" | while IFS= read -r f; do git add -- "$f"; done
+bunx biome check --staged --no-errors-on-unmatched

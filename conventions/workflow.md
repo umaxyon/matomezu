@@ -16,7 +16,7 @@
   - 単体: `bun test`
   - Go: `go test ./...`（リポジトリの根から動かす）
   - 型: `bun run typecheck`
-  - lint: `bun run lint`（直すのは `bun run format`）
+  - lint: `bun run lint`（取り込みのキューだけ。ほかでは「コミット」のフックに任せる）
   - e2e: `bun run e2e`
 - 速さは `bun run e2e:perf` で測る。全部のテストには入れない
 - e2e は、画面をホストに通して確かめる
@@ -44,6 +44,7 @@
 - main に直接積む。ただし平行作業の worktree では、その worktree のブランチに積み、main のセッション（main_manager）に main への取り込みを頼む。平行作業のブランチを main へ入れるのは、main_manager が動かす取り込みのキュー（`bun scripts/merge-queue.ts <ブランチ>...`）だけで、手で fast-forward やマージをしない。全部のテストと、入れたあとの常駐などの作り直しはキューが行うので、頼む側も main の側も自分ではしない。キューが外したブランチ（衝突・テストの落ち）は、ブランチの側で直して頼み直す。捨てるかもしれない試みだけブランチを切り、戻る目印はタグ（このブランチを main に入れるときは、main に直接積むときと同じに確かめる）
 - 平行作業の worktree から取り込みを頼む前は、次の順に確かめる。1 変更を全部コミットする 2 main の最新を取り込む 3 テストを流す（「テスト」の作業中の決まり） 4 conventions-review に見せる。3・4 のあとに直したら、直した分を流し直し、見せ直す
 - 区切りのコミットは頼まれなくてよい。push は頼まれたときだけ
+- コミットのたびに、フック（`.githooks/pre-commit`）が、ステージした物に format を当ててから lint を流し、誤りがあればコミットを止める。format と lint は自分では流さず、止められたら lint の誤りだけを直す。フックは `git config core.hooksPath .githooks` で入れる（リポジトリに 1 回。全部の worktree に効く）
 - サブエージェント conventions-review（`.claude/agents/conventions-review.md`）で、変更が規約に違反していないかを確かめる。違反があれば直す。見せる物は、取り込みを頼む前なら main との差分、main に直接積むときと、main で衝突を解いてマージのコミットを作るときは、コミットの前のステージ済みの変更
 - 見せる差分が利用者向けマニュアルの下書き（`.claude/matomezu-manual-memo.md`）だけのときは、conventions-review を省く
 - AGENT.md の「利用者向けマニュアル」のとおりサブエージェント manual-creator（`.claude/agents/manual-creator.md`）が書き足した下書きは、書き足しを終えたらコミットする。返ってきた問いには答えるかユーザーに聞き、使い方の不備はユーザーに伝える
