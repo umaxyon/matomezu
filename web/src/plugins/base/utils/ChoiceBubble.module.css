@@ -1,10 +1,9 @@
-/* 選ぶ物の吹き出し: 押した要素の下に、窓の上に重ねて出す。見た目はほかの吹き出しと同じ（スキンの bubble・枠・角丸・影） */
+/* 選ぶ物の吹き出し: 押した要素の下（入らなければ上）に、窓の上に重ねて出す。見た目はほかの吹き出しと同じ（スキンの bubble・枠・角丸・影） */
 .bubble {
   position: fixed;
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  margin-top: 4px;
   padding: 4px;
   border: 1px solid var(--skin-border);
   border-radius: 6px;

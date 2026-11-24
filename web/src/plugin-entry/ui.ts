@@ -17,6 +17,7 @@ export {
   type BookmarkTone,
   type BookOpenChoiceOptions,
   type BookShower,
+  type BubbleAt,
   belowOf,
   CaptionField,
   type Choice,
