@@ -73,7 +73,11 @@ test("「ほかのホスト」の節は、つなぐが入のときだけ出し�
   expect(within(panel()).getByText("BBBB BBBB BBBB BBBB …")).toBeTruthy()
   fireEvent.click(within(panel()).getByRole("button", { name: "ペアリングを解く" }))
   const confirm = screen.getByRole("dialog", { name: "ペアリングを解く" })
-  expect(within(confirm).getByText("相手のホストにも知らせます。またつなぐには、もう一度ペアリングします")).toBeTruthy()
+  expect(
+    within(confirm).getByText(
+      "相手のホストにも知らせます。このホストから届いて、AI がまだ受け取っていないメッセージは消えます。またつなぐには、もう一度ペアリングします",
+    ),
+  ).toBeTruthy()
   fireEvent.click(within(confirm).getByRole("button", { name: "解く" }))
   expect(screen.queryByRole("dialog")).toBeNull()
   expect(Object.keys(store.state.getState().records[PAIRED_HOST.id] ?? {})).toEqual([])
