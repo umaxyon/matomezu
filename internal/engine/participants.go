@@ -113,6 +113,25 @@ func (e *Engine) WorkTitle(settings json.RawMessage, workroom, name string, src 
 	return got.Title, got.Kind == "title", nil
 }
 
+// WorkroomActivities は、ワークルームの id の並び workrooms それぞれの作業の様子（working・idle・unknown）。作業はレコードから決まるので、レコードを引く口 src を渡す
+func (e *Engine) WorkroomActivities(workrooms []string, src Source) (out map[string]string, err error) {
+	b, err := json.Marshal(append([]string{}, workrooms...))
+	if err != nil {
+		return nil, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.source = src
+	defer func() { e.source = nil }()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.activities(string(b))), &out)
+	return out, err
+}
+
 // MyWorkdesk は、AI のワークルームの作業机（base の myWorkdeskIn）: ワークルームのフォルダの id（無ければ空）、ワーカーブックの id（まだ無ければ空）、参加の文に足す英語の文
 type MyWorkdesk struct {
 	Workrooms string `json:"workrooms"`

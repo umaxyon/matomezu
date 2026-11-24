@@ -163,6 +163,9 @@ func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk
 		h.broadcast("participant-calls", map[string]any{"participant": w.Participant, "at": h.participantNotes[w.Participant].Called})
 		h.broadcast("participant-ready", map[string]any{"participant": w.Participant})
 	}
+	if len(told) > 0 {
+		h.kickRooms()
+	}
 	h.mu.Unlock()
 	if perr != nil {
 		return SessionTalk{}, perr

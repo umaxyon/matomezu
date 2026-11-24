@@ -97,6 +97,22 @@ export const workroomWorkFrom = (
 ): WorkroomWork | "unknown" =>
   workroomWorkIn(catalog, readerOf(catalog, source, workroomWorkReadsOf(catalog)), workroom)
 
+// 読み口 source から、ワークルーム workrooms それぞれの作業の様子（作業中か空き。答える種類が無ければ unknown）。
+// 常駐が、ほかのホストに見せるワークルームの一覧に使う（読み口は 1 度だけ組む）
+export function workroomActivitiesFrom(
+  catalog: CoreCatalog,
+  source: RecordSource | undefined,
+  workrooms: readonly string[],
+): Record<string, WorkroomActivity | "unknown"> {
+  const read = readerOf(catalog, source, workroomWorkReadsOf(catalog))
+  const out: Record<string, WorkroomActivity | "unknown"> = {}
+  for (const id of workrooms) {
+    const work = workroomWorkIn(catalog, read, id)
+    out[id] = work === "unknown" ? work : work.kind
+  }
+  return out
+}
+
 // 画面が持つレコード records から、ワークルーム workroom の作業を答える
 export const workroomWorkOf = (
   catalog: CoreCatalog,

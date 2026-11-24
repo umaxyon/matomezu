@@ -61,6 +61,7 @@ type Engine struct {
 	visitorMsg   func(string) string
 	workTitle    func(string, string, string) string
 	myWorkdesk   func(string, string) string
+	activities   func(string) string
 	live         func(string, string, string, string) string
 	forAI        func(string) string
 	briefs       func(string) string
@@ -162,6 +163,7 @@ func New() (*Engine, error) {
 		{"matomezuVisitorJoinedText", &e.visitorMsg},
 		{"matomezuWorkTitle", &e.workTitle},
 		{"matomezuMyWorkdesk", &e.myWorkdesk},
+		{"matomezuWorkroomActivities", &e.activities},
 		{"matomezuUnexpired", &e.live},
 	} {
 		if err := vm.ExportTo(vm.Get(f.name), f.to); err != nil {

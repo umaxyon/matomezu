@@ -79,14 +79,15 @@ type HostPairing struct {
 
 // PeerLive は、ペアリングしたホストの、常駐だけが持つ様子
 type PeerLive struct {
-	HostID      string `json:"hostId"`
-	Label       string `json:"label"` // 呼び名（labelsLocked。届く行・send_message の host・画面に同じ物を使う）
-	Connected   bool   `json:"connected"`
-	LastSeen    string `json:"lastSeen,omitempty"` // 最後につながった時刻
-	Addr        string `json:"addr,omitempty"`     // 待っている所（番地:ポート）
-	Name        string `json:"name,omitempty"`     // 相手の今のホスト名
-	UserName    string `json:"userName,omitempty"`
-	KeyMismatch bool   `json:"keyMismatch,omitempty"`
+	HostID      string    `json:"hostId"`
+	Label       string    `json:"label"` // 呼び名（labelsLocked。届く行・send_message の host・画面に同じ物を使う）
+	Connected   bool      `json:"connected"`
+	LastSeen    string    `json:"lastSeen,omitempty"` // 最後につながった時刻
+	Addr        string    `json:"addr,omitempty"`     // 待っている所（番地:ポート）
+	Name        string    `json:"name,omitempty"`     // 相手の今のホスト名
+	UserName    string    `json:"userName,omitempty"`
+	KeyMismatch bool      `json:"keyMismatch,omitempty"`
+	Workrooms   []RoomRow `json:"workrooms,omitempty"` // 相手のワークルームの一覧の写し（つながっていて、写しのあるときだけ）
 }
 
 // FoundHost は、mDNS で見つけた、ペアリングしていないホスト（申告のまま）
@@ -114,10 +115,19 @@ type peerState struct {
 	dropping map[string]bool             // 常駐が消しているペアリングしたホスト（相手に知らせない）
 	beacon   *peer.Beacon
 	kick     chan struct{}
+	// ワークルームの一覧（peer_rooms.go）
+	rooms     localRooms           // 自分の一覧
+	copies    map[string]*roomCopy // ペアリングしたホスト id → 相手の一覧の写し
+	fetching  map[string]int       // ペアリングしたホスト id → 取り直しの様子
+	roomsKick chan struct{}
 }
 
 func newPeerState() *peerState {
-	return &peerState{incoming: map[string]*incomingPairing{}, live: map[string]*PeerLive{}, known: map[string]pairedHostRecord{}, dropping: map[string]bool{}, kick: make(chan struct{}, 1)}
+	return &peerState{
+		incoming: map[string]*incomingPairing{}, live: map[string]*PeerLive{}, known: map[string]pairedHostRecord{}, dropping: map[string]bool{}, kick: make(chan struct{}, 1),
+		rooms:  localRooms{epoch: newEnvelopeID(), rows: map[string]string{}},
+		copies: map[string]*roomCopy{}, fetching: map[string]int{}, roomsKick: make(chan struct{}, 1),
+	}
 }
 
 // --- 記録を読む・役のアクションを行う ---
@@ -268,6 +278,7 @@ func (h *Hub) followPeers(e *hostEntrance) {
 			told = append(told, tell{r, addr})
 		}
 		delete(ps.live, id)
+		delete(ps.copies, id)
 	}
 	ps.known = now
 	ps.mu.Unlock()
@@ -323,6 +334,10 @@ func (h *Hub) HostPeers() HostPeers {
 			l = *x
 		}
 		l.Label = labels[id]
+		l.Workrooms = nil
+		if l.Connected {
+			l.Workrooms = ps.roomsOfLocked(id)
+		}
 		out.Paired = append(out.Paired, l)
 	}
 	slices.SortFunc(out.Paired, func(a, b PeerLive) int { return cmpString(a.HostID, b.HostID) })
@@ -546,6 +561,9 @@ func (h *Hub) sawPeer(ps *peerState, id, addr, name, userName string) {
 	}
 	ps.mu.Unlock()
 	h.tellPeers()
+	if e := h.entrance.Load(); e != nil && e.peers == ps {
+		go h.refetchRooms(e, id)
+	}
 }
 
 func mustJSON(v any) []byte {

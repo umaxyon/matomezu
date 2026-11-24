@@ -48,7 +48,7 @@ import {
   subjectRolesOf,
   unlistedOf,
 } from "./records"
-import { joinedText, myWorkdesk, visitorJoinedText, windowWarningLines, workTitle } from "./texts"
+import { joinedText, myWorkdesk, visitorJoinedText, windowWarningLines, workroomActivities, workTitle } from "./texts"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
@@ -253,6 +253,10 @@ let lastAdded: readonly Plugin[] = []
 ;(
   globalThis as { matomezuWorkTitle?: (settings: string, workroom: string, name: string) => string }
 ).matomezuWorkTitle = (settings, workroom, name) => workTitle(assembled, settings, workroom, name)
+
+// ワークルームそれぞれの作業の様子（working・idle・unknown。常駐が、ほかのホストに見せるワークルームの一覧に使う）。作業はレコードから決まるので、常駐が読み口を置いている間に呼ぶ
+;(globalThis as { matomezuWorkroomActivities?: (workrooms: string) => string }).matomezuWorkroomActivities =
+  workrooms => workroomActivities(assembled, workrooms)
 
 // AI のワークルームの作業机（AI の read_folder と参加の文に出す。folders は書庫のフォルダの行の全部〈JSON の並び〉）。作業はレコードから決まるので、常駐が読み口を置いている間に呼ぶ
 ;(globalThis as { matomezuMyWorkdesk?: (workroom: string, folders: string) => string }).matomezuMyWorkdesk = (

@@ -111,6 +111,9 @@ func (h *Hub) checkPeer(e *hostEntrance, r pairedHostRecord, addr string) {
 		l = &PeerLive{HostID: r.HostID}
 		ps.live[r.HostID] = l
 	}
+	if err != nil {
+		delete(ps.copies, r.HostID)
+	}
 	switch {
 	case err == nil:
 		l.Connected, l.KeyMismatch, l.LastSeen, l.Name, l.UserName = true, false, stamp(), hello.Name, hello.UserName
@@ -124,6 +127,9 @@ func (h *Hub) checkPeer(e *hostEntrance, r pairedHostRecord, addr string) {
 	}
 	ps.mu.Unlock()
 	h.tellPeers()
+	if err == nil {
+		h.refetchRooms(e, r.HostID)
+	}
 }
 
 // sighted は、mDNS でほかのホストの知らせが届いたとき: ペアリングしたホストなら、知らせた所で確かめ直す（IP が変わっても、鍵で確かめて書き直す）
@@ -135,6 +141,7 @@ func (h *Hub) sighted(e *hostEntrance, s peer.Sighting, gone bool) {
 		if l := ps.live[s.HostID]; l != nil {
 			l.Connected = false
 		}
+		delete(ps.copies, s.HostID)
 	}
 	ps.mu.Unlock()
 	if paired && !gone {

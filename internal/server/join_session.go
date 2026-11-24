@@ -39,6 +39,7 @@ func (h *Hub) noteSession(id, sessionID string) {
 	defer h.mu.Unlock()
 	h.bindSession(id, sessionID, boundByJoin, "")
 	h.broadcast("participant-ready", map[string]any{"participant": id})
+	h.kickRooms()
 }
 
 // bindSession は、参加者 id にセッション id sessionID を、結んだ所 by で結ぶ。host が空でなければAI のプログラムのプロセス id も書く。

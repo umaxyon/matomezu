@@ -71,6 +71,8 @@ func (h *Hub) SetHostEntrance(c HostConfig) {
 		h.dropPairingRequest(r.ID)
 	}
 	h.followPeers(e)
+	go h.followRooms(e)
+	h.kickRooms()
 	go func() {
 		for {
 			select {

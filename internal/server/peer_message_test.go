@@ -55,7 +55,7 @@ func sendTo(t *testing.T, srv, from, host, to, text string) MessageSent {
 
 // ペアリングしたホストの AI へ送ると、受けたホストの参加者に、送り手のホストの呼び名つきの行で届く。頼みの扱いが as-user なら印が付く
 func TestAMessageGoesToAPairedHost(t *testing.T) {
-	as, bs, a, b := pairedWorlds(t)
+	as, bs, _, b := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
 	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
 	if sent := sendTo(t, as.URL, s1, "b", "s2", "やあ"); !sent.OK || !sent.Queued {
@@ -76,7 +76,6 @@ func TestAMessageGoesToAPairedHost(t *testing.T) {
 	if got := wakes(b, b.OpenWakesWith("200", "", WakeLimits{})); len(got) != 1 || got[0] != `matomezu from AI "s1" on host "a" (as your user's request): "頼み"` {
 		t.Fatalf("wakes = %q", got)
 	}
-	_ = a
 }
 
 // 行列に残っている印つきの行は、利用者が ask-user に戻すと印が外れる
@@ -155,5 +154,76 @@ func TestTheMessageEntranceChecksTheEnvelope(t *testing.T) {
 	}
 	if got := wakes(b, b.OpenWakesWith("200", "", WakeLimits{})); len(got) != 1 {
 		t.Fatalf("wakes = %q", got)
+	}
+}
+
+// roomsSeen は、ホスト h が持つ、ただ 1 つのペアリングしたホストのワークルームの写し（名前 → 様子）
+func roomsSeen(h *Hub) map[string]string {
+	out := map[string]string{}
+	if p := h.HostPeers().Paired; len(p) == 1 {
+		for _, r := range p[0].Workrooms {
+			out[r.Name] = r.Activity
+		}
+	}
+	return out
+}
+
+// つながると相手の一覧を取り直し、そのあとは相手の一覧が変わるたびに差分が届いて写しが変わる。写しが差分と合わなければ取り直す
+func TestPairedHostsKeepCopiesOfEachOthersWorkrooms(t *testing.T) {
+	as, bs, a, b := pairedWorlds(t)
+	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
+	waitFor(t, "A sees s2", func() bool { _, ok := roomsSeen(a)["s2"]; return ok })
+	joinedIn(t, bs.URL, "LC", "300", "SC", "s3")
+	waitFor(t, "A sees s3 by a diff", func() bool { return len(roomsSeen(a)) == 2 })
+	// A の写しの番号をずらすと、次の差分は当たらず、取り直して合う
+	ps := a.entrance.Load().peers
+	ps.mu.Lock()
+	for _, c := range ps.copies {
+		c.version = -5
+		delete(c.rows, "s2")
+	}
+	ps.mu.Unlock()
+	joinedIn(t, bs.URL, "LD", "400", "SD", "s4")
+	waitFor(t, "A refetched", func() bool { return len(roomsSeen(a)) == 3 })
+	// 逆向きも同じ: B には A の AI だけが見える
+	joinedIn(t, as.URL, "LA", "100", "SA", "s1")
+	waitFor(t, "B sees s1", func() bool { seen := roomsSeen(b); _, ok := seen["s1"]; return ok && len(seen) == 1 })
+}
+
+// 取り直しは、手元の印が今の起動の物で、覚えている変わりで間に合えば差分、ほかは全部
+func TestChangesSince(t *testing.T) {
+	history := []roomDiff{
+		{From: 3, To: 4, Changes: []roomChange{{Name: "x", Activity: "idle"}}},
+		{From: 4, To: 5, Changes: []roomChange{{Name: "x", Removed: true}, {Name: "y", Activity: "working"}}},
+	}
+	if got, ok := changesSince(history, 3, 5); !ok || len(got) != 2 || !got[0].Removed || got[1].Name != "y" {
+		t.Fatalf("since 3 = %+v, %v", got, ok)
+	}
+	if got, ok := changesSince(history, 5, 5); !ok || len(got) != 0 {
+		t.Fatalf("since 5 = %+v, %v", got, ok)
+	}
+	if _, ok := changesSince(history, 1, 5); ok {
+		t.Fatal("since 1 is answered by a diff")
+	}
+}
+
+// AI が読むワークルームの一覧: host が無ければ、このホストの AI のいるワークルームと、ペアリングしたホストの呼び名。あれば、そのホストの写し
+func TestAIListsTheWorkroomsOfPairedHosts(t *testing.T) {
+	as, bs, a, _ := pairedWorlds(t)
+	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
+	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
+	waitFor(t, "A sees s2", func() bool { _, ok := roomsSeen(a)["s2"]; return ok })
+	read := func(q string) string {
+		got, _ := call(t, "GET", as.URL+"/api/ai/workrooms"+q, "", map[string]string{aiwire.ParticipantHeader: s1})
+		return got
+	}
+	if got := read(""); !strings.Contains(got, `"workrooms":[{"name":"s1","activity":`) || !strings.Contains(got, `"hosts":[{"name":"b","connected":true}]`) {
+		t.Fatalf("own = %s", got)
+	}
+	if got := read("?host=b"); !strings.Contains(got, `"host":"b","connected":true,"workrooms":[{"name":"s2","activity":`) {
+		t.Fatalf("b = %s", got)
+	}
+	if got := read("?host=c"); !strings.Contains(got, `"reason":"unknown-host"`) || !strings.Contains(got, "the paired hosts are: b") {
+		t.Fatalf("c = %s", got)
 	}
 }

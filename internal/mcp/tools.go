@@ -266,6 +266,48 @@ var tools = []tool{
 	},
 	{"join", joinDescription, joinSchema, join, false},
 	{"send_message", sendMessageDescription, sendMessageSchema, sendMessage, false},
+	{
+		"list_workrooms",
+		"List the workrooms you can send messages to (with send_message), each with its name and activity (working, idle, or unknown when no plugin tells). " +
+			"Without host, it answers the workrooms of this host that have an AI in them now (your own too) and hosts: the hosts this host is paired with (the matomezu of other machines; only while this host connects to other hosts), " +
+			"each with the name to give as host and whether it is connected now. With host, it answers that host's workrooms as this host last heard from it (connected false and no workrooms when it is not connected now); " +
+			"it is refused with unknown-host when no paired host has that name and host-closed when this host does not connect to other hosts now.",
+		listWorkroomsSchema,
+		reading(func(api caller, args map[string]any) (json.RawMessage, error) {
+			q := url.Values{}
+			if host, _ := args["host"].(string); host != "" {
+				q.Set("host", host)
+			}
+			path := "api/ai/workrooms"
+			if len(q) > 0 {
+				path += "?" + q.Encode()
+			}
+			return api.Get(path)
+		}, nil, refusedAnswer),
+		true,
+	},
+}
+
+// listWorkroomsSchema は list_workrooms の受ける形
+var listWorkroomsSchema = map[string]any{
+	"type": "object",
+	"properties": map[string]any{
+		"host": map[string]any{"type": "string", "minLength": 1, "description": "The name of a paired host (from the hosts this tool answers without host). Leave it out for this host."},
+	},
+	"additionalProperties": false,
+}
+
+// refusedAnswer は、常駐の答えが {"ok": false, "reason", "detail"} なら、断った理由の 1 行
+func refusedAnswer(out json.RawMessage) (string, bool) {
+	var r struct {
+		OK     *bool  `json:"ok"`
+		Reason string `json:"reason"`
+		Detail string `json:"detail"`
+	}
+	if json.Unmarshal(out, &r) != nil || r.OK == nil || *r.OK {
+		return "", false
+	}
+	return refusalText(r.Reason, r.Detail), true
 }
 
 // reading は、読む MCP 公開ツールの呼び出しを tools の表の形にする。narrow があれば、上限を超える答えを返さずに絞り方を返す
