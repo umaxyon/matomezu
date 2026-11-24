@@ -80,6 +80,7 @@ type HostPairing struct {
 // PeerLive は、ペアリングしたホストの、常駐だけが持つ様子
 type PeerLive struct {
 	HostID      string `json:"hostId"`
+	Label       string `json:"label"` // 呼び名（labelsLocked。届く行・send_message の host・画面に同じ物を使う）
 	Connected   bool   `json:"connected"`
 	LastSeen    string `json:"lastSeen,omitempty"` // 最後につながった時刻
 	Addr        string `json:"addr,omitempty"`     // 待っている所（番地:ポート）
@@ -270,6 +271,10 @@ func (h *Hub) followPeers(e *hostEntrance) {
 	}
 	ps.known = now
 	ps.mu.Unlock()
+	asUser := ps.asUserHosts()
+	h.mu.Lock()
+	h.unmarkPeerLines(asUser)
+	h.mu.Unlock()
 	for _, t := range told {
 		go h.tellUnpaired(e, t.r, t.addr)
 	}
@@ -311,11 +316,13 @@ func (h *Hub) HostPeers() HostPeers {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 	out := HostPeers{Paired: []PeerLive{}, Found: []FoundHost{}}
+	labels := ps.labelsLocked()
 	for id := range ps.known {
 		l := PeerLive{HostID: id}
 		if x := ps.live[id]; x != nil {
 			l = *x
 		}
+		l.Label = labels[id]
 		out.Paired = append(out.Paired, l)
 	}
 	slices.SortFunc(out.Paired, func(a, b PeerLive) int { return cmpString(a.HostID, b.HostID) })

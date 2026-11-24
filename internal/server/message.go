@@ -6,8 +6,11 @@ package server
 // 送り手は呼び出しの参加の id から決め、引数では受けない（偽れない）。宛て先はワークルームの名前で指す。
 // 封筒の形（id・送り手・宛て先・本文・送った時刻。送り手と宛て先はホスト id とワークルームの名前）は、マシンをまたいで運ぶときも変えない。id で重なりを見分け、同じ封筒は二度入れない
 //
-//	POST /api/ai/message {"to", "text"}  {"ok": true, "queued": true}、または断った理由 {"ok": false, "reason", "detail"}
-//	  断る理由: not-joined（送り手の参加が確定していない）・visitor（送り手がビジター）・unknown-recipient（その名前のワークルームが無いか、参加が確定した参加者がいない。detail に送れる名前）・to-self（自分のワークルーム）
+// host を付けると、ペアリングしたホストのワークルームへ運ぶ（peer_message.go）。アクションが返す AI 間メッセージは、ホストをまたがない
+//
+//	POST /api/ai/message {"to", "host"?, "text"}  {"ok": true, "queued": true}、または断った理由 {"ok": false, "reason", "detail"}
+//	  断る理由: not-joined（送り手の参加が確定していない）・visitor（送り手がビジター）・unknown-recipient（その名前のワークルームが無いか、参加が確定した参加者がいない。detail に送れる名前）・to-self（自分のワークルーム）・
+//	  unknown-host（その呼び名のペアリングしたホストが無い。detail に送れる呼び名）・unreachable（そのホストにつながらない）・host-closed（このホストが「ほかのホストとつなぐ」を切にしている）
 
 import (
 	"crypto/rand"
@@ -40,6 +43,7 @@ type Envelope struct {
 // MessageRequest は AI 間メッセージを送る頼み。Participant は呼び出しに付いていた参加の id
 type MessageRequest struct {
 	To          string `json:"to"`
+	Host        string `json:"host"` // 宛て先のホストの呼び名（ペアリングしたホスト。空なら自分のホスト）
 	Text        string `json:"text"`
 	Participant string `json:"-"`
 }
@@ -125,19 +129,17 @@ func (h *Hub) SendMessage(req MessageRequest, now time.Time) (MessageSent, error
 		return MessageSent{}, err
 	}
 	h.mu.Lock()
-	defer h.mu.Unlock()
-	var from *participantRecord
 	occupant := h.occupants(records) // ワークルームの id → 参加が確定した（準備中でない）参加者の id
-	for i, r := range records {
-		if r.Workroom != "" && occupant[r.Workroom] == r.ID && r.ID == req.Participant {
-			from = &records[i]
-		}
+	from, refused := h.senderHeld(records, occupant, req.Participant)
+	if refused == nil && req.Host != "" {
+		// ほかのホストへは、常駐の鍵を放してから運ぶ（待つ間にほかの頼みを止めないため）
+		name := roomName(rooms, from.Workroom)
+		h.mu.Unlock()
+		return h.sendToHost(name, req, now), nil
 	}
-	if from == nil {
-		if h.actorOfParticipantHeld(req.Participant).As == stateVisitor {
-			return MessageSent{Reason: "visitor", Detail: "a visitor only reads: it cannot send messages to other AIs"}, nil
-		}
-		return MessageSent{Reason: "not-joined", Detail: "only an AI whose request to join was accepted can send messages (call join first)"}, nil
+	defer h.mu.Unlock()
+	if refused != nil {
+		return *refused, nil
 	}
 	var to *workroomRecord
 	var open []string
@@ -173,10 +175,26 @@ func (h *Hub) SendMessage(req MessageRequest, now time.Time) (MessageSent, error
 	return MessageSent{OK: true, Queued: true}, nil
 }
 
-// delivery は、封筒と、それを入れる宛て先の参加者（宛て先のホストが引いた物）
+// delivery は、封筒と、それを入れる宛て先の参加者（宛て先のホストが引いた物）。ほかのホストから届いた物は、送り手のホストの呼び名と頼みの扱いも
 type delivery struct {
 	envelope Envelope
 	to       string // 参加者の id
+	host     string // 送り手のホストの呼び名（同じホストの中なら空）
+	peer     string // 送り手のホスト id（同じホストの中なら空）
+	asUser   bool   // 送り手のホストの頼みの扱いが as-user
+}
+
+// senderHeld は、参加者 participant が送り手になれるなら、その参加者のレコード。なれなければ断る答え（h.mu を持って呼ぶ）
+func (h *Hub) senderHeld(records []participantRecord, occupant map[string]string, participant string) (*participantRecord, *MessageSent) {
+	for i, r := range records {
+		if r.Workroom != "" && occupant[r.Workroom] == r.ID && r.ID == participant {
+			return &records[i], nil
+		}
+	}
+	if h.actorOfParticipantHeld(participant).As == stateVisitor {
+		return nil, &MessageSent{Reason: "visitor", Detail: "a visitor only reads: it cannot send messages to other AIs"}
+	}
+	return nil, &MessageSent{Reason: "not-joined", Detail: "only an AI whose request to join was accepted can send messages (call join first)"}
 }
 
 // deliver は、封筒 d.envelope を宛て先の参加者 d.to の行列に入れる。同じ id の封筒は二度入れない（h.mu を持って呼ぶ）
@@ -195,7 +213,10 @@ func (h *Hub) deliver(d delivery) {
 		h.seenOrder = h.seenOrder[1:]
 	}
 	head := messageHead(e.From.Workroom)
-	h.enqueueWake(wakeItem{participant: d.to, kind: wakeMessage, line: head + " " + quote(e.Text), head: head, body: quote(e.Text)})
+	if d.peer != "" {
+		head = remoteMessageHead(e.From.Workroom, d.host, d.asUser)
+	}
+	h.enqueueWake(wakeItem{participant: d.to, kind: wakeMessage, line: head + " " + quote(e.Text), head: head, body: quote(e.Text), peer: d.peer, asUser: d.asUser})
 }
 
 // messageHead は、AI 間メッセージの知らせの、送り手を名乗る頭（from は送り手のワークルーム名）。届く 1 行は、頭と本文。名前と本文は JSON の文字列にして包む

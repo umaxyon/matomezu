@@ -14,5 +14,6 @@ func (h *Hub) hostsHandler() http.Handler {
 	mux.Handle("POST /peer/v1/pairing", peer.Unpinned(h.pairing)) // peer.PairingPath
 	mux.Handle("GET /peer/v1/hello", peer.Pinned(h.isPairedHost, h.peerHello))
 	mux.Handle("POST /peer/v1/unpair", peer.Pinned(h.isPairedHost, h.peerUnpair))
+	mux.Handle("POST /peer/v1/message", peer.Pinned(h.isPairedHost, h.peerMessage))
 	return mux
 }
