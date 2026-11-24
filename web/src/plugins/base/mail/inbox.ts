@@ -27,3 +27,22 @@ export function pickMoved(rows: readonly Pick<Mail, "id">[], picked: Picked, to:
       : Math.min(rows.length - 1, Math.max(0, at + (to === "down" ? 1 : -1)))
   return rows[next]?.id ?? NO_STATE
 }
+
+export const INBOX_ROWS = 30 // 受信トレイに一度に出す行の数
+
+// 受信トレイで利用者が選んだ範囲: from は出す最初の行の番号、anchor はそのとき選んでいた郵便（選んでいなければ NO_STATE）
+export interface InboxShown {
+  from: number
+  anchor: Picked
+}
+export const FIRST_SHOWN: InboxShown = { from: 0, anchor: NO_STATE }
+
+// 並び rows のうち出す範囲の最初の行の番号（INBOX_ROWS の倍数）: 利用者が選んだ範囲 shown。
+// ただし、選んでいる郵便 picked が範囲を選んだときの物と違い（しおり・行の移動などで選んだ）、範囲の外なら、その郵便を含む範囲。行が減って範囲が空になれば、最後の範囲
+export function inboxFrom(rows: readonly Pick<Mail, "id">[], picked: Picked, shown: InboxShown): number {
+  const at = picked === NO_STATE ? -1 : rows.findIndex(m => m.id === picked)
+  const inShown = at >= shown.from && at < shown.from + INBOX_ROWS
+  if (at >= 0 && picked !== shown.anchor && !inShown) return at - (at % INBOX_ROWS)
+  const last = Math.max(0, rows.length - 1)
+  return Math.min(shown.from, last - (last % INBOX_ROWS))
+}

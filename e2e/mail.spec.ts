@@ -354,3 +354,29 @@ test("フッタの封筒で郵便箱のスクリーンを開くと、コンテ�
   await expect(tile("郵便箱")).toHaveAttribute("aria-pressed", "false")
   await expect(tile("プロジェクト")).toHaveAttribute("aria-pressed", "true")
 })
+
+test("受信トレイは 30 通ずつ出し、下の帯で古い方・新しい方へ送るとチェックが外れる。↓ で範囲の外の郵便へ移ると、その範囲を出す", async ({
+  page,
+}) => {
+  await ready(page)
+  for (let n = 1; n <= 35; n++)
+    await aiPerform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: `行${n}` } })
+  await (await fromMenu(page, "郵便箱")).click()
+  const pane = mailboxPane(page)
+  await expect(rows(page)).toHaveCount(30)
+  await expect(pane.getByText("1–30 / 35")).toBeVisible()
+  await expect(pane.getByRole("button", { name: "新しい郵便" })).toBeDisabled()
+  // 30 行目（行6）を選んで ↓: 範囲の外の行5 へ移り、その範囲を出す
+  await rows(page).nth(29).getByRole("button").click()
+  await page.keyboard.press("ArrowDown")
+  await expect(letter(page).getByRole("heading", { name: "行5" })).toBeVisible()
+  await expect(pane.getByText("31–35 / 35")).toBeVisible()
+  await expect(rows(page)).toHaveCount(5)
+  // チェックしてから範囲を送ると、チェックは外れる
+  await rows(page).first().getByRole("checkbox").check()
+  await pane.getByRole("button", { name: "新しい郵便" }).click()
+  await expect(pane.getByText("1–30 / 35")).toBeVisible()
+  await pane.getByRole("button", { name: "古い郵便" }).click()
+  await expect(rows(page).first().getByRole("checkbox")).not.toBeChecked()
+  await expect(pane.getByRole("button", { name: "古い郵便" })).toBeDisabled()
+})
