@@ -57,10 +57,10 @@ test("最終アクセスの出し方は、呼ばれた時刻があればそれ�
   expect(lastAccessOf(row("empty"))).toBe("none")
 })
 
-test("枠が退くのは、コンテンツエリアに出している画面の最大化のときだけ。書庫・郵便箱の最大化は左の列だけ、中身の最大化は左の列とワークルームの枠。コンテンツエリアに出していない画面の最大化は動かさない", () => {
+test("枠が退くのは、コンテンツエリアに出している画面の最大化のときだけ。書庫の最大化は左の列だけ、郵便箱の最大化と中身の最大化は左の列とワークルームの枠。コンテンツエリアに出していない画面の最大化は動かさない", () => {
   const none = { library: false, mailbox: false }
   expect(retreatOf("library", { ...none, library: true }, false)).toEqual({ left: true, workroom: false })
-  expect(retreatOf("mailbox", { ...none, mailbox: true }, false)).toEqual({ left: true, workroom: false })
+  expect(retreatOf("mailbox", { ...none, mailbox: true }, false)).toEqual({ left: true, workroom: true })
   expect(retreatOf("projects", none, true)).toEqual({ left: true, workroom: true })
   expect(retreatOf("projects", { ...none, library: true }, false)).toEqual({ left: false, workroom: false }) // 書庫を最大化したまま、戻るでプロジェクトの画面がコンテンツエリアに出た
   expect(retreatOf("mailbox", { ...none, library: true }, false)).toEqual({ left: false, workroom: false }) // 書庫の最大化のまま、郵便箱がコンテンツエリアに出た

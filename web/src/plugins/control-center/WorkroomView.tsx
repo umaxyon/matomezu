@@ -26,7 +26,7 @@ export function WorkroomView({
 }) {
   const t = useMessages(kit)
   return (
-    <Panel className={styles.room} data-max={hidden} data-workroom-panel>
+    <Panel className={styles.room} data-max={hidden} aria-hidden={hidden} inert={hidden} data-workroom-panel>
       {detail ? (
         <KindSlot name={PICKED_DETAIL} kind={detail.kind} props={{ id: detail.id }} />
       ) : visitor ? (
