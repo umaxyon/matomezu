@@ -182,12 +182,13 @@ func (h *Hub) receiveEnvelope(env Envelope) MessageSent {
 	return MessageSent{OK: true, Queued: true}
 }
 
-// unmarkPeerLines は、行列に残っている、ホストの印つきの行のうち、もう as-user でないホスト（asUser に無い）から届いた物の印を外す。通り道に貸している行は、もう流したので変えない（h.mu を持って呼ぶ）
+// unmarkPeerLines は、行列に残っている、ホストの印つきの行のうち、もう as-user でないホスト（asUser に無い）から届いた物の印を外す。
+// 通り道に貸している行も外す（渡せなければ行列に戻り、「届いた」だけを渡した行は本文を呼び出しの返事で渡すので、そのときは印が無い）（h.mu を持って呼ぶ）
 func (h *Hub) unmarkPeerLines(asUser map[string]bool) {
 	for id, q := range h.wakeQueue {
 		for i := range q {
 			it := &q[i]
-			if it.kind != wakeMessage || it.peer == "" || !it.asUser || asUser[it.peer] || it.lentTo != 0 {
+			if it.kind != wakeMessage || it.peer == "" || !it.asUser || asUser[it.peer] {
 				continue
 			}
 			it.asUser = false
