@@ -406,7 +406,7 @@ test("書庫の右の枠の上下の矢印は、描いた段の真上・真下�
   }
 })
 
-test("書庫の行の右クリックのメニューから、名前の変更・ゴミ箱に入れる・開く・中に作る、ができる。ブックの中のページは開く・名前の変更・複製。何も無い所では、作るだけ。Escape で閉じる", async ({
+test("書庫の行の右クリックのメニューから、名前の変更・ゴミ箱に入れる・開く・中に作る、ができる。ブックの中のページは開く・名前の変更・複製・削除。何も無い所では、作るだけ。Escape で閉じる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -470,7 +470,13 @@ test("書庫の行の右クリックのメニューから、名前の変更・�
   await tree.getByRole("button", { name: `${first.title} の中を出す` }).click()
   const pageRow = tree.getByRole("button", { name: "ページ 1", exact: true }).first()
   await pageRow.click({ button: "right" })
-  await expect(menu.getByRole("menuitem")).toHaveText(["開くEnter", "分割で開くCtrl+Enter", "名前の変更…F2", "複製"])
+  await expect(menu.getByRole("menuitem")).toHaveText([
+    "開くEnter",
+    "分割で開くCtrl+Enter",
+    "名前の変更…F2",
+    "複製",
+    "削除…",
+  ])
   await menu.getByRole("menuitem", { name: /^開く/ }).click()
   await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
 })
@@ -855,4 +861,39 @@ test("書庫のツリー・右の枠の行の外（余白）を押したあと�
   await page.keyboard.press("ArrowRight")
   await expect(rows.first()).toHaveAttribute("aria-pressed", "true")
   await expect(rows.first()).toBeFocused()
+})
+
+test("書庫で、ブックの中のページを右クリックのメニューの「削除…」か Delete で、確かめてから消す。消したあとの Ctrl+Z で戻る（消した行が無くなっても、焦点は書庫に残る）", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  const books = (await storedBooks(page.request)) as { id: string; title: string }[]
+  const first = books[0]!
+  const added = await aiPerform(page, {
+    action: "@matomezu/base:page-add",
+    args: { type: "@matomezu/markdown:markdown", title: "消す試しのページ" },
+    on: { book: first.id },
+  })
+  expect(added).toMatchObject({ ok: true })
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const tree = page.getByRole("navigation", { name: "フォルダ" })
+  await tree.getByRole("button", { name: `${first.title} の中を出す` }).click()
+  const row = tree.getByRole("button", { name: "消す試しのページ", exact: true })
+  const dialog = page.getByRole("dialog")
+  // 右クリックのメニューから
+  await row.click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "削除…" }).click()
+  await expect(dialog).toContainText("消す試しのページ: ページと中身が消えます")
+  await dialog.getByRole("button", { name: "削除" }).click()
+  await expect(row).toHaveCount(0)
+  await page.keyboard.press("Control+z")
+  await expect(row).toHaveCount(1)
+  // 選んで Delete
+  await row.click()
+  await page.keyboard.press("Delete")
+  await dialog.getByRole("button", { name: "削除" }).click()
+  await expect(row).toHaveCount(0)
+  await page.keyboard.press("Control+z")
+  await expect(row).toHaveCount(1)
 })

@@ -217,25 +217,26 @@ test("扱う物: 何も受け取らなければ選んでいる行（無ければ
   expect(dialog()).toMatchObject({ id: "@matomezu/base:library-entry-rename", args: { entry: "p1" } })
 })
 
-test("右クリックのメニューの行: フォルダは作る・名前の変更・ゴミ箱、ブックは開く・名前の変更・ゴミ箱、ブックの中のページは開く・名前の変更・複製。何も無い所は、作るだけ（ブックの中なら、それを入れているフォルダに作る）", () => {
+test("右クリックのメニューの行: フォルダは作る・名前の変更・ゴミ箱、ブックは開く・名前の変更・ゴミ箱、ブックの中のページは開く・名前の変更・複製・削除。何も無い所は、作るだけ（ブックの中なら、それを入れているフォルダに作る）", () => {
   const { store, center, folder, run, shown, dialog } = setup()
   const a = folder("あ")
-  const [open, book, fold, rename, copy, trash] = [
+  const [open, book, fold, rename, copy, trash, remove] = [
     "library-entry-open",
     "library-book-new",
     "library-folder-new",
     "library-entry-rename",
     "library-entry-duplicate",
     "library-entry-trash",
+    "library-entry-remove",
   ] as const
-  const rows = [open, book, fold, rename, copy, trash]
+  const rows = [open, book, fold, rename, copy, trash, remove]
   const menu = (id: string, target: unknown) => {
     store.actions.openContextMenu(center, `@matomezu/base:${id}`, target, { x: 0, y: 0 })
     return rows.filter(shown)
   }
   expect(menu("library-entry-context", { entry: a })).toEqual([book, fold, rename, trash])
   expect(menu("library-entry-context", { entry: "b1" })).toEqual([open, rename, trash])
-  expect(menu("library-entry-context", { entry: "p1" })).toEqual([open, rename, copy])
+  expect(menu("library-entry-context", { entry: "p1" })).toEqual([open, rename, copy, remove])
   expect(menu("library-entry-context", { entry: HOME_ID })).toEqual([book, fold])
   expect(menu("library-folder-context", { folder: a })).toEqual([book, fold])
   expect(menu("library-folder-context", { folder: "b1" })).toEqual([book, fold])
@@ -249,6 +250,24 @@ test("右クリックのメニューの行: フォルダは作る・名前の変
   menu("library-folder-context", { folder: "b1" })
   run("library-folder-new", { folder: "b1" })
   expect(dialog()).toMatchObject({ args: { into: HOME_ID } })
+})
+
+test("Delete キーのコマンド（library-entry-trash）: 書庫ホームかフォルダの直下の物はゴミ箱に入れ、ブックやバインダの中の物は、消す前に確かめるダイアログを開く", () => {
+  const { folder, run, ids, dialog } = setup()
+  const a = folder("あ")
+  run("library-entry-trash", { entry: a })
+  expect(ids(HOME_ID)).not.toContain(a)
+  expect(dialog()).toBeNull()
+  run("library-entry-trash", { entry: "p1" })
+  expect(dialog()).toMatchObject({ id: "@matomezu/base:library-entry-remove", args: { entry: "p1" } })
+  expect(ids("b1")).toEqual(["p1"])
+  run("dialog-close")
+  run("library-entry-remove", { entry: "p1" })
+  expect(dialog()).toMatchObject({ id: "@matomezu/base:library-entry-remove", args: { entry: "p1" } })
+  run("dialog-close")
+  // 書庫ホームには、どちらも効かない
+  run("library-entry-trash", { entry: HOME_ID })
+  expect(dialog()).toBeNull()
 })
 
 test("落とした物を動かす: フォルダの位置へ・ゴミ箱へ。何も選んでいなくても行う。選んでいた行が、開いているフォルダから出たら、選ぶのを外す", () => {

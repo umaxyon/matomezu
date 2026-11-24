@@ -115,7 +115,9 @@ export function useNameOf(): (row: Pick<LibraryRow, "id" | "title">) => string {
 }
 
 // 要素 root の中に焦点があるうちに、焦点のある要素が消えたら（行えて行が消えた・元に戻すで行が消えた、など）、焦点を root に置き直す
-// （焦点が body に落ちると、root が名乗るキーの範囲のキーが効かなくなるため）。利用者が root の外へ焦点を移したら、置き直さない
+// （焦点が body に落ちると、root が名乗るキーの範囲のキーが効かなくなるため）。利用者が root の外へ焦点を移したら、置き直さない。
+// ダイアログと右クリックのメニューは、root から開いて閉じれば root へ戻る物なので、その中を押しても外へ移したと見ず、閉じて焦点が body に落ちたら置き直す
+// （開いた行がその間に消えていると、ダイアログが閉じて戻す先が無い）
 export function useKeepFocusIn(root: RefObject<HTMLElement | null>): void {
   useEffect(() => {
     const el = root.current
@@ -124,24 +126,31 @@ export function useKeepFocusIn(root: RefObject<HTMLElement | null>): void {
     const onIn = () => {
       inside = true
     }
-    // 中の要素が消えたときは、行き先の無い focusout が来るか、何も来ない。行き先が外の要素のときだけ、外へ移したと見る
+    // 中の要素が消えたときは、行き先の無い focusout が来るか、何も来ない。行き先が外の要素（ダイアログ・メニューを除く）のときだけ、外へ移したと見る
+    const overlay = (n: Node) => n instanceof Element && n.closest("dialog, [role=menu]") !== null
     const onOut = (e: FocusEvent) => {
-      if (e.relatedTarget instanceof Node && !el.contains(e.relatedTarget)) inside = false
+      const to = e.relatedTarget
+      if (to instanceof Node && !el.contains(to) && !overlay(to)) inside = false
     }
     const onPress = (e: PointerEvent) => {
-      if (e.target instanceof Node && !el.contains(e.target)) inside = false
+      if (e.target instanceof Node && !el.contains(e.target) && !overlay(e.target)) inside = false
     }
-    const seen = new MutationObserver(() => {
+    const refocus = () => {
       if (inside && (document.activeElement === document.body || document.activeElement === null)) el.focus()
-    })
+    }
+    const seen = new MutationObserver(refocus)
+    // ダイアログの close は泡立たないので、捕まえる側で受ける。閉じたあとに焦点が戻る先が決まってから見る
+    const onClose = () => setTimeout(refocus)
     el.addEventListener("focusin", onIn)
     el.addEventListener("focusout", onOut)
     document.addEventListener("pointerdown", onPress, true)
+    document.addEventListener("close", onClose, true)
     seen.observe(el, { childList: true, subtree: true })
     return () => {
       el.removeEventListener("focusin", onIn)
       el.removeEventListener("focusout", onOut)
       document.removeEventListener("pointerdown", onPress, true)
+      document.removeEventListener("close", onClose, true)
       seen.disconnect()
     }
   }, [root])

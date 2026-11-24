@@ -9,6 +9,7 @@ export {
   LIBRARY_ENTRY_MOVE,
   LIBRARY_ENTRY_OPEN,
   LIBRARY_ENTRY_OPEN_SPLIT,
+  LIBRARY_ENTRY_REMOVE,
   LIBRARY_ENTRY_RENAME,
   LIBRARY_ENTRY_TRASH,
   LIBRARY_FOLDER_NEW,
@@ -25,9 +26,15 @@ export {
   LIBRARY_TREE_UNFOLD_OR_NEXT,
   LIBRARY_UNDO,
 } from "./commands"
-export { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./dialog"
+export {
+  LIBRARY_NEW_BOOK_DIALOG,
+  LIBRARY_NEW_FOLDER_DIALOG,
+  LIBRARY_REMOVE_DIALOG,
+  LIBRARY_RENAME_DIALOG,
+} from "./dialog"
 export { ENTRY_DUPLICATE } from "./entry-duplicate"
 export { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
+export { ENTRY_REMOVE } from "./entry-remove"
 export { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./entry-trash"
 export { PAGE_CREATE } from "./page-create"
 export { LIBRARY_REVERT } from "./revert"

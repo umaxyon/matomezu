@@ -24,6 +24,7 @@ export const LIBRARY_MESSAGES = defineMessages({
   "New folder…": { en: "New folder…", ja: "新しいフォルダ…" },
   "New page…": { en: "New page…", ja: "新しいページ…" },
   "Rename…": { en: "Rename…", ja: "名前の変更…" },
+  "Delete…": { en: "Delete…", ja: "削除…" },
   "Folder name": { en: "Folder name", ja: "フォルダ名" },
   Create: { en: "Create", ja: "作成" },
   "Could not create": { en: "Could not create", ja: "作成できません" },

@@ -3,6 +3,9 @@ import { z } from "zod"
 import { findPage, NO_PAGE, removePage } from "../../../core/book"
 import { kit } from "../kit"
 
+// ブックの外のバインダ binder から 1 枚消してよいか: 最後の 1 枚でないとき（ブックの外のバインダは空にならない。バインダごとゴミ箱に入れる）
+export const leavesOutsideBinder = (binder: { lineup: readonly unknown[] }): boolean => binder.lineup.length > 1
+
 const ARGS = z.strictObject({ page: z.string().min(1) })
 
 // ページ page を消す（無いページなら断る）。開いていたステージは隣のページを開く（core/stage.ts の followBook）
