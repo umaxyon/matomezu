@@ -12,3 +12,6 @@ export const PAIRING_REQUEST_DIALOG = kit.defineDialogWith<{ request: string }>(
 
 // ペアリングを解く確かめ（詳しい所の右下のアイコンから開く）: ペアリングしたホスト pairedHost（レコードの id）
 export const UNPAIR_DIALOG = kit.defineDialogWith<{ pairedHost: string }>()({ id: "unpair" })
+
+// ペアリングしたホスト pairedHost（レコードの id）からの頼みを、利用者の頼みとして受けるようにする確かめ（詳しい所の「このホストからの頼み」から開く）
+export const AS_USER_DIALOG = kit.defineDialogWith<{ pairedHost: string }>()({ id: "as-user" })

@@ -121,6 +121,21 @@ export const NETWORK_MESSAGES = defineMessages({
   "Not connected now": { en: "Not connected", ja: "つながっていません" },
   "No AI is in a workroom": { en: "No AI is in a workroom", ja: "AI のいるワークルームはありません" },
   Working: { en: "Working", ja: "作業中" },
+  "Requests from this host": { en: "Requests from this host", ja: "このホストからの頼み" },
+  "The AI that gets one asks you before doing it": {
+    en: "The AI that gets one asks you before doing it",
+    ja: "受け取った AI が、実行してよいかあなたに聞く",
+  },
+  "Take them as requests (treated like your instructions)": {
+    en: "Take them as requests (treated like your instructions)",
+    ja: "頼みとして受ける（あなたの指示と同じに扱う）",
+  },
+  "Take requests from this host": { en: "Take requests from this host", ja: "このホストからの頼みを受ける" },
+  "Your AIs do what the AIs of {name} ask, without asking you": {
+    en: "The AIs on your host will do what the AIs of {name} ask, without asking you first",
+    ja: "あなたのホストの AI が、{name} の AI に頼まれた事を、あなたに聞かずに行います",
+  },
+  "Take as requests": { en: "Take as requests", ja: "頼みとして受ける" },
   Idle: { en: "Idle", ja: "空き" },
   "Change how requests from a host are taken": {
     en: "Change how requests from a host are taken",

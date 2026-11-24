@@ -56,3 +56,45 @@ test("ほかのホストから届いた頼みはしおりに出て、ダイア�
   await expect(dialog).toBeHidden()
   await expect(bookmark).toBeHidden()
 })
+
+test("ペアリングしたホストの行は ▸ で開き、つながっていなければ「つながっていません」。詳しい所の「頼みとして受ける」は確かめてから替わり、「聞く」へはすぐ戻る", async ({
+  page,
+}) => {
+  await connectHosts(page)
+  await page.request.post("/api/perform", {
+    data: {
+      actions: [
+        {
+          action: "@matomezu/network:paired-host-add",
+          args: {
+            hostId: "a1c9".repeat(16),
+            nameAtPairing: "win-lan",
+            userNameAtPairing: "taro",
+            addr: "192.168.11.20:7240",
+          },
+          lang: "ja",
+          now: NOW,
+        },
+      ],
+    },
+  })
+  await page.getByRole("button", { name: "win-lan のワークルーム" }).click()
+  await expect(page.getByText("つながっていません")).toBeVisible()
+  await page.getByRole("button", { name: /^つながっていない ?win-lan$/ }).click()
+  const ask = page.getByRole("radio", { name: "受け取った AI が、実行してよいかあなたに聞く" })
+  const asUser = page.getByRole("radio", { name: "頼みとして受ける（あなたの指示と同じに扱う）" })
+  await expect(ask).toBeChecked()
+  await asUser.click()
+  const dialog = page.getByRole("dialog", { name: "このホストからの頼みを受ける" })
+  await expect(
+    dialog.getByText("あなたのホストの AI が、win-lan の AI に頼まれた事を、あなたに聞かずに行います"),
+  ).toBeVisible()
+  await dialog.getByRole("button", { name: "キャンセル" }).click()
+  await expect(ask).toBeChecked()
+  await asUser.click()
+  await dialog.getByRole("button", { name: "頼みとして受ける" }).click()
+  await expect(asUser).toBeChecked()
+  await ask.click()
+  await expect(ask).toBeChecked()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+})

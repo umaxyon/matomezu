@@ -136,6 +136,39 @@
   height: 24px;
   border-color: var(--skin-border-strong);
 }
+/* 左に今の様子、右に頼みの扱い（狭いと下へ回る） */
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1;
+  align-items: flex-start;
+  gap: 8px 48px;
+  min-height: 0;
+  overflow: auto;
+}
+.requests {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 13px;
+}
+.requests legend {
+  padding: 0;
+  margin-bottom: 4px;
+  color: var(--skin-text-muted);
+}
+.requests label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  cursor: pointer;
+}
+.requests:disabled label {
+  cursor: default;
+}
 .title {
   margin: 0;
   font-size: 15px;

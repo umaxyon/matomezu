@@ -1,7 +1,7 @@
 // ネットワークのプラグイン: マシンごとの matomezu のホストどうしをつなぐ。利用者の設定の項目（ほかのホストとつなぐか・ホスト名）を持ち、
 // 常駐がその設定でホストどうしの入口を開け閉めする（internal/server/hosts.go）
 import { defineBuiltin } from "../../plugin-api/builtin"
-import { PAIRING_DIALOG, PAIRING_REQUEST_DIALOG, PORT_REPICK_DIALOG, UNPAIR_DIALOG } from "./dialogs"
+import { AS_USER_DIALOG, PAIRING_DIALOG, PAIRING_REQUEST_DIALOG, PORT_REPICK_DIALOG, UNPAIR_DIALOG } from "./dialogs"
 import { kit } from "./kit"
 import {
   PAIRED_HOST,
@@ -15,7 +15,7 @@ import {
 } from "./pairing"
 import { CONNECT_HOSTS, HOST_NAME } from "./settings"
 
-export { PAIRING_DIALOG, PAIRING_REQUEST_DIALOG, PORT_REPICK_DIALOG, UNPAIR_DIALOG } from "./dialogs"
+export { AS_USER_DIALOG, PAIRING_DIALOG, PAIRING_REQUEST_DIALOG, PORT_REPICK_DIALOG, UNPAIR_DIALOG } from "./dialogs"
 export { PAIRED_HOST, PAIRING_REQUEST, type PairedHost, type PairingRequest } from "./pairing"
 export { CONNECT_HOSTS, HOST_NAME } from "./settings"
 
@@ -31,7 +31,7 @@ export const NETWORK_PLUGIN = defineBuiltin(
       PAIRED_HOST_REMOVE,
       PAIRED_HOST_REQUESTS_SET,
     ],
-    dialogs: [PORT_REPICK_DIALOG, PAIRING_DIALOG, PAIRING_REQUEST_DIALOG, UNPAIR_DIALOG],
+    dialogs: [PORT_REPICK_DIALOG, PAIRING_DIALOG, PAIRING_REQUEST_DIALOG, UNPAIR_DIALOG, AS_USER_DIALOG],
   }),
 )
 
@@ -54,6 +54,7 @@ declare module "../../core/catalog" {
     "@matomezu/network:pairing": typeof PAIRING_DIALOG
     "@matomezu/network:pairing-request": typeof PAIRING_REQUEST_DIALOG
     "@matomezu/network:unpair": typeof UNPAIR_DIALOG
+    "@matomezu/network:as-user": typeof AS_USER_DIALOG
   }
   interface UserSettingTable {
     "@matomezu/network:connect-hosts": typeof CONNECT_HOSTS

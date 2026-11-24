@@ -1,10 +1,11 @@
 // ネットワークのプラグインの見た目: 設定カテゴリ「ネットワーク」と、ホスト名の項目のビュー、コントロールセンターの「ほかのホスト」の節と詳しい所、
-// ペアリングのダイアログ（頼む側・届いた頼み）、届いた頼みのしおりと見張り、別のポートにする確かめ
+// ペアリングのダイアログ（頼む側・届いた頼み）、届いた頼みのしおりと見張り、別のポートにする確かめ、頼みとして受ける確かめ
 import { definePluginUi, defineWidget } from "../../plugin-api/ui"
 import { defineBookmarks, defineSettingsCategory } from "../base/ui"
 import { NETWORK_PLUGIN } from "."
+import { AsUserDialog } from "./AsUserDialog"
 import { BELOW_PARTICIPANTS, PICKED_DETAIL } from "./control-center-ids"
-import { PAIRING_DIALOG, PAIRING_REQUEST_DIALOG, PORT_REPICK_DIALOG, UNPAIR_DIALOG } from "./dialogs"
+import { AS_USER_DIALOG, PAIRING_DIALOG, PAIRING_REQUEST_DIALOG, PORT_REPICK_DIALOG, UNPAIR_DIALOG } from "./dialogs"
 import { kit } from "./kit"
 import { HostNameSetting, NetworkCategory } from "./NetworkCategory"
 import { OtherHosts } from "./OtherHosts"
@@ -51,6 +52,7 @@ export const NETWORK_UI = definePluginUi(NETWORK_PLUGIN, {
     [PAIRING_DIALOG.id]: PairingDialog,
     [PAIRING_REQUEST_DIALOG.id]: PairingRequestDialog,
     [UNPAIR_DIALOG.id]: UnpairDialog,
+    [AS_USER_DIALOG.id]: AsUserDialog,
   },
 })
 

@@ -1205,7 +1205,9 @@ test("新しい版を確かめる頼みは JSON の本文で送り、答えの�
 test("ほかのホストの様子の知らせは store に入れ、頼みはその口に JSON の本文で送る", async () => {
   const s = await connected()
   const peers = {
-    paired: [{ hostId: "b".repeat(64), connected: true, addr: "192.168.11.20:7240", name: "win-lan" }],
+    paired: [
+      { hostId: "b".repeat(64), label: "win-lan", connected: true, addr: "192.168.11.20:7240", name: "win-lan" },
+    ],
     found: [],
     pairing: { phase: "waiting", addr: "192.168.11.20:7240", code: "482913" },
   }

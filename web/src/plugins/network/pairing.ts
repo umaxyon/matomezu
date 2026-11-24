@@ -5,8 +5,7 @@
 // 頼みの扱い（requests）は利用者だけが替える（paired-host-requests-set）。
 // 相手の身元はホスト id（鍵の印）だけで決まる。名前・利用者名はペアリングしたときに相手が名乗った物で、今の名前は常駐だけが持つ
 import { z } from "zod"
-import { PAIRED_HOST_REQUESTS } from "../../core/def/subject"
-import type { ActionContext } from "../../plugin-api"
+import { type ActionContext, PAIRED_HOST_REQUESTS } from "../../plugin-api"
 import { kit } from "./kit"
 
 const HOST_ID = z.string().regex(/^[0-9a-f]{64}$/)

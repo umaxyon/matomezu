@@ -63,7 +63,9 @@ test("「ほかのホスト」の節は、つなぐが入のときだけ出し�
   expect(within(row()).getByRole("img", { name: "つながっていない" })).toBeTruthy()
   peers([{ hostId: B, label: "win-lan2", connected: true, name: "win-lan2" }])
   expect(
-    within(screen.getByRole("button", { name: /^つながっている ?win-lan2$/ })).getByRole("img", { name: "つながっている" }),
+    within(screen.getByRole("button", { name: /^つながっている ?win-lan2$/ })).getByRole("img", {
+      name: "つながっている",
+    }),
   ).toBeTruthy()
   fireEvent.click(screen.getByRole("button", { name: /^つながっている ?win-lan2$/ }))
   const panel = () => document.querySelector("[data-workroom-panel]") as HTMLElement
@@ -184,4 +186,42 @@ test("ホストの行の ▸ で開くと、相手のワークルームの写し
   ).toEqual(["win_claude_cli空き", "win_haiku作業中"])
   fireEvent.click(caret())
   expect(screen.queryByRole("list", { name: "win-lan のワークルーム" })).toBeNull()
+})
+
+test("詳しい所の「このホストからの頼み」: 頼みとして受けるは確かめのダイアログを通してから替わり（キャンセルなら替わらない）、聞くへはすぐ戻る", () => {
+  const { store, connect } = open()
+  connect()
+  act(() => {
+    store.actions.perform("@matomezu/network:paired-host-add", {
+      hostId: B,
+      nameAtPairing: "win-lan",
+      userNameAtPairing: "taro",
+      addr: "",
+    })
+  })
+  fireEvent.click(screen.getByRole("button", { name: /^つながっていない ?win-lan$/ }))
+  const requests = () =>
+    (Object.values(store.state.getState().records[PAIRED_HOST.id] ?? {})[0] as { requests?: string } | undefined)
+      ?.requests
+  const ask = () =>
+    screen.getByRole("radio", { name: "受け取った AI が、実行してよいかあなたに聞く" }) as HTMLInputElement
+  const asUser = () =>
+    screen.getByRole("radio", { name: "頼みとして受ける（あなたの指示と同じに扱う）" }) as HTMLInputElement
+  expect(ask().checked).toBe(true)
+  fireEvent.click(asUser())
+  const confirm = () => screen.getByRole("dialog", { name: "このホストからの頼みを受ける" })
+  expect(
+    within(confirm()).getByText("あなたのホストの AI が、win-lan の AI に頼まれた事を、あなたに聞かずに行います"),
+  ).toBeTruthy()
+  fireEvent.click(within(confirm()).getByRole("button", { name: "キャンセル" }))
+  expect(requests()).toBe("ask-user")
+  expect(ask().checked).toBe(true)
+  fireEvent.click(asUser())
+  fireEvent.click(within(confirm()).getByRole("button", { name: "頼みとして受ける" }))
+  expect(screen.queryByRole("dialog")).toBeNull()
+  expect(requests()).toBe("as-user")
+  expect(asUser().checked).toBe(true)
+  fireEvent.click(ask())
+  expect(screen.queryByRole("dialog")).toBeNull()
+  expect(requests()).toBe("ask-user")
 })
