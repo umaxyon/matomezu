@@ -39,8 +39,8 @@ export const NETWORK_MESSAGES = defineMessages({
   Unpair: { en: "Unpair", ja: "ペアリングを解く" },
   "Unpair button": { en: "Unpair", ja: "解く" },
   "Unpairing tells the other host too": {
-    en: "The other host is told too. To connect again, pair again",
-    ja: "相手のホストにも知らせます。またつなぐには、もう一度ペアリングします",
+    en: "The other host is told too. Messages from that host your AIs have not taken yet are dropped. To connect again, pair again",
+    ja: "相手のホストにも知らせます。このホストから届いて、AI がまだ受け取っていないメッセージは消えます。またつなぐには、もう一度ペアリングします",
   },
   "Found hosts": { en: "Found hosts", ja: "見つかったホスト" },
   Searching: { en: "Searching", ja: "探しています" },

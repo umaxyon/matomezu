@@ -30,7 +30,7 @@ import (
 const (
 	envelopeBodyMax = 64 << 10 // 届く封筒の本文の上限（バイト）
 	messageTextMax  = 4000     // 本文の上限（字。send_message の maxLength と同じ）
-	workroomNameMax = 40       // 届く封筒のワークルームの名前の上限（字）
+	workroomNameMax = 20       // ワークルームの名前の上限（字。base の WORKROOM_NAME_MAX と同じ。送る前と、届く封筒で確かめる）
 )
 
 // asUserMark は、requests が as-user のホストから届いた行の、頭に付ける印
