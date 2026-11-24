@@ -15,7 +15,7 @@ const NAME = z.string().max(40)
 const ADDR = z.string().max(300) // 番地とポート（例 192.168.11.20:7240）
 const REQUESTS = z.enum(PAIRED_HOST_REQUESTS)
 const LISTED = z.enum(PAIRED_HOST_LISTED)
-// AI ラリーの上限の既定と最大（常駐の rally.go と同じ）
+// AI ラリーの上限の範囲（PAIRED_HOST_RALLY_LIMIT の min と max）
 const RALLY_LIMIT = z.number().int().min(PAIRED_HOST_RALLY_LIMIT.min).max(PAIRED_HOST_RALLY_LIMIT.max)
 // rallyLimitOf は、利用者が入れた文字を rallyLimit として読む（範囲の内の整数でなければ null）
 export function rallyLimitOf(text: string): number | null {
