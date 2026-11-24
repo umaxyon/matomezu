@@ -65,7 +65,7 @@ export interface PeerWorkroom {
 // プラグインに渡す、ペアリングしたホスト 1 つの様子（常駐だけが持つ物）
 export interface PeerLive {
   hostId: string
-  label: string // 呼び名（常駐が決める。届く行と AI の send_message の host と同じ）
+  label: string // ホストエイリアス（常駐が決める。届く行と AI の send_message の host と同じ）
   connected: boolean
   workrooms: readonly PeerWorkroom[] // 相手のワークルームの一覧の写し（つながっていなければ空）
   keyMismatch: boolean // 覚えた鍵と合わない相手が答えた

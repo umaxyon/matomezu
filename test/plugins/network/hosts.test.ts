@@ -1,4 +1,4 @@
-// ほかのホストの行: 常駐の様子の名前があればそれ、無ければペアリングしたときの名前。出す名前は常駐が決めた呼び名で、様子がまだ無ければペアリングしたときの名前
+// ほかのホストの行: 常駐の様子の名前があればそれ、無ければペアリングしたときの名前。出す名前は常駐が決めたホストエイリアスで、様子がまだ無ければペアリングしたときの名前
 import { expect, test } from "bun:test"
 import { NOT_TOLD } from "../../../web/src/plugins/base/ui"
 import { hostRows, ipOf } from "../../../web/src/plugins/network/hosts"
@@ -13,7 +13,7 @@ const record = (id: string, hostId: string, name: string) => ({
   requests: "ask-user" as const,
 })
 
-test("出す名前は常駐の呼び名、名前は常駐の様子の今の名前を使い、様子が無ければペアリングしたときの名前", () => {
+test("出す名前は常駐のホストエイリアス、名前は常駐の様子の今の名前を使い、様子が無ければペアリングしたときの名前", () => {
   const rows = hostRows(
     [record("p1", "b2c1".repeat(16), "old"), record("p2", "c".repeat(64), "mac")],
     [{ hostId: "b2c1".repeat(16), label: "win-lan · B2C1", name: "win-lan", userName: NOT_TOLD }],

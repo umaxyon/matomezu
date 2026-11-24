@@ -406,7 +406,7 @@ type localWorkrooms struct {
 	Hosts     []hostBrief `json:"hosts,omitempty"`
 }
 
-// hostWorkrooms は、host を付けた list_workrooms の答え: そのホストの呼び名と、つながっているか、写しのワークルーム（つながっていなければ空）
+// hostWorkrooms は、host を付けた list_workrooms の答え: そのホストエイリアスと、つながっているか、写しのワークルーム（つながっていなければ空）
 type hostWorkrooms struct {
 	OK        bool      `json:"ok"`
 	Host      string    `json:"host"`
@@ -415,12 +415,12 @@ type hostWorkrooms struct {
 }
 
 type hostBrief struct {
-	Name      string `json:"name"` // 呼び名（send_message の host に書く値）
+	Name      string `json:"name"` // ホストエイリアス（send_message の host に書く値）
 	Connected bool   `json:"connected"`
 }
 
 // Workrooms は、送れるワークルームの一覧（localWorkrooms・hostWorkrooms か、断りの MessageSent）。host が空なら、このホストの一覧（参加の確定した AI のいるワークルーム）と、
-// ペアリングしたホストの呼び名。host があれば、その呼び名のペアリングしたホストの写し（相手に聞かない）
+// ペアリングしたホストのホストエイリアス。host があれば、そのホストエイリアスのペアリングしたホストの写し（相手に聞かない）
 func (h *Hub) Workrooms(host string) (any, error) {
 	if host == "" {
 		rows, err := h.roomsNow()
@@ -454,7 +454,7 @@ func (h *Hub) Workrooms(host string) (any, error) {
 	return hostWorkrooms{OK: true, Host: host, Connected: connected, Workrooms: rows}, nil
 }
 
-// pairedByLabel は、呼び名 label のペアリングしたホストを引く。引けなければ target は nil で、AI への断り（host-closed・unknown-host）を返す
+// pairedByLabel は、ホストエイリアス label のペアリングしたホストを引く。引けなければ target は nil で、AI への断り（host-closed・unknown-host）を返す
 func (h *Hub) pairedByLabel(label string) (*hostEntrance, *pairedHostRecord, MessageSent) {
 	e := h.entrance.Load()
 	if e == nil || !h.HostStatus().Open {

@@ -1,4 +1,4 @@
-// ペアリングしたホスト 1 つについての確かめのダイアログの形: ホスト（呼び名と利用者名）、一言、キャンセル・決めるボタン（danger）。
+// ペアリングしたホスト 1 つについての確かめのダイアログの形: ホスト（ホストエイリアスと利用者名）、一言、キャンセル・決めるボタン（danger）。
 // ホストが居なくなっていれば、すぐ閉じる。決めるボタンの onConfirm が true を返したら閉じる
 import { useEffect } from "react"
 import { useMessages, useRecords } from "../../plugin-api/ui"

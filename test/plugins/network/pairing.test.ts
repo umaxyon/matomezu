@@ -94,7 +94,7 @@ test("ペアリングを解くと消える。AI はどのアクションも行�
   expect(h.all(PAIRED_HOST.id)).toEqual([])
 })
 
-test("頼みの扱いは既定で ask-user で、利用者だけが替えられる", () => {
+test("requests は既定で ask-user で、利用者だけが替えられる", () => {
   const h = host()
   const put = h.act(USER, "paired-host-add", { hostId: B, nameAtPairing: "w", userNameAtPairing: "", addr: "" })
   const on = { record: put.result?.pairedHost as string }

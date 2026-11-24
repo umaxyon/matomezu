@@ -292,7 +292,7 @@ var tools = []tool{
 var listWorkroomsSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
-		"host": map[string]any{"type": "string", "minLength": 1, "description": "The name of a paired host (from the hosts this tool answers without host). Leave it out for this host."},
+		"host": map[string]any{"type": "string", "minLength": 1, "description": "The name this host uses for a paired host (from the hosts this tool answers without host). Leave it out for this host."},
 	},
 	"additionalProperties": false,
 }
@@ -667,7 +667,7 @@ var sendMessageSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
 		"to":   map[string]any{"type": "string", "minLength": 1, "description": "The name of the workroom of the AI to send to."},
-		"host": map[string]any{"type": "string", "minLength": 1, "description": "The name of the paired host (the matomezu of another machine) that workroom is on, as list_workrooms and the messages that come to you give it. Leave it out for a workroom on this host."},
+		"host": map[string]any{"type": "string", "minLength": 1, "description": "The name this host uses for the paired host (the matomezu of another machine) that workroom is on, as list_workrooms and the messages that come to you give it. Leave it out for a workroom on this host."},
 		"text": map[string]any{"type": "string", "minLength": 1, "maxLength": 4000, "description": "The message."},
 	},
 	"required":             []string{"to", "text"},

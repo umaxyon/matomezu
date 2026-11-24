@@ -42,7 +42,7 @@ type pairedHostRecord struct {
 	NameAtPairing     string `json:"nameAtPairing"`
 	UserNameAtPairing string `json:"userNameAtPairing"`
 	Addr              string `json:"addr"`
-	Requests          string `json:"requests"` // 頼みの扱い（requestsAskUser・requestsAsUser）
+	Requests          string `json:"requests"` // そのホストの AI からの AI 間メッセージを、利用者の頼みとして受けるか（requestsAskUser・requestsAsUser）
 }
 
 // ペアリングしたホストの requests の値（core/def/subject.ts の PAIRED_HOST_REQUESTS）
@@ -80,7 +80,7 @@ type HostPairing struct {
 // PeerLive は、ペアリングしたホストの、常駐だけが持つ様子
 type PeerLive struct {
 	HostID      string    `json:"hostId"`
-	Label       string    `json:"label"` // 呼び名（labelsLocked。届く行・send_message の host・画面に同じ物を使う）
+	Label       string    `json:"label"` // ホストエイリアス（labelsLocked。届く行・send_message の host・画面に同じ物を使う）
 	Connected   bool      `json:"connected"`
 	LastSeen    string    `json:"lastSeen,omitempty"` // 最後につながった時刻
 	Addr        string    `json:"addr,omitempty"`     // 待っている所（番地:ポート）

@@ -2,7 +2,7 @@ package server
 
 // ほかのホストとの AI 間メッセージ: 送り手の常駐が、ペアリングしたホストの Pinned の口 POST /peer/v1/message に封筒 1 通を同期で運ぶ。
 // 送り手のホストは TLS で見た相手の鍵で決まり、封筒の From.Host と違えば断る（書き換えない）。宛て先の参加者は受けたホストが引く。
-// 届く行には、送り手のホストの呼び名（受けたホストが決めた物。send_message の host に書く値）を添え、そのホストの頼みの扱いが as-user なら印を付ける。
+// 届く行には、送り手のホストエイリアスを添え、そのホストの requests が as-user なら印を付ける。
 // requests を ask-user に戻したら、行列に残っている印つきの行から印を外し、ペアリングを解いたら、そのホストから届いた行を捨てる（followPeerLines）。
 // つながらなかった・相手が受けなかったと答えた（確かに届いていない）ときは unreachable で断り、送ったのに答えが無ければ同じ封筒をもう 1 回送る（受けた側は同じ id を 1 通にする）。
 // それにも答えが無ければ、届いたかもしれないので no-answer で返す
@@ -33,10 +33,10 @@ const (
 	workroomNameMax = 40       // 届く封筒のワークルームの名前の上限（字）
 )
 
-// asUserMark は、頼みの扱いが as-user のホストから届いた行の、頭に付ける印
+// asUserMark は、requests が as-user のホストから届いた行の、頭に付ける印
 const asUserMark = "(as your user's request)"
 
-// remoteMessageHead は、ほかのホストの AI からの知らせの頭（from は送り手のワークルーム名、host は送り手のホストの呼び名、asUser は印を付けるか）
+// remoteMessageHead は、ほかのホストの AI からの知らせの頭（from は送り手のワークルーム名、host は送り手のホストエイリアス、asUser は印を付けるか）
 func remoteMessageHead(from, host string, asUser bool) string {
 	head := "matomezu from AI " + quote(from) + " on host " + quote(host)
 	if asUser {
@@ -45,7 +45,7 @@ func remoteMessageHead(from, host string, asUser bool) string {
 	return head + ":"
 }
 
-// sendToHost は、ワークルーム from の参加者から、呼び名 req.Host のペアリングしたホストのワークルーム req.To へ封筒を運ぶ（h.mu を持たずに呼ぶ）
+// sendToHost は、ワークルーム from の参加者から、ホストエイリアス req.Host のペアリングしたホストのワークルーム req.To へ封筒を運ぶ（h.mu を持たずに呼ぶ）
 func (h *Hub) sendToHost(from string, req MessageRequest, now time.Time) MessageSent {
 	e, target, refused := h.pairedByLabel(req.Host)
 	if target == nil {
@@ -223,8 +223,8 @@ func (h *Hub) followPeerLines(known, asUser map[string]bool) {
 	}
 }
 
-// labelsLocked は、ペアリングしたホストの呼び名（ホスト id → 呼び名）: 今の名前（つながったときに聞いた物。無ければペアリングしたときの名前）で、
-// 同じ名前のホストが 2 つ以上あれば、鍵の印の頭を添える（4 字から、どれも違うまで伸ばす。例 win-lan · 7F3A）。届く行・send_message の host・画面に、同じ呼び名を使う（ps.mu を持って呼ぶ）
+// labelsLocked は、ペアリングしたホストのホストエイリアス（ホスト id → ホストエイリアス）: 今の名前（つながったときに聞いた物。無ければペアリングしたときの名前）で、
+// 同じ名前のホストが 2 つ以上あれば、鍵の印の頭を添える（4 字から、どれも違うまで伸ばす。例 win-lan · 7F3A）。届く行・send_message の host・画面に、同じホストエイリアスを使う（ps.mu を持って呼ぶ）
 func (ps *peerState) labelsLocked() map[string]string {
 	names := map[string]string{}
 	same := map[string][]string{} // 名前 → その名前のホスト id
@@ -269,7 +269,7 @@ func keyHeadLen(ids []string) int {
 	}
 }
 
-// byLabel は、呼び名 label のペアリングしたホスト（無ければ nil）と、全部の呼び名（並べた物）
+// byLabel は、ホストエイリアス label のペアリングしたホスト（無ければ nil）と、全部のホストエイリアス（並べた物）
 func (ps *peerState) byLabel(label string) (*pairedHostRecord, []string) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
@@ -286,7 +286,7 @@ func (ps *peerState) byLabel(label string) (*pairedHostRecord, []string) {
 	return found, all
 }
 
-// labelOf は、ペアリングしたホスト hostID の呼び名と、頼みの扱いが as-user か
+// labelOf は、ペアリングしたホスト hostID のホストエイリアスと、requests が as-user か
 func (ps *peerState) labelOf(hostID string) (string, bool) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()

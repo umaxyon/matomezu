@@ -220,7 +220,7 @@ var migrations = []string{
 	`SELECT 1;`,
 	// プロジェクトに、レーンのタイトル帯に出す物（laneShows）を足す（Go の移し替え。migrate_lane_shows.go）
 	`SELECT 1;`,
-	// ペアリングしたホストに、頼みの扱い（requests）を足す（Go の移し替え。migrate_paired_host_requests.go）
+	// ペアリングしたホストに、requests（そのホストの AI からの AI 間メッセージを、利用者の頼みとして受けるか）を足す（Go の移し替え。migrate_paired_host_requests.go）
 	`SELECT 1;`,
 }
 

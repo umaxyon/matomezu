@@ -56,7 +56,7 @@ func sendTo(t *testing.T, srv, from, host, to, text string) MessageSent {
 	return sent
 }
 
-// ペアリングしたホストの AI へ送ると、受けたホストの参加者に、送り手のホストの呼び名つきの行で届く。頼みの扱いが as-user なら印が付く
+// ペアリングしたホストの AI へ送ると、受けたホストの参加者に、送り手のホストエイリアスつきの行で届く。requests が as-user なら印が付く
 func TestAMessageGoesToAPairedHost(t *testing.T) {
 	as, bs, _, b := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
@@ -125,7 +125,7 @@ func TestQueuedLinesFollowTheRequestsAndThePairing(t *testing.T) {
 	})
 }
 
-// 断り: 呼び名の無いホスト（送れる呼び名を添える）・宛て先のワークルームに AI がいない（受けたホストの送れる名前を添える）・自分の入口が閉じている
+// 断り: ホストエイリアスの無いホスト（送れるホストエイリアスを添える）・宛て先のワークルームに AI がいない（受けたホストの送れる名前を添える）・自分の入口が閉じている
 func TestMessagesToOtherHostsAreRefused(t *testing.T) {
 	as, bs, a, _ := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
@@ -230,7 +230,7 @@ func TestChangesSince(t *testing.T) {
 	}
 }
 
-// AI が読むワークルームの一覧: host が無ければ、このホストの AI のいるワークルームと、ペアリングしたホストの呼び名。あれば、そのホストの写し
+// AI が読むワークルームの一覧: host が無ければ、このホストの AI のいるワークルームと、ペアリングしたホストのホストエイリアス。あれば、そのホストの写し
 func TestAIListsTheWorkroomsOfPairedHosts(t *testing.T) {
 	as, bs, a, _ := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
@@ -251,7 +251,7 @@ func TestAIListsTheWorkroomsOfPairedHosts(t *testing.T) {
 	}
 }
 
-// ホストの呼び名は今の名前（つながったときに聞いた物。無ければペアリングしたときの名前）で、同じ名前が 2 つ以上あるときだけ鍵の印の頭（4 字から、違うまで）を添える
+// ホストエイリアスは今の名前（つながったときに聞いた物。無ければペアリングしたときの名前）で、同じ名前が 2 つ以上あるときだけ鍵の印の頭（4 字から、違うまで）を添える
 func TestPairedHostLabelsAddTheKeyHeadOnlyWhenNamesRepeat(t *testing.T) {
 	a, b, c := "7f3a"+strings.Repeat("0", 60), "c41e"+strings.Repeat("1", 60), "9b20"+strings.Repeat("2", 60)
 	ps := &peerState{

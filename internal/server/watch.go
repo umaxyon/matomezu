@@ -82,7 +82,7 @@ type wakeItem struct {
 	line        string    // 流す 1 行
 	head        string    // AI 間メッセージの、送り手を名乗る頭（messageHead・remoteMessageHead）
 	peer        string    // ほかのホストから届いた AI 間メッセージの、送り手のホスト id
-	asUser      bool      // 頭に頼みの扱いの印が付いている
+	asUser      bool      // 頭に as-user の印が付いている
 	body        string    // AI 間メッセージの本文（JSON の文字列にした物。改行を受ける通り道には、送り手の行のあとの行で流す）
 	pointed     bool      // 1 回の知らせに入りきらず、通り道に「届いた」だけを渡した（本文は呼び出しの返事で渡す）
 	replyOnly   bool      // 通り道の AI のプログラムにその会話が無かった（absent）。呼び出しの返事だけで渡す

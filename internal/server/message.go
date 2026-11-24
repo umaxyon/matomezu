@@ -10,7 +10,7 @@ package server
 //
 //	POST /api/ai/message {"to", "host"?, "text"}  {"ok": true, "queued": true}、または断った理由 {"ok": false, "reason", "detail"}
 //	  断る理由: not-joined（送り手の参加が確定していない）・visitor（送り手がビジター）・unknown-recipient（その名前のワークルームが無いか、参加が確定した参加者がいない。detail に送れる名前）・to-self（自分のワークルーム）・
-//	  unknown-host（その呼び名のペアリングしたホストが無い。detail に送れる呼び名）・unreachable（そのホストにつながらないか、相手が受けなかった。届いていない）・no-answer（2 回送って答えが無い。届いたかもしれない）・host-closed（このホストが「ほかのホストとつなぐ」を切にしている）
+//	  unknown-host（そのホストエイリアスのペアリングしたホストが無い。detail に送れるホストエイリアス）・unreachable（そのホストにつながらないか、相手が受けなかった。届いていない）・no-answer（2 回送って答えが無い。届いたかもしれない）・host-closed（このホストが「ほかのホストとつなぐ」を切にしている）
 
 import (
 	"crypto/rand"
@@ -43,7 +43,7 @@ type Envelope struct {
 // MessageRequest は AI 間メッセージを送る頼み。Participant は呼び出しに付いていた参加の id
 type MessageRequest struct {
 	To          string `json:"to"`
-	Host        string `json:"host"` // 宛て先のホストの呼び名（ペアリングしたホスト。空なら自分のホスト）
+	Host        string `json:"host"` // 宛て先のホストエイリアス（ペアリングしたホスト。空なら自分のホスト）
 	Text        string `json:"text"`
 	Participant string `json:"-"`
 }
@@ -175,13 +175,13 @@ func (h *Hub) SendMessage(req MessageRequest, now time.Time) (MessageSent, error
 	return MessageSent{OK: true, Queued: true}, nil
 }
 
-// delivery は、封筒と、それを入れる宛て先の参加者（宛て先のホストが引いた物）。ほかのホストから届いた物は、送り手のホストの呼び名と頼みの扱いも
+// delivery は、封筒と、それを入れる宛て先の参加者（宛て先のホストが引いた物）。ほかのホストから届いた物は、送り手のホストエイリアスと、印を付けるか（requests が as-user か）も
 type delivery struct {
 	envelope Envelope
 	to       string // 参加者の id
-	host     string // 送り手のホストの呼び名（同じホストの中なら空）
+	host     string // 送り手のホストエイリアス（同じホストの中なら空）
 	peer     string // 送り手のホスト id（同じホストの中なら空）
-	asUser   bool   // 送り手のホストの頼みの扱いが as-user
+	asUser   bool   // 送り手のホストの requests が as-user
 }
 
 // senderHeld は、参加者 participant が送り手になれるなら、その参加者のレコード。なれなければ断る答え（h.mu を持って呼ぶ）
