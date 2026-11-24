@@ -156,7 +156,7 @@ describe("見た目のプラグイン", () => {
     expect(() => assembleUi([...BUILTIN_UI, own])).not.toThrow()
   })
 
-  test("郵便のダイアログのボタンと送信トレイの行の絵も、種類の持ち主のプラグインだけが名乗れる（持ち主が違えば E312、同じなら通る）", () => {
+  test("郵便箱の画面の選んだ郵便のボタンと送信トレイの行の絵も、種類の持ち主のプラグインだけが名乗れる（持ち主が違えば E312、同じなら通る）", () => {
     const actions = (id: string, mail: string) => defineMailActions({ id: id as never, mail, view: () => null })
     const icon = (id: string, annotation: string) =>
       defineAnnotationIcon({ id: id as never, annotation, view: () => null })

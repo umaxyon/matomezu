@@ -411,7 +411,7 @@ declare module "../../core/catalog" {
   }
   interface SlotTable {
     "@matomezu/base:screen-footer": Record<string, never> // ステージを並べないスクリーンがカレントの間だけの下の行（何も受け取らない）
-    "@matomezu/base:mail-actions": MailActionsProps // 郵便のダイアログの下の行に並べる、その種類のボタンなど
+    "@matomezu/base:mail-actions": MailActionsProps // 郵便箱の画面の選んだ郵便の下に並べる、その種類のボタンなど
     "@matomezu/base:wide-search-modes": WideSearchModeProps // 横断検索のタブに並べるモード（入力の下のパネル）
     "@matomezu/base:wide-search-openers": Record<string, never> // 種類ごとの、横断検索の当たりの開き方（何も描かない）
     "@matomezu/base:stage-top": Record<string, never>
