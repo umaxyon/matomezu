@@ -160,7 +160,7 @@ export {
   defineMailActions,
   MAIL_ACTIONS,
   type MailActionsProps,
-  MailboxPane,
+  MailboxView,
   useMailboxScreen,
 } from "./mail/ui"
 export {

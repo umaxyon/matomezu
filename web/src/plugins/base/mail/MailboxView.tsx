@@ -29,10 +29,10 @@ import { MAIL_REMOVE, MAIL_SEEN, MAIL_VISITED } from "./actions"
 import { useMailbox, useShowMailPlaceAt } from "./hooks"
 import { inboxOf, unreadOf } from "./inbox"
 import own from "./Mail.module.css"
-import styles from "./MailboxPane.module.css"
+import styles from "./MailboxView.module.css"
 import type { Mail, MailSenderKind } from "./mail"
 import { type OpenChoice, type OpenChoices, openChoices, openStageOf } from "./open-choices"
-import { GONE, mailPlace } from "./place"
+import { GONE, mailPlace, placeNow } from "./place"
 import { MAILBOX_SCOPE } from "./screen"
 import { shownOf } from "./shown"
 import { MAIL_ACTIONS } from "./slots"
@@ -52,7 +52,7 @@ const CHOICE_TITLES = {
 // 上下に並んでいるブックスクリーンが無いときの行き先のボタン（ブックを窓に出す 1 つ）
 const WINDOW_CHOICES: OpenChoices = { opens: ["here"], primary: "here" }
 
-export function MailboxPane({ className }: { className?: string }) {
+export function MailboxView({ className }: { className?: string }) {
   const t = useMessages(kit)
   const mailbox = useMailbox()
   const tab = usePluginState(kit, MAILBOX_SENDER_TAB)
@@ -262,15 +262,16 @@ function useOpenPlace(mail: Mail): { choices: OpenChoices; run: (choice: OpenCho
   const showPlace = useShowMailPlaceAt()
   const choices = (stages && openChoices(stages, start)) ?? WINDOW_CHOICES
   const run = (choice: OpenChoice) => {
-    const place = mailPlace(mail, read().books)
-    const to = place === GONE ? mail.to : (place ?? undefined)
+    const to = placeNow(mail, read().books)
     if (!to) return
     if (start !== NO_STAGE && choice === "split") actions.split(start)
     const ws = start === NO_STAGE ? undefined : screenOfStage(read().window, start)?.stages
     // 「開く」は、行き先のブックを窓に出す（下の段に並べていれば、上の段をそのブックのブックスクリーンに替えて、見ていた物は後ろへ）。ほかは起点のステージの並びに開く
     const target =
       choice === "here" || !ws
-        ? showBookAbove(actions, () => read().window, here ?? "", to.book)
+        ? here === undefined
+          ? actions.showBookStage(to.book)
+          : showBookAbove(actions, () => read().window, here, to.book)
         : openStageOf(ws, start, choice)
     if (!target || target === NO_STAGE) return
     showPlace(target, mail)

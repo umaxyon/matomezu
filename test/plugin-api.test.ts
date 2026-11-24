@@ -367,7 +367,7 @@ test("matomezu/ui が出す名前", () => {
     "LockToggle",
     "MAIL_ACTIONS",
     "MARKDOWN_PANE_MODE_ICONS",
-    "MailboxPane",
+    "MailboxView",
     "MarkdownDocumentView",
     "MaxButton",
     "MultiChoices",

@@ -34,3 +34,9 @@ function bookHolding(books: Readonly<Record<string, Book>>, book: string, page: 
   if (said && findPage(said, page) !== NO_PAGE) return said
   return Object.values(books).find(b => findPage(b, page) !== NO_PAGE)
 }
+
+// 郵便 m の行き先を開くときの場所: 今の場所（mailPlace）。今は無ければ、郵便が言う場所のまま。行き先の無い郵便なら undefined
+export function placeNow(m: Mail, books: Readonly<Record<string, Book>>): MailPlace | undefined {
+  const place = mailPlace(m, books)
+  return place === GONE ? m.to : (place ?? undefined)
+}

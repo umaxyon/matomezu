@@ -197,7 +197,7 @@ const FRAMES = [
   "left-side-panel/hooks.tsx",
   "library/open-from.ts",
   "library/screen.ts",
-  "mail/MailboxPane.tsx",
+  "mail/MailboxView.tsx",
   "mail/MailWatch.tsx",
   "mail/bird-visit.tsx",
   "mail/hooks.tsx",

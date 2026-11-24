@@ -55,6 +55,6 @@ export const MAILBOX_BUTTON = defineWidget({
 })
 
 export { useMailboxScreen } from "./hooks"
-export { MailboxPane } from "./MailboxPane"
+export { MailboxView } from "./MailboxView"
 export { MAILBOX_SCREEN_VIEW } from "./screen-ui"
 export { MAIL_ACTIONS, type MailActionsProps } from "./slots"

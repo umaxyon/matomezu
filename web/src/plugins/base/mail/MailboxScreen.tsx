@@ -1,4 +1,4 @@
-// 郵便箱のスクリーン（screen.ts の MAILBOX_SCREEN）を描く: 帯と、郵便箱の画面（MailboxPane）。
+// 郵便箱のスクリーン（screen.ts の MAILBOX_SCREEN）を描く: 帯と、郵便箱の画面（MailboxView）。
 // ブックスクリーンと上下に並べている間は、帯に「→ 閉じる」と「広げる」（書庫のスクリーンと同じ形）。窓いっぱいのときは、帯に名前と閉じるボタン。閉じる・広げるは screen.ts のコマンドを通る。
 // 書庫のスクリーンと違い、外を押しても閉じない（上のステージで行き先を見ながら、続けて郵便を選ぶため）
 import { useCommand } from "../../../ui/commands"
@@ -8,8 +8,8 @@ import { CLOSE, CLOSE_RIGHT, EXPAND } from "../library/icons"
 import { IconButton } from "../utils/IconButton"
 import { BOOK_SCREEN_DEF } from "../window"
 import { useScreenSplit } from "../window/useScreenSplit"
-import { MailboxPane } from "./MailboxPane"
 import styles from "./MailboxScreen.module.css"
+import { MailboxView } from "./MailboxView"
 import { MAILBOX_SCREEN_CLOSE, MAILBOX_SCREEN_EXPAND } from "./screen"
 
 export function MailboxScreen() {
@@ -48,7 +48,7 @@ export function MailboxScreen() {
           </>
         )}
       </div>
-      <MailboxPane className={styles.pane} />
+      <MailboxView className={styles.pane} />
     </div>
   )
 }

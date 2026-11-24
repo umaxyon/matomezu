@@ -68,7 +68,7 @@ export {
   MAIL_ACTIONS,
   MARKDOWN_PANE_MODE_ICONS,
   type MailActionsProps,
-  MailboxPane,
+  MailboxView,
   MarkdownDocumentView,
   MultiChoices,
   markdownDocumentOnSkin,
