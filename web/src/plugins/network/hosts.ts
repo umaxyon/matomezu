@@ -14,7 +14,7 @@ export interface HostRow<L> {
   live: L | undefined
   name: string // 今のホスト名（つながったときに聞いた物。無ければペアリングしたときの名前）
   userName: string
-  // 出す名前: 常駐が決めた呼び名（同じ名前のホストがあれば鍵の印の頭 4 字を添えた物。届く行と AI の send_message の host と同じ）。
+  // 出す名前: 常駐が決めた呼び名（同じ名前のホストがあれば鍵の印の頭（違うまで伸ばす）を添えた物。届く行と AI の send_message の host と同じ）。
   // 常駐の様子がまだ届いていなければ、ペアリングしたときの名前
   label: string
 }

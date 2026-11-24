@@ -81,8 +81,8 @@ func TestAMessageGoesToAPairedHost(t *testing.T) {
 	}
 }
 
-// 行列に残っている印つきの行は、利用者が ask-user に戻すと印が外れる
-func TestQueuedMarkedLinesLoseTheMarkWhenAskUserIsBack(t *testing.T) {
+// 行列に残っている印つきの行は、利用者が ask-user に戻すと印が外れ、ペアリングを解くと捨てる
+func TestQueuedLinesFollowTheRequestsAndThePairing(t *testing.T) {
 	as, bs, _, b := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
 	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
@@ -104,6 +104,25 @@ func TestQueuedMarkedLinesLoseTheMarkWhenAskUserIsBack(t *testing.T) {
 	if got := wakes(b, b.OpenWakesWith("200", "", WakeLimits{})); len(got) != 1 || got[0] != `matomezu from AI "s1" on host "a": "頼み"` {
 		t.Fatalf("wakes = %q", got)
 	}
+	// ペアリングを解いたら、そのホストから届いてまだ渡していない行は捨てる（返事の宛先をもう引けない）
+	if sent := sendTo(t, as.URL, s1, "b", "s2", "もう 1 つ"); !sent.OK {
+		t.Fatalf("sent = %+v", sent)
+	}
+	if out, err := b.Perform(performOne("@matomezu/network:paired-host-remove", json.RawMessage(`{}`), &engine.On{Record: rec.ID})); err != nil || !out.OK {
+		t.Fatalf("remove = %+v, %v", out, err)
+	}
+	waitFor(t, "B drops the lines from A", func() bool {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		for _, q := range b.wakeQueue {
+			for _, it := range q {
+				if it.peer != "" {
+					return false
+				}
+			}
+		}
+		return true
+	})
 }
 
 // 断り: 呼び名の無いホスト（送れる呼び名を添える）・宛て先のワークルームに AI がいない（受けたホストの送れる名前を添える）・自分の入口が閉じている
@@ -114,6 +133,7 @@ func TestMessagesToOtherHostsAreRefused(t *testing.T) {
 	for _, c := range []struct{ host, to, reason, detail string }{
 		{"c", "s2", "unknown-host", "the paired hosts are: b"},
 		{"b", "s3", "unknown-recipient", "you can send to: s2"},
+		{"b", strings.Repeat("長", workroomNameMax+1), "unknown-recipient", "no workroom has a name longer than"},
 	} {
 		if sent := sendTo(t, as.URL, s1, c.host, c.to, "hi"); sent.OK || sent.Reason != c.reason || !strings.Contains(sent.Detail, c.detail) {
 			t.Fatalf("to %s on %s = %+v", c.to, c.host, sent)
@@ -231,7 +251,7 @@ func TestAIListsTheWorkroomsOfPairedHosts(t *testing.T) {
 	}
 }
 
-// ホストの呼び名は今の名前（つながったときに聞いた物。無ければペアリングしたときの名前）で、同じ名前が 2 つ以上あるときだけ鍵の印の頭 4 字を添える
+// ホストの呼び名は今の名前（つながったときに聞いた物。無ければペアリングしたときの名前）で、同じ名前が 2 つ以上あるときだけ鍵の印の頭（4 字から、違うまで）を添える
 func TestPairedHostLabelsAddTheKeyHeadOnlyWhenNamesRepeat(t *testing.T) {
 	a, b, c := "7f3a"+strings.Repeat("0", 60), "c41e"+strings.Repeat("1", 60), "9b20"+strings.Repeat("2", 60)
 	ps := &peerState{
@@ -252,6 +272,13 @@ func TestPairedHostLabelsAddTheKeyHeadOnlyWhenNamesRepeat(t *testing.T) {
 	if r, _ := ps.byLabel("win-lan · C41E"); r == nil || r.HostID != b {
 		t.Errorf("byLabel did not find the host by its label: %v", r)
 	}
+	// 頭 4 字まで同じなら、違うまで伸ばす
+	d := "7f3a9" + strings.Repeat("3", 59)
+	ps.known[d] = pairedHostRecord{HostID: d, NameAtPairing: "win-lan"}
+	if got := ps.labelsLocked(); got[a] != "win-lan · 7F3A0" || got[d] != "win-lan · 7F3A9" || got[b] != "win-lan · C41E1" {
+		t.Errorf("labels when the heads repeat = %v", got)
+	}
+	delete(ps.known, d)
 	ps.live[b].Name = "linux"
 	if got := ps.labelsLocked(); got[a] != "win-lan" || got[b] != "linux" {
 		t.Errorf("labels after the name changed = %v", got)
@@ -270,7 +297,8 @@ func TestNotSentOnlyWhenTheMessageCertainlyDidNotArrive(t *testing.T) {
 		{errNotPaired, true},
 		{&net.OpError{Op: "read", Err: errors.New("connection reset")}, false},
 		{errors.New("context deadline exceeded (Client.Timeout exceeded while awaiting headers)"), false},
-		{fmt.Errorf("the message answered %d", 500), false},
+		{fmt.Errorf("post: %w", answeredError{404}), true},
+		{fmt.Errorf("the answer could not be read: %w", errors.New("unexpected end of JSON input")), false},
 	}
 	for _, c := range cases {
 		if got := notSent(c.err); got != c.want {

@@ -282,9 +282,9 @@ func (h *Hub) followPeers(e *hostEntrance) {
 	}
 	ps.known = now
 	ps.mu.Unlock()
-	asUser := ps.asUserHosts()
+	known, asUser := ps.pairedAndAsUser()
 	h.mu.Lock()
-	h.unmarkPeerLines(asUser)
+	h.followPeerLines(known, asUser)
 	h.mu.Unlock()
 	for _, t := range told {
 		go h.tellUnpaired(e, t.r, t.addr)
