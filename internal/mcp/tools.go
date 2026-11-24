@@ -271,14 +271,25 @@ var tools = []tool{
 	{
 		"list_workrooms",
 		"List the workrooms you can send messages to (with send_message), each with its name and activity (working, idle, or unknown when no plugin tells). " +
-			"Without host, it answers the workrooms of this host that have an AI in them now (your own too) and hosts: the hosts this host is paired with (the matomezu of other machines; only while this host connects to other hosts), " +
-			"each with the name to give as host and whether it is connected now. With host, it answers that host's workrooms as this host last heard from it (connected false and no workrooms when it is not connected now); " +
-			"it is refused with unknown-host when no paired host has that name and host-closed when this host does not connect to other hosts now.",
+			"Workroom names do not repeat within a host, but the same name can be on another host; send_message without host goes to this host. " +
+			"Without arguments, it answers an overview: workrooms, the workrooms of this host that have an AI in them now (your own too; all of them, or only the 5 whose activity changed last when the user chose so), " +
+			"and more, how many of them it left out; and hosts: the paired hosts the user lists for AIs (the matomezu of other machines; only while this host connects to other hosts), " +
+			"each with the name to give as host, whether it is connected now, the 5 workrooms whose activity changed last and more, how many it left out (no workrooms when it is not connected). " +
+			"The workrooms come in the order their activity changed, the latest first. " +
+			"With name, it answers found: every workroom with that name, on this host (no host) and on the paired hosts (with host), the paired hosts not listed for AIs too. " +
+			"With offset, it answers the workrooms of one host by name from that position, up to 50, and more, how many come after them: of the paired host given as host, or of this host without host. " +
+			"With host alone, the same from the first. A paired host's workrooms are as this host last heard from it (connected false and no workrooms when it is not connected now). " +
+			"name is given alone. It is refused with unknown-host when no paired host has that name and host-closed when this host does not connect to other hosts now.",
 		listWorkroomsSchema,
 		reading(func(api caller, args map[string]any) (json.RawMessage, error) {
 			q := url.Values{}
-			if host, _ := args["host"].(string); host != "" {
-				q.Set("host", host)
+			for _, k := range []string{"host", "name"} {
+				if v, _ := args[k].(string); v != "" {
+					q.Set(k, v)
+				}
+			}
+			if offset, ok := args["offset"].(float64); ok {
+				q.Set("offset", strconv.Itoa(int(offset)))
 			}
 			path := "api/ai/workrooms"
 			if len(q) > 0 {
@@ -294,7 +305,9 @@ var tools = []tool{
 var listWorkroomsSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
-		"host": map[string]any{"type": "string", "minLength": 1, "description": "The name this host uses for a paired host (from the hosts this tool answers without host). Leave it out for this host."},
+		"host":   map[string]any{"type": "string", "minLength": 1, "description": "The name this host uses for a paired host (from the hosts of the overview, or the host of found). Leave it out for this host."},
+		"name":   map[string]any{"type": "string", "minLength": 1, "description": "A workroom name: find where workrooms with that name are, on this host and the paired hosts."},
+		"offset": map[string]any{"type": "integer", "minimum": 0, "description": "Read the workrooms of one host (host, or this host without it) by name from this position, up to 50."},
 	},
 	"additionalProperties": false,
 }
@@ -677,6 +690,7 @@ var sendMessageSchema = map[string]any{
 }
 
 const sendMessageDescription = "Send a message to another AI that has joined matomezu, by the name of its workroom (you must have joined). The user does not see it. " +
+	"Without host, it goes to a workroom on this host; it is refused with unknown-recipient when no AI is in a workroom with that name on this host, and the refusal names the paired hosts that have a workroom with that name. " +
 	"With host, it goes to a workroom on a host this host is paired with (list_workrooms gives the names); it is refused with unknown-host when no paired host has that name, " +
 	"unreachable when that host cannot be reached or did not take it (it did not arrive; you may send it again later), " +
 	"no-answer when that host did not answer twice (it may have arrived; do not send it again before you hear from that AI), and host-closed when this host does not connect to other hosts now. " +

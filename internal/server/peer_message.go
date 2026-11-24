@@ -168,32 +168,32 @@ func (h *Hub) receiveEnvelope(env Envelope) MessageSent {
 	if err != nil {
 		return MessageSent{Reason: "unknown-recipient", Detail: err.Error()}
 	}
+	open, ok := h.receiveHeld(records, rooms, env, label, asUser)
+	if ok {
+		return MessageSent{OK: true, Queued: true}
+	}
+	// 断りの句は、常駐の鍵を放してから自分の一覧を読んで作る（一覧は ps.mu の下）
+	return MessageSent{Reason: "unknown-recipient", Detail: "no AI is in a workroom named " + env.To.Workroom + "; " +
+		h.sendableClause(open, "list_workrooms with host and offset", "no AI is in a workroom now")}
+}
+
+// receiveHeld は、h.mu を持って、封筒 env を宛て先のワークルームの AI に届ける。いなければ、AI のいるワークルームの名前 open と false
+func (h *Hub) receiveHeld(records []participantRecord, rooms []workroomRecord, env Envelope, label string, asUser bool) ([]string, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	occupant := h.occupants(records)
 	var open []string
-	to := ""
 	for _, room := range rooms {
 		if occupant[room.ID] == "" {
 			continue
 		}
 		open = append(open, room.Name)
 		if room.Name == env.To.Workroom {
-			to = occupant[room.ID]
+			h.deliver(delivery{to: occupant[room.ID], envelope: env, host: label, peer: env.From.Host, asUser: asUser})
+			return nil, true
 		}
 	}
-	if to == "" {
-		slices.Sort(open)
-		detail := "no AI is in a workroom named " + env.To.Workroom
-		if len(open) > 0 {
-			detail += "; you can send to: " + strings.Join(open, ", ")
-		} else {
-			detail += "; no AI is in a workroom now"
-		}
-		return MessageSent{Reason: "unknown-recipient", Detail: detail}
-	}
-	h.deliver(delivery{to: to, envelope: env, host: label, peer: env.From.Host, asUser: asUser})
-	return MessageSent{OK: true, Queued: true}
+	return open, false
 }
 
 // followPeerLines は、行列に残っている、ほかのホストから届いた行を、ペアリングしたホストの今の様子に合わせる: ペアリングを解いたホスト（known に無い）から届いた物は

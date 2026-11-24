@@ -5,11 +5,13 @@ import (
 	"fmt"
 )
 
-// HostSettings は、ホストどうしのつなぎの利用者の設定: ほかのホストとつなぐか（Connect）・ホスト名（Name。無ければ空）・利用者名（UserName。無ければ空）
+// HostSettings は、ホストどうしのつなぎの利用者の設定: ほかのホストとつなぐか（Connect）・ホスト名（Name。無ければ空）・利用者名（UserName。無ければ空）・
+// AI が読むワークルームの見渡しに載せるこのホストのワークルーム（ListedWorkrooms。all は全部、recent は様子が最近変わった物だけ）
 type HostSettings struct {
-	Connect  bool   `json:"connect"`
-	Name     string `json:"name"`
-	UserName string `json:"userName"`
+	Connect         bool   `json:"connect"`
+	Name            string `json:"name"`
+	UserName        string `json:"userName"`
+	ListedWorkrooms string `json:"listedWorkrooms"`
 }
 
 // HostSettingsOf は、利用者の設定 settings から、ホストどうしのつなぎの設定を読む

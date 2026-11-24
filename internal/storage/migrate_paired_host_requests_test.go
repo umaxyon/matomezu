@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// requests を持たないペアリングしたホストは ask-user にし、もう値のある物とほかの種類は変えない。
+// requests を持たないペアリングしたホストは ask-user にし（あとの移し替えが listed も足す）、もう値のある物とほかの種類は変えない。
 // 種類の表と、伝えられる前の records の行の両方を直す
 func TestPairedHostRequestsIsAdded(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
@@ -24,9 +24,9 @@ func TestPairedHostRequestsIsAdded(t *testing.T) {
 		return b
 	}
 	want := map[string]string{
-		`SELECT body FROM rec_2 WHERE id = 'h1'`:   `{"id":"h1","requests":"ask-user"}`,
-		`SELECT body FROM rec_2 WHERE id = 'h2'`:   `{"id":"h2","requests":"as-user"}`,
-		`SELECT body FROM records WHERE id = 'h3'`: `{"id":"h3","requests":"ask-user"}`,
+		`SELECT body FROM rec_2 WHERE id = 'h1'`:   `{"id":"h1","listed":"listed","requests":"ask-user"}`,
+		`SELECT body FROM rec_2 WHERE id = 'h2'`:   `{"id":"h2","listed":"listed","requests":"as-user"}`,
+		`SELECT body FROM records WHERE id = 'h3'`: `{"id":"h3","listed":"listed","requests":"ask-user"}`,
 		`SELECT body FROM records WHERE id = 'o1'`: `{"id":"o1"}`,
 	}
 	for q, w := range want {

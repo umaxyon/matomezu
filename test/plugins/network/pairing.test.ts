@@ -61,6 +61,7 @@ test("受け入れると、頼みが消えて、頼みの名前のままペア�
       addr: "",
       pairedAt: "2026-11-23T00:00:00.000Z",
       requests: "ask-user",
+      listed: "listed",
     },
   ])
 })
@@ -103,6 +104,17 @@ test("requests は既定で ask-user で、利用者だけが替えられる", (
   expect(h.act(USER, "paired-host-requests-set", { requests: "other" }, on).ok).toBe(false)
   expect(h.act(USER, "paired-host-requests-set", { requests: "as-user" }, on).ok).toBe(true)
   expect(h.all(PAIRED_HOST.id)[0]?.requests).toBe("as-user")
+})
+
+test("listed は既定で listed で、利用者だけが替えられる", () => {
+  const h = host()
+  const put = h.act(USER, "paired-host-add", { hostId: B, nameAtPairing: "w", userNameAtPairing: "", addr: "" })
+  const on = { record: put.result?.pairedHost as string }
+  expect(h.all(PAIRED_HOST.id)[0]?.listed).toBe("listed")
+  expect(h.act(AI, "paired-host-listed-set", { listed: "hidden" }, on).ok).toBe(false)
+  expect(h.act(USER, "paired-host-listed-set", { listed: "other" }, on).ok).toBe(false)
+  expect(h.act(USER, "paired-host-listed-set", { listed: "hidden" }, on).ok).toBe(true)
+  expect(h.all(PAIRED_HOST.id)[0]?.listed).toBe("hidden")
 })
 
 test("常駐が行う役は、4 つとも network のアクションが名乗る", () => {

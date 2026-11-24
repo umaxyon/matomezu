@@ -384,6 +384,20 @@ func TestReadRecordsQueries(t *testing.T) {
 	}
 }
 
+// list_workrooms は、渡された host・name・offset（整数に直す）だけを常駐への問い合わせにする
+func TestListWorkroomsQueries(t *testing.T) {
+	api := &fakeAPI{}
+	talk(t, api,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_workrooms","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_workrooms","arguments":{"name":"win_note"}}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_workrooms","arguments":{"host":"b","offset":50}}}`,
+	)
+	want := "api/ai/workrooms api/ai/workrooms?name=win_note api/ai/workrooms?host=b&offset=50"
+	if strings.Join(api.gets, " ") != want {
+		t.Fatalf("gets = %v", api.gets)
+	}
+}
+
 // join の workroom は常駐にそのまま渡す。生きている参加者の名前は、断った理由をそのまま返す
 func TestJoinPassesTheWorkroom(t *testing.T) {
 	api := &fakeAPI{answer: `{"ok":true,"participant":"p8"}`}

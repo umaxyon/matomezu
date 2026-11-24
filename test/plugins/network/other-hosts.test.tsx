@@ -70,7 +70,11 @@ test("「ほかのホスト」の節は、つなぐが入のときだけ出し�
   fireEvent.click(screen.getByRole("button", { name: /^つながっている ?win-lan2$/ }))
   const panel = () => document.querySelector("[data-workroom-panel]") as HTMLElement
   expect(within(panel()).getByText("（taro）")).toBeTruthy()
-  expect(within(panel()).getByText("BBBB BBBB BBBB BBBB …")).toBeTruthy()
+  // 待っている所・鍵の印は歯車のダイアログに
+  fireEvent.click(within(panel()).getByRole("button", { name: "このホストの様子" }))
+  const info = screen.getByRole("dialog", { name: "このホストの様子" })
+  expect(within(info).getByText("BBBB BBBB BBBB BBBB …")).toBeTruthy()
+  fireEvent.click(within(info).getByRole("button", { name: "閉じる" }))
   fireEvent.click(within(panel()).getByRole("button", { name: "ペアリングを解く" }))
   const confirm = screen.getByRole("dialog", { name: "ペアリングを解く" })
   expect(
@@ -192,7 +196,7 @@ test("ホストの行の ▸ で開くと、相手のワークルームの写し
   expect(screen.queryByRole("list", { name: "win-lan のワークルーム" })).toBeNull()
 })
 
-test("詳しい所の「このホストからの頼み」: 頼みとして受けるは確かめのダイアログを通してから替わり（キャンセルなら替わらない）、聞くへはすぐ戻る", () => {
+test("詳しい所の「〈ホスト〉から届いた指示」: ユーザーの指示に替えるのは確かめのダイアログを通してから替わり（キャンセルなら替わらない）、聞くへはすぐ戻る", () => {
   const { store, connect } = open()
   connect()
   act(() => {
@@ -208,9 +212,10 @@ test("詳しい所の「このホストからの頼み」: 頼みとして受け
     (Object.values(store.state.getState().records[PAIRED_HOST.id] ?? {})[0] as { requests?: string } | undefined)
       ?.requests
   const ask = () =>
-    screen.getByRole("radio", { name: "受け取った AI が、実行してよいかあなたに聞く" }) as HTMLInputElement
+    screen.getByRole("radio", { name: "AI の指示: 受け取った AI が、実行してよいかあなたに聞く" }) as HTMLInputElement
   const asUser = () =>
-    screen.getByRole("radio", { name: "頼みとして受ける（あなたの指示と同じに扱う）" }) as HTMLInputElement
+    screen.getByRole("radio", { name: "ユーザーの指示: あなたの指示と同じに扱う" }) as HTMLInputElement
+  expect(screen.getByText("win-lanから届いた指示:")).toBeTruthy()
   expect(ask().checked).toBe(true)
   fireEvent.click(asUser())
   const confirm = () => screen.getByRole("dialog", { name: "このホストからの頼みを受ける" })
@@ -228,4 +233,27 @@ test("詳しい所の「このホストからの頼み」: 頼みとして受け
   fireEvent.click(ask())
   expect(screen.queryByRole("dialog")).toBeNull()
   expect(requests()).toBe("ask-user")
+})
+
+test("詳しい所の目: 押すと AI 用ホストリストから隠し（行に薄い斜線の入った目）、もう一度押すと載せる", () => {
+  const { store, connect } = open()
+  connect()
+  act(() => {
+    store.actions.perform("@matomezu/network:paired-host-add", {
+      hostId: B,
+      nameAtPairing: "win-lan",
+      userNameAtPairing: "taro",
+      addr: "",
+    })
+  })
+  fireEvent.click(screen.getByRole("button", { name: /^つながっていない ?win-lan$/ }))
+  const listed = () =>
+    (Object.values(store.state.getState().records[PAIRED_HOST.id] ?? {})[0] as { listed?: string } | undefined)?.listed
+  expect(listed()).toBe("listed")
+  expect(screen.queryByRole("img", { name: "AI 用ホストリストから隠しています" })).toBeNull()
+  fireEvent.click(screen.getByRole("button", { name: "AI 用ホストリストから隠す" }))
+  expect(listed()).toBe("hidden")
+  expect(screen.getByRole("img", { name: "AI 用ホストリストから隠しています" })).toBeTruthy()
+  fireEvent.click(screen.getByRole("button", { name: "AI 用ホストリストに載せる" }))
+  expect(listed()).toBe("listed")
 })

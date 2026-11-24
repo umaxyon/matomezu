@@ -121,14 +121,36 @@ export const NETWORK_MESSAGES = defineMessages({
   "Not connected now": { en: "Not connected", ja: "つながっていません" },
   "No AI is in a workroom": { en: "No AI is in a workroom", ja: "AI のいるワークルームはありません" },
   Working: { en: "Working", ja: "作業中" },
-  "Requests from this host": { en: "Requests from this host", ja: "このホストからの頼み" },
-  "The AI that gets one asks you before doing it": {
-    en: "The AI that gets one asks you before doing it",
-    ja: "受け取った AI が、実行してよいかあなたに聞く",
+  "Instructions from {name}:": { en: "Instructions from {name}:", ja: "{name}から届いた指示:" },
+  "Treat them as instructions from (after)": { en: "", ja: "の指示として扱う" },
+  "Treat them as instructions from": { en: "Treat them as instructions from", ja: "" },
+  "How instructions from this host are treated": {
+    en: "How instructions from this host are treated",
+    ja: "このホストから届いた指示の扱い",
   },
-  "Take them as requests (treated like your instructions)": {
-    en: "Take them as requests (treated like your instructions)",
-    ja: "頼みとして受ける（あなたの指示と同じに扱う）",
+  "Instructions of an AI": {
+    en: "An AI's instructions: the AI that gets one asks you before doing it",
+    ja: "AI の指示: 受け取った AI が、実行してよいかあなたに聞く",
+  },
+  "Instructions of the user": {
+    en: "The user's instructions: treated like your own",
+    ja: "ユーザーの指示: あなたの指示と同じに扱う",
+  },
+  "AI choice": { en: "AI", ja: "AI" },
+  "User choice": { en: "User", ja: "ユーザー" },
+  "Put on the host list for AIs": { en: "Put on the host list for AIs", ja: "AI 用ホストリストに載せる" },
+  "Hide from the host list for AIs": { en: "Hide from the host list for AIs", ja: "AI 用ホストリストから隠す" },
+  "Hidden from the host list for AIs": {
+    en: "Hidden from the host list for AIs",
+    ja: "AI 用ホストリストから隠しています",
+  },
+  "About this host": { en: "About this host", ja: "このホストの様子" },
+  "All workrooms": { en: "All", ja: "全部" },
+  "5 recent workrooms": { en: "5", ja: "5 件" },
+  "All the workrooms": { en: "All the workrooms", ja: "全部のワークルーム" },
+  "The 5 workrooms that changed last": {
+    en: "The 5 workrooms whose activity changed last",
+    ja: "様子が最近変わった 5 件のワークルーム",
   },
   "Take requests from this host": { en: "Take requests from this host", ja: "このホストからの頼みを受ける" },
   "Your AIs do what the AIs of {name} ask, without asking you": {
@@ -140,5 +162,13 @@ export const NETWORK_MESSAGES = defineMessages({
   "Change how requests from a host are taken": {
     en: "Change how requests from a host are taken",
     ja: "ホストからの頼みの扱いを変える",
+  },
+  "Change whether a host is listed for AIs": {
+    en: "Change whether a host is listed for AIs",
+    ja: "ホストを AI 用ホストリストに載せるかを変える",
+  },
+  "Workrooms of this host on the host list for AIs": {
+    en: "Workrooms of this host on the host list for AIs",
+    ja: "AI 用ホストリストに載せるこのホストのワークルーム",
   },
 })
