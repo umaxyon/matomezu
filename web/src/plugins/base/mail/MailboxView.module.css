@@ -1,7 +1,7 @@
-/* 郵便箱の画面: 左に受信トレイ、右に選んだ郵便（2:3） */
+/* 郵便箱の画面: 左に受信トレイ（2:3 より 50px 狭い）、右に選んだ郵便 */
 .pane {
   display: grid;
-  grid-template-columns: 2fr 3fr;
+  grid-template-columns: minmax(0, calc(40% - 50px)) minmax(0, 1fr);
   min-height: 0;
   background: var(--skin-stage);
   color: var(--skin-text);
