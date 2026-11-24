@@ -273,7 +273,7 @@
 .item:hover:not(:disabled) {
   background: var(--skin-btn-hover);
 }
-/* ページの無い作業履歴は、薄くして押せない */
+/* ワーカーブックにページが無い間の「作業ブック」は、薄くして押せない */
 .item:disabled {
   opacity: 0.45;
   cursor: default;

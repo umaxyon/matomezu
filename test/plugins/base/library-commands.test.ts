@@ -9,6 +9,7 @@ import { holderForNewPage, pageFolderFor } from "../../../web/src/plugins/base/l
 import {
   LIBRARY_COLUMNS,
   LIBRARY_FOLDER,
+  LIBRARY_FOUND_PICKED,
   LIBRARY_PICKED,
   LIBRARY_QUERY,
   LIBRARY_UNFOLDED,
@@ -310,7 +311,7 @@ test("落とした物を動かす: スライドをフォルダへ落とすと、
   expect(ids(a)).not.toContain(box)
 })
 
-test("開く: 2 回押す・Enter・メニューの「開く」の 1 つの道。名指さなければ選んでいる行、{at: tree} ならツリーで今いる行。フォルダは中へ入る", () => {
+test("開く: 2 回押す・Enter・メニューの「開く」の 1 つの道。名指さなければ選んでいる行、{at: tree} ならツリーで今いる行、{at: found} なら検索の結果で選んでいる物。フォルダは中へ入る", () => {
   const { store, center, folder, run, at, set } = setup()
   const opened = () => store.state.getState().window.screens.flatMap(s => s.stages?.stages.map(st => st.opened) ?? [])
   const shows = (book: string) =>
@@ -333,6 +334,13 @@ test("開く: 2 回押す・Enter・メニューの「開く」の 1 つの道�
   set(LIBRARY_FOLDER.id, center, "b4")
   run("library-entry-open", { at: "tree" })
   expect(shows("b4")).toBe(true)
+  // 検索の結果から（{at: found}）: 結果の枠で選んでいる物が無ければツリーで今いる行、在ればその物
+  set(LIBRARY_FOLDER.id, center, a)
+  run("library-entry-open", { at: "found" })
+  expect(at().folder).toBe(a)
+  set(LIBRARY_FOUND_PICKED.id, center, "b2")
+  run("library-entry-open", { at: "found" })
+  expect(shows("b2")).toBe(true)
 })
 
 test("書庫を開く: 書庫のスクリーンを 1 枚ずつの並べ方でカレントにする。開いていれば新しく開かず、それをカレントスクリーンにする", () => {

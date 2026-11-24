@@ -155,6 +155,15 @@ export function backyardBookOf(library: Pick<Library, "folders">, backyard: stri
   return row?.folderRole === "backyard" ? row.lineup.find(r => sameWorkKey(r.workKey, key))?.id : undefined
 }
 
+// 書庫 library のバックヤード（印 backyard）の中のブック（id と workKey。並びの順。バックヤードが無ければ空）
+export function backyardBooksOf(
+  library: Pick<Library, "folders">,
+  backyard: string,
+): readonly { id: string; workKey: WorkKey }[] {
+  const row = library.folders[backyardIdOf(backyard)]
+  return row?.folderRole === "backyard" ? row.lineup.map(r => ({ id: r.id, workKey: r.workKey })) : []
+}
+
 // まだどこにも入っていないブック book（withBook で行を足した物）を、バックヤード（印 backyard）の並びの末尾に workKey key で置いた書庫。
 // ブックが無いかもう入っている（no-entry）、バックヤードの行が無い（no-folder）、同じ workKey のブックがもう在る（work-key-taken）なら、その訳
 export function placedInBackyard(

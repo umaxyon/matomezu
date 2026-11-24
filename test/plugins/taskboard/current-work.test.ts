@@ -313,7 +313,7 @@ test("レーンの作業中の印を外すと、そのレーンのチケット�
 const reader = (catalog: CoreCatalog, records: Record<string, Record<string, unknown>>) =>
   readerOf(catalog, sourceOf(records as Records), workerBookReadsOf(catalog))
 
-test("ワークルームの作業: カレントチケットがあれば作業中で、題名はチケットの番号と名前、レコードはチケット。無ければ空き。ワーカーブックは、作業中ならチケットの物、ほかはワークルームの物", () => {
+test("ワークルームの作業: カレントチケットがあれば作業中で、レコードはチケット。無ければ空き。ワーカーブックは、作業中ならチケットの物（名前はチケットの番号）、ほかはワークルームの物", () => {
   const { act, room, add, world } = board()
   const a = room("あ")
   const records = () => world().records as Record<string, Record<string, unknown>>
@@ -326,9 +326,7 @@ test("ワークルームの作業: カレントチケットがあれば作業中
   act(ai(a), "ticket-start", {}, { record: t1 })
   expect(workroomWorkOf(CORE_CATALOG, records(), a)).toEqual({
     kind: "working",
-    title: "T-0001 鳥と表示名",
     key: { subject: "@matomezu/taskboard:ticket", id: t1 },
-    label: "T-0001",
   })
   expect(workerBookOf(CORE_CATALOG, reader(CORE_CATALOG, records()), a)).toEqual({
     workKey: { subject: "@matomezu/taskboard:ticket", id: t1 },
@@ -359,8 +357,7 @@ test("作業名: 作業中なら題名とワークルームの名前、空きな
 
 test("ワークルームの作業は、答える種類のうち機能台帳の並びで最初に作業中と答えた物。どれも作業中でなければ空き", () => {
   const answer = (work: { kind: "working"; title: string } | { kind: "idle" }) => ({
-    workroomWork: () =>
-      work.kind === "working" ? { ...work, key: { subject: "s", id: work.title }, label: work.title } : work,
+    workroomWork: () => (work.kind === "working" ? { kind: "working", key: { subject: "s", id: work.title } } : work),
   })
   const catalog = (...subjects: object[]) =>
     ({ ...CORE_CATALOG, subjects: new Map(subjects.map((s, i) => [`s${i}`, s])) }) as unknown as CoreCatalog
@@ -375,7 +372,7 @@ test("ワークルームの作業は、答える種類のうち機能台帳の�
       source,
       "w",
     ),
-  ).toEqual({ kind: "working", title: "先", key: { subject: "s", id: "先" }, label: "先" })
+  ).toEqual({ kind: "working", key: { subject: "s", id: "先" } })
   expect(workroomWorkIn(catalog(answer({ kind: "idle" }), {}), source, "w")).toEqual({ kind: "idle" })
   expect(workroomWorkIn(catalog({}), source, "w")).toBe("unknown")
 })

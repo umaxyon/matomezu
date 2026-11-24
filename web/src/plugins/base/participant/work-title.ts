@@ -3,10 +3,10 @@
 import { z } from "zod"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { translate } from "../../../core/i18n/i18n"
-import type { RecordSource } from "../../../core/record-source"
+import { type RecordSource, readerOf } from "../../../core/record-source"
 import { langOf, type Settings, userSetting } from "../../../core/settings"
 import { kit } from "../kit"
-import { workroomWorkFrom } from "./activity"
+import { workRecordNameOf, workRecordNameReadsOf, workRecordTitleOf, workroomWorkFrom } from "./activity"
 
 export const SESSION_RENAME = kit.defineSetting({
   id: "session-rename",
@@ -32,7 +32,10 @@ export function workTitleIn(
   if (userSetting(catalog, settings, SESSION_RENAME.id) === false) return { kind: "off" }
   const work = workroomWorkFrom(catalog, source, workroom.id)
   if (work === "unknown") return { kind: "title", title: workroom.name }
-  if (work.kind === "working") return { kind: "title", title: `${work.title} ${workroom.name}` }
+  if (work.kind === "working") {
+    const name = workRecordNameOf(catalog, readerOf(catalog, source, workRecordNameReadsOf(catalog)), work.key)
+    return { kind: "title", title: name ? `${workRecordTitleOf(name)} ${workroom.name}` : workroom.name }
+  }
   return {
     kind: "title",
     title: translate(catalog.messages, langOf(catalog, settings, "en"), IDLE_TITLE, { name: workroom.name }),

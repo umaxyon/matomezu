@@ -97,7 +97,7 @@ export const ERRORS = {
   E130: "subject {id}: the state of role participants takes exactly {states}",
   E131: "paper {paper}: there is no paper in the catalog to draw it with",
   E132: "system folders {first} and {second} have the same title {title} in {lang}",
-  E133: "subject {id}: workroomWorkSubjects has {ref}, which is not in the catalog or has no completesWork (the worker book of a work record is cleaned up through completesWork)",
+  E133: "subject {id}: workroomWorkSubjects has {ref}, which is not in the catalog or lacks completesWork or workRecordName (the worker book of a work record is cleaned up through completesWork and named through workRecordName)",
 
   E201: "MatomezuProvider is missing",
   E202: "#root is missing",

@@ -1,6 +1,6 @@
-// ワーカーブックを開く口: 参加者一覧の行の、本を頭に付けたチケット番号の行と、書庫のワーカーブックの行と、チケットのナレッジの作業履歴。
+// ワーカーブックを開く口: 参加者一覧の行の、本を頭に付けたチケット番号の行と、書庫のワーカーブックの行と、チケットのナレッジの「作業ブック」。
 // ページが無い間は押せない。番号の行はクリックで「開く／分割で開く」を出し、分割で開くとコントロールセンターの下にブックスクリーンが入る。ダブルクリックは全画面で開く。
-// 窓が低いと、番号の行のクリックで全画面で開く。書庫の行はクリックで 2 択を出す。作業履歴はクリックで右にページの一覧を出し、ダブルクリックで全画面で開く
+// 窓が低いと、番号の行のクリックで全画面で開く。書庫の行はクリックで 2 択を出す。「作業ブック」はクリックで右にページの一覧を出し、もう一度のクリックで閉じ、ダブルクリックで全画面で開く
 import { aiAuth, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
 
@@ -54,7 +54,9 @@ const ticketUrl = (ticket: string) =>
     }),
   )}`
 
-test("チケットのワーカーブックは、ページが足されると参加者一覧の番号の行と作業履歴から開ける", async ({ page }) => {
+test("チケットのワーカーブックは、ページが足されると参加者一覧の番号の行と「作業ブック」から開ける", async ({
+  page,
+}) => {
   await page.goto(CONTROL_CENTER_URL)
   const made = await perform(page, "@matomezu/taskboard:project-add", { prefix: "W-" })
   const added = await perform(page, "@matomezu/taskboard:ticket-add", {
@@ -96,20 +98,24 @@ test("チケットのワーカーブックは、ページが足されると参�
   await settled(page)
   await page.screenshot({ path: "test-results/worker-book-split.png" })
 
-  // チケットのナレッジの作業履歴: クリックで右にページの一覧、ダブルクリックで全画面で開く
+  // チケットのナレッジの「作業ブック」: クリックで右にページの一覧、ダブルクリックで全画面で開く
   await page.goto(ticketUrl(ticket))
-  const history = page.locator("[data-work-history]")
+  const history = page.locator("[data-work-book]")
   await expect(history).toBeEnabled()
   await history.click()
-  const list = page.getByRole("region", { name: "作業履歴" })
+  const list = page.getByRole("region", { name: "作業ブック" })
   await expect(list.locator("[data-worker-page]")).toHaveText("作業のメモ")
   await settled(page)
   await page.screenshot({ path: "test-results/worker-book-history.png" })
   await list.locator("[data-worker-page]").click()
   await expect(page.getByRole("menuitem", { name: "開く", exact: true })).toBeVisible()
   await page.keyboard.press("Escape")
+  // ページの一覧に［閉じる］は無く、「作業ブック」をもう一度押すと閉じる
+  await expect(list.getByRole("button", { name: "閉じる" })).toHaveCount(0)
+  await history.click()
+  await expect(list).toHaveAttribute("data-open", "false")
   await history.dblclick()
-  await expect(page.locator("[data-work-history]")).toBeHidden()
+  await expect(page.locator("[data-work-book]")).toBeHidden()
   await expect(page.getByText("作業のメモ").first()).toBeVisible()
 })
 
@@ -151,4 +157,51 @@ test("ワーカーブックは、番号の行のダブルクリックで全画�
   await expect(line).toBeHidden()
   await expect(page.getByRole("menuitem", { name: "分割で開く" })).toHaveCount(0)
   await expect(page.getByText("空きのメモ").first()).toBeVisible()
+})
+
+test("書庫の検索は、チケットの番号と名前・ページの名前でワーカーブックの物を作業履歴に出す。クリックで 2 択、Enter で全画面で開く", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  const made = await perform(page, "@matomezu/taskboard:project-add", { prefix: "S-" })
+  const added = await perform(page, "@matomezu/taskboard:ticket-add", {
+    project: made.result?.project ?? "",
+    name: "検索で見つける",
+    body: "",
+  })
+  const ai = await member(page, "さがし")
+  await aiPerform(
+    page,
+    { action: "@matomezu/taskboard:ticket-start", args: {}, on: { record: added.result?.ticket ?? "" } },
+    ai,
+  )
+  const page1 = await aiPerform(
+    page,
+    { action: "@matomezu/base:worker-page-add", args: { type: "@matomezu/drawing:drawing", title: "見つける絵" } },
+    ai,
+  )
+  expect(page1, JSON.stringify(page1)).toMatchObject({ ok: true })
+
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const field = page.getByRole("textbox", { name: "名前で検索" })
+  const history = page.getByRole("list", { name: "作業履歴" })
+  // チケットの名前に当たると、ブックの行は番号とチケットの名前。クリックで 2 択
+  await field.fill("検索で見つける")
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("status")).toHaveText("「検索で見つける」を含む名前: 1 件")
+  const book = history.getByRole("button", { name: /S-0001/ })
+  await expect(book).toContainText("検索で見つける")
+  await book.click()
+  await expect(page.getByRole("menuitem", { name: "分割で開く" })).toBeVisible()
+  await page.keyboard.press("Escape")
+
+  // ページの名前に当たると、ページの行。Enter で全画面で開く
+  await field.fill("見つける絵")
+  await page.keyboard.press("Enter")
+  const row = history.getByRole("button", { name: /見つける絵/ })
+  await expect(row).toContainText("S-0001 検索で見つける")
+  await row.focus()
+  await page.keyboard.press("Enter")
+  await expect(field).toBeHidden()
+  await expect(page.getByText("見つける絵").first()).toBeVisible()
 })

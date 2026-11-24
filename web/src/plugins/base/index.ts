@@ -50,6 +50,7 @@ import {
   LIBRARY_FOLDER,
   LIBRARY_FOLDER_NEW,
   LIBRARY_FOUND_KEY_SCOPE,
+  LIBRARY_FOUND_PICKED,
   LIBRARY_KEY_SCOPE,
   LIBRARY_KEYS,
   LIBRARY_NEW_BOOK_DIALOG,
@@ -707,6 +708,7 @@ export const BASE = defineBuiltin(
       SCREEN_FLASH,
       LIBRARY_FOLDER,
       LIBRARY_PICKED,
+      LIBRARY_FOUND_PICKED,
       LIBRARY_COLUMNS,
       LIBRARY_UNFOLDED,
       LIBRARY_QUERY,
@@ -1011,6 +1013,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:screen-flash": typeof SCREEN_FLASH
     "@matomezu/base:library-folder": typeof LIBRARY_FOLDER
     "@matomezu/base:library-picked": typeof LIBRARY_PICKED
+    "@matomezu/base:library-found-picked": typeof LIBRARY_FOUND_PICKED
     "@matomezu/base:unreadable-notice-closed": typeof UNREADABLE_NOTICE_CLOSED
     "@matomezu/base:library-columns": typeof LIBRARY_COLUMNS
     "@matomezu/base:library-unfolded": typeof LIBRARY_UNFOLDED
