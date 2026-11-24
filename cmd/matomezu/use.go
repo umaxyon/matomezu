@@ -34,6 +34,7 @@ type useCmd struct {
 
 type useWSLCmd struct {
 	Distro string `arg:"" optional:"" help:"The WSL distro (the default distro when omitted)."`
+	Dir    string `help:"The WSL folder to run matomezu in (your home when omitted): in a clone of matomezu's repository, its development server is used."`
 }
 
 type useWindowsCmd struct{}
@@ -51,6 +52,8 @@ type hereInfo struct {
 }
 
 func (useHereCmd) Run() error {
+	// 手で打つ start・stop と同じく、今いるフォルダが matomezu のリポジトリなら、その開発の保管庫
+	useDevHere()
 	h, err := openHome()
 	if err != nil {
 		return err
@@ -66,7 +69,7 @@ func (c *useWSLCmd) Run() error {
 	if runtime.GOOS != "windows" {
 		return errors.New("matomezu use wsl is for Windows: on WSL, run matomezu use windows to use the server of Windows")
 	}
-	u := home.Counterpart{OS: home.CounterpartWSL, Distro: c.Distro}
+	u := home.Counterpart{OS: home.CounterpartWSL, Distro: c.Distro, Dir: c.Dir}
 	in, err := askCounterpart(u)
 	if err != nil {
 		return err
@@ -197,7 +200,8 @@ func askCounterpart(u home.Counterpart) (hereInfo, error) {
 }
 
 // counterpartCommand は、相手の OS u で matomezu のサブコマンド sub を動かすコマンドと、動かすフォルダ（空なら今のフォルダ）。
-// WSL の matomezu はホームのフォルダの、対話のログインのシェルで探す（npm・Volta・nvm の PATH はシェルの設定にあり、Ubuntu の .bashrc は対話でなければ読まれない。今のフォルダが matomezu のリポジトリだと、開発の保管庫を使ってしまう）。
+// WSL の matomezu は u.Dir（空ならホームディレクトリ）のフォルダの、対話のログインのシェルで探す（npm・Volta・nvm の PATH はシェルの設定にあり、Ubuntu の .bashrc は対話でなければ読まれない。
+// Windows の今のフォルダのままだと、それが matomezu のリポジトリのとき、意図せず開発の保管庫を使ってしまう）。
 // Windows の matomezu は cmd.exe で探す（npm の入口は .cmd）。WSL のフォルダのまま cmd.exe を動かすと UNC のフォルダを断るので、C: で動かす
 func counterpartCommand(u home.Counterpart, sub ...string) (name string, args []string, dir string) {
 	line := "matomezu " + strings.Join(sub, " ")
@@ -205,9 +209,24 @@ func counterpartCommand(u home.Counterpart, sub ...string) (name string, args []
 		if u.Distro != "" {
 			args = append(args, "-d", u.Distro)
 		}
+		if u.Dir != "" {
+			line = "cd " + shellDir(u.Dir) + " && " + line
+		}
 		return "wsl.exe", append(args, "--cd", "~", "--", "bash", "-lic", line), ""
 	}
 	return "cmd.exe", []string{"/c", line}, "/mnt/c"
+}
+
+// shellDir は、フォルダ dir を sh の引数に書いた物（頭の ~ はホーム。ほかは単引用符で囲む）
+func shellDir(dir string) string {
+	quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
+	switch {
+	case dir == "~":
+		return `"$HOME"`
+	case strings.HasPrefix(dir, "~/"):
+		return `"$HOME"/` + quote(dir[2:])
+	}
+	return quote(dir)
 }
 
 // commandOutput は、コマンドを動かして標準出力を返す。標準エラーは、失敗したときだけ誤りの文に入れる（相手の OS の matomezu の案内を、こちらの出力に混ぜない）。テストで差し替える
