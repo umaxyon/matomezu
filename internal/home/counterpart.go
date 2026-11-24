@@ -22,6 +22,7 @@ type Counterpart struct {
 	OS     string `json:"os"`               // CounterpartWSL か CounterpartWindows
 	Distro string `json:"distro,omitempty"` // OS が CounterpartWSL のときの、WSL の distro の名前
 	Vault  string `json:"vault"`            // その常駐の matomezu 保管庫フォルダの、ここから見た場所
+	Dir    string `json:"dir,omitempty"`    // 相手の OS の matomezu を動かすフォルダ（相手の OS での書き方。空ならホームディレクトリ）。matomezu のリポジトリなら、その開発の保管庫を使う
 }
 
 // ReadCounterpart は、この保管庫が使うと覚えた相手の常駐（覚えていなければ nil）

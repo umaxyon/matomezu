@@ -257,6 +257,8 @@ func TestCounterpartCommand(t *testing.T) {
 	}{
 		{home.Counterpart{OS: home.CounterpartWSL, Distro: "Ubuntu"}, "wsl.exe", []string{"-d", "Ubuntu", "--cd", "~", "--", "bash", "-lic", "matomezu use here"}, ""},
 		{home.Counterpart{OS: home.CounterpartWSL}, "wsl.exe", []string{"--cd", "~", "--", "bash", "-lic", "matomezu use here"}, ""},
+		{home.Counterpart{OS: home.CounterpartWSL, Dir: "~/wk/my repo"}, "wsl.exe", []string{"--cd", "~", "--", "bash", "-lic", `cd "$HOME"/'wk/my repo' && matomezu use here`}, ""},
+		{home.Counterpart{OS: home.CounterpartWSL, Dir: "/srv/it's"}, "wsl.exe", []string{"--cd", "~", "--", "bash", "-lic", `cd '/srv/it'\''s' && matomezu use here`}, ""},
 		{home.Counterpart{OS: home.CounterpartWindows}, "cmd.exe", []string{"/c", "matomezu use here"}, "/mnt/c"},
 	} {
 		name, args, dir := counterpartCommand(c.u, "use", "here")
