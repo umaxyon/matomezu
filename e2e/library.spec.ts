@@ -470,7 +470,13 @@ test("書庫の行の右クリックのメニューから、名前の変更・�
   await tree.getByRole("button", { name: `${first.title} の中を出す` }).click()
   const pageRow = tree.getByRole("button", { name: "ページ 1", exact: true }).first()
   await pageRow.click({ button: "right" })
-  await expect(menu.getByRole("menuitem")).toHaveText(["開くEnter", "分割で開くCtrl+Enter", "名前の変更…F2", "複製", "削除…"])
+  await expect(menu.getByRole("menuitem")).toHaveText([
+    "開くEnter",
+    "分割で開くCtrl+Enter",
+    "名前の変更…F2",
+    "複製",
+    "削除…",
+  ])
   await menu.getByRole("menuitem", { name: /^開く/ }).click()
   await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
 })
