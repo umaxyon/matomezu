@@ -44,28 +44,45 @@ func rallyLimitOf(r pairedHostRecord) int {
 	return r.RallyLimit
 }
 
-// rallyPasses は、届ける AI 間メッセージ d を、AI ラリーの上限の内として数える。上限を超えるなら数えず、宛て先に 1 度だけ知らせて偽を返す（h.mu を持って呼ぶ）
-func (h *Hub) rallyPasses(d delivery) bool {
-	if h.rallies == nil {
-		h.rallies = map[rallyKey]int{}
+// rallyOf は、AI 間メッセージ d の AI ラリーの向きと上限
+func rallyOf(d delivery) (rallyKey, int) {
+	if d.peer != "" {
+		return rallyKey{fromHost: d.peer, fromRoom: d.envelope.From.Workroom, to: d.to}, d.limit
+	}
+	return rallyKey{from: d.from, to: d.to}, rallyLocalLimit
+}
+
+// rallyOver は、AI 間メッセージ d が、同じ向きに先に ahead 通届けるとしたら、AI ラリーの上限を超えるか（数えない。h.mu を持って呼ぶ）
+func (h *Hub) rallyOver(d delivery, ahead int) bool {
+	k, limit := rallyOf(d)
+	n := h.rallies[k] + 1 + ahead
+	// 封筒に送り手の側の数を載せないホストからのときは、こちらの数だけで決める
+	return n > limit && (d.peer == "" || d.envelope.Rally == 0 || d.envelope.Rally > limit)
+}
+
+// rallyStop は、上限を超えて AI 間メッセージ d を届けないことを、宛て先に 1 度だけ知らせる（h.mu を持って呼ぶ）
+func (h *Hub) rallyStop(d delivery) {
+	if h.ralliesStopped == nil {
 		h.ralliesStopped = map[rallyKey]bool{}
 	}
-	k := rallyKey{from: d.from, to: d.to}
-	limit := rallyLocalLimit
-	if d.peer != "" {
-		k = rallyKey{fromHost: d.peer, fromRoom: d.envelope.From.Workroom, to: d.to}
-		limit = d.limit
+	k, limit := rallyOf(d)
+	if !h.ralliesStopped[k] {
+		h.ralliesStopped[k] = true
+		h.enqueueWake(wakeItem{participant: d.to, kind: wakeRally, line: hostLine(rallyStoppedForRecipient(d, limit))})
 	}
-	n := h.rallies[k] + 1
-	// 封筒に送り手の側の数を載せないホストからのときは、こちらの数だけで決める
-	if n > limit && (d.peer == "" || d.envelope.Rally == 0 || d.envelope.Rally > limit) {
-		if !h.ralliesStopped[k] {
-			h.ralliesStopped[k] = true
-			h.enqueueWake(wakeItem{participant: d.to, kind: wakeRally, line: hostLine(rallyStoppedForRecipient(d, limit))})
-		}
+}
+
+// rallyPasses は、届ける AI 間メッセージ d を、AI ラリーの上限の内として数える。上限を超えるなら数えず、宛て先に 1 度だけ知らせて偽を返す（h.mu を持って呼ぶ）
+func (h *Hub) rallyPasses(d delivery) bool {
+	if h.rallyOver(d, 0) {
+		h.rallyStop(d)
 		return false
 	}
-	h.rallies[k] = n
+	if h.rallies == nil {
+		h.rallies = map[rallyKey]int{}
+	}
+	k, _ := rallyOf(d)
+	h.rallies[k]++
 	delete(h.ralliesStopped, k)
 	return true
 }

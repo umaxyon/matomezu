@@ -72,7 +72,7 @@ func (h *Hub) occupants(records []participantRecord) map[string]string {
 
 // actionEnvelopes は、アクションバルクが返した AI 間メッセージ messages を、行った参加者から送る封筒にする（h.mu を持って呼ぶ）。
 // 行ったのが参加の確定した AI でなければ、バルクを断る答えを返す。宛先が自分のワークルームか、宛先のワークルームに参加の確定した参加者がいなければ、
-// noRecipient が skip のその 1 通は送らず、ほかはバルクを断る答えを返す
+// noRecipient が skip のその 1 通は送らず、ほかはバルクを断る答えを返す。AI ラリーの上限を超える物も同じに扱う（宛て先には止めた事を知らせる。rally.go）
 func (h *Hub) actionEnvelopes(messages []engine.AIMessage, actor *engine.Actor, now time.Time) ([]delivery, *Performed) {
 	if len(messages) == 0 {
 		return nil, nil
@@ -95,6 +95,7 @@ func (h *Hub) actionEnvelopes(messages []engine.AIMessage, actor *engine.Actor, 
 	}
 	self := h.selfHostID()
 	envelopes := make([]delivery, 0, len(messages))
+	ahead := map[string]int{} // 宛て先の参加者ごとの、このバルクで先に送る数
 	for _, m := range messages {
 		to := occupant[m.Workroom]
 		name := roomName(rooms, m.Workroom)
@@ -107,13 +108,22 @@ func (h *Hub) actionEnvelopes(messages []engine.AIMessage, actor *engine.Actor, 
 			}
 			return nil, &Performed{OK: false, Reason: "no-recipient", Detail: "no other AI has joined the workroom " + name + " now, so the message to it cannot be sent; nothing was changed"}
 		}
-		envelopes = append(envelopes, delivery{to: to, from: from, envelope: Envelope{
+		d := delivery{to: to, from: from, envelope: Envelope{
 			ID:     newEnvelopeID(),
 			From:   Address{Host: self, Workroom: roomName(rooms, actor.Workroom)},
 			To:     Address{Host: self, Workroom: name},
 			Text:   m.Text,
 			SentAt: storage.Stamp(now),
-		}})
+		}}
+		if h.rallyOver(d, ahead[to]) {
+			h.rallyStop(d)
+			if m.NoRecipient == "skip" {
+				continue
+			}
+			return nil, &Performed{OK: false, Reason: "rally-limit", Detail: rallyStoppedDetail(name, rallyLocalLimit) + "; nothing was changed"}
+		}
+		ahead[to]++
+		envelopes = append(envelopes, d)
 	}
 	return envelopes, nil
 }

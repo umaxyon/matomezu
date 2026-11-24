@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/umaxyon/matomezu/internal/engine"
 )
@@ -133,5 +134,38 @@ func TestRallyBetweenPairedHosts(t *testing.T) {
 	call(t, "POST", as.URL+"/api/ai/talked", `{"sessionId":"SA","prompt":"続けて"}`, nil)
 	if sent := sendTo(t, as.URL, s1, "b", "s2", "again"); !sent.OK {
 		t.Fatalf("after the sender's user talked = %+v", sent)
+	}
+}
+
+// アクションが返す AI 間メッセージも AI ラリーに数え、上限を超える物は、noRecipient が refuse ならバルクごと rally-limit で断り、skip なら送らないだけ。
+// 同じバルクで同じ宛て先へ送る物も先の物から数える
+func TestActionEnvelopesStopAtTheRallyLimit(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	ids := map[string]string{}
+	for id, r := range recordsOf(t, s.URL, "@matomezu/base:workroom") {
+		ids[r["name"].(string)] = id
+	}
+	actor := &engine.Actor{Kind: "ai", Workroom: ids["ひよこ"]}
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	to := engine.AIMessage{Workroom: ids["すずめ"], Text: "x"}
+	envelopes, refused := hub.actionEnvelopes([]engine.AIMessage{to, to}, actor, time.Now())
+	if refused != nil || len(envelopes) != 2 {
+		t.Fatalf("under the limit = %+v %+v", envelopes, refused)
+	}
+	for range rallyLocalLimit - 1 {
+		d := envelopes[0]
+		d.envelope.ID = newEnvelopeID()
+		hub.deliver(d)
+	}
+	if _, refused := hub.actionEnvelopes([]engine.AIMessage{to, to}, actor, time.Now()); refused == nil || refused.Reason != "rally-limit" {
+		t.Fatalf("refuse = %+v", refused)
+	}
+	skip := to
+	skip.NoRecipient = "skip"
+	if envelopes, refused := hub.actionEnvelopes([]engine.AIMessage{to, skip}, actor, time.Now()); refused != nil || len(envelopes) != 1 {
+		t.Fatalf("skip = %+v %+v", envelopes, refused)
 	}
 }
