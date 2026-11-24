@@ -83,7 +83,11 @@ func (h *Hub) rallyPasses(d delivery) bool {
 	}
 	k, _ := rallyOf(d)
 	h.rallies[k]++
-	delete(h.ralliesStopped, k)
+	if h.ralliesStopped[k] {
+		// 止めたあとで、どちらかの利用者が話しかけて数が戻った。宛て先に、また届くことを先に知らせる（続けて返してよいと分かるように）
+		delete(h.ralliesStopped, k)
+		h.enqueueWake(wakeItem{participant: d.to, kind: wakeRally, line: hostLine(rallyResumedForRecipient(d))})
+	}
 	return true
 }
 
@@ -98,17 +102,16 @@ func (h *Hub) rallyCountSent(from, host, room string) int {
 }
 
 // rallyReset は、参加者 participant に利用者トリガートークがあったので、その参加者が送り手か宛て先の AI ラリーの数を 0 に戻す。
-// もう受け入れ済みでない参加者の数も捨てる（joined は受け入れ済みの参加者の id）（h.mu を持って呼ぶ）
+// 止めた印は残し、次に届くときに宛て先へまた届くことを知らせる。もう受け入れ済みでない参加者の数と印は捨てる（joined は受け入れ済みの参加者の id）（h.mu を持って呼ぶ）
 func (h *Hub) rallyReset(participant string, joined map[string]bool) {
 	gone := func(id string) bool { return id != "" && !joined[id] }
 	for k := range h.rallies {
 		if k.from == participant || k.to == participant || gone(k.from) || gone(k.to) {
 			delete(h.rallies, k)
-			delete(h.ralliesStopped, k)
 		}
 	}
 	for k := range h.ralliesStopped {
-		if k.from == participant || k.to == participant || gone(k.from) || gone(k.to) {
+		if gone(k.from) || gone(k.to) {
 			delete(h.ralliesStopped, k)
 		}
 	}
@@ -137,14 +140,24 @@ func rallyStoppedDetail(to string, limit int) string {
 		"Tell your user that the exchange stopped at the limit and waits for the user; send it again only when the user asks"
 }
 
-// rallyStoppedForRecipient は、上限を超えて届けなかった AI 間メッセージ d の宛て先に、常駐から 1 度だけ知らせる文
-func rallyStoppedForRecipient(d delivery, limit int) string {
+// rallySender は、AI 間メッセージ d の送り手を、宛て先への文の中で呼ぶ句
+func rallySender(d delivery) string {
 	from := "the AI in " + d.envelope.From.Workroom
 	if d.peer != "" {
 		from += " on host " + d.host
 	}
+	return from
+}
+
+// rallyStoppedForRecipient は、上限を超えて届けなかった AI 間メッセージ d の宛て先に、常駐から 1 度だけ知らせる文
+func rallyStoppedForRecipient(d delivery, limit int) string {
 	return fmt.Sprintf("you and %s sent each other %d messages without your users talking to you, so matomezu stopped the exchange: a message from it was not delivered. "+
-		"Tell your user that the exchange stopped at the limit and waits for the user", from, limit)
+		"Tell your user that the exchange stopped at the limit and waits for the user. When either user talks to their AI, its messages arrive again and matomezu tells you so; then answer them as usual", rallySender(d), limit)
+}
+
+// rallyResumedForRecipient は、止めたあとでまた届く AI 間メッセージ d の前に、宛て先へ知らせる文
+func rallyResumedForRecipient(d delivery) string {
+	return "a user talked to their AI after matomezu stopped the exchange with " + rallySender(d) + ", so its messages arrive again; answer them as usual"
 }
 
 // rallyRefusal は、AI ラリーの上限を超えて届けなかった AI 間メッセージの、送り手への断り（to は宛て先のワークルーム名）

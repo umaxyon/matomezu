@@ -46,6 +46,14 @@ func TestRallyStopsAtTheLimitUntilAUserTalks(t *testing.T) {
 			if sent, _ := sendMessage(t, s.URL, a, "すずめ", "again"); !sent.OK {
 				t.Fatalf("after the user talked = %+v", sent)
 			}
+			// 宛て先には、また届くことを先に知らせてから届ける。次からは知らせない
+			if n := noticeOf(t, s.URL, b); !strings.Contains(n, "arrive again") || strings.Index(n, "arrive again") > strings.Index(n, `"again"`) {
+				t.Fatalf("resumed notice = %q", n)
+			}
+			sendMessage(t, s.URL, a, "すずめ", "more")
+			if n := noticeOf(t, s.URL, b); strings.Contains(n, "arrive again") {
+				t.Fatalf("told twice = %q", n)
+			}
 		})
 	}
 }
@@ -109,7 +117,7 @@ func TestRallyLimitOfAPairedHost(t *testing.T) {
 }
 
 // ペアリングしたホストの間: 受けるホストの利用者が決めた上限（rallyLimit）で止め、送り手には rally-limit で断り、宛て先には 1 度だけ知らせる。
-// 送り手の利用者が送り手の AI に話しかけたら、送り手のホストが封筒に載せる数が戻るので、また届く
+// 送り手の利用者が送り手の AI に話しかけたら、送り手のホストが封筒に載せる数が戻るので、また届き、宛て先にはその事を先に知らせる
 func TestRallyBetweenPairedHosts(t *testing.T) {
 	as, bs, _, b := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
@@ -134,6 +142,10 @@ func TestRallyBetweenPairedHosts(t *testing.T) {
 	call(t, "POST", as.URL+"/api/ai/talked", `{"sessionId":"SA","prompt":"続けて"}`, nil)
 	if sent := sendTo(t, as.URL, s1, "b", "s2", "again"); !sent.OK {
 		t.Fatalf("after the sender's user talked = %+v", sent)
+	}
+	got = wakes(b, b.OpenWakesWith("200", "", WakeLimits{}))
+	if len(got) != 2 || !strings.Contains(got[0], "arrive again") || !strings.Contains(got[1], `"again"`) {
+		t.Fatalf("wakes after resuming = %q", got)
 	}
 }
 
