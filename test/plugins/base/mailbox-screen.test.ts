@@ -97,10 +97,10 @@ test("書庫が下の段にあれば入れ替える。閉じるとブックス�
   expect(stages()).toHaveLength(2)
   const library = of(LIBRARY)
   expect(win().arrangementValue).toMatchObject({ screens: [book, library] })
-  // 書庫のスクリーンから郵便箱を開く: 下の段が郵便箱に替わり、書庫は開いたまま後ろへ
+  // 書庫のスクリーンから郵便箱を開く: 下の段が郵便箱に替わり、書庫は閉じる（窓のスクリーンは 2 枚まで）
   run(library, "mailbox-open", { mail: id.a1 })
   expect(win().arrangementValue).toMatchObject({ screens: [book, of(MAILBOX)] })
-  expect(of(LIBRARY)).toBe(library)
+  expect(of(LIBRARY)).toBe("")
   expect(run(of(MAILBOX), "mailbox-screen-close")).toBe(true)
   expect(of(MAILBOX)).toBe("")
   expect(win().arrangement).toBe("@matomezu/base:one-screen")
@@ -121,7 +121,7 @@ test("コントロールセンター（定義の viewsInside で郵便箱の画�
   ])
 })
 
-test("下の段の「開く」: 上の段を行き先のブックのブックスクリーンに替え、見ていたブックスクリーンは開いたまま後ろへ。下の段の郵便箱はそのまま", () => {
+test("下の段の「開く」: 上の段を行き先のブックのブックスクリーンに替え、見ていたブックスクリーンは閉じる（窓のスクリーンは 2 枚まで）。下の段の郵便箱はそのまま", () => {
   const { store, win, of, run } = setup()
   const book = win().screens.find(s => s.stages !== undefined)?.id ?? ""
   run("s1", "mailbox-open")
@@ -132,10 +132,10 @@ test("下の段の「開く」: 上の段を行き先のブックのブックス
   const added = win().screens.find(s => s.stages?.stages.some(st => st.id === stage))?.id
   expect(added).not.toBe(book)
   expect(win().arrangementValue).toMatchObject({ screens: [added, mailbox] })
-  expect(win().screens.some(s => s.id === book)).toBe(true)
+  expect(win().screens.some(s => s.id === book)).toBe(false)
 })
 
-test("下の段の「開く」で、行き先のブックスクリーンがもう開いていれば、新しく開かずにそれを上の段に戻し、見ていた物は開いたまま（後ろに同じ物を重ねない）", () => {
+test("下の段の「開く」を続けても、窓のスクリーンは上の段と郵便箱の 2 枚のまま（前に見ていたブックへ戻れば、ブックスクリーンを開き直す）", () => {
   const { store, win, of, run } = setup()
   const book = win().screens.find(s => s.stages !== undefined)?.id ?? ""
   run("s1", "mailbox-open")
@@ -148,8 +148,9 @@ test("下の段の「開く」で、行き先のブックスクリーンがも�
   // 見ていた最初のブックへ戻る
   showBookInUpperRow(store.actions, read, mailbox, SAMPLE_BOOKS[0]?.id ?? "")
   const value = win().arrangementValue as { screens: string[] }
-  expect(value.screens).toEqual([book, mailbox])
-  expect(win().screens.some(s => s.id === added)).toBe(true)
+  expect(value.screens[1]).toBe(mailbox)
+  expect([book, added]).not.toContain(value.screens[0])
+  expect(win().screens.some(s => s.id === added)).toBe(false)
   expect(win().screens).toHaveLength(count)
 })
 
@@ -166,14 +167,15 @@ test("郵便箱のスクリーンが窓いっぱいなら、「開く」は行�
   expect(win().order.at(-1)).toBe(win().screens.find(s => s.stages?.stages.some(st => st.id === stage))?.id)
 })
 
-test("郵便箱のスクリーン（下の段）から書庫を開くと、下の段が書庫に替わり、郵便箱は開いたまま後ろへ", () => {
+test("郵便箱のスクリーン（下の段）から書庫を開くと、下の段が書庫に替わり、郵便箱は閉じる（窓のスクリーンは 2 枚まで）", () => {
   const { win, of, run } = setup()
   const book = win().screens.find(s => s.stages !== undefined)?.id ?? ""
   run("s1", "mailbox-open")
   const mailbox = of(MAILBOX)
   run(mailbox, "library-open")
   expect(win().arrangementValue).toMatchObject({ screens: [book, of(LIBRARY)] })
-  expect(of(MAILBOX)).toBe(mailbox)
+  expect(of(MAILBOX)).toBe("")
+  expect(mailbox).not.toBe("")
 })
 
 test("郵便箱を開く起点: ステージの中ならそのステージ、郵便箱の画面を描くスクリーンならそのスクリーン、ほかは最近のブックスクリーンのステージ", () => {
@@ -185,7 +187,7 @@ test("郵便箱を開く起点: ステージの中ならそのステージ、郵
   expect(mailboxFromOf(NO_STAGE, ticket, false, NO_STAGE)).toBe("t")
 })
 
-test("チケットを窓いっぱいに見ているときに開くと、チケットを上・郵便箱を下に分ける。「開く」で上の行がブックスクリーンに替わり、チケットは開いたまま見えなくなる。閉じれば、そのブックスクリーンが窓いっぱい", () => {
+test("チケットを窓いっぱいに見ているときに開くと、チケットを上・郵便箱を下に分ける。「開く」で上の行がブックスクリーンに替わり、チケットは閉じる（窓のスクリーンは 2 枚まで）。閉じれば、そのブックスクリーンが窓いっぱい", () => {
   const { store, win, of, run } = setup()
   const ticket = store.actions.openScreenId("@matomezu/taskboard:ticket-screen", { ticket: "t1" }) as string
   run(ticket, "mailbox-open")
@@ -197,11 +199,22 @@ test("チケットを窓いっぱいに見ているときに開くと、チケ�
   const stage = showBookInUpperRow(store.actions, read, mailbox, SAMPLE_BOOKS[1]?.id ?? "")
   const book = win().screens.find(s => s.stages?.stages.some(st => st.id === stage))?.id ?? ""
   expect(win().arrangementValue).toEqual({ screens: [book, mailbox] })
-  expect(win().screens.some(s => s.id === ticket)).toBe(true)
+  expect(win().screens.some(s => s.id === ticket)).toBe(false)
   run(mailbox, "mailbox-screen-close")
   expect(win().arrangement).toBe("@matomezu/base:one-screen")
   expect(win().order.at(-1)).toBe(book)
-  expect(win().screens.some(s => s.id === ticket)).toBe(true)
+})
+
+test("上の段のブックスクリーンを閉じると、下の段の郵便箱も一緒に閉じ、コントロールセンターに戻る", () => {
+  const { win, of, run } = setup()
+  const book = win().screens.find(s => s.stages !== undefined)?.id ?? ""
+  run("s1", "mailbox-open")
+  expect(win().arrangementValue).toEqual({ screens: [book, of(MAILBOX)] })
+  expect(run(book, "book-screen-close")).toBe(true)
+  expect(of(MAILBOX)).toBe("")
+  expect(win().screens.some(s => s.id === book)).toBe(false)
+  expect(win().arrangement).toBe("@matomezu/base:one-screen")
+  expect(win().screens.find(s => s.id === win().order.at(-1))?.stages).toBeUndefined()
 })
 
 test("広げると、上の行の物は閉じずに見えなくなる", () => {

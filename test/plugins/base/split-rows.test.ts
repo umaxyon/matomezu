@@ -83,10 +83,11 @@ test("並びの変わりを行うと、並びから外れた物は閉じずに�
   applySplitFrom(store.actions, planOpen([center, ticket], center, second, "in-place", 2))
   expect(read().window.arrangementValue).toEqual({ screens: [second, ticket] })
   expect(read().window.screens.some(s => s.id === center)).toBe(true)
-  // 下の 1 枚目と入れ替えても、外れたチケットは開いたまま
+  // 下の 1 枚目と入れ替えると、外れたチケットは窓の上限（コントロールセンターを数えずに 2 枚）で閉じる。並べ方の変わりでは閉じない
   const third = store.actions.openScreenId("@matomezu/taskboard:ticket-screen", { ticket: "t3" })
   applySplitFrom(store.actions, planAt([second, ticket], 1, third))
-  expect(read().window.screens.some(s => s.id === ticket)).toBe(true)
+  expect(read().window.arrangementValue).toEqual({ screens: [second, third] })
+  expect(read().window.screens.some(s => s.id === ticket)).toBe(false)
   // 上の 2 枚目を閉じると、閉じて、残った 3 枚目を窓いっぱいに見せる（コントロールセンターは戻さない）
   applySplitFrom(store.actions, planClose([second, third], second))
   expect(read().window.screens.some(s => s.id === second)).toBe(false)

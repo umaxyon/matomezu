@@ -476,6 +476,7 @@ function PlainScreen({
       data-row={at !== null}
       data-late={waits}
       data-out={out !== null}
+      data-closed={closed !== undefined}
       style={place}
       inert={!shown}
       onPointerDownCapture={onPress}

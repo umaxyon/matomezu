@@ -295,7 +295,7 @@ test("しおりに乗せると、待たずに自前の吹き出しで題が出�
   await expect(tip).toBeHidden()
 })
 
-test("「開く」は、行き先のブックを上の段に新しいブックスクリーンで開き、見ていたブックのスクリーンは後ろに残る。郵便箱は下の段のまま", async ({
+test("「開く」は、行き先のブックを上の段に新しいブックスクリーンで開き、見ていたブックのスクリーンは閉じる（窓のスクリーンは 2 枚まで）。郵便箱は下の段のまま", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -308,13 +308,14 @@ test("「開く」は、行き先のブックを上の段に新しいブック�
   })
   await page.getByRole("button", { name: "別のブック", exact: true }).click()
   await letter(page).getByRole("button", { name: "開く", exact: true }).click()
-  // 見ていたブックのスクリーンは閉じずに残り、行き先のブックのスクリーンがカレントスクリーンになる
+  // 行き先のブックのスクリーンがカレントスクリーンになり、見ていたブックのスクリーンは閉じる
   await expect.poll(() => urlStages(page)[0]?.b).toBe(other)
   expect(
     urlPlace(page)
       ?.s.filter(x => x.g)
       .map(x => x.g?.l[0]?.b),
-  ).toEqual([book, other])
+  ).toEqual([other])
+  expect(book).not.toBe(other)
   await expect(mailboxPane(page)).toBeVisible()
 })
 

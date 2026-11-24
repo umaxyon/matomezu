@@ -223,14 +223,13 @@ test("見えている物は上限を超えても閉じず、並べ方を替え�
   const store = newStore({ bookScreen: "none" })
   store.actions.showBook("b1")
   store.actions.showBook("b2")
-  store.actions.showBook("b3")
-  const [, b1, b2, b3] = store.state.getState().window.screens.map(s => s.id)
-  store.actions.setScreenArrangement(SPLIT, { screens: [b1 as string, b2 as string, b3 as string] })
+  const [, b1, b2] = store.state.getState().window.screens.map(s => s.id)
+  store.actions.setScreenArrangement(SPLIT, { screens: [b1 as string, b2 as string] })
   store.actions.openScreenId(MAILBOX, {})
-  expect(store.state.getState().window.screens).toHaveLength(5)
+  expect(store.state.getState().window.screens).toHaveLength(4)
   store.actions.setScreenArrangement(ONE)
   expect(store.state.getState().window.screens.map(s => s.id)).not.toContain(b1)
-  expect(store.state.getState().window.screens).toHaveLength(4)
+  expect(store.state.getState().window.screens).toHaveLength(3)
 })
 
 test("store の openScreen は、定義の渡す値の形に合えば開いてカレントスクリーンにし、合わない値と無い定義は開かない。closeScreen で閉じると前の物に戻る", () => {
@@ -408,21 +407,19 @@ test("showBook は、新しいブックスクリーンで開き、もう開い�
   expect(store.actions.showBook("nope")).toBe(false)
 })
 
-test("窓のスクリーンは、コントロールセンターを数えずに 3 枚まで: 4 枚目を開くと、見えていない物のうちカレントにしたのが古い 1 枚を閉じる", () => {
+test("窓のスクリーンは、コントロールセンターを数えずに 2 枚まで: 3 枚目を開くと、見えていない物のうちカレントにしたのが古い 1 枚を閉じる", () => {
   const store = newStore({ bookScreen: "none" })
   store.actions.showBook("b1")
   store.actions.showBook("b2")
-  store.actions.showBook("b3")
   store.actions.showBook("b1") // b1 をカレントスクリーンにしたので、古いのは b2
-  store.actions.showBook("b4")
+  store.actions.showBook("b3")
   expect(bookScreens(store)).toEqual([
     { id: "c2", books: ["b1"] },
     { id: "c4", books: ["b3"] },
-    { id: "c5", books: ["b4"] },
   ])
   // プラグインがスクリーンを開く道（openScreen）も、同じ上限を通る
   store.actions.openScreen("@matomezu/base:book-screen", {})
-  expect(bookScreens(store).map(s => s.id)).toEqual(["c2", "c5", "c6"])
+  expect(bookScreens(store).map(s => s.id)).toEqual(["c4", "c5"])
 })
 
 test("AI の show は、ステージも split も言わなければ窓に出す（showBook）。0 枚からでも出せる", () => {
@@ -437,18 +434,17 @@ test("AI の show は、ステージも split も言わなければ窓に出す�
   expect(bookScreens(store).map(s => s.books)).toEqual([["b2"], ["b3"]])
 })
 
-test("場所を当てはめても、窓のスクリーンは 3 つまで。ブックスクリーンの無い場所は、今の 1 枚を後ろに残す", () => {
+test("場所を当てはめても、窓のスクリーンは 2 つまで。ブックスクリーンの無い場所は、今の 1 枚を後ろに残す", () => {
   const store = newStore({ bookScreen: "none" })
   const none = store.address()
   store.actions.showBook("b1")
   const one = store.address()
   store.actions.showBook("b2")
-  store.actions.showBook("b3")
-  const three = store.address()
-  // 手で書いた場所に 4 枚あれば、カレントにしたのが古い物を閉じる
-  const fourth = { ...(three.screens[3] as (typeof three.screens)[number]), id: "c9" }
-  store.locate({ ...three, screens: [...three.screens, fourth], order: [...three.order, "c9"] })
-  expect(bookScreens(store).map(s => s.id)).toEqual(["c3", "c4", "c9"])
+  const two = store.address()
+  // 手で書いた場所に 3 枚あれば、カレントにしたのが古い物を閉じる
+  const third = { ...(two.screens[2] as (typeof two.screens)[number]), id: "c9" }
+  store.locate({ ...two, screens: [...two.screens, third], order: [...two.order, "c9"] })
+  expect(bookScreens(store).map(s => s.id)).toEqual(["c3", "c9"])
   // ブラウザの戻るで、ブックスクリーンの無い場所へ: 1 枚を後ろに残し、コントロールセンターが前
   store.locate(one)
   store.locate(none)

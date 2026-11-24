@@ -103,9 +103,17 @@ test("ブックスクリーンの下の段の郵便箱を閉じると、郵便�
   await page.bringToFront()
   await aiPerform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "行き先", to: { book } } })
   // コントロールセンターのコンテンツエリアに郵便箱を出し、郵便の行き先を窓いっぱいに開く
-  await page.getByRole("button", { name: /^郵便箱/ }).filter({ visible: true }).first().click()
+  await page
+    .getByRole("button", { name: /^郵便箱/ })
+    .filter({ visible: true })
+    .first()
+    .click()
   const panes = page.getByRole("region", { name: "郵便箱" }).locator("visible=true")
-  await panes.getByRole("listitem").getByRole("button", { name: /行き先/ }).first().click()
+  await panes
+    .getByRole("listitem")
+    .getByRole("button", { name: /行き先/ })
+    .first()
+    .click()
   await panes.locator("article").getByRole("button", { name: "開く", exact: true }).click()
   await expect(panes).toHaveCount(0)
   await settled(page)
@@ -130,4 +138,67 @@ test("ブックスクリーンの下の段の郵便箱を閉じると、郵便�
   expect(grows).toBeGreaterThan(0)
   expect(gone).toBeGreaterThanOrEqual(0)
   expect(grows).toBeGreaterThanOrEqual(gone)
+})
+
+// コントロールセンターのコンテンツエリアの郵便箱から、郵便の行き先を窓いっぱいに開き、フッタの封筒で下の段に郵便箱を出す
+async function bookOverMailbox(page: Page, titles: readonly string[]) {
+  const book = ((await storedBooks(page.request)) as { id: string }[])[0]?.id
+  expect(book).toBeDefined()
+  await page.goto(CONTROL_CENTER_URL)
+  await page.bringToFront()
+  for (const title of titles)
+    await aiPerform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title, to: { book } } })
+  await page.getByRole("button", { name: "郵便箱", exact: true }).filter({ visible: true }).first().click()
+  const panes = page.getByRole("region", { name: "郵便箱" }).locator("visible=true")
+  await panes
+    .getByRole("listitem")
+    .getByRole("button", { name: new RegExp(titles[0] ?? "") })
+    .first()
+    .click()
+  await panes.locator("article").getByRole("button", { name: "開く", exact: true }).click()
+  await expect(panes).toHaveCount(0)
+  await settled(page)
+  await (await fromMenu(page, "郵便箱")).click()
+  await expect(panes).toHaveCount(1)
+  await settled(page)
+  return panes
+}
+
+test("上の段のブックスクリーンを閉じると、下の段の郵便箱も一緒に右へ出ていき、プロジェクトを出したコントロールセンターが見える", async ({
+  page,
+}) => {
+  await bookOverMailbox(page, ["行き先"])
+  const [frames] = await Promise.all([
+    track(page, { leaving: "[data-over][data-leaving]", mailbox: 'section [data-row="true"]' }),
+    page.getByRole("button", { name: "スクリーンを閉じる" }).filter({ visible: true }).first().click(),
+  ])
+  // 郵便箱は飛ばずに滑って出ていく（右の外へ着くまでに、間の位置を通る）
+  const width = await page.evaluate(() => innerWidth)
+  expect(frames.some(f => (f.mailbox?.left ?? 0) > 0 && (f.mailbox?.left ?? width) < width * 0.8)).toBe(true)
+  expect(frames.some(f => (f.leaving?.left ?? 0) > 0)).toBe(true)
+  expect(frames.at(-1)).toEqual({ leaving: null, mailbox: null })
+  const tile = (name: string) => page.getByRole("button", { name, exact: true }).filter({ visible: true }).first()
+  await expect(tile("プロジェクト")).toHaveAttribute("aria-pressed", "true")
+})
+
+test("下の段の郵便箱から別のブックを開き、郵便箱を閉じてからブックスクリーンを閉じると、前のブックスクリーンでなくコントロールセンターが見える", async ({
+  page,
+}) => {
+  const panes = await bookOverMailbox(page, ["一通目", "二通目"])
+  await panes
+    .getByRole("listitem")
+    .getByRole("button", { name: /二通目/ })
+    .first()
+    .click()
+  await panes.locator("article").getByRole("button", { name: "開く", exact: true }).click()
+  await settled(page)
+  await page.getByRole("button", { name: "郵便箱を閉じる" }).filter({ visible: true }).click()
+  await expect(panes).toHaveCount(0)
+  await settled(page)
+  await page.getByRole("button", { name: "スクリーンを閉じる" }).filter({ visible: true }).first().click()
+  await settled(page)
+  await expect(page.locator(BOOK)).toHaveCount(0)
+  await expect(
+    page.getByRole("button", { name: "プロジェクト", exact: true }).filter({ visible: true }).first(),
+  ).toHaveAttribute("aria-pressed", "true")
 })
