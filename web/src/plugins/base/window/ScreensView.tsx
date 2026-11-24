@@ -115,6 +115,34 @@ export function ScreensView() {
     rows: new Map(plainScreens.map(id => [id, rowOf(id)])),
     shown: new Set(plainScreens.filter(id => rowOf(id) !== null || (!splitting && id === top?.id))),
   }
+  // ブックスクリーンと並べていたステージを並べないスクリーンを閉じて、ブックスクリーンが窓いっぱいに戻るとき（unmixing）は、閉じた物が右へ出ていき終えるまで、
+  // コントロールセンターの側を並べていたときの見せ方のまま残し（後ろのコントロールセンターを見せない）、ブックスクリーンはそのあとで伸びる
+  const lastMixed = useRef<string | undefined>(splitBook)
+  const [unmixing, setUnmixing] = useState<string | undefined>(undefined)
+  const wasMixed = lastMixed.current
+  if (
+    wasMixed !== undefined &&
+    !mixed &&
+    currentKind === "book-screen" &&
+    recentBook === wasMixed &&
+    gone.length > 0 &&
+    unmixing !== wasMixed
+  )
+    setUnmixing(wasMixed)
+  if (unmixing !== undefined && (mixed || recentBook !== unmixing)) setUnmixing(undefined)
+  lastMixed.current = splitBook
+  useEffect(() => {
+    if (unmixing === undefined) return
+    const timer = setTimeout(
+      () => {
+        setUnmixing(undefined)
+        setInstant(true)
+      },
+      reduced() ? 0 : SLIDE_MS,
+    )
+    return () => clearTimeout(timer)
+  }, [unmixing])
+  const looksMixed = mixed || unmixing !== undefined
   // 窓いっぱいに見せるブックスクリーンが替わったら、新しく見せる物を、ほかのスクリーンの上に出す（over。その間、コントロールセンターの側は動かさずに残す）。
   // 並びの外から来た物は右から滑り込み、並びの中にいた物（下の行の □ で広げた）はその場から伸びる。閉じたスクリーンの後ろから出てきたときは、動かさない
   // （閉じたのと一緒に新しく開いた物は、閉じた物の上を滑り込む）。
@@ -178,12 +206,13 @@ export function ScreensView() {
           <BookScreen
             key={id}
             screen={id}
-            current={mixed ? "book-screen" : currentKind}
+            current={looksMixed ? "book-screen" : currentKind}
             shown={id === book || (mixed && row !== null)}
             row={row}
             footer={footer}
             currentInRow={row !== null && id === current}
             fresh={!first.current?.includes(id)}
+            growsLate={id === unmixing}
             closing={instant && over === undefined}
             over={over?.id === id}
             slidesOver={over?.id === id && over.slides}
@@ -196,11 +225,11 @@ export function ScreensView() {
       })}
       <section
         className={styles.center}
-        data-current={mixed ? "plain-screen" : currentKind}
-        data-mixed={mixed}
+        data-current={looksMixed ? "plain-screen" : currentKind}
+        data-mixed={looksMixed}
         data-instant={instant}
         data-held={over !== undefined}
-        inert={!mixed && currentKind !== "plain-screen"}
+        inert={!looksMixed && currentKind !== "plain-screen"}
       >
         <div className={styles.body}>
           {plainScreens.map(id => {
@@ -294,6 +323,7 @@ function BookScreen({
   footer,
   currentInRow,
   fresh,
+  growsLate,
   over,
   slidesOver,
   closing,
@@ -307,6 +337,7 @@ function BookScreen({
   footer: boolean
   currentInRow: boolean
   fresh: boolean
+  growsLate: boolean // 閉じた物が右へ出ていき終えてから、窓いっぱいへ伸びる
   over: boolean
   slidesOver: boolean
   closing: boolean
@@ -352,7 +383,7 @@ function BookScreen({
       data-shown={shown}
       data-row={inRow}
       data-in={entered}
-      data-late={waits}
+      data-late={waits || growsLate}
       data-over={over}
       data-moves={moves}
       data-footer={footer}
