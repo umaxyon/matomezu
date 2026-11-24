@@ -109,6 +109,21 @@ test("巣箱のコマンドは、コントロールセンターをカレント�
   expect(active()).toBe(false)
 })
 
+test("巣箱のコマンドは、ステージを並べないほかのスクリーン（郵便箱）がカレントでも、コントロールセンターへ行き、押された状態でない。もう一度押すとその郵便箱へ戻る", () => {
+  const { actions, state, ...instance } = newStore()
+  const active = () => isActive(instance as never, state.getState(), "s1", CENTER)
+  const book = state.getState().window.order.at(-1) as string
+  const mailbox = actions.openScreenId("@matomezu/base:mailbox-screen", {}) as string
+  actions.setScreenArrangement("@matomezu/base:split-rows", { screens: [book, mailbox] })
+  const center = state.getState().window.screens.find(s => s.def === "@matomezu/control-center:screen")?.id
+  expect(active()).toBe(false)
+  expect(actions.command("s1", CENTER)).toBe(true)
+  expect(state.getState().window.order.at(-1)).toBe(center)
+  expect(active()).toBe(true)
+  expect(actions.command("s1", CENTER)).toBe(true)
+  expect(state.getState().window.order.at(-1)).toBe(mailbox)
+})
+
 test("ブックを開くと、ブックスクリーンをカレントスクリーンにする", () => {
   const { actions, state } = newStore()
   showCenter({ state, actions })

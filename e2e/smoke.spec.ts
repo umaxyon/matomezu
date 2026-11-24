@@ -83,6 +83,10 @@ test("分割した右のステージを閉じると、左のステージが画�
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(1)
   await expect(page.getByRole("button", { name: "ステージを閉じる" })).toHaveCount(0)
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
+  // 下の書庫のスクリーンが右へ出ていき終えてから伸びる（伸び始めるまでは止まって見える）
+  await expect
+    .poll(async () => (await page.getByRole("region", { name: "ステージ" }).boundingBox())?.height)
+    .toBe(full?.height)
   expect(await stillBox(page.getByRole("region", { name: "ステージ" }))).toEqual(full)
 })
 

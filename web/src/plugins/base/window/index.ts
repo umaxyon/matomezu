@@ -26,21 +26,24 @@ export { ONE_SCREEN } from "./one-screen"
 
 // カレントスクリーン（呼ばれた文脈の、カレントにした順の最後）
 const current = (ctx: ScreenCommandContext): OpenScreen | undefined => screensOf(ctx).at(-1)
-// いちばん最近カレントにした、ステージを並べるスクリーン（stages が true）か、並べないスクリーン（false）
-const recent = (ctx: ScreenCommandContext, stages: boolean): OpenScreen | undefined =>
-  [...screensOf(ctx)].reverse().find(s => s.stages === stages)
+// 窓を開いたときから開いているスクリーン（コントロールセンター）か
+const atStart = (ctx: ScreenCommandContext, screen: OpenScreen | undefined): boolean =>
+  screen !== undefined && ctx.catalog.screens.get(screen.def)?.atStart === true
+// いちばん最近カレントにした、窓を開いたときから開いているスクリーン（start が true）か、そうでないスクリーン（false）
+const recent = (ctx: ScreenCommandContext, start: boolean): OpenScreen | undefined =>
+  [...screensOf(ctx)].reverse().find(s => atStart(ctx, s) === start)
 
-// 巣箱のコマンド（ステージのメニューの「コントロールセンター」）。ブックスクリーンと、ステージを並べないスクリーン（コントロールセンターなど）を行き来する: カレントスクリーンと違う種類の、
-// いちばん最近カレントにしたスクリーンをカレントスクリーンにする。ステージを並べないスクリーンがカレントの間は、押された状態
+// 巣箱のコマンド（ステージのメニューの「コントロールセンター」）。コントロールセンター（窓を開いたときから開いているスクリーン）を見ていなければ、それをカレントスクリーンにし、
+// 見ていれば、その前にカレントにしていたスクリーンへ戻す。コントロールセンターがカレントの間は、押された状態
 export const SCREEN_TOGGLE = kit.defineScreenCommand({
   id: "screen-toggle",
   title: "Control center",
   run: (ctx, a) => {
-    const to = recent(ctx, current(ctx)?.stages !== true)
+    const to = recent(ctx, !atStart(ctx, current(ctx)))
     if (to) storeActionsOf(a).makeScreenCurrent(to.id)
   },
   when: () => true,
-  active: ctx => current(ctx)?.stages === false,
+  active: ctx => atStart(ctx, current(ctx)),
 })
 
 // 上下に分けて見せているか（カレントスクリーンが、分けた並びにある）
