@@ -465,9 +465,9 @@ type WorkroomsQuery struct {
 // aiHostList は、AI 用ホストリスト: このホストのワークルーム（設定が recent なら最近の hostListRows 件）と残りの数、AI 用ホストリストに載せるペアリングしたホスト
 // （「ほかのホストとつなぐ」が入のときだけ）。並びは様子が変わった新しい順
 type aiHostList struct {
-	OK        bool            `json:"ok"`
-	Workrooms []RoomRow       `json:"workrooms"`
-	More      int             `json:"more"`
+	OK        bool             `json:"ok"`
+	Workrooms []RoomRow        `json:"workrooms"`
+	More      int              `json:"more"`
 	Hosts     *[]hostListEntry `json:"hosts,omitempty"` // 「ほかのホストとつなぐ」が切なら無し（載せるホストが無ければ空の並び）
 }
 
@@ -491,13 +491,14 @@ type foundRoom struct {
 	Activity string `json:"activity"`
 }
 
-// workroomsPage は、1 つのホストを名前の順に読んだ答え（このホストなら host と connected を書かない）と、そのあとに残る数
+// workroomsPage は、1 つのホストを名前の順に読んだ答え（このホストなら host と connected を書かない）と、そのあとに残る数と続きの offset
 type workroomsPage struct {
 	OK        bool      `json:"ok"`
 	Host      string    `json:"host,omitempty"`
 	Connected *bool     `json:"connected,omitempty"`
 	Workrooms []RoomRow `json:"workrooms"`
 	More      int       `json:"more"`
+	Next      *int      `json:"next,omitempty"` // 続きを読む offset（残りがあるときだけ）
 }
 
 // orderedRoom は、様子が変わった順の番号つきの行
@@ -532,11 +533,15 @@ func headOf(rows []orderedRoom, n int) ([]RoomRow, int) {
 	return out, len(rows) - n
 }
 
-// pageOf は、名前の順の行 rows の offset からの pageRows 件と、そのあとに残る数
-func pageOf(rows []RoomRow, offset int) ([]RoomRow, int) {
+// pageOf は、名前の順の行 rows の offset からの pageRows 件の答え（そのあとに残る数と、残りがあれば続きの offset）
+func pageOf(rows []RoomRow, offset int) workroomsPage {
 	offset = max(0, min(offset, len(rows)))
 	end := min(len(rows), offset+pageRows)
-	return slices.Clone(rows[offset:end]), len(rows) - end
+	out := workroomsPage{OK: true, Workrooms: slices.Clone(rows[offset:end]), More: len(rows) - end}
+	if out.More > 0 {
+		out.Next = &end
+	}
+	return out
 }
 
 // entriesOf は、一覧の行を番号つきで
@@ -630,8 +635,7 @@ func (h *Hub) Workrooms(q WorkroomsQuery) (any, error) {
 		return nil, err
 	}
 	if q.Paged {
-		rows, more := pageOf(nameOrder(own), q.Offset)
-		return workroomsPage{OK: true, Workrooms: rows, More: more}, nil
+		return pageOf(nameOrder(own), q.Offset), nil
 	}
 	limit := -1
 	if settings, _ := h.Data(); settings != nil {
@@ -696,9 +700,9 @@ func (h *Hub) hostPage(host string, offset int) (any, error) {
 	}
 	for _, p := range h.pairedRoomsNow() {
 		if p.hostID == target.HostID {
-			rows, more := pageOf(nameOrder(p.rows), offset)
-			connected := p.connected
-			return workroomsPage{OK: true, Host: host, Connected: &connected, Workrooms: rows, More: more}, nil
+			out := pageOf(nameOrder(p.rows), offset)
+			out.Host, out.Connected = host, &p.connected
+			return out, nil
 		}
 	}
 	return MessageSent{Reason: "unknown-host", Detail: "no paired host is named " + host}, nil // 引いたあとにペアリングを解かれた

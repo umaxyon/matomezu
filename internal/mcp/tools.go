@@ -277,7 +277,7 @@ var tools = []tool{
 			"each with the name to give as host, whether it is connected now, the 5 workrooms whose activity changed last and more, how many it left out (no workrooms when it is not connected). " +
 			"The workrooms come in the order their activity changed, the latest first. " +
 			"With name, it answers found: every workroom with that name, on this host (no host) and on the paired hosts (with host), the paired hosts not on the host list for AIs too. " +
-			"With offset, it answers the workrooms of one host by name from that position, up to 50, and more, how many come after them: of the paired host given as host, or of this host without host. " +
+			"With offset, it answers the workrooms of one host by name from that position, up to 50, more, how many come after them, and next, the offset to read them from (only when more is not 0): of the paired host given as host, or of this host without host. " +
 			"With host alone, the same from the first. A paired host's workrooms are as this host last heard from it (connected false and no workrooms when it is not connected now). " +
 			"name is given alone. It is refused with unknown-host when no paired host has that name and host-closed when this host does not connect to other hosts now.",
 		listWorkroomsSchema,

@@ -281,7 +281,7 @@ func TestAIFindsAWorkroomBeyondTheOverview(t *testing.T) {
 		t.Fatalf("sent = %+v", sent)
 	}
 	var page workroomsPage
-	if err := json.Unmarshal([]byte(read("?host=b&offset=5")), &page); err != nil || len(page.Workrooms) != 2 || page.Workrooms[0].Name != "w6" || page.More != 0 {
+	if err := json.Unmarshal([]byte(read("?host=b&offset=5")), &page); err != nil || len(page.Workrooms) != 2 || page.Workrooms[0].Name != "w6" || page.More != 0 || page.Next != nil {
 		t.Fatalf("page = %+v, %v", page, err)
 	}
 	for _, q := range []string{"?name=win_note&host=b", "?name=win_note&offset=0"} {
@@ -350,6 +350,20 @@ func TestOwnWorkroomsFollowTheListedSetting(t *testing.T) {
 	// 断りの送れる先も最近の 5 件と残りの数
 	if sent, _ := sendMessage(t, as.URL, first, "nobody", "x"); !strings.Contains(sent.Detail, " and 2 more (list_workrooms with offset lists them all)") {
 		t.Fatalf("sent = %+v", sent)
+	}
+}
+
+// 名前の順に読む答えは 50 件ずつで、残りがあるときだけ続きの offset を添える
+func TestWorkroomPagesTellTheNextOffset(t *testing.T) {
+	rows := make([]RoomRow, 120)
+	for i := range rows {
+		rows[i] = RoomRow{Name: fmt.Sprintf("r%03d", i)}
+	}
+	if p := pageOf(rows, 0); len(p.Workrooms) != 50 || p.More != 70 || p.Next == nil || *p.Next != 50 {
+		t.Fatalf("first = %d, %d, %v", len(p.Workrooms), p.More, p.Next)
+	}
+	if p := pageOf(rows, 100); len(p.Workrooms) != 20 || p.More != 0 || p.Next != nil || p.Workrooms[0].Name != "r100" {
+		t.Fatalf("last = %d, %d, %v", len(p.Workrooms), p.More, p.Next)
 	}
 }
 
