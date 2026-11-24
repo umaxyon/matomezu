@@ -862,3 +862,38 @@ test("書庫のツリー・右の枠の行の外（余白）を押したあと�
   await expect(rows.first()).toHaveAttribute("aria-pressed", "true")
   await expect(rows.first()).toBeFocused()
 })
+
+test("書庫で、ブックの中のページを右クリックのメニューの「削除…」か Delete で、確かめてから消す。消したあとの Ctrl+Z で戻る（消した行が無くなっても、焦点は書庫に残る）", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  const books = (await storedBooks(page.request)) as { id: string; title: string }[]
+  const first = books[0]!
+  const added = await aiPerform(page, {
+    action: "@matomezu/base:page-add",
+    args: { type: "@matomezu/markdown:markdown", title: "消す試しのページ" },
+    on: { book: first.id },
+  })
+  expect(added).toMatchObject({ ok: true })
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const tree = page.getByRole("navigation", { name: "フォルダ" })
+  await tree.getByRole("button", { name: `${first.title} の中を出す` }).click()
+  const row = tree.getByRole("button", { name: "消す試しのページ", exact: true })
+  const dialog = page.getByRole("dialog")
+  // 右クリックのメニューから
+  await row.click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "削除…" }).click()
+  await expect(dialog).toContainText("消す試しのページ: ページと中身が消えます")
+  await dialog.getByRole("button", { name: "削除" }).click()
+  await expect(row).toHaveCount(0)
+  await page.keyboard.press("Control+z")
+  await expect(row).toHaveCount(1)
+  // 選んで Delete
+  await row.click()
+  await page.keyboard.press("Delete")
+  await dialog.getByRole("button", { name: "削除" }).click()
+  await expect(row).toHaveCount(0)
+  await page.keyboard.press("Control+z")
+  await expect(row).toHaveCount(1)
+})
