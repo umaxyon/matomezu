@@ -311,6 +311,56 @@ test("entry-duplicate: ページ・バインダを、番号付きの名前です
   expect(act("entry-duplicate", { entry: "b1" }).ok).toBe(false)
 })
 
+test("entry-remove: ブックの中のページ・バインダと、ブックの外のバインダの中のページを消す。ブックとバインダの最後の 1 枚も消せる（ブックの外のバインダは除く）。直下の物は消さない", () => {
+  const { state, lineup, add, act } = setup()
+  const into = folderIn(act)
+  const a = add("b1", { title: "A" }).page
+  expect(act("entry-remove", { entry: a }).ok).toBe(true)
+  expect(lineup("b1")).toEqual(["p1"])
+  expect(state().pages[a]).toBeUndefined()
+  // ブックの最後の 1 枚
+  expect(act("entry-remove", { entry: "p1" }).ok).toBe(true)
+  expect(lineup("b1")).toEqual([])
+  // ブックの中のバインダの最後の 1 枚は、バインダを空で残す。バインダそのものは中のページごと消える
+  const s = add("b2", { type: SLIDE, title: "1", into: { newBinder: "説明" } })
+  expect(act("entry-remove", { entry: s.page }).ok).toBe(true)
+  expect(lineup(s.binder as string)).toEqual([])
+  const t = add("b2", { type: SLIDE, title: "2", into: { binder: s.binder } })
+  expect(act("entry-remove", { entry: s.binder }).ok).toBe(true)
+  expect(state().folders[s.binder as string]).toBeUndefined()
+  expect(state().pages[t.page]).toBeUndefined()
+  // ブックの外のバインダ: 最後の 1 枚でなければ消せる
+  const u = add("b2", { type: SLIDE, title: "3", into: { newBinder: "束" } })
+  const v = add("b2", { type: SLIDE, title: "4", into: { binder: u.binder } })
+  expect(act("entry-move", { entry: u.binder, into }).ok).toBe(true)
+  expect(act("entry-remove", { entry: u.page }).ok).toBe(true)
+  expect(lineup(u.binder as string)).toEqual([v.page])
+  expect(act("entry-remove", { entry: v.page }).ok).toBe(false)
+  // 書庫ホームかフォルダの直下の物（ブックの外のバインダ・ブック・フォルダ）は、ゴミ箱に入れる物で、消さない
+  expect(act("entry-remove", { entry: u.binder }).ok).toBe(false)
+  expect(act("entry-remove", { entry: "b2" }).ok).toBe(false)
+  expect(act("entry-remove", { entry: into }).ok).toBe(false)
+})
+
+test("entry-remove: 消した物は、書庫の元に戻す（library-revert）で、同じ id で元の位置に戻る。ロックしたページは消さない", async () => {
+  const { store, state, lineup, add, act } = setup()
+  const undo = () => {
+    const step = (state().history[LIBRARY_HISTORY] ?? { undo: [] }).undo.at(-1)
+    const done = step ? store.actions.perform("@matomezu/base:library-revert", libraryRevertArgs(step, "before")) : null
+    if (done?.ok) store.actions.moveHistory(LIBRARY_HISTORY, "undo")
+    return done?.ok
+  }
+  const a = add("b1", { title: "A" }).page
+  await Promise.resolve()
+  expect(act("entry-remove", { entry: "p1" }).ok).toBe(true)
+  await Promise.resolve()
+  expect(undo()).toBe(true)
+  expect(lineup("b1")).toEqual(["p1", a])
+  expect(state().pages.p1).toBeDefined()
+  expect(store.actions.perform("@matomezu/base:page-lock", {}, { page: a }).ok).toBe(true)
+  expect(act("entry-remove", { entry: a })).toMatchObject(locked)
+})
+
 test("page-create: ブックにページを作る（page-add と同じ引数）。打った名前が重なれば断る", () => {
   const { perform, lineup, titleOf, act } = setup()
   const done = perform(PAGE_CREATE.id, { folder: "b2", type: DRAWING, title: "新" })

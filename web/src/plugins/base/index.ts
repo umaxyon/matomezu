@@ -31,6 +31,7 @@ import {
   ENTRY_MOVE,
   ENTRY_MOVE_OVER,
   ENTRY_PURGE,
+  ENTRY_REMOVE,
   ENTRY_RENAME,
   ENTRY_RESTORE,
   ENTRY_TRASH,
@@ -45,6 +46,7 @@ import {
   LIBRARY_ENTRY_MOVE,
   LIBRARY_ENTRY_OPEN,
   LIBRARY_ENTRY_OPEN_SPLIT,
+  LIBRARY_ENTRY_REMOVE,
   LIBRARY_ENTRY_RENAME,
   LIBRARY_ENTRY_TRASH,
   LIBRARY_FOLDER,
@@ -62,6 +64,7 @@ import {
   LIBRARY_PLACE_OPEN,
   LIBRARY_QUERY,
   LIBRARY_REDO,
+  LIBRARY_REMOVE_DIALOG,
   LIBRARY_RENAME_DIALOG,
   LIBRARY_REVERT,
   LIBRARY_SCREEN,
@@ -524,6 +527,7 @@ export const BASE = defineBuiltin(
       ENTRY_MOVE_OVER,
       ENTRY_RENAME,
       ENTRY_DUPLICATE,
+      ENTRY_REMOVE,
       PAGE_CREATE,
       ENTRY_TRASH,
       ENTRY_RESTORE,
@@ -679,6 +683,7 @@ export const BASE = defineBuiltin(
       PAGE_NEW_IN_FOLDER,
       LIBRARY_ENTRY_RENAME,
       LIBRARY_ENTRY_TRASH,
+      LIBRARY_ENTRY_REMOVE,
       LIBRARY_ENTRY_DUPLICATE,
       LIBRARY_ENTRY_MOVE,
       LIBRARY_TREE_MOVE,
@@ -708,6 +713,7 @@ export const BASE = defineBuiltin(
       LIBRARY_NEW_BOOK_DIALOG,
       LIBRARY_NEW_FOLDER_DIALOG,
       LIBRARY_RENAME_DIALOG,
+      LIBRARY_REMOVE_DIALOG,
       SETTINGS_DIALOG,
       JOIN_REQUEST_DIALOG,
       PARTICIPANT_JOIN_DIALOG,
@@ -828,6 +834,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:entry-move-over": typeof ENTRY_MOVE_OVER
     "@matomezu/base:entry-rename": typeof ENTRY_RENAME
     "@matomezu/base:entry-duplicate": typeof ENTRY_DUPLICATE
+    "@matomezu/base:entry-remove": typeof ENTRY_REMOVE
     "@matomezu/base:page-create": typeof PAGE_CREATE
     "@matomezu/base:entry-trash": typeof ENTRY_TRASH
     "@matomezu/base:entry-restore": typeof ENTRY_RESTORE
@@ -960,6 +967,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-tree-unfold-or-next": typeof LIBRARY_TREE_UNFOLD_OR_NEXT
     "@matomezu/base:library-pick-move": typeof LIBRARY_PICK_MOVE
     "@matomezu/base:library-entry-trash": typeof LIBRARY_ENTRY_TRASH
+    "@matomezu/base:library-entry-remove": typeof LIBRARY_ENTRY_REMOVE
     "@matomezu/base:library-entry-duplicate": typeof LIBRARY_ENTRY_DUPLICATE
     "@matomezu/base:screen-toggle": typeof SCREEN_TOGGLE
     "@matomezu/base:book-screen-close": typeof BOOK_SCREEN_CLOSE
@@ -1078,6 +1086,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-book-new": typeof LIBRARY_NEW_BOOK_DIALOG
     "@matomezu/base:library-folder-new": typeof LIBRARY_NEW_FOLDER_DIALOG
     "@matomezu/base:library-entry-rename": typeof LIBRARY_RENAME_DIALOG
+    "@matomezu/base:library-entry-remove": typeof LIBRARY_REMOVE_DIALOG
     "@matomezu/base:page-new": typeof NEW_PAGE_DIALOG
     "@matomezu/base:page-delete": typeof PAGE_DELETE_DIALOG
     "@matomezu/base:binder-settings": typeof BINDER_SETTINGS_DIALOG
