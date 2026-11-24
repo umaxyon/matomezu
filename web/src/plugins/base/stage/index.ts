@@ -3,18 +3,16 @@
 import { NO_STATE } from "../../../core/def/plugin-state"
 import { SCREEN_REFUSED } from "../../../store/actions"
 import {
-  arrangementValueIn,
   type CommandContext,
   calledScreenIdOf,
   calledStageOf,
-  screensOf,
   storeActionsOf,
   workspaceOf,
 } from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { LIBRARY_SCREEN } from "../library/screen"
-import { SPLIT_ROWS, splitOf } from "../window/split"
+import { SPLIT_ROWS } from "../window/split"
 import { shownWideStage, WIDE_STAGE } from "./states"
 
 const isSplit = (ctx: CommandContext) => workspaceOf(ctx).stages.length > 1
@@ -31,9 +29,7 @@ export const STAGE_SPLIT = kit.defineCommand({
     const book = calledScreenIdOf(ctx)
     const library = store.openScreenId(LIBRARY_SCREEN.id, {})
     if (library === SCREEN_REFUSED) return
-    // 前の並び（コントロールセンターとチケットなど）は behind に覚え、書庫のスクリーンを閉じたら戻す
-    const before = splitOf(screensOf(ctx), arrangementValueIn(ctx)).filter(id => id !== library)
-    store.setScreenArrangement(SPLIT_ROWS.id, { screens: [book, library], behind: before })
+    store.setScreenArrangement(SPLIT_ROWS.id, { screens: [book, library] })
   },
   when: ctx => !isSplit(ctx),
   active: isSplit,

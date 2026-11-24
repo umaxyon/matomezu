@@ -333,11 +333,11 @@ test("スクリーンアレンジメントと値は URL に入り、替えると
   followLocation(store, f.place)
   const center = store.state.getState().window.order.at(-1) ?? ""
   const ticket = store.actions.openScreenId("@matomezu/taskboard:ticket-screen", { ticket: "t1" })
-  store.actions.setScreenArrangement("@matomezu/base:split-rows", { screens: [center, ticket], behind: [] })
+  store.actions.setScreenArrangement("@matomezu/base:split-rows", { screens: [center, ticket] })
   await settled()
   expect(f.pushed).toHaveLength(1)
   expect(written(f.pushed[0]!).arrangement).toBe("@matomezu/base:split-rows")
-  expect(written(f.pushed[0]!).arrangementValue).toEqual({ screens: [center, ticket], behind: [] })
+  expect(written(f.pushed[0]!).arrangementValue).toEqual({ screens: [center, ticket] })
   const replacedBefore = f.replaced.length
   store.actions.replaceHistory()
   store.actions.setScreenArrangement("@matomezu/base:one-screen")
@@ -349,5 +349,5 @@ test("スクリーンアレンジメントと値は URL に入り、替えると
   expect(written(f.replaced.at(-1)!).screens.some(s => s.id === ticket)).toBe(false)
   // 戻ると、分けた形（値ごと）に戻る
   f.back(f.pushed[0]!)
-  expect(store.state.getState().window.arrangementValue).toEqual({ screens: [center, ticket], behind: [] })
+  expect(store.state.getState().window.arrangementValue).toEqual({ screens: [center, ticket] })
 })

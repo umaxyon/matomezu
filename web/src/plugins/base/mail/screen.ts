@@ -1,5 +1,5 @@
 // 郵便箱のスクリーン（郵便箱の画面だけを見せる、ステージを並べないスクリーン）と、それを開いて郵便を選ぶコマンド・閉じる・広げる・↑↓で選ぶ行を移すコマンドとキー。
-// 開く先は書庫のスクリーンと同じ（base/window/below-book.ts）: ブックスクリーンから開けば下の段、ほかのステージの無いスクリーンからなら窓いっぱい。
+// 開く先は書庫のスクリーンと同じ（base/window/lower-row.ts）: 呼んだスクリーンの下の行（書庫のスクリーンから開けば、下の行を入れ替える）。
 // ただし、郵便箱の画面を中に描く（定義の viewsInside。コントロールセンター）スクリーンから開けば、新しく開かずに、そのスクリーンの郵便箱の画面で選ぶ（コンテンツエリアを替えるのは、開く側のフック）
 import { z } from "zod"
 import { NO_STATE } from "../../../core/def/plugin-state"
@@ -15,7 +15,7 @@ import {
   updatePluginStateAtOf,
 } from "../../../store/commands/def"
 import { kit } from "../kit"
-import { expandBelowBook, leaveBelowBook, openBelowBook } from "../window/below-book"
+import { expandLowerRow, leaveLowerRow, openInLowerRow } from "../window/lower-row"
 import { MAIL_SEEN } from "./actions"
 import { inboxOf, pickMoved } from "./inbox"
 import { type Mail, mailsInOrder } from "./mail"
@@ -35,10 +35,10 @@ export const MAILBOX_SCREEN = kit.defineScreen({
 export const MAILBOX_SCOPE = kit.name("mailbox")
 export const MAILBOX_KEY_SCOPE = kit.defineKeyScope({ id: "mailbox", title: "Mailbox", commandsFrom: "screen" })
 
-// 郵便箱の画面を描いているスクリーン: 郵便箱のスクリーンから呼べばそれ、ほかは openBelowBook（郵便箱の画面を中に描くスクリーンならそれ。出せなければ SCREEN_REFUSED）
+// 郵便箱の画面を描いているスクリーン: 郵便箱のスクリーンから呼べばそれ、ほかは openInLowerRow（郵便箱の画面を中に描くスクリーンならそれ。出せなければ SCREEN_REFUSED）
 function mailboxScreenOf(ctx: ScreenCommandContext, a: CommandActions): string | typeof SCREEN_REFUSED {
   if (ctx.screen.def === MAILBOX_SCREEN.id) return calledScreenIdOf(ctx)
-  return openBelowBook(ctx, a, MAILBOX_SCREEN.id)
+  return openInLowerRow(ctx, a, MAILBOX_SCREEN.id)
 }
 
 // 郵便箱を開く: 郵便箱の画面を出し（開いていれば、それを使う）、mail を渡せば、その郵便のタブに替えて選び、見たことにする。渡さなければ、何も選ばない。
@@ -85,7 +85,7 @@ export const MAILBOX_PICK_MOVE = kit.defineScreenCommand({
 export const MAILBOX_SCREEN_CLOSE = kit.defineScreenCommand({
   id: "mailbox-screen-close",
   title: "Close mailbox",
-  run: (ctx, a) => leaveBelowBook(storeActionsOf(a), screensOf(ctx), arrangementValueIn(ctx), calledScreenIdOf(ctx)),
+  run: (ctx, a) => leaveLowerRow(storeActionsOf(a), screensOf(ctx), arrangementValueIn(ctx), calledScreenIdOf(ctx)),
   when: ctx => ctx.screen.def === MAILBOX_SCREEN.id,
 })
 
@@ -93,7 +93,7 @@ export const MAILBOX_SCREEN_CLOSE = kit.defineScreenCommand({
 export const MAILBOX_SCREEN_EXPAND = kit.defineScreenCommand({
   id: "mailbox-screen-expand",
   title: "Expand mailbox",
-  run: (ctx, a) => expandBelowBook(storeActionsOf(a), screensOf(ctx), arrangementValueIn(ctx), calledScreenIdOf(ctx)),
+  run: (ctx, a) => expandLowerRow(storeActionsOf(a), calledScreenIdOf(ctx)),
   when: ctx => ctx.screen.def === MAILBOX_SCREEN.id,
 })
 

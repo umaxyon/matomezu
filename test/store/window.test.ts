@@ -183,7 +183,7 @@ test("窓の上限は、ブックスクリーンとほかのスクリーンを�
   store.actions.showBook("b2")
   const b2 = currentScreen(store.state.getState().window).id
   const mailbox = store.actions.openScreenId(MAILBOX, {}) as string
-  store.actions.setScreenArrangement(SPLIT, { screens: [b2, mailbox], behind: [] })
+  store.actions.setScreenArrangement(SPLIT, { screens: [b2, mailbox] })
   // 下に書庫を開く途中（まだ並べ方を替えていない）: 見えていた b2 と郵便箱は残し、古い b1 を閉じる
   store.actions.openScreenId(LIBRARY, {})
   expect(openIds(store)).toEqual(["screen", "book-screen", "mailbox-screen", "library-screen"])
@@ -196,7 +196,7 @@ test("見えている物は上限を超えても閉じず、並べ方を替え�
   store.actions.showBook("b2")
   store.actions.showBook("b3")
   const [, b1, b2, b3] = store.state.getState().window.screens.map(s => s.id)
-  store.actions.setScreenArrangement(SPLIT, { screens: [b1 as string, b2 as string, b3 as string], behind: [] })
+  store.actions.setScreenArrangement(SPLIT, { screens: [b1 as string, b2 as string, b3 as string] })
   store.actions.openScreenId(MAILBOX, {})
   expect(store.state.getState().window.screens).toHaveLength(5)
   store.actions.setScreenArrangement(ONE)

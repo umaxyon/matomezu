@@ -172,19 +172,19 @@ test("場所はスクリーンアレンジメントの値を持つ。当ては�
   const split = {
     ...at([place]),
     arrangement: "@matomezu/base:split-rows",
-    arrangementValue: { screens: ["c1", "c2"], behind: [] },
+    arrangementValue: { screens: ["c1", "c2"] },
   }
   const win = placeAt(catalog.core, state.getState().books, state.getState(), state.getState().window, split)
   expect(win.arrangement).toBe("@matomezu/base:split-rows")
-  expect(win.arrangementValue).toEqual({ screens: ["c1", "c2"], behind: [] })
-  expect(addressOf(win).arrangementValue).toEqual({ screens: ["c1", "c2"], behind: [] })
+  expect(win.arrangementValue).toEqual({ screens: ["c1", "c2"] })
+  expect(addressOf(win).arrangementValue).toEqual({ screens: ["c1", "c2"] })
   const wrong = placeAt(catalog.core, state.getState().books, state.getState(), win, {
     ...split,
     arrangementValue: { screens: 3 },
   })
-  expect(wrong.arrangementValue).toEqual({ screens: [], behind: [] })
-  expect(moved(split, { ...split, arrangementValue: { screens: ["c2", "c1"], behind: [] } })).toBe(true)
-  expect(moved(split, { ...split, arrangementValue: { screens: ["c1", "c2"], behind: [] } })).toBe(false)
+  expect(wrong.arrangementValue).toEqual({ screens: [] })
+  expect(moved(split, { ...split, arrangementValue: { screens: ["c2", "c1"] } })).toBe(true)
+  expect(moved(split, { ...split, arrangementValue: { screens: ["c1", "c2"] } })).toBe(false)
 })
 
 test("場所を当てはめても、開いていたページをそのまま開くステージは、プレゼンテーションが知らせた広さとずらした量を保つ。ほかのページを開くステージは持たない", () => {

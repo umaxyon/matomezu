@@ -24,7 +24,7 @@ import { clampChars } from "../text/text"
 import { IconButton } from "../utils/IconButton"
 import { refusalMessage } from "../utils/refusal"
 import { shownTime } from "../utils/shown-time"
-import { bookStageAbove, showBookAbove } from "../window/below-book"
+import { showBookInUpperRow, stageAboveLower } from "../window/lower-row"
 import { MAIL_REMOVE, MAIL_SEEN, MAIL_VISITED } from "./actions"
 import { useMailbox, useShowMailPlaceAt } from "./hooks"
 import { inboxOf, unreadOf } from "./inbox"
@@ -244,13 +244,13 @@ function Body({ text, of }: { text: string; of: string }) {
   )
 }
 
-// 郵便 mail の行き先を開くボタンの並びと、押したボタンで開く関数。起点は、描いているスクリーンと上下に並んでいるブックスクリーンのカレントのステージ
+// 郵便 mail の行き先を開くボタンの並びと、押したボタンで開く関数。起点は、描いているスクリーンと上下に並んでいるブックスクリーンのカレントのステージ（上の行がブックスクリーンでなければ「開く」1 つ）
 function useOpenPlace(mail: Mail): { choices: OpenChoices; run: (choice: OpenChoice) => void } {
   const here = useScreenIdHere()
   const start = useMatomezuState(s =>
     here === undefined
       ? NO_STAGE
-      : bookStageAbove(
+      : stageAboveLower(
           s.window.screens.map(sc => ({ id: sc.id, currentStage: sc.stages?.current ?? NO_STAGE })),
           s.window.arrangementValue,
           here,
@@ -266,12 +266,12 @@ function useOpenPlace(mail: Mail): { choices: OpenChoices; run: (choice: OpenCho
     if (!to) return
     if (start !== NO_STAGE && choice === "split") actions.split(start)
     const ws = start === NO_STAGE ? undefined : screenOfStage(read().window, start)?.stages
-    // 「開く」は、行き先のブックを窓に出す（下の段に並べていれば、上の段をそのブックのブックスクリーンに替えて、見ていた物は後ろへ）。ほかは起点のステージの並びに開く
+    // 「開く」は、行き先のブックを窓に出す（下の行に並べていれば、上の行の物をそのブックのブックスクリーンに替えて、替えた物は開いたまま見えなくなる）。ほかは起点のステージの並びに開く
     const target =
       choice === "here" || !ws
         ? here === undefined
           ? actions.showBookStage(to.book)
-          : showBookAbove(actions, () => read().window, here, to.book)
+          : showBookInUpperRow(actions, () => read().window, here, to.book)
         : openStageOf(ws, start, choice)
     if (!target || target === NO_STAGE) return
     showPlace(target, mail)

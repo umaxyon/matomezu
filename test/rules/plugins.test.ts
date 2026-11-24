@@ -220,7 +220,7 @@ const FRAMES = [
   "stand/reveal-request.tsx",
   "window/ScreensView.tsx",
   "window/WindowView.tsx",
-  "window/below-book.ts",
+  "window/lower-row.ts",
   "window/index.ts",
   "window/show-control-center.tsx",
   "window/useScreenSplit.tsx",

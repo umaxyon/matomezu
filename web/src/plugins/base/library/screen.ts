@@ -19,7 +19,7 @@ import {
 import { NO_STAGE } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { hasOpenedPage } from "../utils/opened-page"
-import { bookStageAbove, expandBelowBook, leaveBelowBook, openBelowBook } from "../window/below-book"
+import { expandLowerRow, leaveLowerRow, openInLowerRow, stageAboveLower } from "../window/lower-row"
 import { splitOf } from "../window/split"
 import { outsidePagePlaceOf } from "./outline"
 import { LIBRARY_APPEARANCE, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY } from "./state"
@@ -84,7 +84,7 @@ export const LIBRARY_PLACE_OPEN = kit.defineCommand({
 
 // 書庫のスクリーンを出して、その id を返す（出せなければ SCREEN_REFUSED）。開いていれば、新しく開かずにそれを使う
 const openLibrary = (ctx: ScreenCommandContext, a: CommandActions): string | typeof SCREEN_REFUSED =>
-  openBelowBook(ctx, a, LIBRARY_SCREEN.id)
+  openInLowerRow(ctx, a, LIBRARY_SCREEN.id)
 
 // 書庫のスクリーンを閉じる（帯の閉じるボタン・書庫のスクリーンの外の操作。書庫の画面の中で Esc。コントロールセンターの書庫の画面からは出さない）
 export const LIBRARY_SCREEN_CLOSE = kit.defineScreenCommand({
@@ -118,7 +118,7 @@ export function stageBeside(
   const rows = splitOf(screens, value)
   if (!rows.includes(library)) return NO_STAGE
   const vacant = vacantStageBeside(screens, value, library)
-  return vacant !== NO_STAGE ? vacant : bookStageAbove(screens, value, library)
+  return vacant !== NO_STAGE ? vacant : stageAboveLower(screens, value, library)
 }
 
 // 書庫のスクリーン library と上下に並んでいるブックスクリーンの、何も開いていないステージ（ステージを分けて足した物）。並んでいない・空のステージが無ければ NO_STAGE。
@@ -140,7 +140,7 @@ export function vacantStageBeside(
 
 type Store = Pick<Actions, "closeStage" | "closeScreen" | "setScreenArrangement" | "makeScreenCurrent">
 
-// 書庫のスクリーン library を閉じる: 空のステージを閉じ、並びから外す（残りがブックスクリーンだけなら、ステージを分ける前の並びに戻す）
+// 書庫のスクリーン library を閉じる: 空のステージを閉じ、並びから外す（並びが 1 枚になれば、残った物を窓いっぱいに見せる）
 export function closeLibrary(store: Store, screens: readonly Arranged[], value: unknown, library: string): void {
   const vacant = vacantStageBeside(screens, value, library)
   if (vacant !== NO_STAGE) store.closeStage(vacant)
@@ -148,11 +148,11 @@ export function closeLibrary(store: Store, screens: readonly Arranged[], value: 
 }
 
 // 書庫のスクリーン library を閉じて並びから外す（ステージは閉じない。書庫のスクリーンから開いたあと、開いたステージを残して閉じるとき）
-export const leaveLibrary = leaveBelowBook
+export const leaveLibrary = leaveLowerRow
 
-// 書庫のスクリーン library を窓いっぱいに広げる（同じスクリーンのまま。空のステージは閉じ、並べていたブックスクリーンは開いたまま後ろへ）
+// 書庫のスクリーン library を窓いっぱいに広げる（同じスクリーンのまま。空のステージは閉じ、並べていた物は開いたまま見えなくなる）
 function expandLibrary(store: Store, screens: readonly Arranged[], value: unknown, library: string): void {
   const vacant = vacantStageBeside(screens, value, library)
   if (vacant !== NO_STAGE) store.closeStage(vacant)
-  expandBelowBook(store, screens, value, library)
+  expandLowerRow(store, library)
 }
