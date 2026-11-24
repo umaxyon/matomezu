@@ -97,8 +97,9 @@ export type LastAccess = "called" | "preparing" | "none"
 export const lastAccessOf = (row: Pick<WorkroomRow, "calledAt" | "state">): LastAccess =>
   row.calledAt !== NOT_CALLED ? "called" : row.state === "preparing" ? "preparing" : "none"
 
-// 枠（左の列・ワークルームの枠）が画面の外へ退くか。コンテンツエリアに出している画面の最大化と、中身が名乗った最大化（useControlCenterMaximized）から決める。
-// 書庫をコンテンツエリアに出してそれを最大化している間は左の列だけ、郵便箱を出してそれを最大化している間と、プロジェクトの画面を出して中身が最大化している間は、左の列とワークルームの枠が退く。
+// 枠（左の列・ワークルームの枠）が画面の外へ退くか。コンテンツエリアに出している画面と、その最大化と、中身が名乗った最大化（useControlCenterMaximized）から決める。
+// 左の列は、書庫・郵便箱を出してそれを最大化している間と、プロジェクトの画面を出して中身が最大化している間に退く。
+// ワークルームの枠は、郵便箱の最大化とプロジェクトの中身の最大化の間と、書庫を出している間に退く（枠を下に置くのはプロジェクトと郵便箱の画面だけ）。
 // コンテンツエリアに出していない画面の最大化は、枠を動かさない（ブラウザの戻るで画面が替わっても、枠が退いたまま戻れなくなるのを防ぐ）
 export interface Retreat {
   left: boolean
@@ -112,5 +113,8 @@ export function retreatOf(
 ): Retreat {
   const area = (shown === "library" && maximized.library) || (shown === "mailbox" && maximized.mailbox)
   const projects = shown === "projects" && contentMaximized
-  return { left: area || projects, workroom: projects || (shown === "mailbox" && maximized.mailbox) }
+  return {
+    left: area || projects,
+    workroom: projects || shown === "library" || (shown === "mailbox" && maximized.mailbox),
+  }
 }

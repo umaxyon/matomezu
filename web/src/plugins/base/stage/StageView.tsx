@@ -24,11 +24,11 @@ import { LIBRARY_OPEN } from "../library/screen"
 import { PrintPreviewView } from "../print-preview/PrintPreviewView"
 import { AnchorsProvider } from "../stand/anchors"
 import { keepsPan } from "../tool-switch/tools"
-import { useSettledResize } from "../utils/useSettledResize"
 import { BOOK_SCREEN_CLOSE } from "../window"
 import { BOOK_LAYERS } from "../workspace/slots"
 import { ZOOM_WHEEL } from "../zoom"
 import styles from "./StageView.module.css"
+import { useSettledResize } from "./useSettledResize"
 import { scrollsInside, type WheelLatch, wheelTaker } from "./wheel-chain"
 
 // ドラッグ中のポインタと、前に知らせた位置

@@ -2,7 +2,7 @@
 // 1 コマ同じ大きさが続いたら（知らせた大きさと違えば）知らせて、また変わり始めを待つ。スクリーンが伸び縮みして滑る間に、毎コマ知らせて描き直さないため
 import { type RefObject, useEffect, useEffectEvent, useRef } from "react"
 import type { Size } from "../../../core/geom"
-import { useResize } from "./useResize"
+import { useResize } from "../utils/useResize"
 
 const same = (a: Size, b: Size) => a.w === b.w && a.h === b.h
 

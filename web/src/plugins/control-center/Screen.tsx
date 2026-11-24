@@ -89,12 +89,7 @@ export function ControlCenterScreen() {
               />
             </div>
           </ScreenPane>
-          <WorkroomView
-            row={picked}
-            visitor={visitor}
-            detail={detail}
-            hidden={screen === "library" || retreat.workroom}
-          />
+          <WorkroomView row={picked} visitor={visitor} detail={detail} hidden={retreat.workroom} />
         </div>
       </div>
     </div>
