@@ -6,7 +6,7 @@ import { CONTROL_CENTER } from "../../../web/src/plugins/control-center"
 import { PAIRED_HOST, PAIRING_REQUEST } from "../../../web/src/plugins/network"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
-import type { HostPairing, HostRequest } from "../../../web/src/store/state"
+import type { HostPairing, HostRequest, PeerLive } from "../../../web/src/store/state"
 import { MatomezuProvider } from "../../../web/src/ui/store-context"
 import { WindowRoot } from "../../../web/src/ui/WindowRoot"
 
@@ -40,7 +40,7 @@ function open() {
     )
     fireEvent.click(screen.getByRole("button", { name: "閉じる" }))
   }
-  const peers = (paired: { hostId: string; connected: boolean; name?: string }[], pairing?: HostPairing) =>
+  const peers = (paired: PeerLive[], pairing?: HostPairing) =>
     act(() => store.setHostPeers({ paired, found: [], ...(pairing ? { pairing } : {}) }))
   return { store, asked, connect, peers }
 }
@@ -59,13 +59,13 @@ test("「ほかのホスト」の節は、つなぐが入のときだけ出し�
       addr: "",
     })
   })
-  const row = () => screen.getByRole("button", { name: /win-lan/ })
+  const row = () => screen.getByRole("button", { name: /^つながっていない ?win-lan$/ })
   expect(within(row()).getByRole("img", { name: "つながっていない" })).toBeTruthy()
-  peers([{ hostId: B, connected: true, name: "win-lan2" }])
+  peers([{ hostId: B, label: "win-lan2", connected: true, name: "win-lan2" }])
   expect(
-    within(screen.getByRole("button", { name: /win-lan2/ })).getByRole("img", { name: "つながっている" }),
+    within(screen.getByRole("button", { name: /^つながっている ?win-lan2$/ })).getByRole("img", { name: "つながっている" }),
   ).toBeTruthy()
-  fireEvent.click(screen.getByRole("button", { name: /win-lan2/ }))
+  fireEvent.click(screen.getByRole("button", { name: /^つながっている ?win-lan2$/ }))
   const panel = () => document.querySelector("[data-workroom-panel]") as HTMLElement
   expect(within(panel()).getByText("（taro）")).toBeTruthy()
   expect(within(panel()).getByText("BBBB BBBB BBBB BBBB …")).toBeTruthy()
@@ -148,4 +148,40 @@ test("受け入れられても、ペアリングしたホストが届くまで�
   expect(asked).toEqual([{ kind: "end-pairing" }])
   const panel = document.querySelector("[data-workroom-panel]") as HTMLElement
   expect(within(panel).getByRole("button", { name: "ペアリングを解く" })).toBeTruthy()
+})
+
+test("ホストの行の ▸ で開くと、相手のワークルームの写しを名前と作業中・空きで出し、つながっていなければ「つながっていません」だけ", () => {
+  const { store, connect, peers } = open()
+  connect()
+  act(() => {
+    store.actions.perform("@matomezu/network:paired-host-add", {
+      hostId: B,
+      nameAtPairing: "win-lan",
+      userNameAtPairing: "taro",
+      addr: "",
+    })
+  })
+  const caret = () => screen.getByRole("button", { name: "win-lan のワークルーム" })
+  fireEvent.click(caret())
+  expect(caret().getAttribute("aria-expanded")).toBe("true")
+  expect(screen.getByText("つながっていません")).toBeTruthy()
+  peers([
+    {
+      hostId: B,
+      label: "win-lan",
+      connected: true,
+      workrooms: [
+        { name: "win_claude_cli", activity: "idle" },
+        { name: "win_haiku", activity: "working" },
+      ],
+    },
+  ])
+  const list = screen.getByRole("list", { name: "win-lan のワークルーム" })
+  expect(
+    within(list)
+      .getAllByRole("listitem")
+      .map(li => li.textContent),
+  ).toEqual(["win_claude_cli空き", "win_haiku作業中"])
+  fireEvent.click(caret())
+  expect(screen.queryByRole("list", { name: "win-lan のワークルーム" })).toBeNull()
 })

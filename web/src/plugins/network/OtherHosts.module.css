@@ -32,13 +32,63 @@
   background: var(--skin-accent-subtle);
   box-shadow: inset 2px 0 0 var(--skin-accent);
 }
+.line {
+  display: flex;
+  align-items: center;
+}
+/* ▸ 行を開く（開くと下向き） */
+.open {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 32px;
+  margin-left: calc(var(--panel-pad-x) - 4px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--skin-text-muted);
+  cursor: pointer;
+}
+.open svg {
+  transition: transform var(--motion-fast) ease;
+}
+.open[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+/* 開いたホストの下の、相手のワークルームの行 */
+.rooms {
+  margin: 0 0 6px;
+  padding: 0 var(--panel-pad-x) 0 calc(var(--panel-pad-x) + 34px);
+  font-size: 12px;
+  color: var(--skin-text-muted);
+  list-style: none;
+}
+.room {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 22px;
+}
+.roomName {
+  overflow: hidden;
+  color: var(--skin-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity {
+  flex: none;
+  margin-left: auto;
+}
 .pick {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
+  min-width: 0;
   min-height: 32px;
-  padding: 4px calc(var(--panel-pad-x) + 3px);
+  padding: 4px calc(var(--panel-pad-x) + 3px) 4px 2px;
   border: 0;
   background: transparent;
   color: inherit;

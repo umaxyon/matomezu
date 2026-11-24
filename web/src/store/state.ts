@@ -98,10 +98,13 @@ export interface HostStatus {
 }
 
 // ペアリングしたホストの、常駐だけが持つ様子: connected はつながっているか（確かめた時点で）、lastSeen は最後につながった時刻、addr は待っている所（番地:ポート）、
-// name と userName は相手の今のホスト名と利用者名（つながったときに聞いた物）、keyMismatch は覚えた鍵と合わない相手が答えたか
+// name と userName は相手の今のホスト名と利用者名（つながったときに聞いた物）、keyMismatch は覚えた鍵と合わない相手が答えたか、
+// label は呼び名（常駐が決める。同じ名前のホストがあれば鍵の印の頭 4 字を添える）、workrooms は相手のワークルームの一覧の写し（つながっていて写しのあるときだけ）
 export interface PeerLive {
   hostId: string
+  label: string
   connected: boolean
+  workrooms?: readonly { name: string; activity: "working" | "idle" | "unknown" }[]
   lastSeen?: string
   addr?: string
   name?: string

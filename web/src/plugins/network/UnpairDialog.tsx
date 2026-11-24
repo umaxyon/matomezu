@@ -2,7 +2,7 @@
 import { useEffect } from "react"
 import { type DialogProps, useActions, useMessages, useRecords } from "../../plugin-api/ui"
 import { ActionButton, Dialog, NOT_TOLD, useHostPeers } from "../base/ui"
-import { hostRows, shownName } from "./hosts"
+import { hostRows } from "./hosts"
 import { kit } from "./kit"
 import { pairedOf } from "./OtherHosts"
 import styles from "./Pairing.module.css"
@@ -21,7 +21,7 @@ export function UnpairDialog({ args, onClose }: DialogProps<{ pairedHost: string
   return (
     <Dialog title={t("Unpair")} width={440} onClose={onClose}>
       <p className={styles.request}>
-        <span className={styles.name}>{shownName(row, all)}</span>
+        <span className={styles.name}>{row.label}</span>
         {row.userName ? <span className={styles.muted}>{t("({name})", { name: row.userName })}</span> : null}
       </p>
       <p>{t("Unpairing tells the other host too")}</p>

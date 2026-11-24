@@ -4,7 +4,7 @@ import { NO_RECORD } from "../../plugin-api"
 import { useActions, useAllowedOn, useMessages, useRecord, useRecords } from "../../plugin-api/ui"
 import { Elapsed, IconButton, NOT_TOLD, Tip, useHostPeers } from "../base/ui"
 import { UNPAIR_DIALOG } from "./dialogs"
-import { hostRows, shownName } from "./hosts"
+import { hostRows } from "./hosts"
 import { UnpairIcon } from "./icons"
 import { kit } from "./kit"
 import { shownHostKey } from "./NetworkCategory"
@@ -25,7 +25,7 @@ export function PairedHostDetail({ id }: { id: string }) {
   return (
     <div className={styles.detail}>
       <h2 className={styles.title}>
-        {shownName(row, all)}
+        {row.label}
         {row.userName ? <span className={styles.user}>{t("({name})", { name: row.userName })}</span> : null}
       </h2>
       <dl className={styles.facts}>

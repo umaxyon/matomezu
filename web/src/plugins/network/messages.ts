@@ -117,6 +117,11 @@ export const NETWORK_MESSAGES = defineMessages({
   "Decline a pairing request": { en: "Decline a pairing request", ja: "ペアリングの頼みを断る" },
   "Put a paired host": { en: "Put a paired host", ja: "ペアリングしたホストを載せる" },
   "Unpair a host": { en: "Unpair a host", ja: "ペアリングを解く" },
+  "Workrooms of {name}": { en: "Workrooms of {name}", ja: "{name} のワークルーム" },
+  "Not connected now": { en: "Not connected", ja: "つながっていません" },
+  "No AI is in a workroom": { en: "No AI is in a workroom", ja: "AI のいるワークルームはありません" },
+  Working: { en: "Working", ja: "作業中" },
+  Idle: { en: "Idle", ja: "空き" },
   "Change how requests from a host are taken": {
     en: "Change how requests from a host are taken",
     ja: "ホストからの頼みの扱いを変える",
