@@ -24,6 +24,7 @@ import { clampChars } from "../text/text"
 import { IconButton } from "../utils/IconButton"
 import { refusalMessage } from "../utils/refusal"
 import { shownTime } from "../utils/shown-time"
+import { Tip } from "../utils/Tip"
 import { showBookInUpperRow, stageAboveLower } from "../window/lower-row"
 import { MAIL_REMOVE, MAIL_SEEN, MAIL_VISITED } from "./actions"
 import { useMailbox, useShowMailPlaceAt } from "./hooks"
@@ -183,9 +184,16 @@ function RemoveChecked({ mails, onRemoved }: { mails: readonly Mail[]; onRemoved
   }
   return (
     <>
-      <IconButton label={t("Remove the checked mail")} disabled={mails.length === 0} onClick={() => setAsking(true)}>
-        {TRASH}
-      </IconButton>
+      <Tip text={t("Remove the checked mail")}>
+        <IconButton
+          label={t("Remove the checked mail")}
+          title={undefined}
+          disabled={mails.length === 0}
+          onClick={() => setAsking(true)}
+        >
+          {TRASH}
+        </IconButton>
+      </Tip>
       {asking && (
         <Confirm
           message={t("Remove {count} mail?", { count: mails.length })}
