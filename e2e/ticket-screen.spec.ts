@@ -391,3 +391,43 @@ test("番号のリンクで別のチケットへ移ると履歴に積まれ、�
   // 先頭に戻ったので、また押せない
   await expect(screen.getByRole("button", { name: "戻る" })).toBeDisabled()
 })
+
+test("チケット履歴の行は 1 行で切り、切れている行だけ文末の「開く」で全文に、「閉じる」で 1 行に戻る。ツールチップは出さない", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  const made = await perform(page, "@matomezu/taskboard:project-add", { prefix: "W-" })
+  const project = made.result?.project ?? ""
+  const ticket = (await perform(page, "@matomezu/taskboard:ticket-add", { project, name: "長い履歴のチケット" })).result
+    ?.ticket as string
+  const long = `${"長い文の続き。".repeat(40)}W-0001 で終わる`
+  for (const text of ["短い行", long]) {
+    await perform(page, "@matomezu/taskboard:ticket-history-add", {
+      ticket,
+      topic: "@matomezu/taskboard:topic-status",
+      text,
+    })
+  }
+  await page.goto(open(ticket))
+  const screen = page.getByRole("region", { name: "チケット" }).first()
+  await expect(screen.getByText("短い行")).toBeVisible()
+  // 切れているのは長い行だけなので、「開く」は 1 つ
+  const opener = screen.getByRole("button", { name: "開く" })
+  await expect(opener).toHaveCount(1)
+  await expect(opener).toHaveAttribute("aria-expanded", "false")
+  // 長い行（日の li の中の、件の li なので内側の last）。開け閉めで「開く」が替わっても、文で同じ行を指す
+  const row = screen.locator("li").filter({ hasText: "長い文の続き。" }).last()
+  await expect(row.getByRole("button", { name: "開く" })).toHaveCount(1)
+  await expect(row.locator("[title]")).toHaveCount(0)
+  const closedHeight = (await row.boundingBox())?.height ?? 0
+  // 開くと折り返して高くなり、文末の番号まで見え（リンクのまま）、「閉じる」に替わる
+  await opener.click()
+  const closer = row.getByRole("button", { name: "閉じる" })
+  await expect(closer).toHaveAttribute("aria-expanded", "true")
+  await expect.poll(async () => (await row.boundingBox())?.height ?? 0).toBeGreaterThan(closedHeight * 2)
+  await expect(row.getByRole("button", { name: "W-0001" })).toBeVisible()
+  // 閉じると 1 行に戻り、また「開く」が出る
+  await closer.click()
+  await expect(row.getByRole("button", { name: "開く" })).toHaveAttribute("aria-expanded", "false")
+  await expect.poll(async () => (await row.boundingBox())?.height ?? 0).toBe(closedHeight)
+})

@@ -9,6 +9,8 @@ export const TICKET_SCREEN_MESSAGES = defineMessages({
   "ticket screen": { en: "Ticket", ja: "チケット" },
   Back: { en: "Back", ja: "戻る" },
   Expand: { en: "Expand", ja: "広げる" },
+  "Open the line": { en: "More", ja: "開く" },
+  "Close the line": { en: "Less", ja: "閉じる" },
   Open: { en: "Open", ja: "開く" },
   "Open split": { en: "Open split", ja: "分割で開く" },
   "Open on top": { en: "Open on top", ja: "上に開く" },

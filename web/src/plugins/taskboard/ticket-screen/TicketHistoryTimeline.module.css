@@ -1,4 +1,4 @@
-/* 左の縦の線と件ごとの点・時刻・1 行で切る字、日の見出し、質問の吹き出し */
+/* 左の縦の線と件ごとの点・時刻・1 行で切る字と開いた全文・開け閉めのリンク、日の見出し、質問の吹き出し */
 .timeline {
   --rail-x: 5px;
   --rail-pad: 18px;
@@ -68,6 +68,36 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+/* 開いた行: 字を折り返して全文にし、時刻・バッヂ・鳥は 1 行目の字の並びに揃える。点も 1 行目の高さに置く */
+.item[data-expanded] {
+  align-items: baseline;
+}
+.item[data-expanded]::before {
+  top: 12px;
+}
+.full {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 0;
+  overflow-wrap: anywhere;
+}
+/* 開け閉めのリンク: 字より小さく、淡い色で、文末に添える */
+.toggle {
+  all: unset;
+  flex: none;
+  margin-left: 4px;
+  font-size: 11px;
+  color: var(--skin-text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.toggle:hover {
+  color: var(--skin-accent);
+}
+.toggle:focus-visible {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: 1px;
 }
 /* 質問: 右端の鳥から出る吹き出し（押すと右に開く）。ほかの行より少し高くして目立たせる。字は中で … で切り、尾は吹き出しの右の外に出す */
 .bubble {
