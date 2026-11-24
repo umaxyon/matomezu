@@ -15,7 +15,9 @@ import (
 const instructions = "matomezu shows books (such as diagrams) to the user in a browser. " +
 	"Use view to see what the user is looking at, list_books, read_folder, read_book and read_page to read, read_records for the records plugins keep (such as the task board), actions to see what can be done, and perform to do it. " +
 	"The user may put notes and marks on things on a page; view, list_books and read_folder tell you which wait for your answer (awaiting), and actions describes each kind of annotation and how to answer it. " +
-	"Changes appear at once on screens showing that book; use show to put a book or a page on the user's screen. "
+	"Changes appear at once on screens showing that book; use show to put a book or a page on the user's screen. " +
+	"Other AIs join matomezu too, each in a workroom with a name, on this host and on the hosts it is paired with. " +
+	"When the user asks you to have another AI do something, or names something that is not a book, list_workrooms (with name to find one) tells whether it is a workroom; ask that AI with send_message. "
 
 // tool は MCP 公開ツール 1 つ: 名前・説明・受ける引数の形（inputSchema）と、確かめた引数で呼ぶ所（AI に返す文と、失敗したか）と、
 // 読むだけか（ブックや画面の状態を読むだけで、何も変えない。AI のプログラムに、利用者に聞かずに使ってよいと答えてよい）
