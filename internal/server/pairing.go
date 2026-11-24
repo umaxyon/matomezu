@@ -42,7 +42,14 @@ type pairedHostRecord struct {
 	NameAtPairing     string `json:"nameAtPairing"`
 	UserNameAtPairing string `json:"userNameAtPairing"`
 	Addr              string `json:"addr"`
+	Requests          string `json:"requests"` // 頼みの扱い（requestsAskUser・requestsAsUser）
 }
+
+// ペアリングしたホストの requests の値（core/def/subject.ts の PAIRED_HOST_REQUESTS）
+const (
+	requestsAskUser = "ask-user" // 受け取った AI が、実行してよいか利用者に聞く（既定）
+	requestsAsUser  = "as-user"  // 利用者の頼みとして受ける（届く行に印を付ける）
+)
 
 type pairingRequestRecord struct {
 	ID     string `json:"id"`

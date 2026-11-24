@@ -7,6 +7,7 @@ import {
   PAIRED_HOST,
   PAIRED_HOST_ADD,
   PAIRED_HOST_REMOVE,
+  PAIRED_HOST_REQUESTS_SET,
   PAIRING_ACCEPT,
   PAIRING_DECLINE,
   PAIRING_REQUEST,
@@ -22,7 +23,14 @@ export const NETWORK_PLUGIN = defineBuiltin(
   kit.plugin({
     userSettings: [HOST_NAME, CONNECT_HOSTS],
     subjects: [PAIRED_HOST, PAIRING_REQUEST],
-    actions: [PAIRING_REQUEST_ADD, PAIRING_ACCEPT, PAIRING_DECLINE, PAIRED_HOST_ADD, PAIRED_HOST_REMOVE],
+    actions: [
+      PAIRING_REQUEST_ADD,
+      PAIRING_ACCEPT,
+      PAIRING_DECLINE,
+      PAIRED_HOST_ADD,
+      PAIRED_HOST_REMOVE,
+      PAIRED_HOST_REQUESTS_SET,
+    ],
     dialogs: [PORT_REPICK_DIALOG, PAIRING_DIALOG, PAIRING_REQUEST_DIALOG, UNPAIR_DIALOG],
   }),
 )
@@ -39,6 +47,7 @@ declare module "../../core/catalog" {
     "@matomezu/network:pairing-decline": typeof PAIRING_DECLINE
     "@matomezu/network:paired-host-add": typeof PAIRED_HOST_ADD
     "@matomezu/network:paired-host-remove": typeof PAIRED_HOST_REMOVE
+    "@matomezu/network:paired-host-requests-set": typeof PAIRED_HOST_REQUESTS_SET
   }
   interface DialogTable {
     "@matomezu/network:port-repick": typeof PORT_REPICK_DIALOG

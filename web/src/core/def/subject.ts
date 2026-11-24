@@ -13,12 +13,15 @@ import type { Warning } from "../warnings"
 export const SUBJECT_ROLE_FIELDS = {
   participants: ["id", "state", "ai", "model", "env", "sessionName", "link", "workroom", "requestedAt", "joinedAt"],
   workrooms: ["id", "name"],
-  "paired-hosts": ["id", "hostId", "nameAtPairing", "userNameAtPairing", "addr", "pairedAt"],
+  "paired-hosts": ["id", "hostId", "nameAtPairing", "userNameAtPairing", "addr", "pairedAt", "requests"],
   "pairing-requests": ["id", "hostId", "name", "userName", "addr", "code", "requestedAt"],
 } as const
 export type SubjectRole = keyof typeof SUBJECT_ROLE_FIELDS
 // 参加者（役 participants）の state の値: 要求中・受け入れ済みでワークルームに入っている・受け入れ済みでワークルームを持たない（ビジター。読むだけ）。常駐もこの値で読む
 export const PARTICIPANT_STATES = ["requested", "joined", "visitor"] as const
+// ペアリングしたホスト（役 paired-hosts）の requests（頼みの扱い）の値: そのホストの AI から届いた文を、受け取った AI が実行してよいか利用者に聞く（既定）・
+// 利用者の頼みとして受ける。常駐もこの値で読み、届く行に印を付けるかを決める
+export const PAIRED_HOST_REQUESTS = ["ask-user", "as-user"] as const
 
 // 索引キー 1 つ: 値の型と、レコードから値を返す関数（値の無いレコードは何も返さない）。条件と並びに書けるのは、宣言した索引キーだけ（core/record-keys.ts）
 export interface RecordKeyDef<Rec = never> {

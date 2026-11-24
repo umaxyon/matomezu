@@ -2,20 +2,23 @@
 // 頼みは、ほかのホストから届いたときに常駐が載せ（pairing-request-add）、利用者が受け入れる（pairing-accept。頼みを消し、ペアリングしたホストを載せる）か断る
 // （pairing-decline。取り下げ・時間切れ・起動し直したときも、常駐がこれで消す）。こちらから頼んで相手が受け入れたら、常駐がペアリングしたホストを載せる（paired-host-add）。
 // ペアリングを解くのは paired-host-remove（利用者が解く。相手が解いた・相手がペアリングしていないと答えたときも、常駐がこれで消す）。
+// 頼みの扱い（requests）は利用者だけが替える（paired-host-requests-set）。
 // 相手の身元はホスト id（鍵の印）だけで決まる。名前・利用者名はペアリングしたときに相手が名乗った物で、今の名前は常駐だけが持つ
 import { z } from "zod"
+import { PAIRED_HOST_REQUESTS } from "../../core/def/subject"
 import type { ActionContext } from "../../plugin-api"
 import { kit } from "./kit"
 
 const HOST_ID = z.string().regex(/^[0-9a-f]{64}$/)
 const NAME = z.string().max(40)
 const ADDR = z.string().max(300) // 番地とポート（例 192.168.11.20:7240）
+const REQUESTS = z.enum(PAIRED_HOST_REQUESTS)
 
 export const PAIRED_HOST = kit.defineSubject({
   id: "paired-host",
   title: "pairedHost",
   aiDescription:
-    "A host (the matomezu of another machine) this host is paired with: hostId (the fingerprint of its key), nameAtPairing and userNameAtPairing (the host name and user name it gave when it was paired; it may have changed them since), addr (the address and port the user typed to reach it, or empty when it was found on the network) and pairedAt. Only the user pairs and unpairs.",
+    "A host (the matomezu of another machine) this host is paired with: hostId (the fingerprint of its key), nameAtPairing and userNameAtPairing (the host name and user name it gave when it was paired; it may have changed them since), addr (the address and port the user typed to reach it, or empty when it was found on the network), pairedAt and requests (how messages from the AIs of that host are taken: ask-user, the AI that gets one asks the user before doing what it asks, or as-user, it is taken as the user's request). Only the user pairs, unpairs and changes requests.",
   role: "paired-hosts",
   record: z.strictObject({
     id: z.string().min(1),
@@ -24,6 +27,7 @@ export const PAIRED_HOST = kit.defineSubject({
     userNameAtPairing: NAME,
     addr: ADDR,
     pairedAt: z.string(),
+    requests: REQUESTS,
   }),
   keys: { hostId: { type: "text", of: h => h.hostId } },
 })
@@ -104,6 +108,7 @@ export const PAIRING_ACCEPT = kit.defineAction({
       userNameAtPairing: now.userName,
       addr: "",
       pairedAt: ctx.now,
+      requests: "ask-user",
     }
     return {
       next: "removed",
@@ -139,7 +144,7 @@ export const PAIRED_HOST_ADD = kit.defineAction({
     if (now !== "none") return null
     if (hasHost(ctx, PAIRED_HOST.id, args.hostId)) return { declined: "that host is paired already" }
     const id = ctx.newId()
-    return { next: { id, ...args, pairedAt: ctx.now }, result: { pairedHost: id } }
+    return { next: { id, ...args, pairedAt: ctx.now, requests: "ask-user" }, result: { pairedHost: id } }
   },
 })
 
@@ -153,4 +158,15 @@ export const PAIRED_HOST_REMOVE = kit.defineAction({
   runsBetweenHosts: "remove-paired-host",
   args: z.strictObject({}),
   run: now => (now === "none" ? null : { next: "removed", result: {} }),
+})
+
+export const PAIRED_HOST_REQUESTS_SET = kit.defineAction({
+  id: "paired-host-requests-set",
+  aiDescription:
+    "Change how messages from the AIs of the paired host named by on.record are taken (only the user): ask-user or as-user.",
+  title: "Change how requests from a host are taken",
+  target: PAIRED_HOST.id,
+  userOnly: true,
+  args: z.strictObject({ requests: REQUESTS }),
+  run: (now, args) => (now === "none" ? null : { next: { ...now, requests: args.requests }, result: {} }),
 })

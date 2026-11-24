@@ -117,4 +117,8 @@ export const NETWORK_MESSAGES = defineMessages({
   "Decline a pairing request": { en: "Decline a pairing request", ja: "ペアリングの頼みを断る" },
   "Put a paired host": { en: "Put a paired host", ja: "ペアリングしたホストを載せる" },
   "Unpair a host": { en: "Unpair a host", ja: "ペアリングを解く" },
+  "Change how requests from a host are taken": {
+    en: "Change how requests from a host are taken",
+    ja: "ホストからの頼みの扱いを変える",
+  },
 })
