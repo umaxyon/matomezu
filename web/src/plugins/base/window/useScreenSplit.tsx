@@ -72,7 +72,7 @@ export interface ScreenSplit {
   unwiden(): void // 広げていた並びに戻す
   rowsShown: boolean // 起点のスクリーンを、後ろのステージを並べないスクリーン（コントロールセンターなど）と上下に分けられるか（分けていない・広げていない・窓が高い）
   toRows(): void // 後ろのステージを並べないスクリーンを上、起点のスクリーンを下に分ける（最初から窓いっぱいに開いたブックスクリーンの下の行の □）
-  closeBooks(): void // 並びの中のブックスクリーンを閉じて、1 枚ずつに戻す（並びのほかの物は開いたまま。並びの中のステージを並べないスクリーンから、ブックを全画面で開くとき）
+  expandCurrent(): void // カレントスクリーンだけを 1 枚で見せる（並びの物は開いたまま見えなくなる。並びの中から、ブックを全画面で開いたあと）
   closeAll(): void // 分けて並べている物を全部閉じて、1 枚ずつに戻す（閉じられない物は残る）
 }
 
@@ -162,9 +162,6 @@ export function useScreenSplit(): ScreenSplit {
       apply(planOpen([], here.id, behindHere, "before", 2))
       actions.makeScreenCurrent(here.id)
     },
-    closeBooks: () => {
-      const screens = read().window.screens
-      apply({ screens: [], closing: split.filter(id => screens.some(s => s.id === id && s.stages)) })
-    },
+    expandCurrent: () => apply(planExpand(currentScreen(read().window).id)),
   }
 }

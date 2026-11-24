@@ -420,7 +420,7 @@ var showSchema = map[string]any{
 	"additionalProperties": false,
 }
 
-const showDescription = "Show a book, or a page that is not in a book, on the user's screen, in the matomezu window focused last: a book screen that already shows the book becomes the current screen; otherwise the book opens in a new book screen, which becomes the current screen (a window keeps two book screens: opening a third closes the one made current longest ago, with its zoom, position and selection). With stage or split, the book opens on that stage instead, replacing what is open there. " +
+const showDescription = "Show a book, or a page that is not in a book, on the user's screen, in the matomezu window focused last: a book screen that already shows the book becomes the current screen; otherwise the book opens in a new book screen, which becomes the current screen (a window keeps three screens, not counting the screens open since the window opened, such as the control center: opening one more closes, among the screens not seen, the one made current longest ago; a book screen closed so loses its zoom, position and selection). With stage or split, the book opens on that stage instead, replacing what is open there. " +
 	"When no window is open, a browser opens matomezu first (this can take some seconds)."
 
 // ReadOnly は、名前 name の MCP 公開ツールが読むだけか（無い名前なら false）

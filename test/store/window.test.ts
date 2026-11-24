@@ -194,9 +194,9 @@ test("ブックを窓に出す道（showBook）でも、開く前に見えてい
   const store = newStore({ bookScreen: "none" })
   store.actions.showBook("b1")
   store.actions.showBook("b2")
-  const [, b1, b2] = store.state.getState().window.screens.map(s => s.id)
+  const [, b1, b2] = store.state.getState().window.screens.map(s => s.id) as [string, string, string]
   const mailbox = store.actions.openScreenId(MAILBOX, {}) as string
-  store.actions.setScreenArrangement(SPLIT, { screens: [b2 as string, mailbox] })
+  store.actions.setScreenArrangement(SPLIT, { screens: [b2, mailbox] })
   store.actions.showBook("b3")
   const open = store.state.getState().window.screens.map(s => s.id)
   expect(open).not.toContain(b1)

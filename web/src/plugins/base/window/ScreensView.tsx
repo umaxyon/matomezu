@@ -420,13 +420,13 @@ function PlainScreen({
   // 並びから外れて見えなくなった物（閉じずに開いたまま）は、閉じる物と同じく右へ滑り出て、また見せるときに右から滑り込む
   // （滑り出る間は、外れた行の位置のまま。out は外れた行）
   const [out, setOut] = useState<Row | null>(null)
-  // 前に描いたときの行（行は描くたびに作り直すので、位置で比べる）
-  const [lastRow, setLastRow] = useState(row)
-  if ((lastRow && `${lastRow.index}/${lastRow.of}`) !== (row && `${row.index}/${row.of}`)) {
-    setLastRow(row)
-    if (lastRow !== null && row === null && !shown) setOut(lastRow)
-  }
+  // 前に描き終えたときの行（描いている途中では書き換えない。描き直しが 2 回あっても同じに読む）
+  const lastRow = useRef(row)
+  if (lastRow.current !== null && row === null && !shown && out === null) setOut(lastRow.current)
   if (out !== null && shown) setOut(null)
+  useEffect(() => {
+    lastRow.current = row
+  })
   const at = row ?? out
   const goal = !closed && out === null
   const [entered, setEntered] = useState(closed ? true : !slides)
