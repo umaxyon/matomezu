@@ -128,7 +128,9 @@ var tools = []tool{
 			"and older, how many of them come after the last one listed (give that record's id as before to go on); where keeps only the records whose index keys have the values given, " +
 			"and {\"is\": \"absent\"} or {\"is\": \"present\"} in place of a value keeps the records that have no value, or some value, for that key. A kind that does not list by index keys lists up to 100 with total, and where takes only its index keys (a name that is not an index key is refused; a kind with no index keys takes no where). " +
 			"Some kinds leave some of their records out of the list (each says what in the subjects of actions, as unlisted): the list then says how many it left out (unlisted), and unlisted: include lists them too, only lists just them. " +
-			"With id it answers that record in full; with ids (up to 20; not together with the other arguments) those records in full, and unknown, the ids it does not have.",
+			"With id it answers that record in full; with ids (up to 20; not together with the other arguments) those records in full, and unknown, the ids it does not have. " +
+			"A record in full also has books (only when there are some): the books kept for that record in a backyard, not shown in the library (such as the worker book of a ticket, done or not), each with backyard, book (its id) and pages (how many). " +
+			"They are not in list_books or read_folder: read them with read_book. For ids, books goes by the records' ids.",
 		map[string]any{
 			"type": "object",
 			"properties": map[string]any{

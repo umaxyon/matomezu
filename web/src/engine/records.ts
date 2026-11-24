@@ -5,6 +5,8 @@ import { isAIListed, listAIRecords, recordContext, UNLISTED_MODES } from "../cor
 import { briefLine } from "../core/brief"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type SubjectDef, shownToAI } from "../core/def/subject"
+import { aiBackyardBooksOf } from "../core/entries"
+import { rowsLibraryOf } from "../core/folders-tree"
 import { type Condition, type KeyValues, keyValuesOf } from "../core/record-keys"
 import type { RecordSource } from "../core/record-source"
 import { REMOVED, type RecordChange, restoreRecords } from "../core/records"
@@ -89,6 +91,18 @@ export function aiRecordsOf(of: Assembled, kind: string, records: string, where:
       (subject, id) => source?.byId(subject, id),
     ),
   )
+}
+
+// engine.ts の matomezuRecordBooks の中身: 種類 kind のレコード ids（JSON の並び）のうち、AI に見せるバックヤードのブックが在る物の id → そのブックの並び（core/entries.ts の aiBackyardBooksOf）。
+// folders は書庫のフォルダの行の全部（JSON の並び）
+export function recordBooksOf(of: Assembled, kind: string, ids: string, folders: string): string {
+  const library = rowsLibraryOf((parseOr(folders) as unknown[] | undefined) ?? [], {})
+  const out: Record<string, ReturnType<typeof aiBackyardBooksOf>> = {}
+  for (const id of (parseOr(ids) as string[] | undefined) ?? []) {
+    const books = aiBackyardBooksOf(of.catalog.core, library, { subject: kind, id })
+    if (books.length > 0) out[id] = books
+  }
+  return JSON.stringify(out)
 }
 
 // engine.ts の matomezuUnlistedOf の中身

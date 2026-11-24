@@ -164,6 +164,20 @@ export function backyardBooksOf(
   return row?.folderRole === "backyard" ? row.lineup.map(r => ({ id: r.id, workKey: r.workKey })) : []
 }
 
+// レコード key の物として、AI に見せると名乗ったバックヤード（aiShown）に在るブック: バックヤードの印 backyard、ブックの id book、中のページの数 pages（バインダの中も）。
+// 機能台帳 catalog のバックヤードの順。read_records の全文に添える
+export function aiBackyardBooksOf(
+  catalog: CoreCatalog,
+  library: Pick<Library, "folders">,
+  key: WorkKey,
+): readonly { backyard: string; book: string; pages: number }[] {
+  return [...catalog.backyards.values()].flatMap(def => {
+    if (!def.aiShown) return []
+    const book = backyardBookOf(library, def.id, key)
+    return book === undefined ? [] : [{ backyard: def.id, book, pages: rowsWithin(library.folders, book).pages.length }]
+  })
+}
+
 // まだどこにも入っていないブック book（withBook で行を足した物）を、バックヤード（印 backyard）の並びの末尾に workKey key で置いた書庫。
 // ブックが無いかもう入っている（no-entry）、バックヤードの行が無い（no-folder）、同じ workKey のブックがもう在る（work-key-taken）なら、その訳
 export function placedInBackyard(

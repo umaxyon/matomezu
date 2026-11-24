@@ -217,3 +217,32 @@ func (e *Engine) AIRecords(kind string, records []json.RawMessage, where map[str
 	err = json.Unmarshal([]byte(out), &listed)
 	return listed.Rows, listed.Unlisted, err == nil, err
 }
+
+// BackyardBook は、AI に見せるバックヤードの中の、レコードの物のブック 1 冊（read_records の全文に添える）: バックヤードの印、ブックの id、中のページの数
+type BackyardBook struct {
+	Backyard string `json:"backyard"`
+	Book     string `json:"book"`
+	Pages    int    `json:"pages"`
+}
+
+// RecordBooks は、種類 kind のレコード ids のうち、AI に見せるバックヤード（base の tickets-history など。定義が名乗る）にブックが在る物の id → そのブックの並び。
+// folders は書庫のフォルダの行の全部
+func (e *Engine) RecordBooks(kind string, ids []string, folders []json.RawMessage) (out map[string][]BackyardBook, err error) {
+	in, err := json.Marshal(ids)
+	if err != nil {
+		return nil, err
+	}
+	f, err := json.Marshal(append([]json.RawMessage{}, folders...))
+	if err != nil {
+		return nil, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.recordBooks(kind, string(in), string(f))), &out)
+	return out, err
+}

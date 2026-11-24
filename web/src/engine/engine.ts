@@ -43,6 +43,7 @@ import {
   keysOf,
   kindsOf,
   parentsOf,
+  recordBooksOf,
   recordNeedsOf,
   searchTextsOf,
   subjectRolesOf,
@@ -138,6 +139,10 @@ let lastAdded: readonly Plugin[] = []
     matomezuAiRecords?: (kind: string, records: string, where: string, unlisted: string) => string
   }
 ).matomezuAiRecords = (kind, records, where, unlisted) => aiRecordsOf(assembled, kind, records, where, unlisted)
+
+// 種類 kind のレコード ids（JSON の並び）の id → AI に見せるバックヤードのブックの並び（read_records の全文に添える。folders は書庫のフォルダの行の全部〈JSON の並び〉）
+;(globalThis as { matomezuRecordBooks?: (kind: string, ids: string, folders: string) => string }).matomezuRecordBooks =
+  (kind, ids, folders) => recordBooksOf(assembled, kind, ids, folders)
 
 // 種類 subject のレコード records（JSON。id → レコード）のうち、一覧の既定の目次に載せない物の id の並び（core/ai-list.ts の isAIListed）。横断検索が、横断検索の当たりを分けるのに引く。指す先は、ホストの読み口から引く
 ;(globalThis as { matomezuUnlistedOf?: (subject: string, records: string) => string }).matomezuUnlistedOf = (
