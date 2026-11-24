@@ -285,12 +285,15 @@ func (h *Hub) peerRoomsPost(w http.ResponseWriter, r *http.Request) {
 	go h.refetchRooms(e, from)
 }
 
+// knownActivity は、写しの行の作業の様子として受ける値（窓は、ほかの値の入った様子の知らせを読めない）
+var knownActivity = map[string]bool{"working": true, "idle": true, "unknown": true}
+
 func fitChanges(changes []roomChange) bool {
 	if len(changes) > roomRowsMax {
 		return false
 	}
 	for _, c := range changes {
-		if !fitsName(c.Name) || len(c.Activity) > 20 {
+		if !fitsName(c.Name) || (!c.Removed && !knownActivity[c.Activity]) {
 			return false
 		}
 	}
