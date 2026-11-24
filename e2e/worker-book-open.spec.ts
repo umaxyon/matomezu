@@ -158,3 +158,50 @@ test("ワーカーブックは、番号の行のダブルクリックで全画�
   await expect(page.getByRole("menuitem", { name: "分割で開く" })).toHaveCount(0)
   await expect(page.getByText("空きのメモ").first()).toBeVisible()
 })
+
+test("書庫の検索は、チケットの番号と名前・ページの名前でワーカーブックの物を作業履歴に出す。クリックで 2 択、Enter で全画面で開く", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  const made = await perform(page, "@matomezu/taskboard:project-add", { prefix: "S-" })
+  const added = await perform(page, "@matomezu/taskboard:ticket-add", {
+    project: made.result?.project ?? "",
+    name: "検索で見つける",
+    body: "",
+  })
+  const ai = await member(page, "さがし")
+  await aiPerform(
+    page,
+    { action: "@matomezu/taskboard:ticket-start", args: {}, on: { record: added.result?.ticket ?? "" } },
+    ai,
+  )
+  const page1 = await aiPerform(
+    page,
+    { action: "@matomezu/base:worker-page-add", args: { type: "@matomezu/drawing:drawing", title: "見つける絵" } },
+    ai,
+  )
+  expect(page1, JSON.stringify(page1)).toMatchObject({ ok: true })
+
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const field = page.getByRole("textbox", { name: "名前で検索" })
+  const history = page.getByRole("list", { name: "作業履歴" })
+  // チケットの名前に当たると、ブックの行は番号とチケットの名前。クリックで 2 択
+  await field.fill("検索で見つける")
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("status")).toHaveText("「検索で見つける」を含む名前: 1 件")
+  const book = history.getByRole("button", { name: /S-0001/ })
+  await expect(book).toContainText("検索で見つける")
+  await book.click()
+  await expect(page.getByRole("menuitem", { name: "分割で開く" })).toBeVisible()
+  await page.keyboard.press("Escape")
+
+  // ページの名前に当たると、ページの行。Enter で全画面で開く
+  await field.fill("見つける絵")
+  await page.keyboard.press("Enter")
+  const row = history.getByRole("button", { name: /見つける絵/ })
+  await expect(row).toContainText("S-0001 検索で見つける")
+  await row.focus()
+  await page.keyboard.press("Enter")
+  await expect(field).toBeHidden()
+  await expect(page.getByText("見つける絵").first()).toBeVisible()
+})

@@ -1,7 +1,7 @@
 // ワーカーブックの片付け: tickets-history のブックを、持ち主のレコード（workKey が指すワークルームや、作業のレコード）の変わりに応じて片付けるフォローステップ。
 // ワークルームが消えたら（ワークルームを消した・引き継がずに入り直した）そのワークルーム自身のブックを、作業のレコードが消えたらそのレコードのブックを完全に消す。
 // 作業が終わったら（completesWork）、その作業のレコードのブックのアノテーションを消す（ブックは残る）。
-// あわせて、作業のレコードの種類（workroomWorkSubjects）が completesWork を持つかの台帳アセンブルの確かめ
+// あわせて、作業のレコードの種類（workroomWorkSubjects）が completesWork と workRecordName を持つかの台帳アセンブルの確かめ
 import type { CatalogCheckDef } from "../../../core/core-catalog"
 import type { RecordRead } from "../../../core/def/action"
 import type { FollowedChange, FollowStepDef } from "../../../core/def/follow-step"
@@ -30,13 +30,15 @@ const purgedOn = (change: FollowedChange) =>
       }
     : {}
 
-// ワークルームの作業を答える種類が workroomWorkSubjects に書いた種類が、どれも機能台帳に在って completesWork を持つか（無ければ片付かないワーカーブックができる）
+// ワークルームの作業を答える種類が workroomWorkSubjects に書いた種類が、どれも機能台帳に在って completesWork と workRecordName を持つか
+// （無ければ片付かないワーカーブックか、名前の無いワーカーブックができる）
 export const WORK_SUBJECTS_CHECK: CatalogCheckDef = catalog =>
   [...catalog.subjects.values()].flatMap(s =>
     s.workroomWork
-      ? (s.workroomWorkSubjects ?? []).flatMap(ref =>
-          catalog.subjects.get(ref)?.completesWork ? [] : [problem("E133", { id: s.id, ref })],
-        )
+      ? (s.workroomWorkSubjects ?? []).flatMap(ref => {
+          const work = catalog.subjects.get(ref)
+          return work?.completesWork && work.workRecordName ? [] : [problem("E133", { id: s.id, ref })]
+        })
       : [],
   )
 

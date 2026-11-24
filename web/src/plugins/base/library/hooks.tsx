@@ -12,13 +12,13 @@ import type { Workdesk } from "../participant/workdesks"
 import { type LibraryRow, NO_TITLE, rowsIn } from "./outline"
 import { NO_DESKS, workdesksIn } from "./workdesk-rows"
 
-// 書庫の表から rowsOf で出した行（名前は、利用者の設定の言語で引く naming で引く。読めない物のフォルダの直下の物 unreadableFolder と、作業机 desks も読める）。
-// 表と設定と読めない物のフォルダと作業机が変わっても、行の中身が同じなら同じ値のまま（ページの中身が変わるたびに描き直さない）。
+// 書庫の表から rowsOf で出した行（名前は、利用者の設定の言語で引く naming で引く。読めない物のフォルダの直下の物 unreadableFolder と、レコード records と、作業机 desks も読める）。
+// 表と設定と読めない物のフォルダとレコードと作業机が変わっても、行の中身が同じなら同じ値のまま（ページの中身が変わるたびに描き直さない）。
 // key は、rowsOf が何の行を出すかを分ける値（フォルダの id など。変わったら出し直す）
 export function useLibraryRows<R>(
   key: string,
   rowsOf: (
-    library: Library & Pick<MatomezuState, "unreadableFolder">,
+    library: Library & Pick<MatomezuState, "unreadableFolder" | "records">,
     naming: Naming,
     desks: readonly Workdesk[],
   ) => readonly R[],
@@ -31,6 +31,7 @@ export function useLibraryRows<R>(
     folders: unknown
     settings: unknown
     unreadableFolder: unknown
+    records: unknown
     desks: unknown
     rows: readonly R[]
   } | null>(null)
@@ -42,6 +43,7 @@ export function useLibraryRows<R>(
       was.folders === s.folders &&
       was.settings === s.settings &&
       was.unreadableFolder === s.unreadableFolder &&
+      was.records === s.records &&
       was.desks === desks
     )
       return was.rows
@@ -53,6 +55,7 @@ export function useLibraryRows<R>(
       folders: s.folders,
       settings: s.settings,
       unreadableFolder: s.unreadableFolder,
+      records: s.records,
       desks,
       rows,
     }

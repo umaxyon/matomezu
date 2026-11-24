@@ -18,6 +18,10 @@ export const LIBRARY_FOLDER = kit.definePluginState({
 // 選んでいる行の id（読み直すと消える。画面の場所には入れない）
 export const LIBRARY_PICKED = kit.definePluginStateOf<string>()({ id: "library-picked", scope: "screen" })
 
+// 検索の結果の枠で選んでいる行の id（Enter・Mod+Enter で開く物。作業履歴の行は、ツリーへ移らないので、ツリーで今いる行でなくこれで開く）。
+// 言葉を変えると外す。読み直すと消える
+export const LIBRARY_FOUND_PICKED = kit.definePluginStateOf<string>()({ id: "library-found-picked", scope: "screen" })
+
 // 検索している言葉（「検索」を押したときの入力Formの中身。読み直すと消える。値が無ければ、検索していない）
 export const LIBRARY_QUERY = kit.definePluginStateOf<string>()({ id: "library-query", scope: "screen" })
 
