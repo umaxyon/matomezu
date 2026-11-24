@@ -51,7 +51,7 @@ func (c *mcpCmd) Run() error {
 			}
 		}()
 	}
-	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, c.AdeWorkspace, host, session, sessionPid(c.SessionEndsWith, host), sessionPidSpace(c.SessionEndsWith), mcp.Meta{Session: c.MetaSession, Model: c.MetaModel}, devNotUsedNote(c.devDir()))
+	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, c.AdeWorkspace, host, session, sessionPid(c.SessionEndsWith, host), sessionPidSpace(c.SessionEndsWith), mcp.Meta{Session: c.MetaSession, Model: c.MetaModel}, strings.TrimSpace(devNotUsedNote(c.devDir())+" "+usedNote(h, s)))
 }
 
 // devDir は、配る版が開発のリポジトリの中で呼ばれたかを見るフォルダ

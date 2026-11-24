@@ -77,6 +77,11 @@ func (c *serveCmd) Run() error {
 	if err != nil {
 		return err
 	}
+	if u, err := h.ReadUse(); err != nil {
+		return err
+	} else if u != nil {
+		return fmt.Errorf("this vault uses the server of %s: run matomezu use local first to run one here", otherName(*u))
+	}
 	lock, err := h.Lock()
 	if err != nil {
 		return err
@@ -226,7 +231,7 @@ func (c *startCmd) Run() error {
 		return err
 	}
 	fmt.Println(s.URL)
-	fmt.Fprintln(os.Stderr, "vault:", h.Dir)
+	fmt.Fprintln(os.Stderr, "vault:", residentDir(h))
 	if c.Open {
 		return openBrowser(s)
 	}
@@ -236,11 +241,17 @@ func (c *startCmd) Run() error {
 }
 
 // ensure は、立っている常駐のつなぎ方を返す。立っていなければ f で裏に立て、答えるまで待つ。
-// f がポートを選んでいて、立っている常駐が別のポートで待っていれば断る（止めて立て直すと、開いている画面と AI のつながりが切れる）
+// f がポートを選んでいて、立っている常駐が別のポートで待っていれば断る（止めて立て直すと、開いている画面と AI のつながりが切れる）。
+// 保管庫がほかの OS の常駐を使うと覚えていれば、その常駐（ensureOther。f は使わない）
 func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
-	if s, err := running(h); err == nil && s != nil && olderServer(s.Version) {
+	if u, err := h.ReadUse(); err != nil {
+		return nil, err
+	} else if u != nil {
+		return ensureOther(u)
+	}
+	if s, err := localRunning(h); err == nil && s != nil && olderServer(s.Version) {
 		// 今入っている版より古い常駐は、止めて今の版で立て直す（古くする向きには入れ替えない）
-		if err := stopServer(h, s); err != nil {
+		if err := stopLocal(h, s); err != nil {
 			return nil, err
 		}
 	} else if err != nil || s != nil {
@@ -277,7 +288,7 @@ func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 		select {
 		case <-exited:
 			// 同時に起動した別のプロセスの常駐が先に立っていれば、それを使う
-			if s, _ := running(h); s != nil {
+			if s, _ := localRunning(h); s != nil {
 				return s, nil
 			}
 			if why := lastLogLine(h.LogPath(), from); why != "" {
@@ -288,7 +299,7 @@ func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 			return nil, fmt.Errorf("the server did not start in %s: see %s", startWait, h.LogPath())
 		case <-time.After(100 * time.Millisecond):
 		}
-		if s, _ := running(h); s != nil {
+		if s, _ := localRunning(h); s != nil {
 			return s, nil
 		}
 	}
@@ -398,8 +409,26 @@ func lastLogLine(path string, from int64) string {
 	return strings.TrimPrefix(strings.TrimSpace(lines[len(lines)-1]), "error: ")
 }
 
-// running は、立っていて答える常駐のつなぎ方。立っていなければ nil
+// running は、立っていて答える常駐のつなぎ方。立っていなければ nil。保管庫がほかの OS の常駐を使うと覚えていれば、その常駐
 func running(h *home.Home) (*home.Server, error) {
+	if u, err := h.ReadUse(); err != nil {
+		return nil, err
+	} else if u != nil {
+		return otherRunning(u)
+	}
+	return localRunning(h)
+}
+
+// residentDir は、保管庫 h が使う常駐の保管庫フォルダ（ほかの OS の常駐を使うと覚えていれば、その保管庫の、ここから見た場所）
+func residentDir(h *home.Home) string {
+	if u, _ := h.ReadUse(); u != nil {
+		return u.Vault
+	}
+	return h.Dir
+}
+
+// localRunning は、この保管庫の常駐が立っていて答えるなら、そのつなぎ方（鍵を持つ常駐の server.json）
+func localRunning(h *home.Home) (*home.Server, error) {
 	up, err := h.Running()
 	if err != nil || !up {
 		return nil, err
@@ -425,15 +454,36 @@ func (c *stopCmd) Run() error {
 		return err
 	}
 	if s == nil {
-		fmt.Fprintln(os.Stderr, "no server is running for", h.Dir)
+		fmt.Fprintln(os.Stderr, "no server is running for", residentDir(h))
 		return nil
 	}
-	fmt.Fprintln(os.Stderr, "stopping the server of", h.Dir)
+	fmt.Fprintln(os.Stderr, "stopping the server of", residentDir(h))
 	return stopServer(h, s)
 }
 
-// stopServer は、立っている常駐 s を止め、止まるまで待つ
+// stopServer は、保管庫 h が使う立っている常駐 s を止め、止まるまで待つ（ほかの OS の常駐を使うと覚えていれば、答えなくなるまで）
 func stopServer(h *home.Home, s *home.Server) error {
+	u, err := h.ReadUse()
+	if err != nil {
+		return err
+	}
+	if u == nil {
+		return stopLocal(h, s)
+	}
+	if _, err := call(s, http.MethodPost, "api/stop"); err != nil {
+		return err
+	}
+	for range 50 {
+		if up, err := otherRunning(u); err != nil || up == nil {
+			return err
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return errors.New("the server did not stop")
+}
+
+// stopLocal は、この保管庫の立っている常駐 s を止め、鍵が空くまで待つ
+func stopLocal(h *home.Home, s *home.Server) error {
 	if _, err := call(s, http.MethodPost, "api/stop"); err != nil {
 		return err
 	}
@@ -457,7 +507,7 @@ func (c *openCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stderr, "vault:", h.Dir)
+	fmt.Fprintln(os.Stderr, "vault:", residentDir(h))
 	return openBrowser(s)
 }
 
