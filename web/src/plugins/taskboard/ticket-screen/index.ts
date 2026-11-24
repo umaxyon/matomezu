@@ -1,4 +1,4 @@
-// チケットスクリーンの定義と、その画面の状態（開いたスクリーン 1 枚ごとの状態。閉じると消える。画面の場所には入れない）: どのチケットの物か（ticket。開いているチケットが替われば初めに戻す）・本文の見せ方・右に出しているナレッジ（本文かワーカーブックのページの一覧か、出していないか）・
+// チケットスクリーンの定義と、その画面の状態（開いたスクリーン 1 枚ごとの状態。閉じると消える。画面の場所には入れない）: どのチケットの物か（ticket。開いているチケットが替われば初めに戻す）・本文の見せ方・右に出しているナレッジ（本文かワーカーブックのページの一覧か）・
 // 本文を最大化しているか・右に開いている質問（チケット履歴の行の id）
 import { NO_STATE } from "../../../plugin-api"
 import type { MarkdownPaneMode } from "../../base"
@@ -22,8 +22,8 @@ export interface TicketScreenState {
   question?: string
 }
 
-// 右に出しているナレッジ: 本文・ワーカーブックのページの一覧（画面の文言は「作業ブック」）・どちらも出していない。出すのは一度に片方だけ
-export type KnowledgeSide = "body" | "work-book" | "none"
+// 右に出しているナレッジ: 本文か、ワーカーブックのページの一覧（画面の文言は「作業ブック」）。いつもどちらか片方を出し、押すと入れ替わる
+export type KnowledgeSide = "body" | "work-book"
 
 export const TICKET_SCREEN_STATE = kit.definePluginStateOf<TicketScreenState>()({
   id: "ticket-screen-state",

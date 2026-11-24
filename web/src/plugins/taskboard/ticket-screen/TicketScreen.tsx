@@ -152,7 +152,9 @@ function TicketBody({ ticket }: { ticket: Ticket }) {
                 type="button"
                 className={styles.item}
                 aria-pressed={view.side === "body"}
-                onClick={() => set({ side: view.side === "body" ? "none" : "body", maximized: false })}
+                onClick={() => {
+                  if (view.side !== "body") set({ side: "body", maximized: false })
+                }}
               >
                 <span className={styles.itemIcon}>
                   <BodyIcon />
@@ -165,11 +167,12 @@ function TicketBody({ ticket }: { ticket: Ticket }) {
                 aria-pressed={view.side === "work-book"}
                 disabled={found === NO_WORKER_BOOK || workPages.length === 0}
                 data-work-book
-                // クリックで右の一覧を出し入れし、ダブルクリックで全画面で開く（最初のページ）。2 回目のクリックでは出し入れしない
+                // クリックで右を本文から一覧に替え、ダブルクリックで全画面で開く（最初のページ）
                 onClick={e => {
                   if (found === NO_WORKER_BOOK) return
-                  if (e.detail <= 1) set({ side: view.side === "work-book" ? "none" : "work-book", maximized: false })
-                  else if (e.detail === 2) shower.full(found.book, workPages[0])
+                  if (e.detail <= 1) {
+                    if (view.side !== "work-book") set({ side: "work-book", maximized: false })
+                  } else if (e.detail === 2) shower.full(found.book, workPages[0])
                 }}
               >
                 <span className={styles.itemIcon}>
