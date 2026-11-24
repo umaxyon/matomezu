@@ -5,20 +5,13 @@ import { findBinder, findPage, NO_BINDER, NO_PAGE } from "../../../core/book"
 import type { ActionContext, Declined } from "../../../core/def/action"
 import { freeTitle, isMoveRefusal, placedMade, titlesIn } from "../../../core/entries"
 import type { Library } from "../../../core/folders"
-import { bookOf, withBinderEntry, withBook } from "../../../core/folders-books"
-import { bookIdOf, outsideBinderIn, outsidePageIn } from "../../../core/folders-tree"
-import type { Book, LineupEntry } from "../../../core/schema/book"
+import { withBinderEntry, withBook } from "../../../core/folders-books"
+import { outsideBinderIn, outsidePageIn } from "../../../core/folders-tree"
+import type { LineupEntry } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { BINDER_DUPLICATE, duplicatedBinder } from "../pages/binders"
 import { duplicatedPage, PAGE_DUPLICATE } from "../pages/page-duplicate"
-import { placedInBook, placedOutsideBooks, placedOutsideTrash, typeLets } from "./entries"
-
-// ブックの中に在る（ゴミ箱の外の）エントリ entry を入れているブック（ブックの中に無ければ undefined）
-function bookHolding(library: Library, entry: string): Book | undefined {
-  if (!placedInBook(library.folders, entry)) return undefined
-  const id = bookIdOf(library.folders, entry)
-  return id === undefined ? undefined : bookOf(library, id)
-}
+import { bookHolding, placedOutsideBooks, placedOutsideTrash, typeLets } from "./entries"
 
 type Copied = { next: Library; result: { entry: string } } | Declined | null
 

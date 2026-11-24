@@ -1,4 +1,4 @@
-// 書庫の画面のコマンド: 選んでいる物（右クリックのメニューからは右クリックした物、ツリーのキーからはツリーで今いる行）を開く・名前を変える・ゴミ箱に入れる、中にブック・フォルダを作る、
+// 書庫の画面のコマンド: 選んでいる物（右クリックのメニューからは右クリックした物、ツリーのキーからはツリーで今いる行）を開く・名前を変える・ゴミ箱に入れる・（ブックやバインダの中の物を）消す、中にブック・フォルダを作る、
 // ドラッグで落とした物を動かす、矢印キーでツリーの行・右の枠の隣の行へ移る、書庫の履歴を元に戻す・やり直す（library-revert で、最後の画面の履歴の段が変えた所を置き直す）。
 // キーは、書庫の画面（LibraryView）の中に焦点がある間だけ効く（キーの範囲 library。矢印・F2・Delete は、ツリーの中 library-tree と、右の枠の中身の中 library-contents。
 // 行の外（余白）に焦点がある間は、矢印だけが効く（library-tree-around・library-contents-around）。
@@ -27,7 +27,12 @@ import { isRevertUnchanged } from "../history/restore"
 import { kit } from "../kit"
 import { type Workdesk, workdesksOf, workdesksReadsOf } from "../participant/workdesks"
 import { refusalMessage } from "../utils/refusal"
-import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./dialog"
+import {
+  LIBRARY_NEW_BOOK_DIALOG,
+  LIBRARY_NEW_FOLDER_DIALOG,
+  LIBRARY_REMOVE_DIALOG,
+  LIBRARY_RENAME_DIALOG,
+} from "./dialog"
 import type { Drop } from "./drop"
 import {
   holderForNew,
@@ -36,9 +41,11 @@ import {
   placedInBook,
   placedOutsideBooks,
   placedOutsideTrash,
+  removesInside,
 } from "./entries"
 import { ENTRY_DUPLICATE } from "./entry-duplicate"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
+import { ENTRY_REMOVE } from "./entry-remove"
 import { ENTRY_TRASH } from "./entry-trash"
 import { openFromLibrary, openSplitFromLibrary, opensBeside } from "./open-from"
 import {
@@ -169,6 +176,9 @@ const renames: Handles = (folders, entry) =>
 // ゴミ箱に入れる物: 書庫ホームかフォルダの直下に在る物（システムフォルダは、定義が機能台帳に無い間だけ）
 const trashes: Handles = (folders, entry, catalog) =>
   placedOutsideBooks(folders, entry) !== undefined && !isKeptSystemFolder(folders, entry, catalog.systemFolders)
+
+// 消す物: ブックやバインダの中に在る物（removesInside。直下の物はゴミ箱に入れる）
+const removes: Handles = (folders, entry) => removesInside(folders, entry)
 
 // 右クリックのメニューの行を出すか: 受け取った物から found が扱う物を見つけるときだけ。メニューの行は、閉じてから受け取った物を名指して呼び、
 // キーからは、押してから扱う物を決める（ツリーのキーは、ツリーで今いる行を名指す）ので、メニューが何も受け取っていなければ、いつも出す
@@ -384,6 +394,44 @@ export const LIBRARY_ENTRY_TRASH = kit.defineScreenCommand({
   when: inMenuHandled(trashes),
 })
 
+// 消す: ブックやバインダの中の物を、確かめるダイアログを開いてから消す（ダイアログが entry-remove を行う）
+export const LIBRARY_ENTRY_REMOVE = kit.defineScreenCommand({
+  id: "library-entry-remove",
+  readsSubjects: workdesksReadsOf,
+  title: "Delete…",
+  performs: [ENTRY_REMOVE.id], // 開いたダイアログが行う
+  run: (ctx, a, named: Named | undefined) => {
+    const entry = handled(ctx, removes, named)
+    if (entry !== undefined) a.openDialog(LIBRARY_REMOVE_DIALOG.id, { entry })
+  },
+  performsWith: (ctx, named) => {
+    const entry = handled(ctx, removes, named)
+    return entry === undefined ? [] : [{ action: ENTRY_REMOVE.id, args: { entry } }]
+  },
+  when: inMenuHandled(removes),
+})
+
+// Delete キー: 書庫ホームかフォルダの直下の物はゴミ箱に入れ、ブックやバインダの中の物は、確かめるダイアログを開く（同じ範囲の同じキーは 1 つのコマンドにしか結べない）
+export const LIBRARY_ENTRY_DELETE = kit.defineScreenCommand({
+  id: "library-entry-delete",
+  readsSubjects: workdesksReadsOf,
+  title: "Delete",
+  performs: [ENTRY_TRASH.id, ENTRY_REMOVE.id],
+  run: (ctx, a, named: Named | undefined) => {
+    const trashed = handled(ctx, trashes, named)
+    if (trashed !== undefined) return trash(ctx, a, trashed)
+    const entry = handled(ctx, removes, named)
+    if (entry !== undefined) a.openDialog(LIBRARY_REMOVE_DIALOG.id, { entry })
+  },
+  performsWith: (ctx, named) => {
+    const trashed = handled(ctx, trashes, named)
+    if (trashed !== undefined) return [{ action: ENTRY_TRASH.id, args: { entry: trashed } }]
+    const entry = handled(ctx, removes, named)
+    return entry === undefined ? [] : [{ action: ENTRY_REMOVE.id, args: { entry } }]
+  },
+  when: () => true,
+})
+
 // 動かす（ドラッグで落としたとき）: エントリ entry を、落とす先 to（フォルダの index 番目か、ゴミ箱）へ。how は、先に同じ名前の物が在るときに利用者が選んだ手
 // （"number" は番号を付ける。replaces は、消えると確かめた物を上書きする）。断られたらトーストで知らせる。選んでいた行が、開いているフォルダから出たら、選ぶのを外す
 type Moving = { entry: string; to: Drop; how?: "number" | { replaces: string } }
@@ -567,9 +615,9 @@ export const LIBRARY_KEYS = [
   }),
   kit.defineKey({
     id: "library-tree-trash-delete",
-    title: "Move to trash",
+    title: "Delete",
     key: "Delete",
-    command: LIBRARY_ENTRY_TRASH.id,
+    command: LIBRARY_ENTRY_DELETE.id,
     args: { at: "tree" },
     scope: LIBRARY_TREE_SCOPE,
   }),
@@ -755,9 +803,9 @@ export const LIBRARY_KEYS = [
   }),
   kit.defineKey({
     id: "library-entry-trash-delete",
-    title: "Move to trash",
+    title: "Delete",
     key: "Delete",
-    command: LIBRARY_ENTRY_TRASH.id,
+    command: LIBRARY_ENTRY_DELETE.id,
     args: undefined,
     scope: LIBRARY_CONTENTS_SCOPE,
   }),

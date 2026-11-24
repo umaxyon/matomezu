@@ -4,6 +4,7 @@ import type { BinderEntry, Book, StageLineup } from "../../../core/schema/book"
 import { type CommandContext, NO_BOOK, NO_OUTSIDE_BINDER } from "../../../store/commands/def"
 import { ENTRY_RENAME } from "../library/entry-move"
 import { BINDER_UPDATE } from "../pages/binders"
+import { leavesOutsideBinder } from "../pages/page-remove"
 
 // 開いている物の並びが無いときの値（ブックもブックの外のバインダも開いていない）
 export const NO_LINEUP = "none"
@@ -23,7 +24,7 @@ export const lineupIn = (ctx: CommandContext): StageLineup | typeof NO_LINEUP =>
 
 // ページの削除を出すか: ブックのページか、ブックの外のバインダの最後の 1 枚でないページ（ブックの外のバインダは空にならない。ブックの外のページ 1 枚は、書庫で消す）
 export const showsPageDelete = (book: Book | typeof NO_BOOK, binder: BinderEntry | typeof NO_OUTSIDE_BINDER): boolean =>
-  book !== NO_BOOK || (binder !== NO_OUTSIDE_BINDER && binder.lineup.length > 1)
+  book !== NO_BOOK || (binder !== NO_OUTSIDE_BINDER && leavesOutsideBinder(binder))
 
 // バインダの設定で変えた項目（変えていない項目は無い）
 export interface BinderSettingsPatch {

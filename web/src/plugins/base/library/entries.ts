@@ -28,8 +28,11 @@ import {
   type Library,
   type PlainFolder,
 } from "../../../core/folders"
-import { atOutsideBinderPlace, foldersOver, inTrash, isKeptSystemFolder } from "../../../core/folders-tree"
+import { bookOf } from "../../../core/folders-books"
+import { atOutsideBinderPlace, bookIdOf, foldersOver, inTrash, isKeptSystemFolder } from "../../../core/folders-tree"
 import { type NO_PERMISSION, typeAllows } from "../../../core/inspect"
+import type { Book } from "../../../core/schema/book"
+import { leavesOutsideBinder } from "../pages/page-remove"
 
 // フォルダ into の直下に在る（か、そこへ入れる）エントリ entry（種類 kind）の、そのフォルダのほかの物と重ならない名前（重なっていれば「名前 2」から番号を付ける。重ならなければ今の名前）。
 // 名前を持たない物・フォルダが無いときは undefined
@@ -57,6 +60,20 @@ export function placedOutsideTrash(folders: Folders, entry: string): { holder: F
 export const placedInBook = (folders: Folders, entry: string): boolean => {
   const role = placedOutsideTrash(folders, entry)?.holder.folderRole
   return role === "book" || role === "binder"
+}
+
+// ブックの中に在る（ゴミ箱の外の）エントリ entry を入れているブック（ブックの中に無ければ undefined）
+export function bookHolding(library: Library, entry: string): Book | undefined {
+  if (!placedInBook(library.folders, entry)) return undefined
+  const id = bookIdOf(library.folders, entry)
+  return id === undefined ? undefined : bookOf(library, id)
+}
+
+// 書庫から消す（entry-remove）物: ブックの中のページ・バインダか、ブックの外のバインダの最後の 1 枚でないページ（ブックの外のバインダは空にならない。直下の物はゴミ箱に入れる）
+export function removesInside(folders: Folders, entry: string): boolean {
+  const holder = placedOutsideTrash(folders, entry)?.holder
+  if (!holder || (holder.folderRole !== "book" && holder.folderRole !== "binder")) return false
+  return bookIdOf(folders, entry) !== undefined || (holder.folderRole === "binder" && leavesOutsideBinder(holder))
 }
 
 // 書庫ホームかフォルダの直下に在る（ゴミ箱の中でない）エントリ entry の、入れているフォルダと並びのエントリ。
