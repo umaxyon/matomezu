@@ -83,11 +83,14 @@ export function restoredTables(tables: Library, patches: RowPatches): Library | 
   for (const folder of Object.values(folders)) {
     if (folder.folderRole === "binder" || !Array.isArray(folder.lineup)) continue
     const outside = isOpenRole(folder.folderRole)
+    // バックヤードはブックだけを持つ
+    const backyard = folder.folderRole === "backyard"
     const lineup = there<AnyEntryRef>(
       folder.lineup,
       r =>
         hasPage(r) ||
         hasBinder(r) ||
+        (backyard && r.kind === "book") ||
         (outside && (r.kind === "book" || (r.kind === "folder" && folders[r.id]?.folderRole === "folder"))),
     )
     kept[folder.id] = lineup === folder.lineup ? folder : ({ ...folder, lineup } as Folder)
