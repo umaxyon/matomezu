@@ -190,6 +190,20 @@ test("窓の上限は、ブックスクリーンとほかのスクリーンを�
   expect(store.state.getState().window.screens.some(s => s.id === b2)).toBe(true)
 })
 
+test("ブックを窓に出す道（showBook）でも、開く前に見えていた並びの相手は閉じない", () => {
+  const store = newStore({ bookScreen: "none" })
+  store.actions.showBook("b1")
+  store.actions.showBook("b2")
+  const [, b1, b2] = store.state.getState().window.screens.map(s => s.id)
+  const mailbox = store.actions.openScreenId(MAILBOX, {}) as string
+  store.actions.setScreenArrangement(SPLIT, { screens: [b2 as string, mailbox] })
+  store.actions.showBook("b3")
+  const open = store.state.getState().window.screens.map(s => s.id)
+  expect(open).not.toContain(b1)
+  expect(open).toContain(b2)
+  expect(open).toContain(mailbox)
+})
+
 test("見えている物は上限を超えても閉じず、並べ方を替えて見えなくなったときに閉じる", () => {
   const store = newStore({ bookScreen: "none" })
   store.actions.showBook("b1")

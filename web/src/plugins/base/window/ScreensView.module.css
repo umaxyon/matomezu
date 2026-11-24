@@ -121,7 +121,8 @@
     visibility 0s linear var(--screen-slide);
 }
 @media (prefers-reduced-motion: reduce) {
-  .plain {
+  .plain,
+  .plain[data-out="true"] {
     transition: none;
   }
 }

@@ -18,7 +18,7 @@ export const SCREEN_FLASH = kit.definePluginStateOf<{ screen: string; n: number 
 // 分けて並べるのに要る、窓の高さ（px。これより低ければ分けずに開き、分けている間に低くなれば畳む）
 export const SPLIT_MIN_HEIGHT = 800
 
-// fits は、窓の高さで並べて見せられるか（"split" か、低くてカレントスクリーンだけを見せている "current"。ブックスクリーンを入れた並びは、低くても畳まずに "current" にする）
+// fits は、窓の高さで並べて見せられるか（"split" か、低くてカレントスクリーンだけを見せている "current"。どの並びも、低ければ畳まずに "current" にする）
 const SPLIT_VALUE = z.strictObject({
   screens: z.array(z.string()),
   fits: z.enum(["split", "current"]).optional(),

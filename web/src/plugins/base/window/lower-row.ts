@@ -1,4 +1,4 @@
-// 下の行に出すスクリーン（書庫のスクリーン・郵便箱のスクリーン）の、開く・並びから外す・窓いっぱいに広げる・上の行の物をブックに替える並びの計算。
+// 下の行に出すスクリーン（書庫のスクリーン・郵便箱のスクリーン）の、開く・閉じる・窓いっぱいに広げる・上の行の物をブックに替える並びの計算。
 // 呼んだスクリーンを上、出すスクリーンを下に上下に分けて（SPLIT_ROWS）並べる。上の行には、ブックスクリーンもほかのスクリーンも置ける。
 // 下の行の物から呼べば、下の行を入れ替える。ステージの扱い（ステージを分けて足した空のステージを閉じるなど）は、出すスクリーンの側が持つ
 
@@ -24,7 +24,7 @@ import { viewInsideOf } from "./views-inside"
 // 下の行に出すスクリーンの定義（ここから呼べば、上の行の物はそのままに、下の行を入れ替える）
 const LOWER_ROW_SCREENS: readonly string[] = [kit.name("library-screen"), kit.name("mailbox-screen")]
 
-type Arranged = Pick<OpenScreen, "id" | "def" | "stages" | "stageList" | "currentStage">
+type Arranged = Pick<OpenScreen, "id" | "currentStage">
 type Store = Pick<Actions, "closeScreen" | "setScreenArrangement" | "makeScreenCurrent">
 
 // 下の行に出すスクリーンの上に置く物: 呼んだスクリーン called。それが下の行に出すスクリーンなら、並びのその上の物（並んでいなければ undefined。窓いっぱいに出す）
@@ -59,7 +59,7 @@ export function openInLowerRow(
 }
 
 // 下の行のスクリーン below を閉じる（並びが 1 枚になれば、残った物を窓いっぱいに見せる）
-export function leaveLowerRow(
+export function closeInLowerRow(
   store: Store,
   screens: readonly Pick<Arranged, "id">[],
   value: unknown,

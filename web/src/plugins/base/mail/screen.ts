@@ -15,7 +15,7 @@ import {
   updatePluginStateAtOf,
 } from "../../../store/commands/def"
 import { kit } from "../kit"
-import { expandLowerRow, leaveLowerRow, openInLowerRow } from "../window/lower-row"
+import { closeInLowerRow, expandLowerRow, openInLowerRow } from "../window/lower-row"
 import { MAIL_SEEN } from "./actions"
 import { inboxOf, pickMoved } from "./inbox"
 import { type Mail, mailsInOrder } from "./mail"
@@ -85,7 +85,7 @@ export const MAILBOX_PICK_MOVE = kit.defineScreenCommand({
 export const MAILBOX_SCREEN_CLOSE = kit.defineScreenCommand({
   id: "mailbox-screen-close",
   title: "Close mailbox",
-  run: (ctx, a) => leaveLowerRow(storeActionsOf(a), screensOf(ctx), arrangementValueIn(ctx), calledScreenIdOf(ctx)),
+  run: (ctx, a) => closeInLowerRow(storeActionsOf(a), screensOf(ctx), arrangementValueIn(ctx), calledScreenIdOf(ctx)),
   when: ctx => ctx.screen.def === MAILBOX_SCREEN.id,
 })
 

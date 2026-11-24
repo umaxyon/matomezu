@@ -19,7 +19,7 @@ import {
 import { NO_STAGE } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { hasOpenedPage } from "../utils/opened-page"
-import { expandLowerRow, leaveLowerRow, openInLowerRow, stageAboveLower } from "../window/lower-row"
+import { closeInLowerRow, expandLowerRow, openInLowerRow, stageAboveLower } from "../window/lower-row"
 import { splitOf } from "../window/split"
 import { outsidePagePlaceOf } from "./outline"
 import { LIBRARY_APPEARANCE, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY } from "./state"
@@ -148,7 +148,7 @@ export function closeLibrary(store: Store, screens: readonly Arranged[], value: 
 }
 
 // 書庫のスクリーン library を閉じて並びから外す（ステージは閉じない。書庫のスクリーンから開いたあと、開いたステージを残して閉じるとき）
-export const leaveLibrary = leaveLowerRow
+export const leaveLibrary = closeInLowerRow
 
 // 書庫のスクリーン library を窓いっぱいに広げる（同じスクリーンのまま。空のステージは閉じ、並べていた物は開いたまま見えなくなる）
 function expandLibrary(store: Store, screens: readonly Arranged[], value: unknown, library: string): void {

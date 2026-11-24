@@ -71,6 +71,10 @@ test("窓が高ければ、カードでチケットを下に分けて開き、2 
   await expect(tickets(page)).toHaveCount(1)
   await expect(tickets(page).getByRole("heading", { name: "上下の二枚目" })).toBeVisible()
   expect((await boxOf(page, "上下の二枚目")).height).toBeGreaterThan(700)
+  // 見えなくなった 1 枚（と、2 枚目に段を替えられたコントロールセンター）は、右へ滑り出たまま開いている（閉じた物の写しは出ない）
+  await expect(page.locator('[data-out="true"]')).toHaveCount(2)
+  await expect(page.locator("[data-leaving]")).toHaveCount(0)
+  await expect(page.locator('[data-out="true"]').locator("visible=true")).toHaveCount(0)
   await expect(tickets(page).getByRole("button", { name: "戻る" })).toBeVisible()
 })
 

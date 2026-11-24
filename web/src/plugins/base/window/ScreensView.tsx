@@ -50,7 +50,7 @@ export function ScreensView() {
   // 上下に分けた並び（分けていなければ空）。カレントスクリーンが並びに無い間は、分けて見せない
   const arranged = useMatomezuState(useShallow(s => splitIn(s.window)))
   // 並びに入れたブックスクリーン（ステージを分けて、下に書庫のスクリーンを出しているときなど）。居れば、それを上の行に描き、コントロールセンターの側は並びの行だけを出す。
-  // 窓が低い間は、その並びを畳まずに（書庫のスクリーンから開く先が、置かれた所で決まるように）、カレントスクリーンだけを窓いっぱいに見せる
+  // 窓が低い間は、どの並びも畳まずに（下の行から開く先が、置かれた所で決まるように）、カレントスクリーンだけを窓いっぱいに見せる
   const tall = useTallEnough()
   const low = !tall && arranged.length > 0
   const split = low ? NO_ROWS : arranged
@@ -89,18 +89,32 @@ export function ScreensView() {
     return () => clearTimeout(timer)
   }, [instant])
   // 閉じられたスクリーンは、滑り出る間だけ、閉じたときの位置で描き続ける
-  const last = useRef<{ screens: readonly OpenedScreen[]; rows: ReadonlyMap<string, Row | null> }>({
+  // （見えていなかった物は写さない。窓の上限で、見えていない物が閉じる）
+  const last = useRef<{
+    screens: readonly OpenedScreen[]
+    rows: ReadonlyMap<string, Row | null>
+    shown: ReadonlySet<string>
+  }>({
     screens: [],
     rows: new Map(),
+    shown: new Set(),
   })
   const opened = useMatomezuState(useShallow(s => s.window.screens.filter(x => !x.stages)))
   const [leaving, setLeaving] = useState<readonly { screen: OpenedScreen; row: Row | null }[]>([])
   const gone = last.current.screens.filter(
-    s => !s.stages && !opened.some(x => x.id === s.id) && !leaving.some(l => l.screen.id === s.id),
+    s =>
+      !s.stages &&
+      last.current.shown.has(s.id) &&
+      !opened.some(x => x.id === s.id) &&
+      !leaving.some(l => l.screen.id === s.id),
   )
   if (gone.length > 0)
     setLeaving([...leaving, ...gone.map(screen => ({ screen, row: last.current.rows.get(screen.id) ?? null }))])
-  last.current = { screens: opened, rows: new Map(plainScreens.map(id => [id, rowOf(id)])) }
+  last.current = {
+    screens: opened,
+    rows: new Map(plainScreens.map(id => [id, rowOf(id)])),
+    shown: new Set(plainScreens.filter(id => rowOf(id) !== null || (!splitting && id === top?.id))),
+  }
   // 窓いっぱいに見せるブックスクリーンが替わったら、新しく見せる物を、ほかのスクリーンの上に出す（over。その間、コントロールセンターの側は動かさずに残す）。
   // 並びの外から来た物は右から滑り込み、並びの中にいた物（下の行の □ で広げた）はその場から伸びる。閉じたスクリーンの後ろから出てきたときは、動かさない
   // （閉じたのと一緒に新しく開いた物は、閉じた物の上を滑り込む）。
@@ -406,10 +420,13 @@ function PlainScreen({
   // 並びから外れて見えなくなった物（閉じずに開いたまま）は、閉じる物と同じく右へ滑り出て、また見せるときに右から滑り込む
   // （滑り出る間は、外れた行の位置のまま。out は外れた行）
   const [out, setOut] = useState<Row | null>(null)
-  const lastRow = useRef(row)
-  if (lastRow.current !== null && row === null && !shown && out === null) setOut(lastRow.current)
+  // 前に描いたときの行（行は描くたびに作り直すので、位置で比べる）
+  const [lastRow, setLastRow] = useState(row)
+  if ((lastRow && `${lastRow.index}/${lastRow.of}`) !== (row && `${row.index}/${row.of}`)) {
+    setLastRow(row)
+    if (lastRow !== null && row === null && !shown) setOut(lastRow)
+  }
   if (out !== null && shown) setOut(null)
-  lastRow.current = row
   const at = row ?? out
   const goal = !closed && out === null
   const [entered, setEntered] = useState(closed ? true : !slides)
@@ -430,7 +447,6 @@ function PlainScreen({
       data-out={out !== null}
       style={place}
       inert={!shown}
-      aria-hidden={!shown}
       onPointerDownCapture={onPress}
     >
       <ScreenView screen={screen} {...(closed ? { closed } : {})} />

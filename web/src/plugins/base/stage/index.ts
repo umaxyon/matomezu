@@ -12,13 +12,13 @@ import {
 import { NO_STAGE } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { LIBRARY_SCREEN } from "../library/screen"
-import { SPLIT_ROWS } from "../window/split"
+import { applySplitFrom } from "../window/apply-split"
 import { shownWideStage, WIDE_STAGE } from "./states"
 
 const isSplit = (ctx: CommandContext) => workspaceOf(ctx).stages.length > 1
 
 // 画面を分割: 右に何も開いていないステージを足し、窓の下半分に書庫のスクリーンを出す（書庫で選んだ物が、足したステージに開く）。
-// 窓が低ければ、分けて並べる窓の決まり（ScreensView）が、書庫のスクリーンだけを窓いっぱいに残す
+// 窓が低ければ、分けて並べる窓の決まり（ScreensView）が、カレントスクリーンだけを窓いっぱいに見せる
 export const STAGE_SPLIT = kit.defineCommand({
   id: "stage-split",
   title: "Split screen",
@@ -29,7 +29,7 @@ export const STAGE_SPLIT = kit.defineCommand({
     const book = calledScreenIdOf(ctx)
     const library = store.openScreenId(LIBRARY_SCREEN.id, {})
     if (library === SCREEN_REFUSED) return
-    store.setScreenArrangement(SPLIT_ROWS.id, { screens: [book, library] })
+    applySplitFrom(store, { screens: [book, library], current: library })
   },
   when: ctx => !isSplit(ctx),
   active: isSplit,
