@@ -13,7 +13,7 @@ import type { Warning } from "../warnings"
 export const SUBJECT_ROLE_FIELDS = {
   participants: ["id", "state", "ai", "model", "env", "sessionName", "link", "workroom", "requestedAt", "joinedAt"],
   workrooms: ["id", "name"],
-  "paired-hosts": ["id", "hostId", "nameAtPairing", "userNameAtPairing", "addr", "pairedAt", "requests"],
+  "paired-hosts": ["id", "hostId", "nameAtPairing", "userNameAtPairing", "addr", "pairedAt", "requests", "listed"],
   "pairing-requests": ["id", "hostId", "name", "userName", "addr", "code", "requestedAt"],
 } as const
 export type SubjectRole = keyof typeof SUBJECT_ROLE_FIELDS
@@ -22,10 +22,13 @@ export const PARTICIPANT_STATES = ["requested", "joined", "visitor"] as const
 // ペアリングしたホスト（役 paired-hosts）の requests の値: そのホストの AI から届いた文を、受け取った AI が実行してよいか利用者に聞く（既定）・
 // 利用者の頼みとして受ける。常駐もこの値で読み、届く行に印を付けるかを決める
 export const PAIRED_HOST_REQUESTS = ["ask-user", "as-user"] as const
+// ペアリングしたホスト（役 paired-hosts）の listed の値: AI 用ホストリスト（引数なしの list_workrooms）にそのホストを載せる（既定）・
+// 載せない（名前で引く・そのホストを読む・送れないときの断りでは見つかる）。常駐もこの値で読む
+export const PAIRED_HOST_LISTED = ["listed", "hidden"] as const
 // 役ごとの、常駐が値で読むフィールドと、そのフィールドがちょうど受ける値（台帳アセンブルのときに確かめる）
 export const SUBJECT_ROLE_VALUES: { readonly [R in SubjectRole]?: Readonly<Record<string, readonly string[]>> } = {
   participants: { state: PARTICIPANT_STATES },
-  "paired-hosts": { requests: PAIRED_HOST_REQUESTS },
+  "paired-hosts": { requests: PAIRED_HOST_REQUESTS, listed: PAIRED_HOST_LISTED },
 }
 
 // 索引キー 1 つ: 値の型と、レコードから値を返す関数（値の無いレコードは何も返さない）。条件と並びに書けるのは、宣言した索引キーだけ（core/record-keys.ts）

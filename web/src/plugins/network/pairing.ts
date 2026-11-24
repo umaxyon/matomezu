@@ -2,22 +2,24 @@
 // 頼みは、ほかのホストから届いたときに常駐が載せ（pairing-request-add）、利用者が受け入れる（pairing-accept。頼みを消し、ペアリングしたホストを載せる）か断る
 // （pairing-decline。取り下げ・時間切れ・起動し直したときも、常駐がこれで消す）。こちらから頼んで相手が受け入れたら、常駐がペアリングしたホストを載せる（paired-host-add）。
 // ペアリングを解くのは paired-host-remove（利用者が解く。相手が解いた・相手がペアリングしていないと答えたときも、常駐がこれで消す）。
-// requests（そのホストの AI からの AI 間メッセージを、利用者の頼みとして受けるか）は利用者だけが替える（paired-host-requests-set）。
+// requests（そのホストの AI からの AI 間メッセージを、利用者の頼みとして受けるか）と listed（AI 用ホストリストにそのホストを載せるか）は、
+// 利用者だけが替える（paired-host-requests-set・paired-host-listed-set）。
 // 相手の身元はホスト id（鍵の印）だけで決まる。名前・利用者名はペアリングしたときに相手が名乗った物で、今の名前は常駐だけが持つ
 import { z } from "zod"
-import { type ActionContext, PAIRED_HOST_REQUESTS } from "../../plugin-api"
+import { type ActionContext, PAIRED_HOST_LISTED, PAIRED_HOST_REQUESTS } from "../../plugin-api"
 import { kit } from "./kit"
 
 const HOST_ID = z.string().regex(/^[0-9a-f]{64}$/)
 const NAME = z.string().max(40)
 const ADDR = z.string().max(300) // 番地とポート（例 192.168.11.20:7240）
 const REQUESTS = z.enum(PAIRED_HOST_REQUESTS)
+const LISTED = z.enum(PAIRED_HOST_LISTED)
 
 export const PAIRED_HOST = kit.defineSubject({
   id: "paired-host",
   title: "pairedHost",
   aiDescription:
-    "A host (the matomezu of another machine) this host is paired with: hostId (the fingerprint of its key), nameAtPairing and userNameAtPairing (the host name and user name it gave when it was paired; it may have changed them since), addr (the address and port the user typed to reach it, or empty when it was found on the network), pairedAt and requests (how messages from the AIs of that host are taken: ask-user, the AI that gets one asks the user before doing what it asks, or as-user, it is taken as the user's request). Only the user pairs, unpairs and changes requests.",
+    "A host (the matomezu of another machine) this host is paired with: hostId (the fingerprint of its key), nameAtPairing and userNameAtPairing (the host name and user name it gave when it was paired; it may have changed them since), addr (the address and port the user typed to reach it, or empty when it was found on the network), pairedAt and requests (how messages from the AIs of that host are taken: ask-user, the AI that gets one asks the user before doing what it asks, or as-user, it is taken as the user's request) and listed (listed: list_workrooms without arguments shows its workrooms; hidden: it does not, but list_workrooms with name or host and the refusals of send_message still find them). Only the user pairs, unpairs and changes requests and listed.",
   role: "paired-hosts",
   record: z.strictObject({
     id: z.string().min(1),
@@ -27,6 +29,7 @@ export const PAIRED_HOST = kit.defineSubject({
     addr: ADDR,
     pairedAt: z.string(),
     requests: REQUESTS,
+    listed: LISTED,
   }),
   keys: { hostId: { type: "text", of: h => h.hostId } },
 })
@@ -108,6 +111,7 @@ export const PAIRING_ACCEPT = kit.defineAction({
       addr: "",
       pairedAt: ctx.now,
       requests: "ask-user",
+      listed: "listed",
     }
     return {
       next: "removed",
@@ -143,7 +147,10 @@ export const PAIRED_HOST_ADD = kit.defineAction({
     if (now !== "none") return null
     if (hasHost(ctx, PAIRED_HOST.id, args.hostId)) return { declined: "that host is paired already" }
     const id = ctx.newId()
-    return { next: { id, ...args, pairedAt: ctx.now, requests: "ask-user" }, result: { pairedHost: id } }
+    return {
+      next: { id, ...args, pairedAt: ctx.now, requests: "ask-user", listed: "listed" },
+      result: { pairedHost: id },
+    }
   },
 })
 
@@ -168,4 +175,15 @@ export const PAIRED_HOST_REQUESTS_SET = kit.defineAction({
   userOnly: true,
   args: z.strictObject({ requests: REQUESTS }),
   run: (now, args) => (now === "none" ? null : { next: { ...now, requests: args.requests }, result: {} }),
+})
+
+export const PAIRED_HOST_LISTED_SET = kit.defineAction({
+  id: "paired-host-listed-set",
+  aiDescription:
+    "Change whether list_workrooms without arguments shows the workrooms of the paired host named by on.record (only the user): listed or hidden.",
+  title: "Change whether a host is on the host list for AIs",
+  target: PAIRED_HOST.id,
+  userOnly: true,
+  args: z.strictObject({ listed: LISTED }),
+  run: (now, args) => (now === "none" ? null : { next: { ...now, listed: args.listed }, result: {} }),
 })

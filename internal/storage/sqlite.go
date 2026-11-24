@@ -222,6 +222,8 @@ var migrations = []string{
 	`SELECT 1;`,
 	// ペアリングしたホストに、requests（そのホストの AI からの AI 間メッセージを、利用者の頼みとして受けるか）を足す（Go の移し替え。migrate_paired_host_requests.go）
 	`SELECT 1;`,
+	// ペアリングしたホストに、listed（AI 用ホストリストにそのホストを載せるか）を足す（Go の移し替え。migrate_paired_host_listed.go）
+	`SELECT 1;`,
 	// 郵便に、送り手が AI か利用者か（senderKind）を足す（Go の移し替え。migrate_mail_sender_kind.go）
 	`SELECT 1;`,
 }
@@ -244,7 +246,8 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	35: participantAdeWorkspaces,
 	36: addLaneShows,
 	37: addPairedHostRequests,
-	38: addMailSenderKind,
+	38: addPairedHostListed,
+	39: addMailSenderKind,
 }
 
 type sqliteStorage struct {

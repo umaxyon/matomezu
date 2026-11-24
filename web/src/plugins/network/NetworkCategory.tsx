@@ -1,9 +1,13 @@
 // 設定カテゴリ「ネットワーク」: ホスト名とほかのホストとつなぐかの項目。つなぐが入なら、待っている所（番地ごとに［コピー］）とこのホストの鍵の印か、
-// 入口を開けなかった理由の 1 行（覚えたポートが使われていれば［別のポートにする］。確かめのダイアログを開く）。そのうえ WSL で動いているときは、ほかのマシンから届かせる設定の案内の 1 行と、開くと出る手引き
+// 入口を開けなかった理由の 1 行（覚えたポートが使われていれば［別のポートにする］。確かめのダイアログを開く）。その下に、AI 用ホストリストに載せるこのホストのワークルーム
+// （全部か 5 件。つなぐが切でも出す）。そのうえ WSL で動いているときは、ほかのマシンから届かせる設定の案内の 1 行と、開くと出る手引き
 import { useEffect, useState } from "react"
+import { type LISTED_WORKROOMS, NOT_SET } from "../../plugin-api"
 import { type UserSettingControlProps, useActions, useMessages, useSettings } from "../../plugin-api/ui"
 import {
   ActionButton,
+  Choices,
+  ChoiceText,
   NO_HOST_STATUS,
   NO_PORT,
   SettingRow,
@@ -15,7 +19,7 @@ import {
 import { PORT_REPICK_DIALOG } from "./dialogs"
 import { kit } from "./kit"
 import styles from "./NetworkCategory.module.css"
-import { CONNECT_HOSTS, HOST_NAME } from "./settings"
+import { CONNECT_HOSTS, HOST_NAME, LISTED_WORKROOMS_SETTING } from "./settings"
 
 const COPIED_MS = 1500
 // 鍵の印に見せる桁数（ホスト id の頭から）
@@ -36,7 +40,8 @@ export function NetworkCategory() {
   const { values } = useSettings()
   const on = values[CONNECT_HOSTS.id] === true
   const { openDialog } = useActions()
-  if (!on || got === NO_HOST_STATUS) return <UserSettings settings={[HOST_NAME.id, CONNECT_HOSTS.id]} />
+  if (!on || got === NO_HOST_STATUS)
+    return <UserSettings settings={[HOST_NAME.id, CONNECT_HOSTS.id, LISTED_WORKROOMS_SETTING.id]} />
   const status = got
   return (
     <>
@@ -55,6 +60,7 @@ export function NetworkCategory() {
           </SettingRow>
         </div>
       )}
+      <UserSettings settings={[LISTED_WORKROOMS_SETTING.id]} />
       {status.failed === "port-in-use" && (
         <p className={`${styles.note} ${styles.taken}`}>
           {t("Port {port} is used by another program", { port: status.port === NO_PORT ? "" : status.port })}
@@ -117,6 +123,33 @@ function WslGuide({ port }: { port: number }) {
         </ol>
       </details>
     </div>
+  )
+}
+
+// AI 用ホストリストに載せるこのホストのワークルームの項目のビュー: ［全部｜5 件］（既定の全部を選べば値を消す）
+export function ListedWorkroomsSetting({
+  label,
+  value,
+  onChange,
+  onReset,
+}: UserSettingControlProps<(typeof LISTED_WORKROOMS)[number]>) {
+  const t = useMessages(kit)
+  return (
+    <SettingRow label={label}>
+      <Choices
+        label={label}
+        value={value === NOT_SET ? "all" : value}
+        options={[
+          { value: "all" as const, label: t("All the workrooms"), icon: <ChoiceText>{t("All workrooms")}</ChoiceText> },
+          {
+            value: "recent" as const,
+            label: t("The 5 workrooms that changed last"),
+            icon: <ChoiceText>{t("5 recent workrooms")}</ChoiceText>,
+          },
+        ]}
+        onChange={v => (v === "all" ? onReset() : onChange(v))}
+      />
+    </SettingRow>
   )
 }
 

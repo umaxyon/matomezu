@@ -9,7 +9,7 @@ import (
 // 種類の表と、伝えられる前の records の行の両方を直す
 func TestMailSenderKindIsAdded(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
-	beforeMigration(t, path, 38,
+	beforeMigration(t, path, 39,
 		`INSERT INTO kinds (n, subject, spec) VALUES (2, '@matomezu/base:mail', '[]')`,
 		`CREATE TABLE rec_2 (id TEXT PRIMARY KEY, body TEXT NOT NULL, version INTEGER NOT NULL, updated_at TEXT NOT NULL)`,
 		`INSERT INTO rec_2 VALUES ('p1', '{"id":"p1"}', 1, 'x'), ('p2', '{"id":"p2","senderKind":"user"}', 1, 'x')`,

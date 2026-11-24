@@ -1,5 +1,5 @@
 // コントロールセンターの「ほかのホスト」の節（スロット below-participants に置く。「ホストとつなぐ」が入のときだけ）: 見出しの右に［＋］（ホストをつなぐのダイアログ）、
-// ペアリングしたホストの行（▸ 開く、● つながっている・○ つながっていない、ホストエイリアス）。名前を押すと、コントロールセンターの選んでいる物にし、右の下の枠に詳しい所が出る。
+// ペアリングしたホストの行（▸ 開く、● つながっている・○ つながっていない、ホストエイリアス、AI 用ホストリストから隠したホストは右に薄い斜線の入った目）。名前を押すと、コントロールセンターの選んでいる物にし、右の下の枠に詳しい所が出る。
 // ▸ を押すと行を開き、相手のワークルームの行（名前と作業中・空き。常駐が持つ相手の一覧の写しから。見るだけ）を出す。つながっていなければ「つながっていません」だけ。
 // 節を出したときに、ペアリングしたホストとつながっているかを常駐に確かめてもらう（間を置いて確かめ続けない）
 import { useEffect, useState } from "react"
@@ -21,6 +21,7 @@ import {
 import { PICKED_STATE } from "./control-center-ids"
 import { PAIRING_DIALOG } from "./dialogs"
 import { hostRows } from "./hosts"
+import { EyeHiddenIcon } from "./icons"
 import { kit } from "./kit"
 import styles from "./OtherHosts.module.css"
 import { PAIRED_HOST } from "./pairing"
@@ -93,6 +94,11 @@ function Section({ picked }: { picked: { kind: string; id: string } | typeof NO_
                   aria-label={row.live?.connected ? t("Connected") : t("Not connected")}
                 />
                 <span className={styles.name}>{row.label}</span>
+                {row.record.listed === "hidden" ? (
+                  <span className={styles.hidden} role="img" aria-label={t("Hidden from the host list for AIs")}>
+                    <EyeHiddenIcon size={12} />
+                  </span>
+                ) : null}
               </button>
             </div>
             {opened.has(row.record.id) ? <Workrooms live={row.live} /> : null}

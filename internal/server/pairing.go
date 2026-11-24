@@ -43,12 +43,19 @@ type pairedHostRecord struct {
 	UserNameAtPairing string `json:"userNameAtPairing"`
 	Addr              string `json:"addr"`
 	Requests          string `json:"requests"` // そのホストの AI からの AI 間メッセージを、利用者の頼みとして受けるか（requestsAskUser・requestsAsUser）
+	Listed            string `json:"listed"`   // AI 用ホストリストにそのホストを載せるか（hostListed・hostHidden）
 }
 
 // ペアリングしたホストの requests の値（core/def/subject.ts の PAIRED_HOST_REQUESTS）
 const (
 	requestsAskUser = "ask-user" // 受け取った AI が、実行してよいか利用者に聞く（既定）
 	requestsAsUser  = "as-user"  // 利用者の頼みとして受ける（届く行に印を付ける）
+)
+
+// ペアリングしたホストの listed の値（core/def/subject.ts の PAIRED_HOST_LISTED）
+const (
+	hostListed = "listed" // AI 用ホストリストに載せる（既定）
+	hostHidden = "hidden" // AI 用ホストリストに載せない（名前で引く・そのホストを読む・送れないときの断りでは見つかる）
 )
 
 type pairingRequestRecord struct {
@@ -106,7 +113,7 @@ type HostPeers struct {
 }
 
 type peerState struct {
-	mu       sync.Mutex
+	mu       sync.Mutex // h.mu を持ったまま取らない（常駐の鍵を放してから写しを読む）
 	incoming map[string]*incomingPairing
 	outgoing *HostPairing
 	cancel   context.CancelFunc
@@ -120,12 +127,13 @@ type peerState struct {
 	copies    map[string]*roomCopy // ペアリングしたホスト id → 相手の一覧の写し
 	fetching  map[string]int       // ペアリングしたホスト id → 取り直しの様子
 	roomsKick chan struct{}
+	roomSeq   uint64 // 一覧の行の様子が変わった順の通し番号（自分の一覧と写しで共に使う。このホストの中だけの物）
 }
 
 func newPeerState() *peerState {
 	return &peerState{
 		incoming: map[string]*incomingPairing{}, live: map[string]*PeerLive{}, known: map[string]pairedHostRecord{}, dropping: map[string]bool{}, kick: make(chan struct{}, 1),
-		rooms:  localRooms{epoch: newEnvelopeID(), rows: map[string]string{}},
+		rooms:  localRooms{epoch: newEnvelopeID(), rows: map[string]roomEntry{}},
 		copies: map[string]*roomCopy{}, fetching: map[string]int{}, roomsKick: make(chan struct{}, 1),
 	}
 }

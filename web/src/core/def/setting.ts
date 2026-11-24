@@ -11,7 +11,8 @@ import type { MessageKey } from "../i18n/i18n"
 // 土台が読む利用者の設定の項目の role: lang は言語（値は言語パックの id）、skin はスキン（スキンの id か "auto"）、keys はキーバインドの、利用者の変更、
 // participant-alive は参加者が「生きている」とする長さ（値は分の数。数か、数の文字）、enabled-plugins は有効にした追加プラグインの id の並び（足したときは無効）、
 // update-check は常駐が新しい版を自分で確かめるか（値は真偽）、connect-hosts はほかのホストとつなぐか（値は真偽。入なら常駐がホストどうしの入口を開く）、
-// host-name はホスト名（値は字。無ければ OS のホスト名）
+// host-name はホスト名（値は字。無ければ OS のホスト名）、listed-workrooms は AI 用ホストリストに、このホストのワークルームを全部載せるか
+// 最近変わった物だけにするか（値は LISTED_WORKROOMS の 1 つ。無ければ全部）
 export type SettingRole =
   | "lang"
   | "skin"
@@ -22,6 +23,7 @@ export type SettingRole =
   | "connect-hosts"
   | "host-name"
   | "user-name"
+  | "listed-workrooms"
 
 export interface SettingDef<S extends z.ZodType = z.ZodType, Tt extends string = MessageKey> extends SettingExtras {
   id: string // 本当の id（例: @matomezu/line:line-route）

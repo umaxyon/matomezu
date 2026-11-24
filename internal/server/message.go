@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"slices"
 	"strings"
 	"time"
 
@@ -128,18 +127,37 @@ func (h *Hub) SendMessage(req MessageRequest, now time.Time) (MessageSent, error
 	if err != nil {
 		return MessageSent{}, err
 	}
+	held := h.sendHeld(records, rooms, req, now)
+	switch {
+	case held.toHost:
+		// ほかのホストへは、常駐の鍵を放してから運ぶ（待つ間にほかの頼みを止めないため）
+		return h.sendToHost(held.from, req, now), nil
+	case held.noRecipient:
+		return MessageSent{Reason: "unknown-recipient", Detail: h.noRecipientDetail(req.To, held.open)}, nil
+	}
+	return held.sent, nil
+}
+
+// sendHeld の答え: 決まった答え sent か、ほかのホストへ運ぶ（toHost。送り手のワークルームの名前 from）か、宛て先がいない（noRecipient。このホストの送れる先 open）
+type sendDecision struct {
+	sent        MessageSent
+	toHost      bool
+	from        string
+	noRecipient bool
+	open        []string
+}
+
+// sendHeld は、h.mu を持って、送り手を確かめ、このホストの宛て先に届けるか、h.mu の外でする事を返す（断りの句は写しを読むので、鍵を放してから作る）
+func (h *Hub) sendHeld(records []participantRecord, rooms []workroomRecord, req MessageRequest, now time.Time) sendDecision {
 	h.mu.Lock()
+	defer h.mu.Unlock()
 	occupant := h.occupants(records) // ワークルームの id → 参加が確定した（準備中でない）参加者の id
 	from, refused := h.senderHeld(records, occupant, req.Participant)
-	if refused == nil && req.Host != "" {
-		// ほかのホストへは、常駐の鍵を放してから運ぶ（待つ間にほかの頼みを止めないため）
-		name := roomName(rooms, from.Workroom)
-		h.mu.Unlock()
-		return h.sendToHost(name, req, now), nil
-	}
-	defer h.mu.Unlock()
 	if refused != nil {
-		return *refused, nil
+		return sendDecision{sent: *refused}
+	}
+	if req.Host != "" {
+		return sendDecision{toHost: true, from: roomName(rooms, from.Workroom)}
 	}
 	var to *workroomRecord
 	var open []string
@@ -152,17 +170,10 @@ func (h *Hub) SendMessage(req MessageRequest, now time.Time) (MessageSent, error
 		}
 	}
 	if to != nil && to.ID == from.Workroom {
-		return MessageSent{Reason: "to-self", Detail: "that is your own workroom"}, nil
+		return sendDecision{sent: MessageSent{Reason: "to-self", Detail: "that is your own workroom"}}
 	}
 	if to == nil || occupant[to.ID] == "" {
-		slices.Sort(open)
-		detail := "no AI is in a workroom named " + req.To
-		if len(open) > 0 {
-			detail += "; you can send to: " + strings.Join(open, ", ")
-		} else {
-			detail += "; no other AI is in a workroom now"
-		}
-		return MessageSent{Reason: "unknown-recipient", Detail: detail}, nil
+		return sendDecision{noRecipient: true, open: open}
 	}
 	self := h.selfHostID()
 	h.deliver(delivery{to: occupant[to.ID], envelope: Envelope{
@@ -172,7 +183,7 @@ func (h *Hub) SendMessage(req MessageRequest, now time.Time) (MessageSent, error
 		Text:   req.Text,
 		SentAt: storage.Stamp(now),
 	}})
-	return MessageSent{OK: true, Queued: true}, nil
+	return sendDecision{sent: MessageSent{OK: true, Queued: true}}
 }
 
 // delivery は、封筒と、それを入れる宛て先の参加者（宛て先のホストが引いた物）。ほかのホストから届いた物は、送り手のホストエイリアスと、印を付けるか（requests が as-user か）も
@@ -293,4 +304,14 @@ func (h *Hub) deliverHost(e hostEnvelope) {
 // hostLine は、常駐メッセージの届く 1 行。本文は JSON の文字列にして包む（本文の中の偽の知らせの行と見分けるため。本文はプラグインが書く）
 func hostLine(text string) string {
 	return "matomezu: " + quote(text)
+}
+
+// noRecipientDetail は、名前 name のワークルームに AI がいないときの断りの句: このホストの送れる先 open（最近の数件と残りの数）と、
+// その名前のワークルームのあるペアリングしたホスト
+func (h *Hub) noRecipientDetail(name string, open []string) string {
+	detail := "no AI is in a workroom named " + name + " on this host; " + h.sendableClause(open, "list_workrooms with offset", "no other AI is in a workroom now")
+	if hosts := h.hostsWithRoom(name); len(hosts) > 0 {
+		detail += "; a workroom named " + name + " is on the paired host " + strings.Join(hosts, ", ") + " (send it with host)"
+	}
+	return detail
 }

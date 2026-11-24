@@ -80,12 +80,17 @@ test("常駐が足したペアリングしたホストの頼みを「頼みと�
   })
   // 頼みとして受けるは常駐の記録に残り、読み直しても替わったまま
   await page.getByRole("button", { name: /^つながっていない ?win-lan$/ }).click()
-  await page.getByRole("radio", { name: "頼みとして受ける（あなたの指示と同じに扱う）" }).click()
+  await page.getByRole("radio", { name: "ユーザーの指示: あなたの指示と同じに扱う" }).click({ force: true }) // 押してもすぐは替わらない（確かめのダイアログが先）ので check でなく click
   await page
-    .getByRole("dialog", { name: "このホストからの頼みを受ける" })
-    .getByRole("button", { name: "頼みとして受ける" })
+    .getByRole("dialog", { name: "このホストから届いた指示をユーザーの指示として扱う" })
+    .getByRole("button", { name: "ユーザーの指示として扱う" })
     .click()
   await page.reload()
   await page.getByRole("button", { name: /^つながっていない ?win-lan$/ }).click()
-  await expect(page.getByRole("radio", { name: "頼みとして受ける（あなたの指示と同じに扱う）" })).toBeChecked()
+  await expect(page.getByRole("radio", { name: "ユーザーの指示: あなたの指示と同じに扱う" })).toBeChecked()
+  // 目で AI 用ホストリストから隠すと、行に薄い斜線の入った目が出て、読み直しても隠したまま
+  await page.getByRole("button", { name: "AI 用ホストリストから隠す" }).click()
+  await expect(page.getByRole("img", { name: "AI 用ホストリストから隠しています" })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole("img", { name: "AI 用ホストリストから隠しています" })).toBeVisible()
 })
