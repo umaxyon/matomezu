@@ -77,16 +77,17 @@ func (c *serveCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	if u, err := h.ReadUse(); err != nil {
-		return err
-	} else if u != nil {
-		return fmt.Errorf("this vault uses the server of %s: run matomezu use local first to run one here", otherName(*u))
-	}
 	lock, err := h.Lock()
 	if err != nil {
 		return err
 	}
 	defer lock.Unlock()
+	// 鍵を取ってから見る（matomezu use は鍵を持って use.json を書く）
+	if u, err := h.ReadUse(); err != nil {
+		return err
+	} else if u != nil {
+		return fmt.Errorf("this vault uses the server of %s: run matomezu use local first to run one here", otherName(*u))
+	}
 	go pruneBins()
 
 	webFS, err := screen(c.Web)
@@ -242,12 +243,16 @@ func (c *startCmd) Run() error {
 
 // ensure は、立っている常駐のつなぎ方を返す。立っていなければ f で裏に立て、答えるまで待つ。
 // f がポートを選んでいて、立っている常駐が別のポートで待っていれば断る（止めて立て直すと、開いている画面と AI のつながりが切れる）。
-// 保管庫がほかの OS の常駐を使うと覚えていれば、その常駐（ensureOther。f は使わない）
+// 保管庫がほかの OS の常駐を使うと覚えていれば、その常駐（ensureOther。ポートの決まりは同じで、ほかの f は立てるときだけ使うので見ない）
 func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 	if u, err := h.ReadUse(); err != nil {
 		return nil, err
 	} else if u != nil {
-		return ensureOther(u)
+		s, err := ensureOther(u)
+		if err == nil && f.Port != nil && *f.Port != 0 && serverPort(s) != *f.Port {
+			return nil, fmt.Errorf("the server of %s is running at %s: stop it first (matomezu stop) to use port %d", u.Vault, s.URL, *f.Port)
+		}
+		return s, err
 	}
 	if s, err := localRunning(h); err == nil && s != nil && olderServer(s.Version) {
 		// 今入っている版より古い常駐は、止めて今の版で立て直す（古くする向きには入れ替えない）

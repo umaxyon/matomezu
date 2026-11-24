@@ -165,11 +165,11 @@ func restartOlderServer() error {
 	if err != nil {
 		return err
 	}
-	s, err := localRunning(h)
-	if err != nil || s == nil {
+	if u, err := h.ReadUse(); err != nil || u != nil {
 		return err
 	}
-	if u, err := h.ReadUse(); err != nil || u != nil {
+	s, err := localRunning(h)
+	if err != nil || s == nil {
 		return err
 	}
 	_, err = ensure(h, serverFlags{})

@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gofrs/flock"
+
 	"github.com/umaxyon/matomezu/internal/home"
 )
 
@@ -39,19 +41,24 @@ type useLocalCmd struct{}
 
 type useHereCmd struct{}
 
-// hereInfo は、matomezu use here の答え（その OS の matomezu が見た、自分の保管庫と版と distro）
+// hereInfo は、matomezu use here の答え（その OS の matomezu が見た、自分の保管庫と版と distro と、その保管庫もほかの OS の常駐を使うと覚えているか）
 type hereInfo struct {
 	Vault   string `json:"vault"`
 	Version string `json:"version"`
 	Distro  string `json:"distro,omitempty"`
+	Uses    bool   `json:"uses,omitempty"`
 }
 
 func (useHereCmd) Run() error {
-	dir, err := home.Dir()
+	h, err := openHome()
 	if err != nil {
 		return err
 	}
-	return json.NewEncoder(os.Stdout).Encode(hereInfo{Vault: dir, Version: installedVersion(), Distro: os.Getenv("WSL_DISTRO_NAME")})
+	u, err := h.ReadUse()
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(os.Stdout).Encode(hereInfo{Vault: h.Dir, Version: installedVersion(), Distro: os.Getenv("WSL_DISTRO_NAME"), Uses: u != nil})
 }
 
 func (c *useWSLCmd) Run() error {
@@ -116,20 +123,21 @@ func (useLocalCmd) Run() error {
 }
 
 // useOther は、この保管庫に、ほかの OS の常駐 u を使うと覚えさせる（その OS の matomezu の答え in）。
-// 先にこの OS の常駐を止める（覚えたあとでは、止める先がほかの OS の常駐になる）
+// その OS の保管庫もこちらの常駐を使うと覚えていれば断る（互いに相手の常駐を立てさせ合い、どちらも立たない）。
+// 先にこの OS の常駐を止め、常駐の鍵を持ったまま覚える（覚えたあとでは止める先がほかの OS の常駐になり、覚える間に立った常駐は止める道が無くなる）
 func useOther(u home.Use, in hereInfo) error {
+	if in.Uses {
+		return fmt.Errorf("the vault of %s uses the server of this OS: run matomezu use local there first", otherName(u))
+	}
 	h, err := openHome()
 	if err != nil {
 		return err
 	}
-	if s, err := localRunning(h); err != nil {
+	lock, err := stopAndLock(h)
+	if err != nil {
 		return err
-	} else if s != nil {
-		fmt.Fprintln(os.Stderr, "stopping the server of", h.Dir)
-		if err := stopLocal(h, s); err != nil {
-			return err
-		}
 	}
+	defer lock.Unlock()
 	if err := h.WriteUse(u); err != nil {
 		return err
 	}
@@ -138,6 +146,30 @@ func useOther(u home.Use, in hereInfo) error {
 		fmt.Fprintln(os.Stderr, note)
 	}
 	return nil
+}
+
+// stopAndLock は、この保管庫の常駐を止めて、常駐の鍵を取る（止めたあとに別の常駐が先に鍵を取れば、それも止めて取り直す）
+func stopAndLock(h *home.Home) (*flock.Flock, error) {
+	for range 3 {
+		if s, err := localRunning(h); err != nil {
+			return nil, err
+		} else if s != nil {
+			fmt.Fprintln(os.Stderr, "stopping the server of", h.Dir)
+			if err := stopLocal(h, s); err != nil {
+				return nil, err
+			}
+		}
+		lock, err := h.Lock()
+		if err == nil {
+			return lock, nil
+		}
+		if !errors.Is(err, home.ErrRunning) {
+			return nil, err
+		}
+		// 鍵を取った常駐が server.json を書き答えるまで待つ
+		time.Sleep(500 * time.Millisecond)
+	}
+	return nil, errors.New("the server of this OS keeps starting again: stop the AI programs that use it, and try again")
 }
 
 // askHere は、ほかの OS の matomezu に、その保管庫と版と distro を聞く（matomezu use here）
@@ -157,7 +189,7 @@ func askHere(u home.Use) (hereInfo, error) {
 }
 
 // sideCommand は、ほかの OS u で matomezu のサブコマンド sub を動かすコマンドと、動かすフォルダ（空なら今のフォルダ）。
-// WSL の matomezu はホームのフォルダのログインのシェルで探す（npm や Volta の PATH はシェルの設定にある。今のフォルダが matomezu のリポジトリだと、開発の保管庫を使ってしまう）。
+// WSL の matomezu はホームのフォルダの、対話のログインのシェルで探す（npm・Volta・nvm の PATH はシェルの設定にあり、Ubuntu の .bashrc は対話でなければ読まれない。今のフォルダが matomezu のリポジトリだと、開発の保管庫を使ってしまう）。
 // Windows の matomezu は cmd.exe で探す（npm の入口は .cmd）。WSL のフォルダのまま cmd.exe を動かすと UNC のフォルダを断るので、C: で動かす
 func sideCommand(u home.Use, sub ...string) (name string, args []string, dir string) {
 	line := "matomezu " + strings.Join(sub, " ")
@@ -165,7 +197,7 @@ func sideCommand(u home.Use, sub ...string) (name string, args []string, dir str
 		if u.Distro != "" {
 			args = append(args, "-d", u.Distro)
 		}
-		return "wsl.exe", append(args, "--cd", "~", "--", "bash", "-lc", line), ""
+		return "wsl.exe", append(args, "--cd", "~", "--", "bash", "-lic", line), ""
 	}
 	return "cmd.exe", []string{"/c", line}, "/mnt/c"
 }
@@ -189,6 +221,14 @@ func otherName(u home.Use) string {
 		return "WSL (" + u.Distro + ")"
 	}
 	return "Windows"
+}
+
+// hereName は、ほかの OS の常駐 u を使うこの OS の、利用者に見せる名前
+func hereName(u home.Use) string {
+	if u.OS == home.UseWSL {
+		return "Windows"
+	}
+	return "WSL"
 }
 
 // otherRunning は、ほかの OS の常駐 u が立っていて答えるなら、そのつなぎ方（その保管庫の server.json。ping で確かめる）
@@ -235,13 +275,17 @@ func ensureOther(u *home.Use) (*home.Server, error) {
 // versionNoted は、版の違いを標準エラーに知らせたか（1 つのプロセスで一度だけ）
 var versionNoted sync.Once
 
-// versionNote は、ほかの OS の常駐 u の版 other が、この OS の matomezu の版と違うときの知らせ（同じ・開発の版なら空）
+// versionNote は、ほかの OS の常駐 u の版 other が、この OS の matomezu の版と違うときの、古い方の OS で update するようにという知らせ（同じ・開発の版なら空）
 func versionNote(u home.Use, other string) string {
 	here := installedVersion()
 	if other == "" || other == here || other == devVersion || here == devVersion {
 		return ""
 	}
-	return fmt.Sprintf("The matomezu server this uses runs on %s with version %s, and the matomezu here is version %s: run matomezu update on the older one.", otherName(u), other, here)
+	older := otherName(u)
+	if versionLess(here, other) {
+		older = hereName(u)
+	}
+	return fmt.Sprintf("The matomezu server this uses runs on %s with version %s, and the matomezu on %s is version %s: run matomezu update on %s.", otherName(u), other, hereName(u), here, older)
 }
 
 // usedNote は、MCP が AI に見せる、ほかの OS の常駐の版が違うことの知らせ（使っていない・同じなら空）

@@ -98,7 +98,7 @@ func TestEnsureStartsTheOtherOSsResident(t *testing.T) {
 	if err != nil || s == nil {
 		t.Fatalf("ensure: %v, %v", s, err)
 	}
-	want := []string{"wsl.exe", "-d", "Ubuntu", "--cd", "~", "--", "bash", "-lc", "matomezu start"}
+	want := []string{"wsl.exe", "-d", "Ubuntu", "--cd", "~", "--", "bash", "-lic", "matomezu start"}
 	if !slices.Equal(ran, want) {
 		t.Errorf("ran %q, want %q", ran, want)
 	}
@@ -203,5 +203,82 @@ func TestVersionNote(t *testing.T) {
 	}
 	if note := versionNote(u, "0.0.1"); !strings.Contains(note, "WSL (Ubuntu)") {
 		t.Error(note)
+	}
+}
+
+// 相手の保管庫もこちらの常駐を使うと覚えていれば、覚えずに断る（互いに相手の常駐を立てさせ合う）
+func TestUseOtherRefusesWhenTheOtherUsesThisOS(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv(home.EnvHome, dir)
+	err := useOther(home.Use{OS: home.UseWSL, Distro: "Ubuntu", Vault: t.TempDir()}, hereInfo{Vault: "/home/me/.matomezu", Uses: true})
+	if err == nil || !strings.Contains(err.Error(), "matomezu use local there") {
+		t.Fatalf("useOther: %v", err)
+	}
+	if u, err := openTestHome(t, dir).ReadUse(); err != nil || u != nil {
+		t.Errorf("use: %v, %v", u, err)
+	}
+}
+
+// ほかの OS の常駐を使う保管庫では、update の立て直しと plugin-remove の止めは、その常駐に触らず、その OS のコマンドも動かさない
+func TestUpdateAndPluginRemoveLeaveTheOtherOSsResident(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv(home.EnvHome, dir)
+	f := newFakeResident(t, nil)
+	if err := openTestHome(t, dir).WriteUse(home.Use{OS: home.UseWSL, Distro: "Ubuntu", Vault: otherVault(t, f, "0.0.1")}); err != nil {
+		t.Fatal(err)
+	}
+	old := sideOutput
+	sideOutput = func(dir, name string, args ...string) ([]byte, error) {
+		t.Errorf("ran %s %q", name, args)
+		return nil, nil
+	}
+	t.Cleanup(func() { sideOutput = old })
+	if err := restartOlderServer(); err != nil {
+		t.Fatal(err)
+	}
+	if err := stopHere(); err != nil {
+		t.Fatal(err)
+	}
+	if f.wasStopped() {
+		t.Error("the server of the other OS was stopped")
+	}
+}
+
+// その OS の matomezu を動かすコマンド: WSL は distro のホームのフォルダの対話のログインのシェル、Windows は C: の cmd.exe
+func TestSideCommand(t *testing.T) {
+	for _, c := range []struct {
+		u    home.Use
+		name string
+		args []string
+		dir  string
+	}{
+		{home.Use{OS: home.UseWSL, Distro: "Ubuntu"}, "wsl.exe", []string{"-d", "Ubuntu", "--cd", "~", "--", "bash", "-lic", "matomezu use here"}, ""},
+		{home.Use{OS: home.UseWSL}, "wsl.exe", []string{"--cd", "~", "--", "bash", "-lic", "matomezu use here"}, ""},
+		{home.Use{OS: home.UseWindows}, "cmd.exe", []string{"/c", "matomezu use here"}, "/mnt/c"},
+	} {
+		name, args, dir := sideCommand(c.u, "use", "here")
+		if name != c.name || !slices.Equal(args, c.args) || dir != c.dir {
+			t.Errorf("%+v: %s %q in %q", c.u, name, args, dir)
+		}
+	}
+}
+
+// WSL が NAT モードなら、Windows の常駐に届かないので、use windows は断る
+func TestUseWindowsRefusesNATNetworking(t *testing.T) {
+	if !onWSL() {
+		t.Skip("only on WSL")
+	}
+	dir := t.TempDir()
+	t.Setenv(home.EnvHome, dir)
+	old := sideOutput
+	sideOutput = func(dir, name string, args ...string) ([]byte, error) {
+		if name != "wslinfo" {
+			t.Errorf("ran %s %q", name, args)
+		}
+		return []byte("nat\n"), nil
+	}
+	t.Cleanup(func() { sideOutput = old })
+	if err := (useWindowsCmd{}).Run(); err == nil || !strings.Contains(err.Error(), "networkingMode=mirrored") {
+		t.Fatalf("use windows: %v", err)
 	}
 }
