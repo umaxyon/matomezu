@@ -6,7 +6,7 @@ import { AI } from "../../../web/src/core/actor"
 import { performIn } from "../../../web/src/core/perform-world"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { MAIL, mailboxOf } from "../../../web/src/plugins/base/mail"
-import { checkMail, type Mail, senderKindOf } from "../../../web/src/plugins/base/mail/mail"
+import { checkMail, type Mail } from "../../../web/src/plugins/base/mail/mail"
 import { placeShown } from "../../../web/src/plugins/base/mail/visited"
 import { CORE_CATALOG, newStore } from "../../support"
 
@@ -56,11 +56,6 @@ test("送る本文は 300 字まで（超えたら断る）。残した郵便の
   expect(send({ from: "a", title: "x", body: "あ".repeat(301) }).ok).toBe(false)
   const long = { ...mails()[0]!, id: "long", props: { title: "x", body: "あ".repeat(4000) } }
   expect(checkMail(CORE_CATALOG, long)).toEqual([])
-})
-
-test("送り手が AI か利用者か: 送ったときの行った者で決まり、無い郵便は AI から", () => {
-  expect(senderKindOf({})).toBe("ai")
-  expect(senderKindOf({ senderKind: "user" })).toBe("user")
 })
 
 test("見た・行き先を見たは一度だけ付く。行き先の無い郵便は、行き先を見たにならない。消すと無くなる", () => {
@@ -166,6 +161,7 @@ test("行き先が出ているか: そのブックのそのページを開いて
   const m = (to: Mail["to"]): Mail => ({
     id: "m",
     mail: "@matomezu/base:letter",
+    senderKind: "ai",
     from: "a",
     sentAt: "t",
     props: {},

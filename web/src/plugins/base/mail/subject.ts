@@ -7,7 +7,7 @@ import { kit } from "../kit"
 import { PARTICIPANT, readsParticipantsIn, WORKROOM } from "../participant"
 import { freshId } from "../utils/ids"
 import { keyRowsIn } from "../utils/key-rows"
-import { checkMail, MAIL_ORDER_SCOPE, type Mail, MailSchema, mailsInOrder, senderKindOf } from "./mail"
+import { checkMail, MAIL_ORDER_SCOPE, type Mail, MailSchema, mailsInOrder } from "./mail"
 import { ticketsOnRemoved } from "./removed"
 
 // 郵便のレコードの種類。AI は read_records で読む: 一覧は新しい順に 20 通（題と、種類・送り手・送り手が AI か人か・届いた時点・行き先・既読の 2 つ）、中身（props）は id を指して読む
@@ -36,7 +36,7 @@ export const MAIL = kit.defineSubject({
   aiRow: m => ({
     mail: m.mail,
     from: m.from,
-    senderKind: senderKindOf(m),
+    senderKind: m.senderKind,
     sentAt: m.sentAt,
     ...(m.to ? { to: m.to } : {}),
     ...(m.seenAt ? { seenAt: m.seenAt } : {}),

@@ -17,6 +17,7 @@ const MAIL = "@matomezu/base:mail" as const
 const letter = (n: number, seen: boolean) => ({
   id: `m${n}`,
   mail: "@matomezu/base:letter",
+  senderKind: "ai",
   from: "a",
   sentAt: "2026-11-12T00:00:00.000Z",
   props: { title: `t${n}`, body: "" },

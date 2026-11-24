@@ -385,7 +385,7 @@ func TestProjectFieldsAreRemoved(t *testing.T) {
 	}
 	mails := recordsOfKind(t, s, mailSubject)
 	// 参加の要求の郵便（m1）は、のちの足し方で消える
-	if len(mails) != 1 || mails["m2"] != `{"id":"m2","mail":"@x/other","props":{"projects":["keep"]},"order":2}` {
+	if len(mails) != 1 || mails["m2"] != `{"id":"m2","mail":"@x/other","order":2,"props":{"projects":["keep"]},"senderKind":"ai"}` {
 		t.Fatalf("mail = %v", mails)
 	}
 }
@@ -498,7 +498,7 @@ func TestLongWorkroomNamesAreShortened(t *testing.T) {
 	}
 	mails := recordsOfKind(t, s, mailSubject)
 	// 参加の要求の郵便（m1）は、名前を切り詰めたあと、のちの足し方で消える
-	if _, ok := mails["m1"]; ok || mails["m3"] != `{"id":"m3","mail":"@x/other","props":{"workroom":"abcdefghij klmnopqrstuvwxyz"},"order":2}` || mails["m2"] != `{"id":"m2","props":{"a":1},"order":3}` {
+	if _, ok := mails["m1"]; ok || mails["m3"] != `{"id":"m3","mail":"@x/other","order":2,"props":{"workroom":"abcdefghij klmnopqrstuvwxyz"},"senderKind":"ai"}` || mails["m2"] != `{"id":"m2","order":3,"props":{"a":1},"senderKind":"ai"}` {
 		t.Fatalf("mail = %v", mails)
 	}
 }
@@ -728,8 +728,8 @@ func TestMailboxBecomesRecords(t *testing.T) {
 	s := open(t, path)
 	mails := recordsOfKind(t, s, mailSubject)
 	want := map[string]string{
-		"m1": `{"id":"m1","mail":"@matomezu/base:letter","from":"a","sentAt":"t1","props":{"title":"一"},"order":1}`,
-		"m2": `{"id":"m2","mail":"@x/gone","from":"b","sentAt":"t5","seenAt":"t6","props":{"a":1},"order":6}`,
+		"m1": `{"from":"a","id":"m1","mail":"@matomezu/base:letter","order":1,"props":{"title":"一"},"senderKind":"ai","sentAt":"t1"}`,
+		"m2": `{"from":"b","id":"m2","mail":"@x/gone","order":6,"props":{"a":1},"seenAt":"t6","senderKind":"ai","sentAt":"t5"}`,
 	}
 	if len(mails) != len(want) {
 		t.Fatalf("mail = %v", mails)
@@ -910,11 +910,11 @@ func TestProposalSnapshotsMoveToTheirPlaces(t *testing.T) {
 	if err != nil || got == nil {
 		t.Fatalf("record = %v, %v", got, err)
 	}
-	want := `{"id":"m1","mail":"@matomezu/base:proposal","props":{"book":"b1","snapshot":{"b1":{"f1":{"id":"f1"},"gone":1},"p1":{"a":{"id":"a"}},"p2":{"p2":{"id":"p2"}}}}}`
+	want := `{"id":"m1","mail":"@matomezu/base:proposal","props":{"book":"b1","snapshot":{"b1":{"f1":{"id":"f1"},"gone":1},"p1":{"a":{"id":"a"}},"p2":{"p2":{"id":"p2"}}}},"senderKind":"ai"}`
 	if string(got.Body) != want {
 		t.Fatalf("mail = %s", got.Body)
 	}
-	if other, _ := s.Record("@matomezu/base:mail", "m2"); other == nil || string(other.Body) != letter {
+	if other, _ := s.Record("@matomezu/base:mail", "m2"); other == nil || string(other.Body) != `{"id":"m2","mail":"@matomezu/base:letter","props":{"title":"x"},"senderKind":"ai"}` {
 		t.Fatalf("letter = %v", other)
 	}
 }

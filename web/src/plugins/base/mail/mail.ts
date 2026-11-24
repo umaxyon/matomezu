@@ -3,11 +3,15 @@
 // 行き先 to（ブック・ページ・物の id）は任意で、送るときには確かめない（開くときに無ければ、無いと見せる）。
 // 既読は 2 つ: 郵便そのものを見た時点 seenAt と、郵便が示した物（行き先）を見た時点 visitedAt
 import { z } from "zod"
+import type { Actor } from "../../../core/actor"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { splitId } from "../../../core/names"
 import { type Warning, warning } from "../../../core/warnings"
 import { BIRD_IDS } from "../birds"
 import { BIRD_PALETTE_IDS } from "../birds/colors"
+
+// 郵便の送り手の種類: 行った者の種類（core/actor.ts）と同じ値
+const SENDER_KINDS = ["ai", "user"] as const satisfies readonly Actor["kind"][]
 
 export const MailSchema = z.object({
   id: z.string().min(1),
@@ -32,13 +36,10 @@ export const MailSchema = z.object({
       palette: z.enum(BIRD_PALETTE_IDS).optional(),
     })
     .optional(), // 送信時に参加済みだった送り手と、その時の鳥と配色
-  senderKind: z.enum(["ai", "user"]).optional(), // 送り手が AI か利用者か（無い郵便は AI から。senderKindOf で読む）
+  senderKind: z.enum(SENDER_KINDS), // 送り手が AI か利用者か（送るアクションを行った者の種類）
 })
 export type Mail = z.output<typeof MailSchema>
-export type MailSenderKind = NonNullable<Mail["senderKind"]>
-
-// 郵便の送り手が AI か利用者か（senderKind の無い郵便は AI から）
-export const senderKindOf = (mail: Pick<Mail, "senderKind">): MailSenderKind => mail.senderKind ?? "ai"
+export type MailSenderKind = Mail["senderKind"]
 
 // 郵便を送るアクション（mail-send・proposal-send）の本文の上限。長い事はブックのページに書き、郵便はそこを案内する。
 // 郵便の種類の props は 4000 のまま（残した郵便を確かめるのは props なので、上限を下げても今ある郵便は効かなくならない）

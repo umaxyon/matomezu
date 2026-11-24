@@ -220,6 +220,8 @@ var migrations = []string{
 	`SELECT 1;`,
 	// プロジェクトに、レーンのタイトル帯に出す物（laneShows）を足す（Go の移し替え。migrate_lane_shows.go）
 	`SELECT 1;`,
+	// 郵便に、送り手が AI か利用者か（senderKind）を足す（Go の移し替え。migrate_mail_sender_kind.go）
+	`SELECT 1;`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う
@@ -239,6 +241,7 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	34: fillCurrentWorks,
 	35: participantAdeWorkspaces,
 	36: addLaneShows,
+	37: addMailSenderKind,
 }
 
 type sqliteStorage struct {
