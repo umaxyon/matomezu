@@ -24,7 +24,7 @@ import { LIBRARY_OPEN } from "../library/screen"
 import { PrintPreviewView } from "../print-preview/PrintPreviewView"
 import { AnchorsProvider } from "../stand/anchors"
 import { keepsPan } from "../tool-switch/tools"
-import { useResize } from "../utils/useResize"
+import { useSettledResize } from "../utils/useSettledResize"
 import { BOOK_SCREEN_CLOSE } from "../window"
 import { BOOK_LAYERS } from "../workspace/slots"
 import { ZOOM_WHEEL } from "../zoom"
@@ -58,7 +58,7 @@ function StageBody({ id }: { id: string }) {
   const ref = useRef<HTMLElement>(null)
   const drag = useRef<Drag | null>(null)
   const [dragging, setDragging] = useState(false)
-  useResize(ref, view => resizeStage(id, view))
+  useSettledResize(ref, view => resizeStage(id, view))
   const wheel = useRef({ zoom: wheelZoom, keepsPan: keeps })
   wheel.current = { zoom: wheelZoom, keepsPan: keeps }
   const latch = useRef<WheelLatch | null>(null) // 一続きの回しで決めた、ホイールを受ける物
