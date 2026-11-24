@@ -40,7 +40,7 @@ func pairedWorlds(t *testing.T) (as, bs *httptest.Server, a, b *Hub) {
 	a.CheckPeers()
 	waitFor(t, "both connected", func() bool {
 		pa, pb := a.HostPeers().Paired, b.HostPeers().Paired
-		return len(pa) == 1 && pa[0].Connected && pa[0].Label == "b" && len(pb) == 1 && pb[0].Connected && pb[0].Label == "a"
+		return len(pa) == 1 && pa[0].State == PeerConnected && pa[0].Label == "b" && len(pb) == 1 && pb[0].State == PeerConnected && pb[0].Label == "a"
 	})
 	return as, bs, a, b
 }
@@ -154,7 +154,7 @@ func TestTheMessageEntranceChecksTheEnvelope(t *testing.T) {
 	e := a.entrance.Load()
 	bID := b.selfHostID()
 	addr := a.peerAddr(e, a.pairedHostRecords()[0])
-	c := peer.Client(e.config.Identity, bID, peerAskTimeout)
+	c := peer.Client(e.config.Identity, bID, peer.Protocol, peerAskTimeout)
 	post := func(env Envelope) int {
 		resp, err := c.Post("https://"+addr+"/peer/v1/message", "application/json", bytes.NewReader(mustJSON(env)))
 		if err != nil {
@@ -431,7 +431,8 @@ func TestNotSentOnlyWhenTheMessageCertainlyDidNotArrive(t *testing.T) {
 		{&net.OpError{Op: "dial", Err: errors.New("connection refused")}, true},
 		{fmt.Errorf("Post: %w", peer.ErrKeyMismatch), true},
 		{errors.New("net/http: TLS handshake timeout"), true},
-		{errNotPaired, true},
+		{peer.ErrNotPaired, true},
+		{fmt.Errorf("Post: %w", peer.ProtocolMismatchError{Ours: 1, Theirs: 2}), true},
 		{&net.OpError{Op: "read", Err: errors.New("connection reset")}, false},
 		{errors.New("context deadline exceeded (Client.Timeout exceeded while awaiting headers)"), false},
 		{fmt.Errorf("post: %w", answeredError{404}), true},
@@ -441,5 +442,50 @@ func TestNotSentOnlyWhenTheMessageCertainlyDidNotArrive(t *testing.T) {
 		if got := notSent(c.err); got != c.want {
 			t.Errorf("notSent(%v) = %v, want %v", c.err, got, c.want)
 		}
+	}
+}
+
+// reopenWithProtocol は、h の入口を閉じ、約束の版を proto にして開き直す（片方だけ matomezu を更新したのと同じ）
+func reopenWithProtocol(t *testing.T, h *Hub, proto int) {
+	t.Helper()
+	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":false}`)
+	waitHost(t, h, func(s HostStatus) bool { return !s.Open })
+	e := h.entrance.Load()
+	e.mu.Lock()
+	e.proto = proto
+	e.mu.Unlock()
+	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":true}`)
+	waitHost(t, h, func(s HostStatus) bool { return s.Open })
+}
+
+// ペアリングしたあとで片方の約束の版が上がると、確かめたときに両方の様子が、どちらを更新すれば合うかになり、ワークルームの写しを捨てる
+func TestAHostWithAnotherProtocolIsNotConnected(t *testing.T) {
+	_, _, a, b := pairedWorlds(t)
+	reopenWithProtocol(t, b, peer.Protocol+1)
+	a.CheckPeers()
+	b.CheckPeers()
+	waitFor(t, "both see the mismatch", func() bool {
+		pa, pb := a.HostPeers().Paired, b.HostPeers().Paired
+		return len(pa) == 1 && pa[0].State == PeerUpdateThis && pa[0].Workrooms == nil && len(pb) == 1 && pb[0].State == PeerUpdateThat
+	})
+	if len(a.pairedHostRecords()) != 1 || len(b.pairedHostRecords()) != 1 {
+		t.Fatal("a protocol mismatch should not unpair")
+	}
+}
+
+// 約束の版の合わないホストへは送らず、protocol-mismatch で、どちらを更新するかを言う
+func TestAMessageToAHostWithAnotherProtocolIsRefused(t *testing.T) {
+	as, bs, _, b := pairedWorlds(t)
+	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
+	s2 := joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
+	reopenWithProtocol(t, b, peer.Protocol+1)
+	if sent := sendTo(t, as.URL, s1, "b", "s2", "やあ"); sent.OK || sent.Reason != "protocol-mismatch" || !strings.Contains(sent.Detail, "update this host") {
+		t.Fatalf("sent from the older = %+v", sent)
+	}
+	if sent := sendTo(t, bs.URL, s2, "a", "s1", "やあ"); sent.OK || sent.Reason != "protocol-mismatch" || !strings.Contains(sent.Detail, "update host a ") {
+		t.Fatalf("sent from the newer = %+v", sent)
+	}
+	if got := wakes(b, b.OpenWakesWith("200", "", WakeLimits{})); len(got) != 0 {
+		t.Fatalf("it arrived: %q", got)
 	}
 }

@@ -36,6 +36,14 @@ export const NETWORK_MESSAGES = defineMessages({
     en: "The key does not match. Unpair it and pair again",
     ja: "鍵が合いません。ペアリングを解いて、もう一度つないで下さい",
   },
+  "Update this host": {
+    en: "matomezu's version does not match. Update this host",
+    ja: "matomezu の版が合いません。このホストを更新してください",
+  },
+  "Update {name}": {
+    en: "matomezu's version does not match. Update it on {name}",
+    ja: "matomezu の版が合いません。{name} で更新してください",
+  },
   Unpair: { en: "Unpair", ja: "ペアリングを解く" },
   "Unpair button": { en: "Unpair", ja: "解く" },
   "Unpairing tells the other host too": {

@@ -87,15 +87,36 @@ type HostPairing struct {
 
 // PeerLive は、ペアリングしたホストの、常駐だけが持つ様子
 type PeerLive struct {
-	HostID      string    `json:"hostId"`
-	Label       string    `json:"label"` // ホストエイリアス（labelsLocked。届く行・send_message の host・画面に同じ物を使う）
-	Connected   bool      `json:"connected"`
-	LastSeen    string    `json:"lastSeen,omitempty"` // 最後につながった時刻
-	Addr        string    `json:"addr,omitempty"`     // 待っている所（番地:ポート）
-	Name        string    `json:"name,omitempty"`     // 相手の今のホスト名
-	UserName    string    `json:"userName,omitempty"`
-	KeyMismatch bool      `json:"keyMismatch,omitempty"`
-	Workrooms   []RoomRow `json:"workrooms,omitempty"` // 相手のワークルームの一覧の写し（つながっていて、写しのあるときだけ）
+	HostID    string    `json:"hostId"`
+	Label     string    `json:"label"` // ホストエイリアス（labelsLocked。届く行・send_message の host・画面に同じ物を使う）
+	State     PeerState `json:"state"`
+	LastSeen  string    `json:"lastSeen,omitempty"` // 最後につながった時刻
+	Addr      string    `json:"addr,omitempty"`     // 待っている所（番地:ポート）
+	Name      string    `json:"name,omitempty"`     // 相手の今のホスト名
+	UserName  string    `json:"userName,omitempty"`
+	Workrooms []RoomRow `json:"workrooms,omitempty"` // 相手のワークルームの一覧の写し（つながっていて、写しのあるときだけ）
+}
+
+// newPeerLive は、まだつながっていない、ペアリングしたホスト id の様子
+func newPeerLive(id string) *PeerLive { return &PeerLive{HostID: id, State: PeerUnreachable} }
+
+// PeerState は、ペアリングしたホストとのつながりの様子（確かめた時点の物）
+type PeerState string
+
+const (
+	PeerConnected   PeerState = "connected"
+	PeerUnreachable PeerState = "unreachable"  // つながらない（まだ確かめていないときも）
+	PeerKeyMismatch PeerState = "key-mismatch" // 覚えた鍵と合わない相手が答えた
+	PeerUpdateThis  PeerState = "update-this"  // 約束の版が合わず、相手のほうが新しい（このホストを更新すれば合う）
+	PeerUpdateThat  PeerState = "update-that"  // 約束の版が合わず、相手のほうが古い（相手のホストを更新すれば合う）
+)
+
+// protocolState は、約束の版の合わない相手の様子（どちらを更新すれば合うか）
+func protocolState(pm peer.ProtocolMismatchError) PeerState {
+	if pm.TheirsNewer() {
+		return PeerUpdateThis
+	}
+	return PeerUpdateThat
 }
 
 // FoundHost は、mDNS で見つけた、ペアリングしていないホスト（申告のまま）
@@ -307,7 +328,7 @@ func (h *Hub) tellUnpaired(e *hostEntrance, r pairedHostRecord, addr string) {
 		fmt.Fprintln(os.Stderr, "hosts: could not tell", r.HostID[:16], "it was unpaired: where it listens is not known")
 		return
 	}
-	c := peer.Client(e.config.Identity, r.HostID, peerAskTimeout)
+	c := peerClient(e, r.HostID)
 	resp, err := c.Post("https://"+addr+"/peer/v1/unpair", "application/json", nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "hosts: could not tell", r.HostID[:16], "it was unpaired:", err)
@@ -343,13 +364,13 @@ func (h *Hub) HostPeers() HostPeers {
 	out := HostPeers{Paired: []PeerLive{}, Found: []FoundHost{}}
 	labels := ps.labelsLocked()
 	for id := range ps.known {
-		l := PeerLive{HostID: id}
+		l := *newPeerLive(id)
 		if x := ps.live[id]; x != nil {
 			l = *x
 		}
 		l.Label = labels[id]
 		l.Workrooms = nil
-		if l.Connected {
+		if l.State == PeerConnected {
 			l.Workrooms = ps.roomsOfLocked(id)
 		}
 		out.Paired = append(out.Paired, l)
@@ -357,7 +378,7 @@ func (h *Hub) HostPeers() HostPeers {
 	slices.SortFunc(out.Paired, func(a, b PeerLive) int { return cmpString(a.HostID, b.HostID) })
 	if ps.beacon != nil {
 		for _, s := range ps.beacon.Found() {
-			if _, paired := ps.known[s.HostID]; paired || s.Protocol != peer.Protocol {
+			if _, paired := ps.known[s.HostID]; paired || s.Protocol != e.proto {
 				continue
 			}
 			out.Found = append(out.Found, FoundHost{HostID: s.HostID, Name: s.Name, UserName: s.UserName, Addr: net.JoinHostPort(s.Addr, strconv.Itoa(s.Port))})
@@ -439,9 +460,6 @@ func remoteIP(r *http.Request) string {
 func (h *Hub) pairingCommit(w http.ResponseWriter, r *http.Request, e *hostEntrance, from string, c peer.PairingCommit) {
 	self := h.HostStatus()
 	switch {
-	case c.Protocol != peer.Protocol:
-		refusePairing(w, http.StatusConflict, "protocol")
-		return
 	case from == self.HostID:
 		refusePairing(w, http.StatusForbidden, "self")
 		return
@@ -478,7 +496,7 @@ func (h *Hub) pairingCommit(w http.ResponseWriter, r *http.Request, e *hostEntra
 	ps.mu.Unlock()
 	// 頼み直しは、相手が記録を失ったということ（相手は TLS の鍵で確かめている）。前のペアリングを消してから受ける
 	h.dropPairedHost(ps, from, "because it asked to pair again")
-	writeJSON(w, peer.PairingHello{Protocol: peer.Protocol, HostID: self.HostID, Name: self.Name, UserName: h.userName(), Nonce: nonce})
+	writeJSON(w, peer.PairingHello{HostID: self.HostID, Name: self.Name, UserName: h.userName(), Nonce: nonce})
 }
 
 func (h *Hub) pairingReveal(w http.ResponseWriter, r *http.Request, e *hostEntrance, from string, v peer.PairingReveal) {
@@ -563,10 +581,10 @@ func (h *Hub) sawPeer(ps *peerState, id, addr, name, userName string) {
 	}
 	l := ps.live[id]
 	if l == nil {
-		l = &PeerLive{HostID: id}
+		l = newPeerLive(id)
 		ps.live[id] = l
 	}
-	l.Connected, l.KeyMismatch, l.LastSeen = true, false, stamp()
+	l.State, l.LastSeen = PeerConnected, stamp()
 	if addr != "" {
 		l.Addr = addr
 	}
@@ -665,10 +683,14 @@ func (h *Hub) askPairing(ctx context.Context, e *hostEntrance, mine *HostPairing
 		h.setPairing(e, mine, func(p *HostPairing) { p.Phase, p.Reason = phase, reason })
 	}
 	nonce := peer.NewNonce()
-	commit := peer.PairingCommit{Step: "commit", Protocol: peer.Protocol, Name: self.Name, UserName: h.userName(), Port: self.Port, Commit: peer.CommitOf(nonce)}
+	commit := peer.PairingCommit{Step: "commit", Name: self.Name, UserName: h.userName(), Port: self.Port, Commit: peer.CommitOf(nonce)}
 	var hello peer.PairingHello
-	first, err := postPeer(ctx, peer.Client(e.config.Identity, "", peerAskTimeout), addr, commit, &hello)
+	first, err := postPeer(ctx, peer.Client(e.config.Identity, "", e.proto, peerAskTimeout), addr, commit, &hello)
 	if ctx.Err() != nil {
+		return
+	}
+	if errors.As(err, new(peer.ProtocolMismatchError)) {
+		fail("refused", "protocol")
 		return
 	}
 	if err != nil {
@@ -689,13 +711,16 @@ func (h *Hub) askPairing(ctx context.Context, e *hostEntrance, mine *HostPairing
 		p.Phase, p.HostID, p.Name, p.UserName, p.Code = "waiting", other, clipName(hello.Name), clipName(hello.UserName), code
 	})
 	var answer peer.PairingAnswer
-	second, err := postPeer(ctx, peer.Client(e.config.Identity, other, peer.PairingWait+pairingAnswerSlack), addr, peer.PairingReveal{Step: "reveal", Nonce: nonce}, &answer)
+	second, err := postPeer(ctx, peer.Client(e.config.Identity, other, e.proto, peer.PairingWait+pairingAnswerSlack), addr, peer.PairingReveal{Step: "reveal", Nonce: nonce}, &answer)
 	if ctx.Err() != nil {
 		return
 	}
 	switch {
 	case errors.Is(err, peer.ErrKeyMismatch):
 		fail("key-mismatch", "")
+		return
+	case errors.As(err, new(peer.ProtocolMismatchError)):
+		fail("refused", "protocol")
 		return
 	case err != nil:
 		fail("unreachable", "")
@@ -719,7 +744,7 @@ func (h *Hub) askPairing(ctx context.Context, e *hostEntrance, mine *HostPairing
 		return
 	}
 	e.peers.mu.Lock()
-	e.peers.live[other] = &PeerLive{HostID: other, Connected: true, LastSeen: stamp(), Addr: addr, Name: hello.Name, UserName: hello.UserName}
+	e.peers.live[other] = &PeerLive{HostID: other, State: PeerConnected, LastSeen: stamp(), Addr: addr, Name: hello.Name, UserName: hello.UserName}
 	e.peers.mu.Unlock()
 	fail("accepted", "")
 }

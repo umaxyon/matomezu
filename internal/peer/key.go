@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-// Protocol は、ホストどうしの約束の版。ペアリングと運ぶときに確かめ、合わなければ断る
+// Protocol は、ホストどうしの約束の版。入口の包み（Pinned・Unpinned）が、どの頼みでも見出しで確かめ、合わなければ断る。mDNS の知らせにも載せる
 const Protocol = 1
 
 // Identity は、このホストの鍵: TLS で見せる証明書と、その公開鍵から決まるホスト id

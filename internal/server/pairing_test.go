@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -99,7 +100,7 @@ func TestPairingAcceptedPutsBothSides(t *testing.T) {
 	// B は利用者から A の待っている所を聞かないが、頼みの来た番地と A のポートで知る
 	bSeesA := func() bool {
 		l := b.HostPeers().Paired
-		return len(l) == 1 && l[0].Connected && l[0].Addr == addrOf(as) && l[0].Name == "masa-wsl"
+		return len(l) == 1 && l[0].State == PeerConnected && l[0].Addr == addrOf(as) && l[0].Name == "masa-wsl"
 	}
 	waitFor(t, "B sees A connected", bSeesA)
 	// B が忘れても（起動し直しなど）、A の確かめで知り直す
@@ -109,11 +110,11 @@ func TestPairingAcceptedPutsBothSides(t *testing.T) {
 	a.CheckPeers()
 	waitFor(t, "A sees B connected", func() bool {
 		l := a.HostPeers().Paired
-		return len(l) == 1 && l[0].Connected && l[0].Name == "win-lan"
+		return len(l) == 1 && l[0].State == PeerConnected && l[0].Name == "win-lan"
 	})
 	waitFor(t, "B learns where A listens from its hello", func() bool {
 		l := b.HostPeers().Paired
-		return len(l) == 1 && l[0].Connected && l[0].Addr == addrOf(as)
+		return len(l) == 1 && l[0].State == PeerConnected && l[0].Addr == addrOf(as)
 	})
 }
 
@@ -186,7 +187,7 @@ func TestUnpairingTellsTheOtherHost(t *testing.T) {
 			a, b, _, _ := pairBy(t, c.manual)
 			waitFor(t, "both connected", func() bool {
 				pa, pb := a.HostPeers().Paired, b.HostPeers().Paired
-				return len(pa) == 1 && pa[0].Connected && len(pb) == 1 && pb[0].Connected
+				return len(pa) == 1 && pa[0].State == PeerConnected && len(pb) == 1 && pb[0].State == PeerConnected
 			})
 			by, other := a, b
 			if c.byB {
@@ -208,25 +209,18 @@ func TestAHostThatAnswersNotPairedIsRemoved(t *testing.T) {
 	waitFor(t, "A removes it", func() bool { return len(a.pairedHostRecords()) == 0 })
 }
 
-// ペアリングしていない相手は Pinned の口に通らず、本文は not-paired。ペアリングの頼みの口は commit が無ければ reveal を断る
+// ペアリングしていない相手は Pinned の口に通らず、「ペアリングしていない」と答える。ペアリングの頼みの口は commit が無ければ reveal を断る
 func TestTheEntranceRefusesStrangers(t *testing.T) {
 	_, bs := openHost(t, "b")
 	other, err := peer.LoadOrCreate(filepath.Join(t.TempDir(), "other.key"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := peer.Client(other, bs.HostID, 5*time.Second)
-	res, err := c.Get("https://" + addrOf(bs) + "/peer/v1/hello")
-	if err != nil {
-		t.Fatal(err)
+	c := peer.Client(other, bs.HostID, peer.Protocol, 5*time.Second)
+	if _, err := c.Get("https://" + addrOf(bs) + "/peer/v1/hello"); !errors.Is(err, peer.ErrNotPaired) {
+		t.Fatalf("hello: want not paired, got %v", err)
 	}
-	body := make([]byte, 64)
-	n, _ := res.Body.Read(body)
-	res.Body.Close()
-	if res.StatusCode != http.StatusForbidden || strings.TrimSpace(string(body[:n])) != peer.NotPaired {
-		t.Fatalf("hello = %d %q", res.StatusCode, body[:n])
-	}
-	res, err = c.Post("https://"+addrOf(bs)+peer.PairingPath, "application/json", strings.NewReader(`{"step":"reveal","nonce":"x"}`))
+	res, err := c.Post("https://"+addrOf(bs)+peer.PairingPath, "application/json", strings.NewReader(`{"step":"reveal","nonce":"x"}`))
 	if err != nil {
 		t.Fatal(err)
 	}

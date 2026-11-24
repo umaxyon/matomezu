@@ -1,5 +1,5 @@
 // ペアリングしたホストの詳しい所（スロット picked-detail に置き、種類 paired-host を名乗る）: 題にホスト名（利用者名）、● つながっているか、
-// 目（AI 用ホストリストに載せる・隠すを替える）、歯車（待っている所・鍵の印・最後につながった時刻のダイアログ）。覚えた鍵と合わない相手が答えたときは、題の下に一言。
+// 目（AI 用ホストリストに載せる・隠すを替える）、歯車（待っている所・鍵の印・最後につながった時刻のダイアログ）。覚えた鍵と合わない相手が答えたときと、約束の版が合わないときは、題の下に一言。
 // 「〈ホスト〉から届いた指示: ［AI｜ユーザー］の指示として扱う」（ユーザーに替えるときは確かめのダイアログ）。
 // 右下にペアリングを解くアイコン（ワークルームの退室・ビジターの外すと同じ置き方。押すと確かめのダイアログ）
 import { useActions, useAllowedOn, useMessages } from "../../plugin-api/ui"
@@ -9,6 +9,7 @@ import { usePairedHostRow } from "./HostDialog"
 import { EyeHiddenIcon, EyeIcon, UnpairIcon } from "./icons"
 import { kit } from "./kit"
 import styles from "./OtherHosts.module.css"
+import { ProtocolWarning } from "./ProtocolWarning"
 import { PAIRED_HOST_LISTED_SET, PAIRED_HOST_REMOVE, PAIRED_HOST_REQUESTS_SET } from "./pairing"
 
 export function PairedHostDetail({ id }: { id: string }) {
@@ -29,9 +30,9 @@ export function PairedHostDetail({ id }: { id: string }) {
         {row.userName ? <span className={styles.user}>{t("({name})", { name: row.userName })}</span> : null}
         <span
           className={styles.dot}
-          data-connected={row.live?.connected === true}
+          data-connected={row.live?.state === "connected"}
           role="img"
-          aria-label={row.live?.connected ? t("Connected") : t("Not connected")}
+          aria-label={row.live?.state === "connected" ? t("Connected") : t("Not connected")}
         />
         <Tip text={eye} side="below" align="start">
           <IconButton
@@ -57,7 +58,8 @@ export function PairedHostDetail({ id }: { id: string }) {
           </IconButton>
         </Tip>
       </h2>
-      {row.live?.keyMismatch ? <p className={styles.warn}>{t("The key does not match")}</p> : null}
+      {row.live?.state === "key-mismatch" ? <p className={styles.warn}>{t("The key does not match")}</p> : null}
+      <ProtocolWarning live={row.live} className={styles.warn} block />
       <div className={styles.requests}>
         <span className={styles.requestsHead}>{t("Instructions from {name}:", { name: row.label })}</span>
         <span className={styles.requestsLine}>

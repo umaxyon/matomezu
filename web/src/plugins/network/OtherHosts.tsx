@@ -89,9 +89,9 @@ function Section({ picked }: { picked: { kind: string; id: string } | typeof NO_
               >
                 <span
                   className={styles.dot}
-                  data-connected={row.live?.connected === true}
+                  data-connected={row.live?.state === "connected"}
                   role="img"
-                  aria-label={row.live?.connected ? t("Connected") : t("Not connected")}
+                  aria-label={row.live?.state === "connected" ? t("Connected") : t("Not connected")}
                 />
                 <span className={styles.name}>{row.label}</span>
                 {row.record.listed === "hidden" ? (
@@ -112,7 +112,7 @@ function Section({ picked }: { picked: { kind: string; id: string } | typeof NO_
 // 開いたホストの行の下: 相手のワークルームの行（見るだけ）。つながっていなければ「つながっていません」だけ
 function Workrooms({ live }: { live: PeerLive | undefined }) {
   const t = useMessages(kit)
-  if (!live?.connected) return <p className={styles.rooms}>{t("Not connected now")}</p>
+  if (live?.state !== "connected") return <p className={styles.rooms}>{t("Not connected now")}</p>
   if (live.workrooms.length === 0) return <p className={styles.rooms}>{t("No AI is in a workroom")}</p>
   return (
     <ul className={styles.rooms} aria-label={t("Workrooms of {name}", { name: live.label })}>

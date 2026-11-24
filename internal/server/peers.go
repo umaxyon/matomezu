@@ -12,14 +12,12 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/umaxyon/matomezu/internal/peer"
 )
 
-// peerHello は、hello の口の答え: 約束の版・ホスト名・利用者名・待っている所のポート
+// peerHello は、hello の口の答え: ホスト名・利用者名・待っている所のポート（約束の版は、包みが見出しで確かめる）
 type peerHello struct {
-	Protocol int    `json:"protocol"`
 	Name     string `json:"name"`
 	UserName string `json:"userName"`
 	Port     int    `json:"port"`
@@ -40,7 +38,7 @@ func (h *Hub) peerHello(w http.ResponseWriter, r *http.Request) {
 			h.sawPeer(e.peers, from, addr, "", "")
 		}
 	}
-	writeJSON(w, peerHello{Protocol: peer.Protocol, Name: s.Name, UserName: h.userName(), Port: s.Port})
+	writeJSON(w, peerHello{Name: s.Name, UserName: h.userName(), Port: s.Port})
 }
 
 // peerUnpair は、相手がペアリングを解いた知らせ: こちらの側も消す（相手には知らせ返さない）
@@ -77,26 +75,23 @@ func (h *Hub) Discover() {
 	}
 }
 
-// checkPeer は、ペアリングしたホスト r の hello の口に、固定した鍵で頼み、様子を直して窓に知らせる。相手が「ペアリングしていない」と答えたら、こちらも消す
+// checkPeer は、ペアリングしたホスト r の hello の口に、固定した鍵で頼み、様子を直して窓に知らせる。相手が「ペアリングしていない」と答えたら、こちらも消す。
+// 約束の版が合わなければ、どちらを更新すれば合うかを様子に書く
 func (h *Hub) checkPeer(e *hostEntrance, r pairedHostRecord, addr string) {
 	if addr == "" {
 		return
 	}
-	c := peer.Client(e.config.Identity, r.HostID, peerAskTimeout)
+	c := peerClient(e, r.HostID)
 	resp, err := c.Get("https://" + addr + "/peer/v1/hello?port=" + strconv.Itoa(h.HostStatus().Port))
 	var hello peerHello
-	notPaired := false
 	if err == nil {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		resp.Body.Close()
-		switch {
-		case resp.StatusCode == http.StatusForbidden && strings.TrimSpace(string(body)) == peer.NotPaired:
-			notPaired = true
-		case resp.StatusCode != http.StatusOK || json.Unmarshal(body, &hello) != nil:
+		if resp.StatusCode != http.StatusOK || json.Unmarshal(body, &hello) != nil {
 			err = fmt.Errorf("hello answered %d", resp.StatusCode)
 		}
 	}
-	if notPaired {
+	if errors.Is(err, peer.ErrNotPaired) {
 		h.dropPairedHost(e.peers, r.HostID, "because it answered that it is not paired")
 		return
 	}
@@ -108,22 +103,25 @@ func (h *Hub) checkPeer(e *hostEntrance, r pairedHostRecord, addr string) {
 	}
 	l := ps.live[r.HostID]
 	if l == nil {
-		l = &PeerLive{HostID: r.HostID}
+		l = newPeerLive(r.HostID)
 		ps.live[r.HostID] = l
 	}
 	if err != nil {
 		delete(ps.copies, r.HostID)
 	}
+	var pm peer.ProtocolMismatchError
 	switch {
 	case err == nil:
-		l.Connected, l.KeyMismatch, l.LastSeen, l.Name, l.UserName = true, false, stamp(), hello.Name, hello.UserName
+		l.State, l.LastSeen, l.Name, l.UserName = PeerConnected, stamp(), hello.Name, hello.UserName
 		if host, _, splitErr := net.SplitHostPort(addr); splitErr == nil && hello.Port > 0 {
 			l.Addr = net.JoinHostPort(host, strconv.Itoa(hello.Port))
 		}
 	case errors.Is(err, peer.ErrKeyMismatch):
-		l.Connected, l.KeyMismatch = false, true
+		l.State = PeerKeyMismatch
+	case errors.As(err, &pm):
+		l.State = protocolState(pm)
 	default:
-		l.Connected = false
+		l.State = PeerUnreachable
 	}
 	ps.mu.Unlock()
 	h.tellPeers()
@@ -139,7 +137,7 @@ func (h *Hub) sighted(e *hostEntrance, s peer.Sighting, gone bool) {
 	r, paired := ps.known[s.HostID]
 	if paired && gone {
 		if l := ps.live[s.HostID]; l != nil {
-			l.Connected = false
+			l.State = PeerUnreachable
 		}
 		delete(ps.copies, s.HostID)
 	}
@@ -156,7 +154,7 @@ func (h *Hub) startBeacon(e *hostEntrance, port int) {
 	if !e.config.Discover {
 		return
 	}
-	ad := peer.Advert{HostID: e.config.Identity.HostID, Port: port, Name: e.status.Name, UserName: h.userName()}
+	ad := peer.Advert{HostID: e.config.Identity.HostID, Protocol: e.proto, Port: port, Name: e.status.Name, UserName: h.userName()}
 	b, err := peer.StartBeacon(ad, func(s peer.Sighting, gone bool) { h.sighted(e, s, gone) })
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "hosts: mDNS could not start:", err)
@@ -184,6 +182,6 @@ func (h *Hub) updateBeacon(e *hostEntrance) {
 	b := e.peers.beacon
 	e.peers.mu.Unlock()
 	if b != nil {
-		b.Update(peer.Advert{HostID: e.config.Identity.HostID, Port: e.status.Port, Name: e.status.Name, UserName: h.userName()})
+		b.Update(peer.Advert{HostID: e.config.Identity.HostID, Protocol: e.proto, Port: e.status.Port, Name: e.status.Name, UserName: h.userName()})
 	}
 }

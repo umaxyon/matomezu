@@ -220,7 +220,7 @@ func (h *Hub) refreshRooms(e *hostEntrance) {
 	type target struct{ hostID, addr string }
 	var targets []target
 	for id, r := range ps.known {
-		if lv := ps.live[id]; lv != nil && lv.Connected {
+		if lv := ps.live[id]; lv != nil && lv.State == PeerConnected {
 			if addr := ps.addrLocked(r); addr != "" {
 				targets = append(targets, target{id, addr})
 			}
@@ -441,7 +441,7 @@ func (ps *peerState) roomsOfLocked(hostID string) []RoomRow {
 
 // peerClient は、ペアリングしたホスト hostID に、固定した鍵で頼む口
 func peerClient(e *hostEntrance, hostID string) *http.Client {
-	return peer.Client(e.config.Identity, hostID, peerAskTimeout)
+	return peer.Client(e.config.Identity, hostID, e.proto, peerAskTimeout)
 }
 
 // --- AI が読む ---
@@ -607,7 +607,7 @@ func (h *Hub) pairedRoomsNow() []pairedRooms {
 	out := make([]pairedRooms, 0, len(ps.known))
 	for id, r := range ps.known {
 		p := pairedRooms{hostID: id, label: labels[id], listed: r.Listed != hostHidden, rows: []orderedRoom{}}
-		if l := ps.live[id]; l != nil && l.Connected {
+		if l := ps.live[id]; l != nil && l.State == PeerConnected {
 			p.connected = true
 			if c := ps.copies[id]; c != nil {
 				p.rows = entriesOf(c.rows)

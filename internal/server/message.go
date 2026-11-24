@@ -10,7 +10,7 @@ package server
 //
 //	POST /api/ai/message {"to", "host"?, "text"}  {"ok": true, "queued": true}、または断った理由 {"ok": false, "reason", "detail"}
 //	  断る理由: not-joined（送り手の参加が確定していない）・visitor（送り手がビジター）・unknown-recipient（その名前のワークルームが無いか、参加が確定した参加者がいない。detail に送れる名前）・to-self（自分のワークルーム）・
-//	  unknown-host（そのホストエイリアスのペアリングしたホストが無い。detail に送れるホストエイリアス）・unreachable（そのホストにつながらないか、相手が受けなかった。届いていない）・no-answer（2 回送って答えが無い。届いたかもしれない）・host-closed（このホストが「ほかのホストとつなぐ」を切にしている）
+//	  unknown-host（そのホストエイリアスのペアリングしたホストが無い。detail に送れるホストエイリアス）・unreachable（そのホストにつながらないか、相手が受けなかった。届いていない）・protocol-mismatch（そのホストと約束の版が合わない。届いていない。detail にどちらを更新するか）・no-answer（2 回送って答えが無い。届いたかもしれない）・host-closed（このホストが「ほかのホストとつなぐ」を切にしている）
 
 import (
 	"crypto/rand"

@@ -33,6 +33,7 @@ var mdnsGroup = &net.UDPAddr{IP: net.IPv4(224, 0, 0, 251), Port: 5353}
 // Advert は、自分を知らせる中身
 type Advert struct {
 	HostID   string
+	Protocol int // 約束の版
 	Port     int
 	Name     string // ホスト名
 	UserName string // 利用者名
@@ -312,7 +313,7 @@ func buildAnswer(self Advert, addrs []string, ttl uint32) ([]byte, error) {
 	if err := bld.SRVResource(unique(instance), dnsmessage.SRVResource{Target: target, Port: uint16(self.Port)}); err != nil {
 		return nil, err
 	}
-	txt := []string{"v=" + strconv.Itoa(Protocol), "id=" + self.HostID, "n=" + clip(self.Name), "u=" + clip(self.UserName)}
+	txt := []string{"v=" + strconv.Itoa(self.Protocol), "id=" + self.HostID, "n=" + clip(self.Name), "u=" + clip(self.UserName)}
 	if err := bld.TXTResource(unique(instance), dnsmessage.TXTResource{TXT: txt}); err != nil {
 		return nil, err
 	}
