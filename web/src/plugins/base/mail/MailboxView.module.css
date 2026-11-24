@@ -1,7 +1,7 @@
-/* 郵便箱の画面: 左に受信トレイ、右に選んだ郵便（2:3） */
+/* 郵便箱の画面: 左に受信トレイ（2:3 より 50px 狭い）、右に選んだ郵便 */
 .pane {
   display: grid;
-  grid-template-columns: 2fr 3fr;
+  grid-template-columns: minmax(0, calc(40% - 50px)) minmax(0, 1fr);
   min-height: 0;
   background: var(--skin-stage);
   color: var(--skin-text);
@@ -78,6 +78,27 @@
   padding: 0;
   overflow-y: auto;
   list-style: none;
+}
+/* 受信トレイの下の帯: 新しい方・古い方へ送るボタンと、出している範囲 */
+.range {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--skin-border);
+  color: var(--skin-text-muted);
+  font-size: 12px;
+}
+.range svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 /* 行: 左にチェックボックス、右に 2 行（未読の印・送り手・時刻と、題・種類の印） */
 .row {

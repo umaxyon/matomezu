@@ -4,6 +4,7 @@
 import {
   aiAuth,
   BOOK_SCREEN_URL,
+  CONTROL_CENTER_URL,
   expect,
   joinedAiAuth,
   type Page,
@@ -13,6 +14,7 @@ import {
   urlStages,
 } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
+import { stillBox } from "./helpers/motion"
 import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 import { storedBooks } from "./helpers/stored"
@@ -294,7 +296,7 @@ test("しおりに乗せると、待たずに自前の吹き出しで題が出�
   await expect(tip).toBeHidden()
 })
 
-test("「開く」は、行き先のブックを上の段に新しいブックスクリーンで開き、見ていたブックのスクリーンは後ろに残る。郵便箱は下の段のまま", async ({
+test("「開く」は、行き先のブックを上の段に新しいブックスクリーンで開き、見ていたブックのスクリーンは閉じる（窓のスクリーンは 2 枚まで）。郵便箱は下の段のまま", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -307,12 +309,92 @@ test("「開く」は、行き先のブックを上の段に新しいブック�
   })
   await page.getByRole("button", { name: "別のブック", exact: true }).click()
   await letter(page).getByRole("button", { name: "開く", exact: true }).click()
-  // 見ていたブックのスクリーンは閉じずに残り、行き先のブックのスクリーンがカレントスクリーンになる
+  // 行き先のブックのスクリーンがカレントスクリーンになり、見ていたブックのスクリーンは閉じる
   await expect.poll(() => urlStages(page)[0]?.b).toBe(other)
   expect(
     urlPlace(page)
       ?.s.filter(x => x.g)
       .map(x => x.g?.l[0]?.b),
-  ).toEqual([book, other])
+  ).toEqual([other])
+  expect(book).not.toBe(other)
   await expect(mailboxPane(page)).toBeVisible()
+})
+
+test("フッタの封筒で郵便箱のスクリーンを開くと、コンテンツエリアに郵便箱を出していたコントロールセンターはプロジェクトに戻る。戻る 1 回で両方が戻る", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  const book = ((await storedBooks(page.request)) as { id: string }[])[0]?.id
+  await page.goto(CONTROL_CENTER_URL)
+  await page.bringToFront()
+  await aiPerform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "行き先", to: { book } } })
+  const tile = (name: string) => page.getByRole("button", { name, exact: true }).filter({ visible: true }).first()
+  const panes = mailboxPane(page).locator("visible=true")
+  // コンテンツエリアに郵便箱を出し、郵便の行き先を窓いっぱいに開いて、フッタの封筒で郵便箱のスクリーンを出す
+  await tile("郵便箱").click()
+  await panes
+    .getByRole("listitem")
+    .getByRole("button", { name: /行き先/ })
+    .first()
+    .click()
+  await panes.locator("article").getByRole("button", { name: "開く", exact: true }).click()
+  await expect(panes).toHaveCount(0)
+  await (await fromMenu(page, "郵便箱")).click()
+  await expect(panes).toHaveCount(1)
+  // 戻る 1 回で、郵便箱のスクリーンが閉じ、コントロールセンターのコンテンツエリアも郵便箱のまま
+  await page.goBack()
+  await expect(panes).toHaveCount(0)
+  await (await fromMenu(page, "コントロールセンター")).click()
+  await expect(tile("郵便箱")).toHaveAttribute("aria-pressed", "true")
+  // もう一度開いた所から封筒を押すと、コントロールセンターはプロジェクトに戻る
+  await page.goBack()
+  await (await fromMenu(page, "郵便箱")).click()
+  await expect(panes).toHaveCount(1)
+  await page.getByRole("button", { name: "郵便箱を閉じる" }).filter({ visible: true }).click()
+  await (await fromMenu(page, "コントロールセンター")).click()
+  await expect(tile("郵便箱")).toHaveAttribute("aria-pressed", "false")
+  await expect(tile("プロジェクト")).toHaveAttribute("aria-pressed", "true")
+})
+
+test("受信トレイは 30 通ずつ出し、下の帯で古い方・新しい方へ送るとチェックが外れる。↓ で範囲の外の郵便へ移ると、その範囲を出す", async ({
+  page,
+}) => {
+  await ready(page)
+  for (let n = 1; n <= 35; n++)
+    await aiPerform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: `行${n}` } })
+  await (await fromMenu(page, "郵便箱")).click()
+  const pane = mailboxPane(page)
+  await expect(rows(page)).toHaveCount(30)
+  await expect(pane.getByText("1–30 / 35")).toBeVisible()
+  await expect(pane.getByRole("button", { name: "新しい郵便" })).toBeDisabled()
+  // 30 行目（行6）を選んで ↓: 範囲の外の行5 へ移り、その範囲を出す
+  await rows(page).nth(29).getByRole("button").click()
+  await page.keyboard.press("ArrowDown")
+  await expect(letter(page).getByRole("heading", { name: "行5" })).toBeVisible()
+  await expect(pane.getByText("31–35 / 35")).toBeVisible()
+  await expect(rows(page)).toHaveCount(5)
+  // チェックしてから範囲を送ると、チェックは外れる
+  await rows(page).first().getByRole("checkbox").check()
+  await pane.getByRole("button", { name: "新しい郵便" }).click()
+  await expect(pane.getByText("1–30 / 35")).toBeVisible()
+  await pane.getByRole("button", { name: "古い郵便" }).click()
+  await expect(rows(page).first().getByRole("checkbox")).not.toBeChecked()
+  await expect(pane.getByRole("button", { name: "古い郵便" })).toBeDisabled()
+})
+
+test("コントロールセンターの郵便箱は、下のワークルームの枠との間を空けて止まり、受信トレイの下の帯が見える", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  for (let n = 1; n <= 35; n++)
+    await aiPerform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: `行${n}` } })
+  await page.getByRole("button", { name: "郵便箱", exact: true }).filter({ visible: true }).first().click()
+  const pane = mailboxPane(page).locator("visible=true")
+  const band = pane.getByText("1–30 / 35")
+  await expect(band).toBeVisible()
+  const room = await stillBox(page.locator("[data-workroom-panel]"))
+  const area = await stillBox(pane.locator("xpath=ancestor::section[1]").last())
+  const shown = await stillBox(band)
+  expect(shown.y + shown.height).toBeLessThanOrEqual(room.y)
+  expect(area.y + area.height).toBeLessThan(room.y)
 })

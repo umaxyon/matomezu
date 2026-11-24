@@ -1,5 +1,7 @@
+/* プロジェクトと郵便箱の画面（ScreenPane）の上に重ね、画面を替えても動かない */
 .room {
   position: absolute;
+  z-index: 3;
   left: 0;
   right: 0;
   bottom: 0;

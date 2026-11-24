@@ -10,7 +10,7 @@ import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/sto
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { useRequestReveal } from "../stand/reveal-request"
 import { viewInsideOf } from "../window/views-inside"
-import { usePutViewInside } from "../window/views-inside-hooks"
+import { usePutViewAway, usePutViewInside } from "../window/views-inside-hooks"
 import { mailboxOf } from "."
 import { useSetBirdVisitAt } from "./bird-visit"
 import type { Mail } from "./mail"
@@ -68,11 +68,13 @@ function useMailboxFrom(): { at: string; def: string } {
 }
 
 // 郵便箱のスクリーンを開け閉めし、郵便を選んで開く（しおり・フッタの郵便箱のボタン・コントロールセンターの郵便箱のタイル）。open は、郵便箱のスクリーンが見えているか。
-// 開くのは MAILBOX_OPEN（起点は useMailboxFrom）。起点のスクリーンが郵便箱の画面を中に描いていれば（定義の viewsInside）、それを出す値も入れる
+// 開くのは MAILBOX_OPEN（起点は useMailboxFrom）。起点のスクリーンが郵便箱の画面を中に描いていれば（定義の viewsInside）、それを出す値も入れる。
+// 描いていなければ（郵便箱のスクリーンを新しく開く）、郵便箱の画面を中に出しているスクリーンを、定義の away の画面に替える
 export function useMailboxScreen(): { open: boolean; toggle: () => void; show: (mail?: string) => void } {
   const catalog = useCoreCatalog()
   const actions = useStoreActions()
   const putInside = usePutViewInside(MAILBOX_SCREEN.id)
+  const putAway = usePutViewAway(MAILBOX_SCREEN.id)
   const from = useMailboxFrom()
   const screen = useMatomezuState(s => {
     const opened = s.window.screens.find(x => x.def === MAILBOX_SCREEN.id)?.id
@@ -81,10 +83,11 @@ export function useMailboxScreen(): { open: boolean; toggle: () => void; show: (
   const { at, def } = from
   const show = useCallback(
     (mail?: string) => {
-      putInside(def)
+      if (viewInsideOf(catalog, def, MAILBOX_SCREEN.id) === undefined) putAway()
+      else putInside(def)
       actions.command(at, MAILBOX_OPEN.id, mail === undefined ? {} : { mail })
     },
-    [actions, putInside, at, def],
+    [actions, putInside, putAway, catalog, at, def],
   )
   const toggle = useCallback(() => {
     if (screen !== undefined) actions.command(screen, MAILBOX_SCREEN_CLOSE.id)

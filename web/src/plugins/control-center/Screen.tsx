@@ -1,6 +1,6 @@
 // コントロールセンターの画面: 左の列（利用者パネル・ワークルーム/参加者の一覧）と、コンテンツエリア（プロジェクト・書庫・郵便箱の画面を重ねて、出す方を替える）。
 // 左の列の利用者パネルと参加者の一覧の間には スロット side、参加者の一覧の下にはスロット below-participants（選んでいる物を渡す）、プロジェクトの画面の上のタスクボードの置き場にはスロット projects に置かれたウィジェットが入る（タスクボードなど）。
-// プロジェクトの画面は上にタスクボードの置き場、下にワークルーム。書庫と郵便箱は最大化できる。最大化の間（書庫・郵便箱の最大化と、中身が名乗った最大化）は、枠が出ていく（retreatOf）。
+// プロジェクトと郵便箱の画面は上に置き、下にワークルームの枠を 1 つ置く（二つの画面を替えても、枠は動かずに上だけが替わる。書庫の画面の間は、枠が下へ退く）。書庫と郵便箱は最大化できる。最大化の間（書庫・郵便箱の最大化と、中身が名乗った最大化）は、枠が出ていく（retreatOf）。
 // コンテンツエリアに出す画面は、このスクリーンの値として画面の場所に入る（CONTENT_AREA。値が無ければプロジェクト）。選んでいる物（ワークルーム・ビジター・ほかの種類のどれか 1 つ）も画面の場所に入る（PICKED。履歴には積まない）。書庫・郵便箱の最大化は、このスクリーンの中だけ
 import { useState } from "react"
 import { NO_RECORD, NO_STATE } from "../../plugin-api"
@@ -70,19 +70,26 @@ export function ControlCenterScreen() {
         </div>
         <div className={styles.content} data-max={retreat.left}>
           <ScreenPane shown={screen === "projects"} slideIn={switched}>
-            <div className={styles.projectScreen}>
-              <Panel recess className={styles.boards} data-max={retreat.workroom} data-boards-area>
+            <div className={styles.overRoom}>
+              <Panel recess className={styles.aboveRoom} data-max={retreat.workroom} data-boards-area>
                 <Slot name={PROJECTS} props={{}} />
               </Panel>
-              <WorkroomView row={picked} visitor={visitor} detail={detail} hidden={retreat.workroom} />
             </div>
           </ScreenPane>
           <ScreenPane shown={screen === "library"} slideIn={switched}>
             <LibraryArea maximized={maximized} onToggleMaximize={() => setMaximized(!maximized)} />
           </ScreenPane>
           <ScreenPane shown={screen === "mailbox"} slideIn={switched}>
-            <MailboxArea maximized={mailboxMaximized} onToggleMaximize={() => setMailboxMaximized(!mailboxMaximized)} />
+            <div className={styles.overRoom}>
+              <MailboxArea
+                className={styles.aboveRoom}
+                retreat={retreat.workroom}
+                maximized={mailboxMaximized}
+                onToggleMaximize={() => setMailboxMaximized(!mailboxMaximized)}
+              />
+            </div>
           </ScreenPane>
+          <WorkroomView row={picked} visitor={visitor} detail={detail} hidden={retreat.workroom} />
         </div>
       </div>
     </div>

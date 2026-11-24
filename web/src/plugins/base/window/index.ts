@@ -10,7 +10,7 @@ import {
 } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { applySplitFrom } from "./apply-split"
-import { planClose, shownSplit, splitOf } from "./split"
+import { planClose, planCloseAll, shownSplit, splitOf } from "./split"
 
 // ブックスクリーン: ステージを並べて、ブックを見る・直すスクリーン。渡す値は無い
 export const BOOK_SCREEN_DEF = kit.defineScreen({
@@ -26,21 +26,24 @@ export { ONE_SCREEN } from "./one-screen"
 
 // カレントスクリーン（呼ばれた文脈の、カレントにした順の最後）
 const current = (ctx: ScreenCommandContext): OpenScreen | undefined => screensOf(ctx).at(-1)
-// いちばん最近カレントにした、ステージを並べるスクリーン（stages が true）か、並べないスクリーン（false）
-const recent = (ctx: ScreenCommandContext, stages: boolean): OpenScreen | undefined =>
-  [...screensOf(ctx)].reverse().find(s => s.stages === stages)
+// 窓を開いたときから開いているスクリーン（コントロールセンター）か
+const atStart = (ctx: ScreenCommandContext, screen: OpenScreen | undefined): boolean =>
+  screen !== undefined && ctx.catalog.screens.get(screen.def)?.atStart === true
+// いちばん最近カレントにした、窓を開いたときから開いているスクリーン（start が true）か、そうでないスクリーン（false）
+const recent = (ctx: ScreenCommandContext, start: boolean): OpenScreen | undefined =>
+  [...screensOf(ctx)].reverse().find(s => atStart(ctx, s) === start)
 
-// 巣箱のコマンド（ステージのメニューの「コントロールセンター」）。ブックスクリーンと、ステージを並べないスクリーン（コントロールセンターなど）を行き来する: カレントスクリーンと違う種類の、
-// いちばん最近カレントにしたスクリーンをカレントスクリーンにする。ステージを並べないスクリーンがカレントの間は、押された状態
+// 巣箱のコマンド（ステージのメニューの「コントロールセンター」）。コントロールセンター（窓を開いたときから開いているスクリーン）を見ていなければ、それをカレントスクリーンにし、
+// 見ていれば、その前にカレントにしていたスクリーンへ戻す。コントロールセンターがカレントの間は、押された状態
 export const SCREEN_TOGGLE = kit.defineScreenCommand({
   id: "screen-toggle",
   title: "Control center",
   run: (ctx, a) => {
-    const to = recent(ctx, current(ctx)?.stages !== true)
+    const to = recent(ctx, !atStart(ctx, current(ctx)))
     if (to) storeActionsOf(a).makeScreenCurrent(to.id)
   },
   when: () => true,
-  active: ctx => current(ctx)?.stages === false,
+  active: ctx => atStart(ctx, current(ctx)),
 })
 
 // 上下に分けて見せているか（カレントスクリーンが、分けた並びにある）
@@ -60,7 +63,8 @@ export const SPLIT_BACK = kit.defineScreenCommand({
 })
 
 // ブックスクリーンを閉じる（何も開いていないステージ 1 つだけのときのステージの真ん中のボタンと、下の行の頭の閉じる）。前にカレントだったスクリーンへ戻る。
-// 上下に分けた並びの中なら、並びから外して閉じる（並びが 1 枚になれば、残った物を窓いっぱいに見せる）。
+// 上下に分けた並びの中なら、並びから外して閉じる（並びが 1 枚になれば、残った物を窓いっぱいに見せる）。並びにほかのブックスクリーンが残らなければ、
+// 並びの物も一緒に閉じる（ブックの横に開いた郵便箱などを、ブックと一緒に引っ込める）。
 // 窓の最後の 1 枚は土台が閉じないので、出さない（ブックスクリーンは最初から開いているスクリーンでないので、ほかにスクリーンがあれば閉じられる）
 export const BOOK_SCREEN_CLOSE = kit.defineScreenCommand({
   id: "book-screen-close",
@@ -69,8 +73,10 @@ export const BOOK_SCREEN_CLOSE = kit.defineScreenCommand({
     const store = storeActionsOf(a)
     const id = calledScreenIdOf(ctx)
     const split = splitOf(screensOf(ctx), arrangementValueIn(ctx))
-    if (split.includes(id)) applySplitFrom(store, planClose(split, id))
-    else store.closeScreen(id)
+    const book = (other: string) => screensOf(ctx).find(s => s.id === other)?.def === BOOK_SCREEN_DEF.id
+    if (!split.includes(id)) store.closeScreen(id)
+    else if (!split.some(other => other !== id && book(other))) applySplitFrom(store, planCloseAll(split))
+    else applySplitFrom(store, planClose(split, id))
   },
   when: ctx => ctx.screen.def === BOOK_SCREEN_DEF.id && screensOf(ctx).length > 1,
 })

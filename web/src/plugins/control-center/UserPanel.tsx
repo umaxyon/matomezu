@@ -74,7 +74,7 @@ export function UserPanel({ screen, onShow }: { screen: ContentArea; onShow: (to
       </div>
       <div className={styles.tiles}>
         {tiles.map(tile => (
-          <Tip key={tile.label} text={tile.label}>
+          <Tip key={tile.label} text={tile.label} align="start">
             <button
               type="button"
               className={styles.tile}

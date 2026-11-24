@@ -1,7 +1,7 @@
 // スクリーンの定義の viewsInside の、開く側のフック（views-inside.ts）
 import { useCallback } from "react"
 import type { ScreenId } from "../../../core/catalog"
-import { useSetPluginStateById } from "../../../ui/plugin-state-hooks"
+import { useSetPluginStateById, useSetPluginStateByIdIfNow } from "../../../ui/plugin-state-hooks"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { viewInsideOf } from "./views-inside"
 
@@ -16,4 +16,17 @@ export function usePutViewInside(def: ScreenId): (screenDef: string) => void {
     },
     [catalog, setById, def],
   )
+}
+
+// 開く側のフック: base のスクリーンの定義 def を新しく開く前に呼ぶと、def の画面を中に描くスクリーンの定義のうち away を書いた物ごとに、
+// その開いているスクリーンが今その画面を出していれば、away の画面に替える
+export function usePutViewAway(def: ScreenId): () => void {
+  const catalog = useCoreCatalog()
+  const setIfNow = useSetPluginStateByIdIfNow()
+  return useCallback(() => {
+    for (const screen of catalog.screens.values()) {
+      const inside = screen.viewsInside?.[def]
+      if (inside?.away !== undefined) setIfNow(inside.state, inside.away, { screenDef: screen.id, now: inside.value })
+    }
+  }, [catalog, setIfNow, def])
 }

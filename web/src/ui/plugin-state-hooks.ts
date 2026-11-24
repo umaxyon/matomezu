@@ -127,6 +127,20 @@ export function useSetPluginStateById(): (id: string, value: unknown, at?: { scr
   )
 }
 
+// useSetPluginStateById の、書き先の今の値（無ければ宣言の既定）が now と同じときだけ入れる形（入れたら true）。
+// base の開く側のフックだけが使う（プラグイン API には出さない）
+export function useSetPluginStateByIdIfNow(): (
+  id: string,
+  value: unknown,
+  at: { screenDef: string; now: unknown },
+) => boolean {
+  const { setPluginStateById } = useInstance()
+  return useCallback(
+    (id, value, at) => setPluginStateById(id, value, { screenDef: at.screenDef, ifNow: { value: at.now } }),
+    [setPluginStateById],
+  )
+}
+
 // 複数のプラグイン状態の値を、1 回で書く関数（途中の、片方だけ変わった状態を知らせない）。自分の kit を渡し、自分の宣言だけを書く。
 // 変え方は [宣言, 新しい値（NO_STATE なら消す）] の並び（ステージごとの宣言は向け先のステージ、スクリーンごとの宣言は描いているスクリーンの値。その場所が無ければ、その変え方は捨てる）
 export function useSetPluginStates(

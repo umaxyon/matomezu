@@ -1,6 +1,7 @@
 // 郵便箱の画面（郵便箱のスクリーンと、コントロールセンターのコンテンツエリアが描く）: 左に受信トレイ（タブ「AI｜人」・ゴミ箱・届いた郵便の行）、右に選んだ郵便の本文と行き先のボタン。
 // 行は 2 行（未読の印・送り手・時刻と、題・種類の印）。行を押すと選んで見たことにする（mail-seen）。行の左のチェックボックスでチェックした郵便は、ゴミ箱から確かめてまとめて消す（同じアクションバルク）。
-// チェックはタブごとで、タブを替えると外れる。選んでいる郵便とタブはスクリーンの範囲のプラグイン状態（今のタブに無い・消えた郵便は、選んでいないのと同じ）。
+// 受信トレイは INBOX_ROWS 通ずつ出し、下の帯で新しい方・古い方の範囲へ送る（範囲はこの見た目だけが持ち、履歴に積まない。外から選ばれた郵便が範囲の外なら、その範囲を出す）。
+// チェックはタブと範囲ごとで、タブか範囲を替えると外れる。選んでいる郵便とタブはスクリーンの範囲のプラグイン状態（今のタブに無い・消えた郵便は、選んでいないのと同じ）。
 // 行き先のボタンは、上下に並んでいるブックスクリーンのカレントのステージを起点に「開く／分割で開く／左に開く／右に開く」、並んでいなければ「開く」1 つ（ブックを窓に出す）。開いても閉じない
 import { useState } from "react"
 import { NO_STATE } from "../../../core/def/plugin-state"
@@ -24,10 +25,11 @@ import { clampChars } from "../text/text"
 import { IconButton } from "../utils/IconButton"
 import { refusalMessage } from "../utils/refusal"
 import { shownTime } from "../utils/shown-time"
+import { Tip } from "../utils/Tip"
 import { showBookInUpperRow, stageAboveLower } from "../window/lower-row"
 import { MAIL_REMOVE, MAIL_SEEN, MAIL_VISITED } from "./actions"
 import { useMailbox, useShowMailPlaceAt } from "./hooks"
-import { inboxOf, unreadOf } from "./inbox"
+import { FIRST_SHOWN, INBOX_ROWS, type InboxShown, inboxFrom, inboxOf, unreadOf } from "./inbox"
 import own from "./Mail.module.css"
 import styles from "./MailboxView.module.css"
 import type { Mail, MailSenderKind } from "./mail"
@@ -39,6 +41,16 @@ import { MAIL_ACTIONS } from "./slots"
 import { MAILBOX_PICKED, MAILBOX_SENDER_TAB } from "./states"
 
 const TITLE_CHARS = 60 // 行に出す題の字数
+const NEWER = (
+  <svg viewBox="0 0 16 16" aria-hidden="true">
+    <path d="M10 3 5 8l5 5" />
+  </svg>
+)
+const OLDER = (
+  <svg viewBox="0 0 16 16" aria-hidden="true">
+    <path d="m6 3 5 5-5 5" />
+  </svg>
+)
 const TABS: readonly { kind: MailSenderKind; title: "Sender AI" | "Sender people" }[] = [
   { kind: "ai", title: "Sender AI" },
   { kind: "user", title: "Sender people" },
@@ -61,7 +73,9 @@ export function MailboxView({ className }: { className?: string }) {
   const setPicked = useSetPluginState(kit, MAILBOX_PICKED)
   const { perform } = useActions()
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set())
+  const [shown, setShown] = useState<InboxShown>(FIRST_SHOWN)
   const rows = inboxOf(mailbox, tab)
+  const from = inboxFrom(rows, pickedState, shown)
   // 今のタブに無い・消えた郵便は、選んでいないのと同じ
   const picked = pickedState === NO_STATE ? undefined : rows.find(m => m.id === pickedState)
   const pick = (m: Mail) => {
@@ -70,6 +84,7 @@ export function MailboxView({ className }: { className?: string }) {
   }
   const switchTab = (kind: MailSenderKind) => {
     setTab(kind)
+    setShown(FIRST_SHOWN)
     setChecked(new Set())
   }
   const toggleCheck = (id: string) =>
@@ -78,6 +93,10 @@ export function MailboxView({ className }: { className?: string }) {
       if (!next.delete(id)) next.add(id)
       return next
     })
+  const showFrom = (to: number) => {
+    setShown({ from: to, anchor: pickedState })
+    setChecked(new Set())
+  }
   // チェックした郵便のうち、まだ今のタブにある物
   const checkedRows = rows.filter(m => checked.has(m.id))
   const now = new Date()
@@ -114,7 +133,7 @@ export function MailboxView({ className }: { className?: string }) {
           <p className={styles.empty}>{t("No mail")}</p>
         ) : (
           <ul className={styles.rows}>
-            {rows.map(m => (
+            {rows.slice(from, from + INBOX_ROWS).map(m => (
               <Row
                 key={m.id}
                 mail={m}
@@ -126,6 +145,28 @@ export function MailboxView({ className }: { className?: string }) {
               />
             ))}
           </ul>
+        )}
+        {rows.length > INBOX_ROWS && (
+          <div className={styles.range}>
+            <IconButton small label={t("Newer mail")} disabled={from === 0} onClick={() => showFrom(from - INBOX_ROWS)}>
+              {NEWER}
+            </IconButton>
+            <span>
+              {t("{first}–{last} of {count}", {
+                first: from + 1,
+                last: Math.min(from + INBOX_ROWS, rows.length),
+                count: rows.length,
+              })}
+            </span>
+            <IconButton
+              small
+              label={t("Older mail")}
+              disabled={from + INBOX_ROWS >= rows.length}
+              onClick={() => showFrom(from + INBOX_ROWS)}
+            >
+              {OLDER}
+            </IconButton>
+          </div>
         )}
       </section>
       <section className={styles.reader}>{picked && <Reader mail={picked} />}</section>
@@ -183,9 +224,16 @@ function RemoveChecked({ mails, onRemoved }: { mails: readonly Mail[]; onRemoved
   }
   return (
     <>
-      <IconButton label={t("Remove the checked mail")} disabled={mails.length === 0} onClick={() => setAsking(true)}>
-        {TRASH}
-      </IconButton>
+      <Tip text={t("Remove the checked mail")}>
+        <IconButton
+          label={t("Remove the checked mail")}
+          title={undefined}
+          disabled={mails.length === 0}
+          onClick={() => setAsking(true)}
+        >
+          {TRASH}
+        </IconButton>
+      </Tip>
       {asking && (
         <Confirm
           message={t("Remove {count} mail?", { count: mails.length })}

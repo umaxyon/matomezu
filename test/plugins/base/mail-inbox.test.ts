@@ -2,7 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { NO_STATE } from "../../../web/src/core/def/plugin-state"
-import { inboxOf, pickMoved, unreadOf } from "../../../web/src/plugins/base/mail/inbox"
+import { FIRST_SHOWN, inboxFrom, inboxOf, pickMoved, unreadOf } from "../../../web/src/plugins/base/mail/inbox"
 import type { Mail } from "../../../web/src/plugins/base/mail/mail"
 
 const mail = (id: string, senderKind: Mail["senderKind"], seen = false): Mail => ({
@@ -34,4 +34,26 @@ test("↑↓: 選んでいなければ下で先頭・上で末尾、端では動
   expect(pickMoved([], NO_STATE, "down")).toBe(NO_STATE)
   // 並びに無い郵便（ほかのタブ・消えた物）は、選んでいないのと同じ
   expect(pickMoved(rows, "u1", "down")).toBe("a3")
+})
+
+const rowsOf = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `m${i}` }))
+
+test("受信トレイの範囲: 最初は 1 つ目の範囲。利用者が選んだ範囲を、行が増えても保つ。行が減って範囲が空になれば最後の範囲", () => {
+  expect(inboxFrom(rowsOf(130), NO_STATE, FIRST_SHOWN)).toBe(0)
+  expect(inboxFrom(rowsOf(130), NO_STATE, { from: 60, anchor: NO_STATE })).toBe(60)
+  expect(inboxFrom(rowsOf(131), NO_STATE, { from: 60, anchor: NO_STATE })).toBe(60)
+  expect(inboxFrom(rowsOf(50), NO_STATE, { from: 60, anchor: NO_STATE })).toBe(30)
+  expect(inboxFrom(rowsOf(0), NO_STATE, { from: 60, anchor: NO_STATE })).toBe(0)
+})
+
+test("受信トレイの範囲: 範囲を選んだあとに外から選ばれた郵便（しおり・行の移動）が範囲の外なら、その郵便を含む範囲。範囲を選んだときに選んでいた郵便なら、範囲を保つ", () => {
+  expect(inboxFrom(rowsOf(130), "m75", FIRST_SHOWN)).toBe(60)
+  expect(inboxFrom(rowsOf(130), "m29", { from: 0, anchor: NO_STATE })).toBe(0)
+  expect(inboxFrom(rowsOf(130), "m30", { from: 0, anchor: NO_STATE })).toBe(30)
+  // m3 を選んだまま 3 つ目の範囲へ送った: 範囲を保つ
+  expect(inboxFrom(rowsOf(130), "m3", { from: 60, anchor: "m3" })).toBe(60)
+  // 今の範囲の中の郵便を選んだ: 範囲を保つ
+  expect(inboxFrom(rowsOf(130), "m70", { from: 60, anchor: "m3" })).toBe(60)
+  // 消えた郵便を選んでいる: 選んでいないのと同じ
+  expect(inboxFrom(rowsOf(130), "gone", { from: 90, anchor: NO_STATE })).toBe(90)
 })

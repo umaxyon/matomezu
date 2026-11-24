@@ -61,16 +61,16 @@
 .content[data-max="true"] {
   left: 0;
 }
-.projectScreen {
+.overRoom {
   position: relative;
 }
-/* プロジェクトの画面の上のタスクボードの置き場（下のワークルームの高さを除いた全部）。タスクボードはタスクボードの物が入る。
-   中身の最大化でワークルームが退く間は、下の端まで広がる */
-.boards {
+/* プロジェクトと郵便箱の画面の中身の置き場（下のワークルームの枠の高さを除いた全部。プロジェクトはタスクボードの物が入る）。
+   最大化でワークルームの枠が退く間は、下の端まで広がる */
+.aboveRoom {
   position: absolute;
   inset: 0 0 calc(var(--room-height) + var(--gap)) 0;
   transition: bottom var(--motion) ease;
 }
-.boards[data-max="true"] {
+.aboveRoom[data-max="true"] {
   bottom: 0;
 }
