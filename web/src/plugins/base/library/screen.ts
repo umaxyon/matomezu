@@ -19,9 +19,8 @@ import {
 import { NO_STAGE } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { hasOpenedPage } from "../utils/opened-page"
-import { ONE_SCREEN } from "../window"
-import { applySplitFrom } from "../window/apply-split"
-import { behindOf, planClose, planExpand, SPLIT_ROWS, splitOf } from "../window/split"
+import { bookStageAbove, expandBelowBook, leaveBelowBook, openBelowBook } from "../window/below-book"
+import { splitOf } from "../window/split"
 import { outsidePagePlaceOf } from "./outline"
 import { LIBRARY_APPEARANCE, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY } from "./state"
 
@@ -84,25 +83,8 @@ export const LIBRARY_PLACE_OPEN = kit.defineCommand({
 })
 
 // 書庫のスクリーンを出して、その id を返す（出せなければ SCREEN_REFUSED）。開いていれば、新しく開かずにそれを使う
-function openLibrary(ctx: ScreenCommandContext, a: CommandActions): string | typeof SCREEN_REFUSED {
-  const store = storeActionsOf(a)
-  const screens = screensOf(ctx)
-  const value = arrangementValueIn(ctx)
-  const opened = screens.find(s => s.def === LIBRARY_SCREEN.id)?.id
-  const library = opened ?? store.openScreenId(LIBRARY_SCREEN.id, {})
-  if (library === SCREEN_REFUSED) return library
-  if (!ctx.screen.stages) {
-    store.setScreenArrangement(ONE_SCREEN.id)
-    store.makeScreenCurrent(library)
-    return library
-  }
-  const book = calledScreenIdOf(ctx)
-  // 前の並び（コントロールセンターとチケットなど）は behind に覚え、書庫のスクリーンを閉じたら戻す
-  const before = splitOf(screens, value).filter(id => id !== library && id !== book)
-  store.setScreenArrangement(SPLIT_ROWS.id, { screens: [book, library], behind: before })
-  store.makeScreenCurrent(library)
-  return library
-}
+const openLibrary = (ctx: ScreenCommandContext, a: CommandActions): string | typeof SCREEN_REFUSED =>
+  openBelowBook(ctx, a, LIBRARY_SCREEN.id)
 
 // 書庫のスクリーンを閉じる（帯の閉じるボタン・書庫のスクリーンの外の操作。書庫の画面の中で Esc。コントロールセンターの書庫の画面からは出さない）
 export const LIBRARY_SCREEN_CLOSE = kit.defineScreenCommand({
@@ -136,12 +118,7 @@ export function stageBeside(
   const rows = splitOf(screens, value)
   if (!rows.includes(library)) return NO_STAGE
   const vacant = vacantStageBeside(screens, value, library)
-  if (vacant !== NO_STAGE) return vacant
-  for (const id of rows) {
-    const stage = id === library ? NO_STAGE : (screens.find(s => s.id === id)?.currentStage ?? NO_STAGE)
-    if (stage !== NO_STAGE) return stage
-  }
-  return NO_STAGE
+  return vacant !== NO_STAGE ? vacant : bookStageAbove(screens, value, library)
 }
 
 // 書庫のスクリーン library と上下に並んでいるブックスクリーンの、何も開いていないステージ（ステージを分けて足した物）。並んでいない・空のステージが無ければ NO_STAGE。
@@ -171,20 +148,11 @@ export function closeLibrary(store: Store, screens: readonly Arranged[], value: 
 }
 
 // 書庫のスクリーン library を閉じて並びから外す（ステージは閉じない。書庫のスクリーンから開いたあと、開いたステージを残して閉じるとき）
-export function leaveLibrary(store: Store, screens: readonly Arranged[], value: unknown, library: string): void {
-  const rows = splitOf(screens, value)
-  if (!rows.includes(library)) {
-    store.closeScreen(library)
-    return
-  }
-  const stages = screens.filter(s => s.stages).map(s => s.id)
-  applySplitFrom(store, screens, value, planClose(rows, behindOf(screens, value), library, stages))
-}
+export const leaveLibrary = leaveBelowBook
 
 // 書庫のスクリーン library を窓いっぱいに広げる（同じスクリーンのまま。空のステージは閉じ、並べていたブックスクリーンは開いたまま後ろへ）
 function expandLibrary(store: Store, screens: readonly Arranged[], value: unknown, library: string): void {
   const vacant = vacantStageBeside(screens, value, library)
   if (vacant !== NO_STAGE) store.closeStage(vacant)
-  applySplitFrom(store, screens, value, planExpand(splitOf(screens, value), library))
-  store.makeScreenCurrent(library)
+  expandBelowBook(store, screens, value, library)
 }
