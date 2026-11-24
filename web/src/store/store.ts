@@ -138,6 +138,7 @@ import {
   type LibraryRows,
   type MatomezuInstance,
   type MatomezuState,
+  type ReadonlyStore,
   type StoreOptions,
 } from "./state"
 import { createUnseenChanges } from "./unseen"
@@ -215,8 +216,35 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 状態は書き換えさせない（前の状態と変わらない所を共有しているので、その場で書き換えると前の状態まで変わる）。入れるたびに変わった所を凍らせる
   const store = createStore<MatomezuState>()(() => deepFreeze(initial))
   store.subscribe(deepFreeze)
-  // ステージで開いている物・書庫の表・プラグイン状態（書庫アピアランスが見せているフォルダの材料）が替わったら、まだ見ていない画面の履歴の段が見えたかを確かめ直す（下で作る checkSeen）
+  // 外に渡す購読の口。1 回のコマンドの間（together）に何度書いても、購読には終えたあとに 1 回だけ知らせる（前の値は、始める前の値）。
+  // 途中の、半分だけ変わった状態を画面やホストに知らせず、書くたびに画面中の物が計算し直さないため。読む値（getState）は、書いた分を重ねた今の値
+  const listeners = new Set<(now: MatomezuState, was: MatomezuState) => void>()
+  let before: MatomezuState | null = null // まとめている間だけ: 始める前の値
   store.subscribe((now, was) => {
+    if (before === null) for (const l of listeners) l(now, was)
+  })
+  const together = (fn: () => boolean): boolean => {
+    if (before !== null) return fn()
+    const was = getState()
+    before = was
+    try {
+      return fn()
+    } finally {
+      before = null
+      const now = getState()
+      if (now !== was) for (const l of listeners) l(now, was)
+    }
+  }
+  const state: ReadonlyStore = {
+    ...store,
+    subscribe: l => {
+      const listener = (now: MatomezuState, was: MatomezuState) => l(now, was)
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+  }
+  // ステージで開いている物・書庫の表・プラグイン状態（書庫アピアランスが見せているフォルダの材料）が替わったら、まだ見ていない画面の履歴の段が見えたかを確かめ直す（下で作る checkSeen）
+  state.subscribe((now, was) => {
     if (
       now.window !== was.window ||
       now.books !== was.books ||
@@ -601,69 +629,71 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (a && !a.ok) return { ok: false, reason: a.reason, by: "host" }
       return { ok: true, result: done.result } as Performed<typeof id>
     },
-    command: (stage, id, ...args) => {
-      if (!open?.continued) closeStep() // continueStep で続けている段は、このコマンドが行うアクションを足すまで閉じない
-      const state = getState()
-      const call = called(defs, state, stage, id)
-      if (!call || !isEnabled(defs, state, stage, id, args[0])) return false
-      const owner = commandOwner(id)
-      // 1 回のコマンドで複数の値を書いても、store には 1 回で書く（途中の、片方だけ変わった状態を知らせない）。読む値は、書いた分を重ねたもの
-      const pending: [string, PluginPlace, unknown][] = []
-      const working = () =>
-        pending.reduce((v, [id, st, value]) => withPluginValue(v, id, st, value), getState().pluginValues)
-      // 呼ばれた場所の、宣言 stateDef の値を next にする（undefined なら消す）
-      const writeHere = (
-        stateDef: PluginStateDef<unknown>,
-        next: (own: PluginStateDef<unknown>, at: PluginPlace) => unknown,
-      ) => {
-        const own = ownedPluginState(owner, stateDef)
-        // スクリーンごとの宣言は、呼ばれた場所のスクリーンの値
-        const at = placeOf(own.scope, { stage, screen: calledScreenIdOf(call.ctx) })
-        const value = next(own, at)
-        withPluginValue(working(), own.id, at, value) // 書く前に、範囲と形を確かめる
-        pending.push([own.id, at, value])
-      }
-      const updatePluginState: CommandActions["updatePluginState"] = (stateDef, change) =>
-        writeHere(stateDef, (own, at) => storedOf(change(stateRead(stateDef, pluginValueOf(working(), at, own)))))
-      const resetPluginState = (stateDef: PluginStateDef<unknown>) => writeHere(stateDef, () => undefined)
-      // ほかのスクリーン screen の、スクリーンごとの宣言の値（base のコマンドだけが updatePluginStateAtOf で使う）
-      const updatePluginStateAt: UpdatePluginStateAt = (screen, stateDef, change) => {
-        const own = ownedPluginState(owner, stateDef)
-        // 渡したスクリーンに書くのはスクリーンごとの宣言だけ（ステージ・窓の範囲の宣言を、呼ばれた場所に黙って書かない）
-        if (own.scope !== "screen") fail("E124", { id: own.id, scope: own.scope, need: "use updatePluginState" })
-        const at = placeOf(own.scope, { stage, screen })
-        const next = storedOf(change(stateRead(stateDef, pluginValueOf(working(), at, own))))
-        withPluginValue(working(), own.id, at, next)
-        pending.push([own.id, at, next])
-      }
-      // ほかのスクリーン screen の、スクリーンごとの宣言の値を消す（base のコマンドだけが resetPluginStateAtOf で使う）
-      const resetPluginStateAt: ResetPluginStateAt = (screen, stateDef) => {
-        const own = ownedPluginState(owner, stateDef)
-        if (own.scope !== "screen") fail("E124", { id: own.id, scope: own.scope, need: "use resetPluginState" })
-        const at = placeOf(own.scope, { stage, screen })
-        withPluginValue(working(), own.id, at, undefined)
-        pending.push([own.id, at, undefined])
-      }
-      const run = call.def.run as (ctx: unknown, actions: CommandActions, args: never) => void
-      // 呼ばれた場所（ステージか、スクリーン）に向けた操作
-      const given: CommandActions = {
-        ...windowActionsOf(actions),
-        ...boundActions(actions, stage),
-        updatePluginState,
-        resetPluginState,
-      }
-      givenActions.set(given, actions)
-      givenScreenWrites.set(given, updatePluginStateAt)
-      givenScreenResets.set(given, resetPluginStateAt)
-      givenWindowReads.set(given, () => getState().window)
-      run(call.ctx, given, args[0] as never)
-      if (pending.length > 0) {
-        const now = getState().pluginValues
-        const next = working()
-        if (next !== now) setState({ pluginValues: next })
-      }
-      return true
-    },
+    // 1 回のコマンドの書き込みは、購読に 1 回で知らせる（together）
+    command: (stage, id, ...args) =>
+      together(() => {
+        if (!open?.continued) closeStep() // continueStep で続けている段は、このコマンドが行うアクションを足すまで閉じない
+        const state = getState()
+        const call = called(defs, state, stage, id)
+        if (!call || !isEnabled(defs, state, stage, id, args[0])) return false
+        const owner = commandOwner(id)
+        // 1 回のコマンドで複数の値を書いても、store には 1 回で書く（途中の、片方だけ変わった状態を知らせない）。読む値は、書いた分を重ねたもの
+        const pending: [string, PluginPlace, unknown][] = []
+        const working = () =>
+          pending.reduce((v, [id, st, value]) => withPluginValue(v, id, st, value), getState().pluginValues)
+        // 呼ばれた場所の、宣言 stateDef の値を next にする（undefined なら消す）
+        const writeHere = (
+          stateDef: PluginStateDef<unknown>,
+          next: (own: PluginStateDef<unknown>, at: PluginPlace) => unknown,
+        ) => {
+          const own = ownedPluginState(owner, stateDef)
+          // スクリーンごとの宣言は、呼ばれた場所のスクリーンの値
+          const at = placeOf(own.scope, { stage, screen: calledScreenIdOf(call.ctx) })
+          const value = next(own, at)
+          withPluginValue(working(), own.id, at, value) // 書く前に、範囲と形を確かめる
+          pending.push([own.id, at, value])
+        }
+        const updatePluginState: CommandActions["updatePluginState"] = (stateDef, change) =>
+          writeHere(stateDef, (own, at) => storedOf(change(stateRead(stateDef, pluginValueOf(working(), at, own)))))
+        const resetPluginState = (stateDef: PluginStateDef<unknown>) => writeHere(stateDef, () => undefined)
+        // ほかのスクリーン screen の、スクリーンごとの宣言の値（base のコマンドだけが updatePluginStateAtOf で使う）
+        const updatePluginStateAt: UpdatePluginStateAt = (screen, stateDef, change) => {
+          const own = ownedPluginState(owner, stateDef)
+          // 渡したスクリーンに書くのはスクリーンごとの宣言だけ（ステージ・窓の範囲の宣言を、呼ばれた場所に黙って書かない）
+          if (own.scope !== "screen") fail("E124", { id: own.id, scope: own.scope, need: "use updatePluginState" })
+          const at = placeOf(own.scope, { stage, screen })
+          const next = storedOf(change(stateRead(stateDef, pluginValueOf(working(), at, own))))
+          withPluginValue(working(), own.id, at, next)
+          pending.push([own.id, at, next])
+        }
+        // ほかのスクリーン screen の、スクリーンごとの宣言の値を消す（base のコマンドだけが resetPluginStateAtOf で使う）
+        const resetPluginStateAt: ResetPluginStateAt = (screen, stateDef) => {
+          const own = ownedPluginState(owner, stateDef)
+          if (own.scope !== "screen") fail("E124", { id: own.id, scope: own.scope, need: "use resetPluginState" })
+          const at = placeOf(own.scope, { stage, screen })
+          withPluginValue(working(), own.id, at, undefined)
+          pending.push([own.id, at, undefined])
+        }
+        const run = call.def.run as (ctx: unknown, actions: CommandActions, args: never) => void
+        // 呼ばれた場所（ステージか、スクリーン）に向けた操作
+        const given: CommandActions = {
+          ...windowActionsOf(actions),
+          ...boundActions(actions, stage),
+          updatePluginState,
+          resetPluginState,
+        }
+        givenActions.set(given, actions)
+        givenScreenWrites.set(given, updatePluginStateAt)
+        givenScreenResets.set(given, resetPluginStateAt)
+        givenWindowReads.set(given, () => getState().window)
+        run(call.ctx, given, args[0] as never)
+        if (pending.length > 0) {
+          const now = getState().pluginValues
+          const next = working()
+          if (next !== now) setState({ pluginValues: next })
+        }
+        return true
+      }),
     openDialog: (at, id, ...args) => {
       if (!defs.catalog.store.dialogs.has(id)) fail("E108", { id })
       const place = placeOpenedFrom(at)
@@ -1008,7 +1038,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const instance: MatomezuInstance<Ps> = {
     ...defs,
     plugins,
-    state: store,
+    state,
     actions,
     receive: (world, replay, change) => {
       rows = { pages: world.pages, folders: world.folders }
