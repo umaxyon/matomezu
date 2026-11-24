@@ -200,7 +200,7 @@ func askCounterpart(u home.Counterpart) (hereInfo, error) {
 }
 
 // counterpartCommand は、相手の OS u で matomezu のサブコマンド sub を動かすコマンドと、動かすフォルダ（空なら今のフォルダ）。
-// WSL の matomezu は u.Dir（空ならホーム）のフォルダの、対話のログインのシェルで探す（npm・Volta・nvm の PATH はシェルの設定にあり、Ubuntu の .bashrc は対話でなければ読まれない。
+// WSL の matomezu は u.Dir（空ならホームディレクトリ）のフォルダの、対話のログインのシェルで探す（npm・Volta・nvm の PATH はシェルの設定にあり、Ubuntu の .bashrc は対話でなければ読まれない。
 // Windows の今のフォルダのままだと、それが matomezu のリポジトリのとき、意図せず開発の保管庫を使ってしまう）。
 // Windows の matomezu は cmd.exe で探す（npm の入口は .cmd）。WSL のフォルダのまま cmd.exe を動かすと UNC のフォルダを断るので、C: で動かす
 func counterpartCommand(u home.Counterpart, sub ...string) (name string, args []string, dir string) {
