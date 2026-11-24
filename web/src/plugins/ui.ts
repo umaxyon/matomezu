@@ -103,6 +103,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:background-print-control",
       "@matomezu/base:print-preview-button",
       "@matomezu/base:mailbox-button",
+      "@matomezu/base:outbox-button",
     ],
     "@matomezu/base:footer-menu-book-tools": ["@matomezu/base:toolbox", "@matomezu/base:scrap-tray-button"],
     "@matomezu/base:right-side-panel": [

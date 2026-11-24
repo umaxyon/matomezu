@@ -101,7 +101,6 @@ import type {} from "./mail"
 import {
   MAIL,
   type MAIL_BIRD_VISIT,
-  MAIL_DIALOG,
   MAIL_LETTER,
   MAIL_PROPOSAL,
   MAIL_REMOVE,
@@ -708,7 +707,6 @@ export const BASE = defineBuiltin(
       LIBRARY_NEW_FOLDER_DIALOG,
       LIBRARY_RENAME_DIALOG,
       SETTINGS_DIALOG,
-      MAIL_DIALOG,
       JOIN_REQUEST_DIALOG,
       PARTICIPANT_JOIN_DIALOG,
       PARTICIPANT_WELCOME_DIALOG,
@@ -1069,7 +1067,6 @@ declare module "../../core/catalog" {
     "@matomezu/base:mailbox": typeof MAILBOX_KEY_SCOPE // 郵便箱の画面の中にフォーカスがある間のキー
   }
   interface DialogTable {
-    "@matomezu/base:mail": typeof MAIL_DIALOG
     "@matomezu/base:join-request": typeof JOIN_REQUEST_DIALOG
     "@matomezu/base:participant-join": typeof PARTICIPANT_JOIN_DIALOG
     "@matomezu/base:participant-welcome": typeof PARTICIPANT_WELCOME_DIALOG

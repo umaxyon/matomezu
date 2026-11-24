@@ -1,7 +1,7 @@
 // コントロールセンターのプラグインの見た目: コントロールセンターがカレントスクリーンのときの画面と、退室の確認のダイアログ。
 // 画面は郵便箱と横断検索の左サイドパネルを開くので、そのタブの中身が開けるスロットを opens に書く。書庫の画面（LibraryView）が開く右クリックのメニューは contextMenus に書く
 import { definePluginUi, defineWidget } from "../../plugin-api/ui"
-import { LIBRARY_CONTEXT_MENUS, MAILBOX_OPENS, WIDE_SEARCH_OPENS } from "../base/ui"
+import { LIBRARY_CONTEXT_MENUS, MAIL_ACTIONS, WIDE_SEARCH_OPENS } from "../base/ui"
 import { CONTROL_CENTER_PLUGIN } from "."
 import { CONTROL_CENTER_SCREEN, VISITOR_LEAVE_DIALOG, WORKROOM_LEAVE_DIALOG } from "./control-center"
 import { kit } from "./kit"
@@ -13,7 +13,7 @@ import { WorkroomLeaveDialog } from "./WorkroomLeaveDialog"
 export const CONTROL_CENTER_SCREEN_WIDGET = defineWidget({
   id: kit.name("screen"),
   slots: [CONTROL_CENTER_SCREEN.id],
-  opens: [...MAILBOX_OPENS, ...WIDE_SEARCH_OPENS, SIDE, PROJECTS, WORKROOM_COLUMNS, WORKROOM_ROW_LINE],
+  opens: [MAIL_ACTIONS, ...WIDE_SEARCH_OPENS, SIDE, PROJECTS, WORKROOM_COLUMNS, WORKROOM_ROW_LINE],
   contextMenus: [...LIBRARY_CONTEXT_MENUS],
   view: ControlCenterScreen,
 })

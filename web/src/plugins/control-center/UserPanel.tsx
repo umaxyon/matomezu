@@ -10,7 +10,6 @@ import {
   NO_UPDATE_STATUS,
   Panel,
   Tip,
-  useMailboxPanel,
   useOpenSettings,
   useUpdateStatus,
   useUserName,
@@ -31,7 +30,6 @@ type Tile = { label: string; icon: ReactNode; onClick: () => void; pressed: bool
 export function UserPanel({ screen, onShow }: { screen: ContentArea; onShow: (to: ContentArea) => void }) {
   const t = useMessages(kit)
   const userName = useUserName()
-  const mailbox = useMailboxPanel()
   const wideSearch = useWideSearchPanel()
   const settings = useCommand("@matomezu/base:settings-open")
   // 題の左の巣箱の絵（見た目だけ。チケットの帯の巣箱のボタンと同じ絵を、そのコマンドの id で引く）
@@ -40,7 +38,7 @@ export function UserPanel({ screen, onShow }: { screen: ContentArea; onShow: (to
   const newer = update !== NO_UPDATE_STATUS && update.state === "newer"
   const openUpdates = useOpenSettings(UPDATE_CATEGORY)
   const tiles: Tile[] = [
-    { label: t("Mailbox"), icon: <MailIcon />, onClick: mailbox.toggle, pressed: mailbox.open },
+    { label: t("Mailbox"), icon: <MailIcon />, onClick: () => onShow("mailbox"), pressed: screen === "mailbox" },
     { label: t("Library"), icon: <LibraryIcon />, onClick: () => onShow("library"), pressed: screen === "library" },
     { label: t("Projects"), icon: <ProjectIcon />, onClick: () => onShow("projects"), pressed: screen === "projects" },
     { label: t("Wide search"), icon: <SearchIcon />, onClick: wideSearch.toggle, pressed: wideSearch.open },

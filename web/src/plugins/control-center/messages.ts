@@ -6,7 +6,7 @@ export const CONTROL_CENTER_MESSAGES = defineMessages({
   "Global settings": { en: "Global settings", ja: "全体設定" },
   "An update is available": { en: "An update is available", ja: "更新があります" },
   You: { en: "You", ja: "あなた" },
-  Mailbox: { en: "Mailbox", ja: "郵便" },
+  Mailbox: { en: "Mailbox", ja: "郵便箱" },
   Library: { en: "Library", ja: "書庫" },
   Projects: { en: "Projects", ja: "プロジェクト" },
   "Wide search": { en: "Wide search", ja: "横断検索" },

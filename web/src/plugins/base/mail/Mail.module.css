@@ -45,3 +45,7 @@
   gap: 8px;
   margin-top: 12px;
 }
+/* フッタの郵便箱のボタン: 角に未読の数を重ねる */
+.envelope {
+  position: relative;
+}

@@ -30,19 +30,17 @@ import {
 import type { MailActionsProps } from "./mail/ui"
 import {
   MAIL_BOOKMARKS,
-  MAIL_DIALOG_VIEWS,
   MAIL_LAYER,
   MAIL_WATCH,
   MAILBOX_BUTTON,
   MAILBOX_SCREEN_VIEW,
-  MAILBOX_TAB,
   PROPOSAL_ACTIONS,
 } from "./mail/ui"
 import { ALERT_STATUS, MARK_ICON, MARK_LAYER } from "./mark/ui"
 import { FOLDED_NOTE_STATUS, NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE, READ_NOTE_STATUS } from "./note/ui"
 import { OPEN_GUIDE } from "./open-guide/ui"
 import type { AnnotationIconProps } from "./outbox/ui"
-import { OUTBOX } from "./outbox/ui"
+import { OUTBOX, OUTBOX_BUTTON } from "./outbox/ui"
 import { PAGE_CONTEXT_MENU_ROWS, PAGE_DIALOG_VIEWS, PAGE_LIST, PAGE_SETTINGS_ICONS, PAGE_TABS } from "./page-tabs/ui"
 import { JOIN_REQUEST_BOOKMARKS, JOIN_REQUEST_WATCH, PARTICIPANT_DIALOG_VIEWS } from "./participant/ui"
 import {
@@ -151,7 +149,13 @@ export {
 } from "./left-side-panel/ui"
 export { type FolderEntry, LIBRARY_CONTEXT_MENUS, LibraryView, NO_FOLDER, useFolderEntries } from "./library/ui"
 export { LockToggle } from "./lock/ui"
-export { defineMailActions, MAIL_ACTIONS, MAILBOX_OPENS, type MailActionsProps, useMailboxPanel } from "./mail/ui"
+export {
+  defineMailActions,
+  MAIL_ACTIONS,
+  type MailActionsProps,
+  MailboxPane,
+  useMailboxScreen,
+} from "./mail/ui"
 export {
   MARKDOWN_PANE_MODE_ICONS,
   MarkdownDocumentView,
@@ -287,7 +291,6 @@ export const BASE_UI = definePluginUi(BASE, {
     [LIBRARY_NEW_FOLDER_DIALOG.id]: LibraryNewFolderDialog,
     [LIBRARY_RENAME_DIALOG.id]: LibraryRenameDialog,
     ...SETTINGS_DIALOG_VIEWS,
-    ...MAIL_DIALOG_VIEWS,
     ...PARTICIPANT_DIALOG_VIEWS,
     ...SCRAP_DIALOG_VIEWS,
   },
@@ -325,7 +328,7 @@ export const BASE_UI = definePluginUi(BASE, {
     SHEET_CONTENT,
     MAILBOX_BUTTON,
     OUTBOX,
-    MAILBOX_TAB,
+    OUTBOX_BUTTON,
     SCRAP_TRAY_TAB,
     SCRAP_TRAY_BUTTON,
     BOOKMARK_HOST,
@@ -452,7 +455,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:print-preview-button": typeof PRINT_PREVIEW_BUTTON
     "@matomezu/base:mailbox-button": typeof MAILBOX_BUTTON
     "@matomezu/base:outbox": typeof OUTBOX
-    "@matomezu/base:mailbox": typeof MAILBOX_TAB
+    "@matomezu/base:outbox-button": typeof OUTBOX_BUTTON
     "@matomezu/base:scrap-tray": typeof SCRAP_TRAY_TAB
     "@matomezu/base:scrap-tray-button": typeof SCRAP_TRAY_BUTTON
     "@matomezu/base:bookmark-host": typeof BOOKMARK_HOST

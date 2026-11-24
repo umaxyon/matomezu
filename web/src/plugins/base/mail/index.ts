@@ -3,7 +3,6 @@
 // 既読は 2 つ: 利用者が郵便を開いて見た時点 seenAt（画面の未読の数はこれで数える）と、郵便が示した物を見た時点 visitedAt（AI は read_records でこれを知る）
 
 export { type LetterProps, MAIL_LETTER, MAIL_REMOVE, MAIL_SEEN, MAIL_SEND, MAIL_VISITED } from "./actions"
-export { MAIL_DIALOG } from "./dialogs"
 export { MAIL_PROPOSAL, PROPOSAL_APPLY, PROPOSAL_SEND, PROPOSAL_SETTLE } from "./proposal"
 export { MAIL, MAILBOX_LIMIT, mailAdded, mailboxOf, READS_MAILBOX_KEYS } from "./subject"
 

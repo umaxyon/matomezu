@@ -107,12 +107,15 @@ test("書庫が下の段にあれば入れ替える。閉じるとブックス�
   expect(stages()).toHaveLength(2)
 })
 
-test("コントロールセンターから開く: 窓いっぱいに出し、閉じても行き先の起点のステージは無い", () => {
-  const { store, win, of, run } = setup()
-  const center = win().screens.find(s => s.stages === undefined && s.def !== MAILBOX)?.id ?? ""
+test("コントロールセンター（定義に mailboxArea を書いた）から開く: 郵便箱のスクリーンは開かず、そのスクリーンの郵便箱の画面で選ぶ", () => {
+  const { store, win, of, run, id } = setup()
+  const center = win().screens.find(s => s.stages === undefined)?.id ?? ""
   store.actions.makeScreenCurrent(center)
-  run(center, "mailbox-open")
-  expect(win().arrangement).toBe("@matomezu/base:one-screen")
-  expect(win().order.at(-1)).toBe(of(MAILBOX))
-  expect(startStage(win(), of(MAILBOX))).toBe(NO_STAGE)
+  run(center, "mailbox-open", { mail: id.u1 })
+  expect(of(MAILBOX)).toBe("")
+  const values = store.state.getState().pluginValues
+  expect([pluginValueOf(values, center, MAILBOX_SENDER_TAB), pluginValueOf(values, center, MAILBOX_PICKED)]).toEqual([
+    "user",
+    id.u1,
+  ])
 })
