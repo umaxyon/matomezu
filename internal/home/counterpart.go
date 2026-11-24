@@ -17,7 +17,7 @@ const (
 	CounterpartWindows = "windows" // WSL から、Windows の常駐を使う
 )
 
-// Counterpart は、この保管庫が、自分では常駐を立てずに、同じ機械の相手の常駐を使うと覚えた先（counterpart.json）
+// Counterpart は、この保管庫が、自分では常駐を立てずに、同じマシンの相手の常駐を使うと覚えた先（counterpart.json）
 type Counterpart struct {
 	OS     string `json:"os"`               // CounterpartWSL か CounterpartWindows
 	Distro string `json:"distro,omitempty"` // OS が CounterpartWSL のときの、WSL の distro の名前

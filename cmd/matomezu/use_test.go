@@ -248,7 +248,7 @@ func TestUpdateAndPluginRemoveLeaveTheCounterpart(t *testing.T) {
 }
 
 // 相手の OS の matomezu を動かすコマンド: WSL は distro のホームのフォルダの対話のログインのシェル、Windows は C: の cmd.exe
-func TestSideCommand(t *testing.T) {
+func TestCounterpartCommand(t *testing.T) {
 	for _, c := range []struct {
 		u    home.Counterpart
 		name string
@@ -287,7 +287,7 @@ func TestCounterpartWindowsRefusesNATNetworking(t *testing.T) {
 }
 
 // 常駐を探す・止めるコードは running・ensure・stopServer を通す（WSL と Windows の相手の常駐を使う保管庫で、相手を見落とさない）。
-// 保管庫の鍵や server.json を直に見てよいのは、それらを書く serve.go と use.go だけ
+// この OS の常駐を直に探す・止める（localRunning・stopLocal・鍵が空いているか・server.json）のは、常駐を探す所を持つ serve.go と、覚える前にこの OS の常駐を止める use.go だけ
 func TestOnlyServeAndUseLookAtTheVaultsServerDirectly(t *testing.T) {
 	files, err := filepath.Glob("*.go")
 	if err != nil {

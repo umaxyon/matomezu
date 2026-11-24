@@ -1,6 +1,6 @@
 package main
 
-// WSL と Windows の相手の常駐を使う（matomezu use）: 同じ機械の Windows と WSL で、片方の保管庫に、もう片方の OS の常駐を使うと覚えさせる。
+// WSL と Windows の相手の常駐を使う（matomezu use）: 同じマシンの Windows と WSL で、片方の保管庫に、もう片方の OS の常駐を使うと覚えさせる。
 // 覚えた保管庫の matomezu は、自分では常駐を立てず、常駐を探す所（running・ensure・stopServer）がその常駐の保管庫の server.json を読んでつなぐ。
 // 常駐の鍵（flock）は OS をまたいで効かないので、立っているかは ping で決める。
 // Windows から WSL のファイルは \\wsl.localhost\<distro>\... で読める（Claude Desktop の Code タブのパッケージの中からも読める）。
