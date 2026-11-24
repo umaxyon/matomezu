@@ -378,18 +378,24 @@ function trash(ctx: ScreenCommandContext, a: CommandActions, entry: string): voi
   else a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Could not move to trash")) })
 }
 
+// ゴミ箱に入れる: 書庫ホームかフォルダの直下の物。Delete キーからは、ブックやバインダの中の物なら、消す前に確かめるダイアログを開く（同じ範囲の同じキーは 1 つのコマンドにしか結べない。
+// メニューの行は直下の物にだけ出し、キーの表示もこの行に出す）
 export const LIBRARY_ENTRY_TRASH = kit.defineScreenCommand({
   id: "library-entry-trash",
   readsSubjects: workdesksReadsOf,
   title: "Move to trash",
-  performs: [ENTRY_TRASH.id],
+  performs: [ENTRY_TRASH.id, ENTRY_REMOVE.id], // 中の物は、開いたダイアログが entry-remove を行う
   run: (ctx, a, named: Named | undefined) => {
-    const entry = handled(ctx, trashes, named)
-    if (entry !== undefined) trash(ctx, a, entry)
+    const trashed = handled(ctx, trashes, named)
+    if (trashed !== undefined) return trash(ctx, a, trashed)
+    const entry = handled(ctx, removes, named)
+    if (entry !== undefined) a.openDialog(LIBRARY_REMOVE_DIALOG.id, { entry })
   },
   performsWith: (ctx, named) => {
-    const entry = handled(ctx, trashes, named)
-    return entry === undefined ? [] : [{ action: ENTRY_TRASH.id, args: { entry } }]
+    const trashed = handled(ctx, trashes, named)
+    if (trashed !== undefined) return [{ action: ENTRY_TRASH.id, args: { entry: trashed } }]
+    const entry = handled(ctx, removes, named)
+    return entry === undefined ? [] : [{ action: ENTRY_REMOVE.id, args: { entry } }]
   },
   when: inMenuHandled(trashes),
 })
@@ -409,27 +415,6 @@ export const LIBRARY_ENTRY_REMOVE = kit.defineScreenCommand({
     return entry === undefined ? [] : [{ action: ENTRY_REMOVE.id, args: { entry } }]
   },
   when: inMenuHandled(removes),
-})
-
-// Delete キー: 書庫ホームかフォルダの直下の物はゴミ箱に入れ、ブックやバインダの中の物は、確かめるダイアログを開く（同じ範囲の同じキーは 1 つのコマンドにしか結べない）
-export const LIBRARY_ENTRY_DELETE = kit.defineScreenCommand({
-  id: "library-entry-delete",
-  readsSubjects: workdesksReadsOf,
-  title: "Delete",
-  performs: [ENTRY_TRASH.id, ENTRY_REMOVE.id],
-  run: (ctx, a, named: Named | undefined) => {
-    const trashed = handled(ctx, trashes, named)
-    if (trashed !== undefined) return trash(ctx, a, trashed)
-    const entry = handled(ctx, removes, named)
-    if (entry !== undefined) a.openDialog(LIBRARY_REMOVE_DIALOG.id, { entry })
-  },
-  performsWith: (ctx, named) => {
-    const trashed = handled(ctx, trashes, named)
-    if (trashed !== undefined) return [{ action: ENTRY_TRASH.id, args: { entry: trashed } }]
-    const entry = handled(ctx, removes, named)
-    return entry === undefined ? [] : [{ action: ENTRY_REMOVE.id, args: { entry } }]
-  },
-  when: () => true,
 })
 
 // 動かす（ドラッグで落としたとき）: エントリ entry を、落とす先 to（フォルダの index 番目か、ゴミ箱）へ。how は、先に同じ名前の物が在るときに利用者が選んだ手
@@ -615,9 +600,9 @@ export const LIBRARY_KEYS = [
   }),
   kit.defineKey({
     id: "library-tree-trash-delete",
-    title: "Delete",
+    title: "Move to trash",
     key: "Delete",
-    command: LIBRARY_ENTRY_DELETE.id,
+    command: LIBRARY_ENTRY_TRASH.id,
     args: { at: "tree" },
     scope: LIBRARY_TREE_SCOPE,
   }),
@@ -803,9 +788,9 @@ export const LIBRARY_KEYS = [
   }),
   kit.defineKey({
     id: "library-entry-trash-delete",
-    title: "Delete",
+    title: "Move to trash",
     key: "Delete",
-    command: LIBRARY_ENTRY_DELETE.id,
+    command: LIBRARY_ENTRY_TRASH.id,
     args: undefined,
     scope: LIBRARY_CONTENTS_SCOPE,
   }),

@@ -406,7 +406,7 @@ test("書庫の右の枠の上下の矢印は、描いた段の真上・真下�
   }
 })
 
-test("書庫の行の右クリックのメニューから、名前の変更・ゴミ箱に入れる・開く・中に作る、ができる。ブックの中のページは開く・名前の変更・複製。何も無い所では、作るだけ。Escape で閉じる", async ({
+test("書庫の行の右クリックのメニューから、名前の変更・ゴミ箱に入れる・開く・中に作る、ができる。ブックの中のページは開く・名前の変更・複製・削除。何も無い所では、作るだけ。Escape で閉じる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -470,7 +470,7 @@ test("書庫の行の右クリックのメニューから、名前の変更・�
   await tree.getByRole("button", { name: `${first.title} の中を出す` }).click()
   const pageRow = tree.getByRole("button", { name: "ページ 1", exact: true }).first()
   await pageRow.click({ button: "right" })
-  await expect(menu.getByRole("menuitem")).toHaveText(["開くEnter", "分割で開くCtrl+Enter", "名前の変更…F2", "複製"])
+  await expect(menu.getByRole("menuitem")).toHaveText(["開くEnter", "分割で開くCtrl+Enter", "名前の変更…F2", "複製", "削除…"])
   await menu.getByRole("menuitem", { name: /^開く/ }).click()
   await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
 })

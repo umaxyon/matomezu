@@ -252,13 +252,13 @@ test("右クリックのメニューの行: フォルダは作る・名前の変
   expect(dialog()).toMatchObject({ args: { into: HOME_ID } })
 })
 
-test("Delete キー（library-entry-delete）: 書庫ホームかフォルダの直下の物はゴミ箱に入れ、ブックやバインダの中の物は、消す前に確かめるダイアログを開く", () => {
+test("Delete キーのコマンド（library-entry-trash）: 書庫ホームかフォルダの直下の物はゴミ箱に入れ、ブックやバインダの中の物は、消す前に確かめるダイアログを開く", () => {
   const { folder, run, ids, dialog } = setup()
   const a = folder("あ")
-  run("library-entry-delete", { entry: a })
+  run("library-entry-trash", { entry: a })
   expect(ids(HOME_ID)).not.toContain(a)
   expect(dialog()).toBeNull()
-  run("library-entry-delete", { entry: "p1" })
+  run("library-entry-trash", { entry: "p1" })
   expect(dialog()).toMatchObject({ id: "@matomezu/base:library-entry-remove", args: { entry: "p1" } })
   expect(ids("b1")).toEqual(["p1"])
   run("dialog-close")
@@ -266,7 +266,7 @@ test("Delete キー（library-entry-delete）: 書庫ホームかフォルダの
   expect(dialog()).toMatchObject({ id: "@matomezu/base:library-entry-remove", args: { entry: "p1" } })
   run("dialog-close")
   // 書庫ホームには、どちらも効かない
-  run("library-entry-delete", { entry: HOME_ID })
+  run("library-entry-trash", { entry: HOME_ID })
   expect(dialog()).toBeNull()
 })
 

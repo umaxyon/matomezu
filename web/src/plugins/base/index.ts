@@ -42,7 +42,6 @@ import {
   LIBRARY_COLUMNS,
   LIBRARY_CONTENTS_AROUND_KEY_SCOPE,
   LIBRARY_CONTENTS_KEY_SCOPE,
-  LIBRARY_ENTRY_DELETE,
   LIBRARY_ENTRY_DUPLICATE,
   LIBRARY_ENTRY_MOVE,
   LIBRARY_ENTRY_OPEN,
@@ -685,7 +684,6 @@ export const BASE = defineBuiltin(
       LIBRARY_ENTRY_RENAME,
       LIBRARY_ENTRY_TRASH,
       LIBRARY_ENTRY_REMOVE,
-      LIBRARY_ENTRY_DELETE,
       LIBRARY_ENTRY_DUPLICATE,
       LIBRARY_ENTRY_MOVE,
       LIBRARY_TREE_MOVE,
@@ -970,7 +968,6 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-pick-move": typeof LIBRARY_PICK_MOVE
     "@matomezu/base:library-entry-trash": typeof LIBRARY_ENTRY_TRASH
     "@matomezu/base:library-entry-remove": typeof LIBRARY_ENTRY_REMOVE
-    "@matomezu/base:library-entry-delete": typeof LIBRARY_ENTRY_DELETE
     "@matomezu/base:library-entry-duplicate": typeof LIBRARY_ENTRY_DUPLICATE
     "@matomezu/base:screen-toggle": typeof SCREEN_TOGGLE
     "@matomezu/base:book-screen-close": typeof BOOK_SCREEN_CLOSE
