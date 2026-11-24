@@ -226,6 +226,8 @@ var migrations = []string{
 	`SELECT 1;`,
 	// 郵便に、送り手が AI か利用者か（senderKind）を足す（Go の移し替え。migrate_mail_sender_kind.go）
 	`SELECT 1;`,
+	// ペアリングしたホストに、rallyLimit（そのホストから届く AI ラリーの上限）を足す（Go の移し替え。migrate_paired_host_rally_limit.go）
+	`SELECT 1;`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う
@@ -248,6 +250,7 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	37: addPairedHostRequests,
 	38: addPairedHostListed,
 	39: addMailSenderKind,
+	40: addPairedHostRallyLimit,
 }
 
 type sqliteStorage struct {

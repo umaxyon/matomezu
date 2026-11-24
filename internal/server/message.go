@@ -37,6 +37,7 @@ type Envelope struct {
 	To     Address `json:"to"`
 	Text   string  `json:"text"`
 	SentAt string  `json:"sentAt"`
+	Rally  int     `json:"rally,omitempty"` // ほかのホストへ送る物の、送り手の AI の利用者トリガートークの後に、その宛て先へ送った何通目か（rally.go。載せないホストもある）
 }
 
 // MessageRequest は AI 間メッセージを送る頼み。Participant は呼び出しに付いていた参加の id
@@ -71,7 +72,7 @@ func (h *Hub) occupants(records []participantRecord) map[string]string {
 
 // actionEnvelopes は、アクションバルクが返した AI 間メッセージ messages を、行った参加者から送る封筒にする（h.mu を持って呼ぶ）。
 // 行ったのが参加の確定した AI でなければ、バルクを断る答えを返す。宛先が自分のワークルームか、宛先のワークルームに参加の確定した参加者がいなければ、
-// noRecipient が skip のその 1 通は送らず、ほかはバルクを断る答えを返す
+// noRecipient が skip のその 1 通は送らず、ほかはバルクを断る答えを返す。AI ラリーの上限を超える物も同じに扱う（宛て先には止めた事を知らせる。rally.go）
 func (h *Hub) actionEnvelopes(messages []engine.AIMessage, actor *engine.Actor, now time.Time) ([]delivery, *Performed) {
 	if len(messages) == 0 {
 		return nil, nil
@@ -94,6 +95,7 @@ func (h *Hub) actionEnvelopes(messages []engine.AIMessage, actor *engine.Actor, 
 	}
 	self := h.selfHostID()
 	envelopes := make([]delivery, 0, len(messages))
+	ahead := map[string]int{} // 宛て先の参加者ごとの、このバルクで先に送る数
 	for _, m := range messages {
 		to := occupant[m.Workroom]
 		name := roomName(rooms, m.Workroom)
@@ -106,13 +108,22 @@ func (h *Hub) actionEnvelopes(messages []engine.AIMessage, actor *engine.Actor, 
 			}
 			return nil, &Performed{OK: false, Reason: "no-recipient", Detail: "no other AI has joined the workroom " + name + " now, so the message to it cannot be sent; nothing was changed"}
 		}
-		envelopes = append(envelopes, delivery{to: to, envelope: Envelope{
+		d := delivery{to: to, from: from, envelope: Envelope{
 			ID:     newEnvelopeID(),
 			From:   Address{Host: self, Workroom: roomName(rooms, actor.Workroom)},
 			To:     Address{Host: self, Workroom: name},
 			Text:   m.Text,
 			SentAt: storage.Stamp(now),
-		}})
+		}}
+		if h.rallyOver(d, ahead[to]) {
+			h.rallyStop(d)
+			if m.NoRecipient == "skip" {
+				continue
+			}
+			return nil, &Performed{OK: false, Reason: "rally-limit", Detail: rallyStoppedDetail(name, rallyLocalLimit) + "; nothing was changed"}
+		}
+		ahead[to]++
+		envelopes = append(envelopes, d)
 	}
 	return envelopes, nil
 }
@@ -131,7 +142,7 @@ func (h *Hub) SendMessage(req MessageRequest, now time.Time) (MessageSent, error
 	switch {
 	case held.toHost:
 		// ほかのホストへは、常駐の鍵を放してから運ぶ（待つ間にほかの頼みを止めないため）
-		return h.sendToHost(held.from, req, now), nil
+		return h.sendToHost(held.from, held.fromID, req, now), nil
 	case held.noRecipient:
 		return MessageSent{Reason: "unknown-recipient", Detail: h.noRecipientDetail(req.To, held.open)}, nil
 	}
@@ -143,6 +154,7 @@ type sendDecision struct {
 	sent        MessageSent
 	toHost      bool
 	from        string
+	fromID      string // ほかのホストへ運ぶ送り手の参加者の id
 	noRecipient bool
 	open        []string
 }
@@ -157,7 +169,7 @@ func (h *Hub) sendHeld(records []participantRecord, rooms []workroomRecord, req 
 		return sendDecision{sent: *refused}
 	}
 	if req.Host != "" {
-		return sendDecision{toHost: true, from: roomName(rooms, from.Workroom)}
+		return sendDecision{toHost: true, from: roomName(rooms, from.Workroom), fromID: from.ID}
 	}
 	var to *workroomRecord
 	var open []string
@@ -176,13 +188,15 @@ func (h *Hub) sendHeld(records []participantRecord, rooms []workroomRecord, req 
 		return sendDecision{noRecipient: true, open: open}
 	}
 	self := h.selfHostID()
-	h.deliver(delivery{to: occupant[to.ID], envelope: Envelope{
+	if !h.deliver(delivery{to: occupant[to.ID], from: from.ID, envelope: Envelope{
 		ID:     newEnvelopeID(),
 		From:   Address{Host: self, Workroom: roomName(rooms, from.Workroom)},
 		To:     Address{Host: self, Workroom: to.Name},
 		Text:   req.Text,
 		SentAt: storage.Stamp(now),
-	}})
+	}}) {
+		return sendDecision{sent: rallyRefusal(to.Name, rallyLocalLimit)}
+	}
 	return sendDecision{sent: MessageSent{OK: true, Queued: true}}
 }
 
@@ -190,9 +204,11 @@ func (h *Hub) sendHeld(records []participantRecord, rooms []workroomRecord, req 
 type delivery struct {
 	envelope Envelope
 	to       string // 参加者の id
+	from     string // 送り手の参加者の id（ほかのホストから届いた物は空）
 	host     string // 送り手のホストエイリアス（同じホストの中なら空）
 	peer     string // 送り手のホスト id（同じホストの中なら空）
 	asUser   bool   // 送り手のホストの requests が as-user
+	limit    int    // ほかのホストから届いた物の、AI ラリーの上限（送り手のホストの rallyLimit）
 }
 
 // senderHeld は、参加者 participant が送り手になれるなら、その参加者のレコード。なれなければ断る答え（h.mu を持って呼ぶ）
@@ -208,14 +224,18 @@ func (h *Hub) senderHeld(records []participantRecord, occupant map[string]string
 	return nil, &MessageSent{Reason: "not-joined", Detail: "only an AI whose request to join was accepted can send messages (call join first)"}
 }
 
-// deliver は、封筒 d.envelope を宛て先の参加者 d.to の行列に入れる。同じ id の封筒は二度入れない（h.mu を持って呼ぶ）
-func (h *Hub) deliver(d delivery) {
+// deliver は、封筒 d.envelope を宛て先の参加者 d.to の行列に入れる。同じ id の封筒は二度入れない。
+// AI ラリーの上限を超える物は入れずに偽を返す（rally.go）（h.mu を持って呼ぶ）
+func (h *Hub) deliver(d delivery) bool {
 	e := d.envelope
 	if h.seenEnvelopes == nil {
 		h.seenEnvelopes = map[string]bool{}
 	}
 	if h.seenEnvelopes[e.ID] {
-		return
+		return true
+	}
+	if !h.rallyPasses(d) {
+		return false
 	}
 	h.seenEnvelopes[e.ID] = true
 	h.seenOrder = append(h.seenOrder, e.ID)
@@ -228,6 +248,7 @@ func (h *Hub) deliver(d delivery) {
 		head = remoteMessageHead(e.From.Workroom, d.host, d.asUser)
 	}
 	h.enqueueWake(wakeItem{participant: d.to, kind: wakeMessage, line: head + " " + quote(e.Text), head: head, body: quote(e.Text), peer: d.peer, asUser: d.asUser})
+	return true
 }
 
 // messageHead は、AI 間メッセージの知らせの、送り手を名乗る頭（from は送り手のワークルーム名）。届く 1 行は、頭と本文。名前と本文は JSON の文字列にして包む

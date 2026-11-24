@@ -115,6 +115,9 @@ func TestWakeQueueKeepsTheNewest(t *testing.T) {
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	for i := range wakeQueueMax + 5 {
+		if i == wakeQueueMax/2 { // AI ラリーの上限に当たらないよう、利用者が話しかけたことにする
+			call(t, "POST", s.URL+"/api/ai/talked", `{"sessionId":"SA","prompt":"go on"}`, nil)
+		}
 		sendMessage(t, s.URL, a, "すずめ", "m"+strconv.Itoa(i))
 	}
 	got := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{}))

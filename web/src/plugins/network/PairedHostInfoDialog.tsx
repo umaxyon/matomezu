@@ -1,4 +1,5 @@
-// ペアリングしたホストの様子のダイアログ（詳しい所の歯車から開く）: つながっているか・最後につながった時刻、待っている所、鍵の印（覚えた鍵と合わない相手が答えたときは、その横に一言）。
+// ペアリングしたホストの様子のダイアログ（詳しい所の歯車から開く）: つながっているか・最後につながった時刻、待っている所、鍵の印（覚えた鍵と合わない相手が答えたときは、その横に一言）、
+// そのホストから届く AI ラリーの回数制限（利用者が替える）。
 // ホストが居なくなっていれば、すぐ閉じる
 import { type DialogProps, useMessages } from "../../plugin-api/ui"
 import { ActionButton, Elapsed, NOT_TOLD } from "../base/ui"
@@ -7,6 +8,7 @@ import { kit } from "./kit"
 import { shownHostKey } from "./NetworkCategory"
 import styles from "./OtherHosts.module.css"
 import pairingStyles from "./Pairing.module.css"
+import { RallyLimitField } from "./RallyLimitField"
 
 export function PairedHostInfoDialog({ args, onClose }: DialogProps<{ pairedHost: string }>) {
   const t = useMessages(kit)
@@ -35,6 +37,7 @@ export function PairedHostInfoDialog({ args, onClose }: DialogProps<{ pairedHost
                 <code>{shownHostKey(row.record.hostId)}</code>
                 {row.live?.keyMismatch ? <span className={styles.warn}>{t("The key does not match")}</span> : null}
               </dd>
+              <RallyLimitField id={row.record.id} value={row.record.rallyLimit} />
             </dl>
             <div className={pairingStyles.buttons}>
               <ActionButton onClick={onClose}>{t("Close")}</ActionButton>

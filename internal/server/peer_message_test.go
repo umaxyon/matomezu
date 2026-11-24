@@ -73,7 +73,7 @@ func TestAMessageGoesToAPairedHost(t *testing.T) {
 	if out, err := b.Perform(performOne("@matomezu/network:paired-host-requests-set", json.RawMessage(`{"requests":"as-user"}`), &engine.On{Record: rec.ID})); err != nil || !out.OK {
 		t.Fatalf("requests-set = %+v, %v", out, err)
 	}
-	waitFor(t, "B knows as-user", func() bool { _, asUser := b.entrance.Load().peers.labelOf(rec.HostID); return asUser })
+	waitFor(t, "B knows as-user", func() bool { _, asUser, _ := b.entrance.Load().peers.labelOf(rec.HostID); return asUser })
 	if sent := sendTo(t, as.URL, s1, "b", "s2", "頼み"); !sent.OK {
 		t.Fatalf("sent = %+v", sent)
 	}
@@ -93,7 +93,7 @@ func TestQueuedLinesFollowTheRequestsAndThePairing(t *testing.T) {
 			t.Fatalf("requests-set = %+v, %v", out, err)
 		}
 		waitFor(t, "B knows "+v, func() bool {
-			_, asUser := b.entrance.Load().peers.labelOf(rec.HostID)
+			_, asUser, _ := b.entrance.Load().peers.labelOf(rec.HostID)
 			return asUser == (v == "as-user")
 		})
 	}

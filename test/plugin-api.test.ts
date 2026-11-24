@@ -125,6 +125,7 @@ test("matomezu が出す名前", () => {
     "PAGE_TEXT_COLORS",
     "PAGE_THEME",
     "PAIRED_HOST_LISTED",
+    "PAIRED_HOST_RALLY_LIMIT",
     "PAIRED_HOST_REQUESTS",
     "PALETTE",
     "PAPER_IDS",

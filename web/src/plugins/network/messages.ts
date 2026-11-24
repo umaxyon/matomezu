@@ -176,4 +176,15 @@ export const NETWORK_MESSAGES = defineMessages({
     en: "Workrooms of this host on the host list for AIs",
     ja: "AI 用ホストリストに載せるこのホストのワークルーム",
   },
+  "Change the AI rally limit of a host": {
+    en: "Change the AI rally limit of a host",
+    ja: "ホストの AI ラリーの回数制限を変える",
+  },
+  "AI rally limit:": { en: "AI rally limit:", ja: "AIラリーの回数制限：" },
+  "round trips": { en: "round trips", ja: "往復まで" },
+  "How far an AI of this host and an AI here may go on without either user talking to them ({min} to {max})": {
+    en: "How far an AI of this host and an AI here may go on without either user talking to them ({min} to {max})",
+    ja: "利用者が話しかけないまま、このホストの AI と続けるやり取り（{min}〜{max}）",
+  },
+  "From {min} to {max}": { en: "From {min} to {max}", ja: "{min} から {max} までです" },
 })

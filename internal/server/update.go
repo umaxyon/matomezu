@@ -83,7 +83,7 @@ func (h *Hub) checkUpdate(ctx context.Context) (UpdateStatus, error) {
 	h.update.CheckedAt = storage.Stamp(time.Now())
 	s := h.update
 	h.updateMu.Unlock()
-	h.broadcast("update-status", s)
+	h.tellUpdateStatus(s)
 	return s, nil
 }
 
@@ -114,6 +114,13 @@ func (h *Hub) AskUpdate(workroom string, now time.Time) (ok bool, err error) {
 	h.update.AskedAt = storage.Stamp(now)
 	s := h.update
 	h.updateMu.Unlock()
-	h.broadcast("update-status", s)
+	h.tellUpdateStatus(s)
 	return true, nil
+}
+
+// tellUpdateStatus は、更新の様子 s を全部の窓に知らせる（h.mu も h.updateMu も持たずに呼ぶ）
+func (h *Hub) tellUpdateStatus(s UpdateStatus) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.broadcast("update-status", s)
 }
