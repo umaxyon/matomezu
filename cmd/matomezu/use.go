@@ -8,6 +8,7 @@ package main
 // Windows から WSL の常駐には、NAT モードでも WSL の localhost の転送で届く
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -202,12 +203,16 @@ func counterpartCommand(u home.Counterpart, sub ...string) (name string, args []
 	return "cmd.exe", []string{"/c", line}, "/mnt/c"
 }
 
-// commandOutput は、コマンドを動かして標準出力を返す（テストで差し替える）
+// commandOutput は、コマンドを動かして標準出力を返す。標準エラーは、失敗したときだけ誤りの文に入れる（相手の OS の matomezu の案内を、こちらの出力に混ぜない）。テストで差し替える
 var commandOutput = func(dir, name string, args ...string) ([]byte, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
-	cmd.Stderr = os.Stderr
-	return cmd.Output()
+	out, err := cmd.Output()
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && len(bytes.TrimSpace(exit.Stderr)) > 0 {
+		err = fmt.Errorf("%w: %s", err, bytes.TrimSpace(exit.Stderr))
+	}
+	return out, err
 }
 
 // wslVaultFromWindows は、WSL の distro の中の保管庫 vault（/home/...）を、Windows から見た場所（\\wsl.localhost\<distro>\home\...）にする
