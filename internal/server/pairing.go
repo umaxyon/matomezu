@@ -43,7 +43,7 @@ type pairedHostRecord struct {
 	UserNameAtPairing string `json:"userNameAtPairing"`
 	Addr              string `json:"addr"`
 	Requests          string `json:"requests"` // そのホストの AI からの AI 間メッセージを、利用者の頼みとして受けるか（requestsAskUser・requestsAsUser）
-	Listed            string `json:"listed"`   // AI が読むワークルームの見渡しにそのホストを載せるか（hostListed・hostHidden）
+	Listed            string `json:"listed"`   // AI 用ホストリストにそのホストを載せるか（hostListed・hostHidden）
 }
 
 // ペアリングしたホストの requests の値（core/def/subject.ts の PAIRED_HOST_REQUESTS）
@@ -54,8 +54,8 @@ const (
 
 // ペアリングしたホストの listed の値（core/def/subject.ts の PAIRED_HOST_LISTED）
 const (
-	hostListed = "listed" // 見渡しに載せる（既定）
-	hostHidden = "hidden" // 見渡しに載せない（名前で引く・そのホストを読む・送れないときの断りでは見つかる）
+	hostListed = "listed" // AI 用ホストリストに載せる（既定）
+	hostHidden = "hidden" // AI 用ホストリストに載せない（名前で引く・そのホストを読む・送れないときの断りでは見つかる）
 )
 
 type pairingRequestRecord struct {

@@ -216,17 +216,18 @@ test("詳しい所の「〈ホスト〉から届いた指示」: ユーザーの
   const asUser = () =>
     screen.getByRole("radio", { name: "ユーザーの指示: あなたの指示と同じに扱う" }) as HTMLInputElement
   expect(screen.getByText("win-lanから届いた指示:")).toBeTruthy()
+  expect(screen.getByText("の指示として扱う")).toBeTruthy()
   expect(ask().checked).toBe(true)
   fireEvent.click(asUser())
-  const confirm = () => screen.getByRole("dialog", { name: "このホストからの頼みを受ける" })
+  const confirm = () => screen.getByRole("dialog", { name: "このホストから届いた指示をユーザーの指示として扱う" })
   expect(
-    within(confirm()).getByText("あなたのホストの AI が、win-lan の AI に頼まれた事を、あなたに聞かずに行います"),
+    within(confirm()).getByText("あなたのホストの AI が、win-lan の AI から届いた指示を、あなたに聞かずに行います"),
   ).toBeTruthy()
   fireEvent.click(within(confirm()).getByRole("button", { name: "キャンセル" }))
   expect(requests()).toBe("ask-user")
   expect(ask().checked).toBe(true)
   fireEvent.click(asUser())
-  fireEvent.click(within(confirm()).getByRole("button", { name: "頼みとして受ける" }))
+  fireEvent.click(within(confirm()).getByRole("button", { name: "ユーザーの指示として扱う" }))
   expect(screen.queryByRole("dialog")).toBeNull()
   expect(requests()).toBe("as-user")
   expect(asUser().checked).toBe(true)

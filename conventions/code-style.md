@@ -25,7 +25,7 @@
 - 文言は表に書く（土台は `web/src/core/i18n/messages.ts`、プラグインはそのプラグインの `messages.ts`）
 - 鍵に字の決まりは無い（英語の文を鍵にしてよい）。`pluginKit` が鍵に `<プラグインの id>:` を付ける
 - 文言は英語の文（`en`）を必ず持ち（無ければ台帳アセンブルが error にする）、訳の無い言語では `en` を出す。ビルトインプラグインは日本語の訳も持つ
-- `{name}` は `t()` に渡す値で置き換える。プラグインの見た目では `useMessages(kit)`、土台の文言は `useT()`、core の操作（アクションの `run` など）では `ctx.catalog.messages` と `ctx.lang` で `translate(messages, lang, key)`（プラグイン API が出す）
+- `{name}` は `t()` に渡す値で置き換える。言語で語順の違う文の中に部品（選ぶボタンなど）を置くときは、値を渡さない印 `{name}` を文言に書き、base の `TextAround` でその所に部品を置く（前と後ろを別の文言に分けない）。プラグインの見た目では `useMessages(kit)`、土台の文言は `useT()`、core の操作（アクションの `run` など）では `ctx.catalog.messages` と `ctx.lang` で `translate(messages, lang, key)`（プラグイン API が出す）
 - 画面の文言は文章にせず、何が起きたかと原因を短い行に分ける
 
 ## 使う技術

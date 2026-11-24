@@ -231,7 +231,7 @@ func TestChangesSince(t *testing.T) {
 	}
 }
 
-// AI が読むワークルームの一覧: 引数なしは見渡し（このホストと、ペアリングしたホストの最近の行）、host はそのホストの写しを名前の順に
+// AI が読むワークルームの一覧: 引数なしは AI 用ホストリスト（このホストと、ペアリングしたホストの最近の行）、host はそのホストの写しを名前の順に
 func TestAIListsTheWorkroomsOfPairedHosts(t *testing.T) {
 	as, bs, a, _ := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
@@ -253,8 +253,8 @@ func TestAIListsTheWorkroomsOfPairedHosts(t *testing.T) {
 	}
 }
 
-// ペアリングしたホストに AI が多くても、見渡しは最近の 5 件と残りの数で、外れた相手は名前で引け、send_message の断りがそのホストを言う。
-// 隠したホストは見渡しに出ず、名前とそのホストを読む口では見つかる。続きは名前の順に offset から読む
+// ペアリングしたホストに AI が多くても、AI 用ホストリストは最近の 5 件と残りの数で、外れた相手は名前で引け、send_message の断りがそのホストを言う。
+// 隠したホストはAI 用ホストリストに出ず、名前とそのホストを読む口では見つかる。続きは名前の順に offset から読む
 func TestAIFindsAWorkroomBeyondTheOverview(t *testing.T) {
 	as, bs, a, _ := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
@@ -267,7 +267,7 @@ func TestAIFindsAWorkroomBeyondTheOverview(t *testing.T) {
 		got, _ := call(t, "GET", as.URL+"/api/ai/workrooms"+q, "", map[string]string{aiwire.ParticipantHeader: s1})
 		return got
 	}
-	var over workroomsOverview
+	var over aiHostList
 	if err := json.Unmarshal([]byte(read("")), &over); err != nil || over.Hosts == nil || len(*over.Hosts) != 1 {
 		t.Fatalf("overview = %+v, %v", over, err)
 	}
@@ -293,7 +293,7 @@ func TestAIFindsAWorkroomBeyondTheOverview(t *testing.T) {
 	if got := read("?name=s1"); !strings.Contains(got, `"found":[{"name":"s1","activity":`) {
 		t.Fatalf("own name = %s", got)
 	}
-	// 隠すと見渡しから外れ、名前・そのホストを読む口・断りでは見つかる
+	// 隠すとAI 用ホストリストから外れ、名前・そのホストを読む口・断りでは見つかる
 	rec := a.pairedHostRecords()[0]
 	if out, err := a.Perform(performOne("@matomezu/network:paired-host-listed-set", json.RawMessage(`{"listed":"hidden"}`), &engine.On{Record: rec.ID})); err != nil || !out.OK {
 		t.Fatalf("listed-set = %+v, %v", out, err)
@@ -310,7 +310,7 @@ func TestAIFindsAWorkroomBeyondTheOverview(t *testing.T) {
 	}
 }
 
-// このホストの見渡しは、設定が recent なら最近の 5 件と残りの数（全部は offset で名前の順に）。既定は全部
+// AI 用ホストリストのこのホストの分は、設定が recent なら最近の 5 件と残りの数（全部は offset で名前の順に）。既定は全部
 func TestOwnWorkroomsFollowTheListedSetting(t *testing.T) {
 	as, a := joinWorld(t, joinStore(t))
 	saved := 0
@@ -322,9 +322,9 @@ func TestOwnWorkroomsFollowTheListedSetting(t *testing.T) {
 			first = p
 		}
 	}
-	read := func(q string) workroomsOverview {
+	read := func(q string) aiHostList {
 		got, _ := call(t, "GET", as.URL+"/api/ai/workrooms"+q, "", map[string]string{aiwire.ParticipantHeader: first})
-		var out workroomsOverview
+		var out aiHostList
 		if err := json.Unmarshal([]byte(got), &out); err != nil {
 			t.Fatalf("overview = %s", got)
 		}

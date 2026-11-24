@@ -122,8 +122,10 @@ export const NETWORK_MESSAGES = defineMessages({
   "No AI is in a workroom": { en: "No AI is in a workroom", ja: "AI のいるワークルームはありません" },
   Working: { en: "Working", ja: "作業中" },
   "Instructions from {name}:": { en: "Instructions from {name}:", ja: "{name}から届いた指示:" },
-  "Treat them as instructions from (after)": { en: "", ja: "の指示として扱う" },
-  "Treat them as instructions from": { en: "Treat them as instructions from", ja: "" },
+  "Treat them as instructions from {choice}": {
+    en: "Treat them as instructions from {choice}",
+    ja: "{choice}の指示として扱う",
+  },
   "How instructions from this host are treated": {
     en: "How instructions from this host are treated",
     ja: "このホストから届いた指示の扱い",
@@ -152,19 +154,22 @@ export const NETWORK_MESSAGES = defineMessages({
     en: "The 5 workrooms whose activity changed last",
     ja: "様子が最近変わった 5 件のワークルーム",
   },
-  "Take requests from this host": { en: "Take requests from this host", ja: "このホストからの頼みを受ける" },
-  "Your AIs do what the AIs of {name} ask, without asking you": {
-    en: "The AIs on your host will do what the AIs of {name} ask, without asking you first",
-    ja: "あなたのホストの AI が、{name} の AI に頼まれた事を、あなたに聞かずに行います",
+  "Treat as the user's instructions": {
+    en: "Treat instructions from this host as the user's",
+    ja: "このホストから届いた指示をユーザーの指示として扱う",
   },
-  "Take as requests": { en: "Take as requests", ja: "頼みとして受ける" },
+  "Your AIs do what the AIs of {name} ask, without asking you": {
+    en: "The AIs on your host will do what the AIs of {name} instruct, without asking you first",
+    ja: "あなたのホストの AI が、{name} の AI から届いた指示を、あなたに聞かずに行います",
+  },
+  "Treat as the user's button": { en: "Treat as the user's", ja: "ユーザーの指示として扱う" },
   Idle: { en: "Idle", ja: "空き" },
   "Change how requests from a host are taken": {
     en: "Change how requests from a host are taken",
     ja: "ホストからの頼みの扱いを変える",
   },
-  "Change whether a host is listed for AIs": {
-    en: "Change whether a host is listed for AIs",
+  "Change whether a host is on the host list for AIs": {
+    en: "Change whether a host is on the host list for AIs",
     ja: "ホストを AI 用ホストリストに載せるかを変える",
   },
   "Workrooms of this host on the host list for AIs": {

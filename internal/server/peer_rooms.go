@@ -7,7 +7,7 @@ package server
 // 取り直すのは、相手とつながったと分かったとき（相手の hello の口に通った・相手がこちらの hello の口に来た）と、差分が当たらなかったときだけ。
 // 写しは、list_workrooms と、画面のほかのホストの行が使う（相手に聞かずに答える）。つながっていない相手の写しは出さない。
 // 自分の一覧と写しの行は、様子が変わった（足された・作業中と空きが入れ替わった）順の通し番号を持つ（このホストの中だけの物で、相手には送らない）。
-// AI の見渡しは、この番号の新しい順に並べる
+// AI 用ホストリストは、この番号の新しい順に並べる
 //
 //	POST /peer/v1/workrooms 差分 {"epoch", "from", "to", "changes": [{"name", "activity"} か {"name", "removed": true}]}  204
 //	GET  /peer/v1/workrooms?epoch=&since=  {"epoch", "version", "full", "rows"（full のとき）, "changes"（full でないとき）}
@@ -446,15 +446,15 @@ func peerClient(e *hostEntrance, hostID string) *http.Client {
 
 // --- AI が読む ---
 
-// このホストの見渡しに載せるワークルームの値（core/settings.ts の LISTED_WORKROOMS）のうち、最近の overviewRows 件だけ
+// AI 用ホストリストに載せるこのホストのワークルームの値（core/settings.ts の LISTED_WORKROOMS）のうち、最近の hostListRows 件だけ
 const listedRecent = "recent"
 
 const (
-	overviewRows = 5  // 見渡しに、ホストごとに並べる行の数（様子が最近変わった物から）
+	hostListRows = 5  // AI 用ホストリストに、ホストごとに並べる行の数（様子が最近変わった物から）
 	pageRows     = 50 // 続きを読む口が 1 回に答える行の数（名前の順）
 )
 
-// WorkroomsQuery は、list_workrooms の問い: 引数なしなら見渡し、Name ならその名前のいる所、Paged（offset を付けた）か Host ならそのホストを名前の順に Offset から
+// WorkroomsQuery は、list_workrooms の問い: 引数なしなら AI 用ホストリスト、Name ならその名前のいる所、Paged（offset を付けた）か Host ならそのホストを名前の順に Offset から
 type WorkroomsQuery struct {
 	Host   string
 	Name   string
@@ -462,17 +462,17 @@ type WorkroomsQuery struct {
 	Paged  bool
 }
 
-// workroomsOverview は、見渡し: このホストのワークルーム（設定が recent なら最近の overviewRows 件）と残りの数、AI 用ホストリストに載せるペアリングしたホスト
+// aiHostList は、AI 用ホストリスト: このホストのワークルーム（設定が recent なら最近の hostListRows 件）と残りの数、AI 用ホストリストに載せるペアリングしたホスト
 // （「ほかのホストとつなぐ」が入のときだけ）。並びは様子が変わった新しい順
-type workroomsOverview struct {
+type aiHostList struct {
 	OK        bool            `json:"ok"`
 	Workrooms []RoomRow       `json:"workrooms"`
 	More      int             `json:"more"`
-	Hosts     *[]hostOverview `json:"hosts,omitempty"` // 「ほかのホストとつなぐ」が切なら無し（載せるホストが無ければ空の並び）
+	Hosts     *[]hostListEntry `json:"hosts,omitempty"` // 「ほかのホストとつなぐ」が切なら無し（載せるホストが無ければ空の並び）
 }
 
-// hostOverview は、見渡しのペアリングしたホスト 1 つ: ホストエイリアス（send_message の host に書く値）、つながっているか、最近の overviewRows 件と残りの数
-type hostOverview struct {
+// hostListEntry は、AI 用ホストリストのペアリングしたホスト 1 つ: ホストエイリアス（send_message の host に書く値）、つながっているか、最近の hostListRows 件と残りの数
+type hostListEntry struct {
 	Name      string    `json:"name"`
 	Connected bool      `json:"connected"`
 	Workrooms []RoomRow `json:"workrooms"`
@@ -614,7 +614,7 @@ func (h *Hub) pairedRoomsNow() []pairedRooms {
 	return out
 }
 
-// Workrooms は、AI が送れるワークルームの一覧（workroomsOverview・workroomsNamed・workroomsPage か、断りの MessageSent）。ほかのホストは写しから答える（相手に聞かない）
+// Workrooms は、AI が送れるワークルームの一覧（aiHostList・workroomsNamed・workroomsPage か、断りの MessageSent）。ほかのホストは写しから答える（相手に聞かない）
 func (h *Hub) Workrooms(q WorkroomsQuery) (any, error) {
 	if q.Name != "" && (q.Host != "" || q.Paged) {
 		return MessageSent{Reason: "bad-arguments", Detail: "name is given alone, without host or offset"}, nil
@@ -636,19 +636,19 @@ func (h *Hub) Workrooms(q WorkroomsQuery) (any, error) {
 	limit := -1
 	if settings, _ := h.Data(); settings != nil {
 		if s, err := h.engine.HostSettingsOf(settings); err == nil && s.ListedWorkrooms == listedRecent {
-			limit = overviewRows
+			limit = hostListRows
 		}
 	}
-	out := workroomsOverview{OK: true}
+	out := aiHostList{OK: true}
 	out.Workrooms, out.More = headOf(byRecent(own), limit)
 	if paired := h.pairedRoomsNow(); paired != nil {
-		hosts := []hostOverview{}
+		hosts := []hostListEntry{}
 		for _, p := range paired {
 			if !p.listed {
 				continue
 			}
-			o := hostOverview{Name: p.label, Connected: p.connected}
-			o.Workrooms, o.More = headOf(byRecent(p.rows), overviewRows)
+			o := hostListEntry{Name: p.label, Connected: p.connected}
+			o.Workrooms, o.More = headOf(byRecent(p.rows), hostListRows)
 			hosts = append(hosts, o)
 		}
 		out.Hosts = &hosts
@@ -715,7 +715,7 @@ func (h *Hub) hostsWithRoom(name string) []string {
 	return out
 }
 
-// sendableClause は、断りに添える送れる先の句: このホストの名前の並び names（参加の確定した AI のいるワークルーム）の、様子が変わった順の最近の overviewRows 件
+// sendableClause は、断りに添える送れる先の句: このホストの名前の並び names（参加の確定した AI のいるワークルーム）の、様子が変わった順の最近の hostListRows 件
 // （残りがあれば、その数と、全部を読む口 readAll）。names が無ければ none
 func (h *Hub) sendableClause(names []string, readAll, none string) string {
 	if len(names) == 0 {
@@ -726,7 +726,7 @@ func (h *Hub) sendableClause(names []string, readAll, none string) string {
 	for _, n := range names {
 		rows = append(rows, orderedRoom{RoomRow{Name: n}, seqOf(known, n, "", false)})
 	}
-	head, more := headOf(byRecent(rows), overviewRows)
+	head, more := headOf(byRecent(rows), hostListRows)
 	shown := make([]string, 0, len(head))
 	for _, r := range head {
 		shown = append(shown, r.Name)

@@ -435,6 +435,7 @@ test("matomezu/ui が出す名前", () => {
     "Stand",
     "Switch",
     "SwitchPanel",
+    "TextAround",
     "TextBlockView",
     "TextSettingControl",
     "Tip",

@@ -2,7 +2,7 @@
 // 頼みは、ほかのホストから届いたときに常駐が載せ（pairing-request-add）、利用者が受け入れる（pairing-accept。頼みを消し、ペアリングしたホストを載せる）か断る
 // （pairing-decline。取り下げ・時間切れ・起動し直したときも、常駐がこれで消す）。こちらから頼んで相手が受け入れたら、常駐がペアリングしたホストを載せる（paired-host-add）。
 // ペアリングを解くのは paired-host-remove（利用者が解く。相手が解いた・相手がペアリングしていないと答えたときも、常駐がこれで消す）。
-// requests（そのホストの AI からの AI 間メッセージを、利用者の頼みとして受けるか）と listed（AI が読むワークルームの見渡しにそのホストを載せるか）は、
+// requests（そのホストの AI からの AI 間メッセージを、利用者の頼みとして受けるか）と listed（AI 用ホストリストにそのホストを載せるか）は、
 // 利用者だけが替える（paired-host-requests-set・paired-host-listed-set）。
 // 相手の身元はホスト id（鍵の印）だけで決まる。名前・利用者名はペアリングしたときに相手が名乗った物で、今の名前は常駐だけが持つ
 import { z } from "zod"
@@ -181,7 +181,7 @@ export const PAIRED_HOST_LISTED_SET = kit.defineAction({
   id: "paired-host-listed-set",
   aiDescription:
     "Change whether list_workrooms without arguments shows the workrooms of the paired host named by on.record (only the user): listed or hidden.",
-  title: "Change whether a host is listed for AIs",
+  title: "Change whether a host is on the host list for AIs",
   target: PAIRED_HOST.id,
   userOnly: true,
   args: z.strictObject({ listed: LISTED }),

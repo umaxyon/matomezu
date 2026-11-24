@@ -90,7 +90,7 @@ export function userNameOf(catalog: CoreCatalog, settings: Settings): string {
   return typeof name === "string" ? name.trim() : ""
 }
 
-// AI が読むワークルームの見渡しに載せる、このホストのワークルーム: 全部（all）か、様子が最近変わった物だけ（recent）。role が listed-workrooms の項目の値（無いか形に合わなければ all）
+// AI 用ホストリストに載せる、このホストのワークルーム: 全部（all）か、様子が最近変わった物だけ（recent）。role が listed-workrooms の項目の値（無いか形に合わなければ all）
 export const LISTED_WORKROOMS = ["all", "recent"] as const
 export function listedWorkroomsOf(catalog: CoreCatalog, settings: Settings): (typeof LISTED_WORKROOMS)[number] {
   return byRole(catalog, settings, "listed-workrooms") === "recent" ? "recent" : "all"

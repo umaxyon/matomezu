@@ -222,7 +222,7 @@ var migrations = []string{
 	`SELECT 1;`,
 	// ペアリングしたホストに、requests（そのホストの AI からの AI 間メッセージを、利用者の頼みとして受けるか）を足す（Go の移し替え。migrate_paired_host_requests.go）
 	`SELECT 1;`,
-	// ペアリングしたホストに、listed（AI が読むワークルームの見渡しにそのホストを載せるか）を足す（Go の移し替え。migrate_paired_host_listed.go）
+	// ペアリングしたホストに、listed（AI 用ホストリストにそのホストを載せるか）を足す（Go の移し替え。migrate_paired_host_listed.go）
 	`SELECT 1;`,
 }
 

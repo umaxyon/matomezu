@@ -3,7 +3,7 @@
 // 「〈ホスト〉から届いた指示: ［AI｜ユーザー］の指示として扱う」（ユーザーに替えるときは確かめのダイアログ）。
 // 右下にペアリングを解くアイコン（ワークルームの退室・ビジターの外すと同じ置き方。押すと確かめのダイアログ）
 import { useActions, useAllowedOn, useMessages } from "../../plugin-api/ui"
-import { Choices, ChoiceText, GearIcon, IconButton, Tip } from "../base/ui"
+import { Choices, ChoiceText, GearIcon, IconButton, TextAround, Tip } from "../base/ui"
 import { AS_USER_DIALOG, PAIRED_HOST_INFO_DIALOG, UNPAIR_DIALOG } from "./dialogs"
 import { usePairedHostRow } from "./HostDialog"
 import { EyeHiddenIcon, EyeIcon, UnpairIcon } from "./icons"
@@ -61,33 +61,31 @@ export function PairedHostDetail({ id }: { id: string }) {
       <div className={styles.requests}>
         <span className={styles.requestsHead}>{t("Instructions from {name}:", { name: row.label })}</span>
         <span className={styles.requestsLine}>
-          {t("Treat them as instructions from") ? <span>{t("Treat them as instructions from")}</span> : null}
-          <Choices
-            label={t("How instructions from this host are treated")}
-            value={record.requests}
-            options={[
-              {
-                value: "ask-user" as const,
-                label: t("Instructions of an AI"),
-                icon: <ChoiceText>{t("AI choice")}</ChoiceText>,
-                disabled: !canSet,
-              },
-              {
-                value: "as-user" as const,
-                label: t("Instructions of the user"),
-                icon: <ChoiceText>{t("User choice")}</ChoiceText>,
-                disabled: !canSet,
-              },
-            ]}
-            onChange={v =>
-              v === "as-user"
-                ? openDialog(AS_USER_DIALOG.id, { pairedHost: id })
-                : perform(PAIRED_HOST_REQUESTS_SET.id, { requests: "ask-user" }, { record: id })
-            }
-          />
-          {t("Treat them as instructions from (after)") ? (
-            <span>{t("Treat them as instructions from (after)")}</span>
-          ) : null}
+          <TextAround text={t("Treat them as instructions from {choice}")} part="choice">
+            <Choices
+              label={t("How instructions from this host are treated")}
+              value={record.requests}
+              options={[
+                {
+                  value: "ask-user" as const,
+                  label: t("Instructions of an AI"),
+                  icon: <ChoiceText>{t("AI choice")}</ChoiceText>,
+                  disabled: !canSet,
+                },
+                {
+                  value: "as-user" as const,
+                  label: t("Instructions of the user"),
+                  icon: <ChoiceText>{t("User choice")}</ChoiceText>,
+                  disabled: !canSet,
+                },
+              ]}
+              onChange={v =>
+                v === "as-user"
+                  ? openDialog(AS_USER_DIALOG.id, { pairedHost: id })
+                  : perform(PAIRED_HOST_REQUESTS_SET.id, { requests: "ask-user" }, { record: id })
+              }
+            />
+          </TextAround>
         </span>
       </div>
       <span className={styles.unpair}>
