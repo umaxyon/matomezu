@@ -12,6 +12,7 @@ import { workroomActivityOf, workroomWorkIn, workroomWorkOf } from "../../../web
 import { workTitleIn } from "../../../web/src/plugins/base/participant/work-title"
 import { workerBookOf, workerBookReadsOf } from "../../../web/src/plugins/base/participant/worker-book"
 import { CURRENT_WORK, currentTicketOf } from "../../../web/src/plugins/taskboard/current-work"
+import { nextWorkOf, workingTicketsOf } from "../../../web/src/plugins/taskboard/current-work/work"
 import type { Project } from "../../../web/src/plugins/taskboard/project"
 import { TICKET, type Ticket } from "../../../web/src/plugins/taskboard/ticket"
 import { CORE_CATALOG } from "../../support"
@@ -400,4 +401,112 @@ test("ワークルームの作業を答える種類は、workroomWorkReads に�
   const records = { a: { w: { id: "w" } }, b: { w: { id: "w" } } } as unknown as Records
   workroomWorkIn(catalog, readerOf(catalog, sourceOf(records), ["a", "b"]), "w")
   expect(seen).toEqual([{ id: "w" }, "none", []])
+})
+
+test("次に選ぶ物: 担当で作業中のレーンにあるチケット（除く物のほか）。更新の新しい順、次に番号。1 枚ならそれ、0 枚か 2 枚以上なら none", () => {
+  const p = {
+    id: "p",
+    lanes: [
+      { kind: "lane", id: "doing", working: true },
+      { kind: "lane", id: "todo" },
+    ],
+  } as never
+  const projectOf = (id: string) => (id === "p" ? p : undefined)
+  const t = (id: string, number: number, lane: string, assignees: string[], updatedAt = "2026-11-21") => ({
+    id,
+    number,
+    lane,
+    assignees,
+    project: "p",
+    updatedAt,
+  })
+  const tickets = [
+    t("t1", 1, "doing", ["a"]),
+    t("t2", 2, "doing", ["b", "a"], "2026-11-22"),
+    t("t3", 3, "todo", ["a"]), // 作業中のレーンでない
+    t("t4", 4, "doing", ["b"]), // 担当でない
+    { ...t("t5", 5, "doing", ["a"]), project: "gone" }, // プロジェクトが無い
+    t("t6", 6, "doing", ["a"]),
+  ]
+  expect(workingTicketsOf("a", tickets, projectOf).map(x => x.id)).toEqual(["t2", "t1", "t6"])
+  expect(nextWorkOf("a", tickets, projectOf)).toBe("none")
+  expect(nextWorkOf("a", tickets, projectOf, ["t2", "t6"])).toBe("t1")
+  expect(nextWorkOf("a", tickets, projectOf, ["t1", "t2", "t6"])).toBe("none")
+  // 消したワークルームの id が担当に残っていても、ほかのワークルームの選びに入らない
+  expect(nextWorkOf("gone-room", tickets, projectOf)).toBe("none")
+})
+
+test("カレントチケットが終わると、担当で作業中のレーンに残る物が 1 枚ならそれがカレントに、2 枚以上なら none（完了）", () => {
+  const { user, act, room, doing, add, work } = board()
+  const a = room("あ")
+  const t1 = add({ lane: doing, assignees: [a] })
+  const t2 = add({ lane: doing, assignees: [a] })
+  expect(work(a)).toBe(t1)
+  user("ticket-complete", {}, { record: t1 })
+  expect(work(a)).toBe(t2)
+  const t3 = add({ lane: doing, assignees: [a] })
+  const t4 = add({ lane: doing, assignees: [a] })
+  act(ai(a), "ticket-start", {}, { record: t3 })
+  user("ticket-complete", {}, { record: t3 })
+  expect(work(a)).toBe("none")
+  // 選ばれなかった物は担当のまま。ticket-start で始められる
+  expect(act(ai(a), "ticket-start", {}, { record: t4 }).ok).toBe(true)
+  expect(work(a)).toBe(t4)
+})
+
+test("カレントチケットの担当から外れる・作業中のレーンを出る・消すと、残る 1 枚がカレントになる", () => {
+  const { user, room, doing, todo, add, work } = board()
+  const a = room("あ")
+  const t1 = add({ lane: doing, assignees: [a] })
+  const t2 = add({ lane: doing, assignees: [a] })
+  user("ticket-update", { assignees: [] }, { record: t1 })
+  expect(work(a)).toBe(t2)
+  user("ticket-update", { assignees: [a] }, { record: t1 })
+  user("ticket-update", { lane: todo }, { record: t2 })
+  expect(work(a)).toBe(t1)
+  user("ticket-update", { lane: doing }, { record: t2 })
+  user("ticket-remove", {}, { record: t1 })
+  expect(work(a)).toBe(t2)
+})
+
+test("ticket-leave は、抜けた物を除いて残る 1 枚をカレントにし、結果で返す。2 枚以上なら none と、その並び（waiting）", () => {
+  const { act, room, doing, add, work } = board()
+  const a = room("あ")
+  const t1 = add({ lane: doing, assignees: [a] })
+  const t2 = add({ lane: doing, assignees: [a] })
+  expect(act(ai(a), "ticket-leave", {}, { record: t1 })).toMatchObject({
+    ok: true,
+    result: { left: true, current: t2 },
+  })
+  expect(work(a)).toBe(t2)
+  const t3 = add({ lane: doing, assignees: [a] })
+  const left = act(ai(a), "ticket-leave", {}, { record: t2 })
+  expect(left).toMatchObject({ ok: true, result: { left: true, current: "none", waiting: [t1, t3] } })
+  expect(work(a)).toBe("none")
+})
+
+test("作業中の印を外すと、ほかのレーンで担当の作業中の物が 1 枚ならそれがカレントになる", () => {
+  const { user, room, project, doing, todo, add, work, world } = board()
+  const a = room("あ")
+  const t1 = add({ lane: doing, assignees: [a] })
+  const t2 = add({ lane: todo, assignees: [a] })
+  const lanes = () => (world().records[A("project")]?.[project] as Project | undefined)?.lanes ?? []
+  const marked = (id: string, on: boolean) =>
+    lanes().map(l => (l.kind === "lane" && l.id === id ? { ...l, working: on ? true : undefined } : l))
+  expect(user("project-update", { lanes: marked(todo, true) }, { record: project }).ok).toBe(true)
+  expect(work(a)).toBe(t1)
+  expect(user("project-update", { lanes: marked(doing, false) }, { record: project }).ok).toBe(true)
+  expect(work(a)).toBe(t2)
+})
+
+test("空きのワークルームに担当で作業中の物が残っていれば、ワークルームの作業の forAi がそれを並べる", () => {
+  const { act, room, doing, add, world } = board()
+  const a = room("あ")
+  const records = () => world().records as Record<string, Record<string, unknown>>
+  const t1 = add({ lane: doing, assignees: [a] })
+  add({ lane: doing, assignees: [a] })
+  add({ lane: doing, assignees: [a] })
+  act(ai(a), "ticket-leave", { unassign: true }, { record: t1 })
+  const work = workroomWorkOf(CORE_CATALOG, records(), a)
+  expect(work).toMatchObject({ kind: "idle", forAi: expect.stringContaining("Ask the user which one") })
 })

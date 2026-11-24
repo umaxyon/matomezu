@@ -4,6 +4,7 @@ import type { Folders } from "../../../core/folders"
 import { systemFolderOf } from "../../../core/folders-tree"
 import { type RecordReader, type RecordSource, readerOf } from "../../../core/record-source"
 import { MY_WORKDESK, WORKROOMS } from "../library/system-folders"
+import { workroomWorkIn } from "./activity"
 import { type FoundWorkerBook, foundWorkerBookOf, NO_WORKER_BOOK, workerBookOf, workerBookReadsOf } from "./worker-book"
 import { WORKER_PAGE_ADD } from "./worker-page-add"
 
@@ -19,7 +20,7 @@ export function workerBookIn(
 }
 
 // 呼んだ AI のワークルーム room の作業机（ホストのエンジンが読む。AI の read_folder と参加の文に出す）:
-// ワークルームのフォルダの id（無ければ undefined）、ワーカーブックの id（まだ無ければ undefined）とそのページの数、参加の文に足す英語の文 forAi
+// ワークルームのフォルダの id（無ければ undefined）、ワーカーブックの id（まだ無ければ undefined）とそのページの数、参加の文に足す英語の文 forAi（空きのワークルームなら、作業を答える種類の forAi も）
 export interface MyWorkdesk {
   workrooms: string | undefined
   book: string | undefined
@@ -38,10 +39,12 @@ export function myWorkdeskIn(catalog: CoreCatalog, source: RecordSource, folders
     book === undefined
       ? `Your worker book has no pages yet: add one with ${WORKER_PAGE_ADD.id}.`
       : `Your worker book (the book of your current work) is ${book}, with ${pages} page${pages === 1 ? "" : "s"}: read it with read_book.`
+  const work = workroomWorkIn(catalog, read, room)
+  const idle = work !== "unknown" && work.kind === "idle" && work.forAi ? ` ${work.forAi}` : ""
   return {
     workrooms,
     book,
     pages,
-    forAi: `${where} It changes when your current work changes, so do not keep the book's id: write down the ids of pages. read_folder with folder "${MY_WORKDESK}" shows it.`,
+    forAi: `${where}${idle} It changes when your current work changes, so do not keep the book's id: write down the ids of pages. read_folder with folder "${MY_WORKDESK}" shows it.`,
   }
 }

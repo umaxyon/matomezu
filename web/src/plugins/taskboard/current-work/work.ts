@@ -8,6 +8,7 @@ import { kit } from "../kit"
 import { PROJECT, type Project } from "../project"
 import { inWorkingLane } from "../project/project"
 import type { TicketLike } from "../ticket/current"
+import { ticketLabel } from "../ticket/label"
 import { TICKET, type Ticket } from "../ticket/ticket"
 
 // カレントワークの種類の id（定義 CURRENT_WORK の workroomWork が、定義より先に使う）と、無いことを表す値
@@ -18,6 +19,67 @@ export const NO_TICKET = "none"
 export const isCurrentFor = (ticket: TicketLike, workroom: string, project: Project | undefined): boolean =>
   project !== undefined && ticket.assignees.includes(workroom) && inWorkingLane(project, ticket.lane)
 
+// 担当のいるチケット（完了したチケットは担当を持たないので、まだ終わっていない物だけ）と、全部のプロジェクト。
+// カレントチケットが終わったときに、そのワークルームの次を選ぶのに読む
+const ASSIGNED = [{ key: "assigned", gt: 0 }] as const
+export const READS_ASSIGNED_TICKETS: RecordRead = { subject: TICKET.id, where: ASSIGNED }
+export const READS_PROJECTS: RecordRead = { subject: PROJECT.id, where: [] }
+
+// ワークルーム workroom がカレントチケットにできる、担当で作業中のレーンにあるチケット（except の id を除く）。更新の新しい順、次に番号
+export function workingTicketsOf<T extends TicketLike & { id: string }>(
+  workroom: string,
+  tickets: readonly T[],
+  projectOf: (id: string) => Project | undefined,
+  except: readonly string[] = [],
+): T[] {
+  return tickets
+    .filter(t => !except.includes(t.id) && isCurrentFor(t, workroom, projectOf(t.project)))
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.number - b.number)
+}
+
+// カレントチケットが終わったワークルーム workroom の次のカレントワーク: 担当で作業中のレーンにあるチケット（except を除く）が 1 枚ならそれ、
+// 0 枚か 2 枚以上なら none（2 枚以上なら、どれにするかを利用者に聞くよう常駐メッセージが知らせる。notices.ts）
+export function nextWorkOf(
+  workroom: string,
+  tickets: readonly (TicketLike & { id: string })[],
+  projectOf: (id: string) => Project | undefined,
+  except: readonly string[] = [],
+): string {
+  const left = workingTicketsOf(workroom, tickets, projectOf, except)
+  return left.length === 1 && left[0] ? left[0].id : NO_TICKET
+}
+
+// チケット ticket の番号の見せ方（プロジェクトが読めなければプレフィクス無し）と名前（AI に見せる文の中）
+export const ticketText = (ticket: TicketLike & { id: string; name: string }, project: Project | undefined) =>
+  `${ticketLabel(project?.prefix ?? "", ticket.number)} "${ticket.name}" (${ticket.id})`
+
+// カレントチケットの無いワークルーム workroom の AI に、担当で作業中のレーンにあるチケット（except を除く）を並べ、どれにするかを利用者に聞くように言う文（無ければ空）。
+// 常駐メッセージ（notices.ts）と、参加の文・作業机（workroomWork の forAi）に出す
+export function waitingLineOf(
+  workroom: string,
+  tickets: readonly (TicketLike & { id: string; name: string })[],
+  projectOf: (id: string) => Project | undefined,
+  except: readonly string[] = [],
+): string {
+  const waiting = workingTicketsOf(workroom, tickets, projectOf, except)
+  if (waiting.length === 0) return ""
+  const list = waiting.map(t => ticketText(t, projectOf(t.project))).join(", ")
+  return `These tickets assigned to your workroom are in working lanes: ${list}. Ask the user which one to work on, and start it with ticket-start.`
+}
+
+// 読んだ物（READS_ASSIGNED_TICKETS と READS_PROJECTS）の、チケットの並びとプロジェクトの引き方
+export function openTicketsIn(records: ActionContext["records"]): {
+  tickets: Ticket[]
+  projectOf: (id: string) => Project | undefined
+} {
+  const tickets = Object.values(records?.[TICKET.id] ?? {}).flatMap(r => {
+    const t = TICKET.record.safeParse(r)
+    return t.success ? [t.data] : []
+  })
+  const projects = records?.[PROJECT.id] ?? {}
+  return { tickets, projectOf: id => parsed(PROJECT.record, projects[id]) }
+}
+
 // ワークルーム workroom のカレントワークを ticket（チケットの id か none）にする、others の 1 件
 export const currentWorkSet = (workroom: string, ticket: string) => ({
   subject: CURRENT_WORK_ID,
@@ -26,35 +88,34 @@ export const currentWorkSet = (workroom: string, ticket: string) => ({
 })
 
 // プロジェクトが before から after に変わったとき（レーンの作業中の印を付けた・外した、レーンを消した）の、カレントワークの直し（others）。
-// tickets はそのプロジェクトのチケット、works は読んだカレントワーク。チケットの変更と同じ決まり:
-// - このプロジェクトのチケットを指すカレントワークのうち、カレントチケットでなくなった物を none にする
-// - 新しくカレントチケットになれたワークルームで、カレントワークが none（になった物も含む）の物は、そのチケットにする（更新の新しい順で先の 1 枚）
+// tickets はそのプロジェクトのチケット、works は読んだカレントワーク、open は担当のいるチケット全部とプロジェクトの引き方（openTicketsIn）。
+// - このプロジェクトのチケットを指すカレントワークのうち、カレントチケットでなくなった物を、nextWorkOf で選び直す
+//   （担当で作業中のレーンにある物が 1 枚ならそれ、0 枚か 2 枚以上なら none）
+// - このプロジェクトのチケットが新しくカレントチケットになれたワークルームで、カレントワークが none（になった物も含む）の物は、
+//   そのチケットにする（更新の新しい順で先の 1 枚。チケットが担当に入る・作業中のレーンに入るときと同じ）
 export function currentWorkOnLanes(
   before: Project,
   after: Project,
   tickets: readonly (TicketLike & { id: string })[],
   works: readonly { id: string; ticket: string }[],
+  open: { tickets: readonly (TicketLike & { id: string })[]; projectOf: (id: string) => Project | undefined },
 ): ReturnType<typeof currentWorkSet>[] {
   const byId = new Map(tickets.map(t => [t.id, t]))
   const now = new Map(works.map(w => [w.id, w.ticket]))
-  const changes = new Map<string, string>()
+  const was = new Map(now)
   for (const w of works) {
     const t = byId.get(w.ticket)
-    if (t && !isCurrentFor(t, w.id, after)) {
-      changes.set(w.id, NO_TICKET)
-      now.set(w.id, NO_TICKET)
-    }
+    if (t && !isCurrentFor(t, w.id, after)) now.set(w.id, nextWorkOf(w.id, open.tickets, open.projectOf))
   }
   const newest = [...tickets].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.number - b.number)
   for (const t of newest)
     for (const room of t.assignees) {
       if (!isCurrentFor(t, room, after) || isCurrentFor(t, room, before)) continue
       if ((now.get(room) ?? NO_TICKET) !== NO_TICKET) continue
-      changes.set(room, t.id)
       now.set(room, t.id)
     }
-  return [...changes].flatMap(([room, ticket]) =>
-    (works.find(w => w.id === room)?.ticket ?? NO_TICKET) === ticket ? [] : [currentWorkSet(room, ticket)],
+  return [...now].flatMap(([room, ticket]) =>
+    (was.get(room) ?? NO_TICKET) === ticket ? [] : [currentWorkSet(room, ticket)],
   )
 }
 
@@ -73,7 +134,7 @@ export const CURRENT_WORK = kit.defineSubject({
   id: "current-work",
   title: "current work",
   aiDescription:
-    "The current work of a workroom (the record's id is the workroom's id): ticket is the ticket the workroom is working on now, or none. Its current ticket is that ticket while the workroom is one of its assignees and it is in a working lane of its project. It is filled when a ticket that a workroom with no current work is assigned to comes into a working lane (or the workroom is assigned to a ticket in a working lane), changed with ticket-start, emptied with ticket-leave, and emptied when the ticket is completed or removed, or leaves the working lanes (also when the working mark of its lane is taken off) or the workroom's assignment; it is filled likewise when a lane gets the working mark.",
+    "The current work of a workroom (the record's id is the workroom's id): ticket is the ticket the workroom is working on now, or none. Its current ticket is that ticket while the workroom is one of its assignees and it is in a working lane of its project. It is filled when a ticket that a workroom with no current work is assigned to comes into a working lane (or the workroom is assigned to a ticket in a working lane), changed with ticket-start. When the current ticket ends (ticket-leave, the ticket is completed or removed, or leaves the working lanes, also when the working mark of its lane is taken off, or the workroom's assignment), the only other ticket assigned to the workroom in working lanes becomes its current ticket; with none or several, it is none (with several, the workroom's AI is told them, and asks the user which one to start with ticket-start). When a lane gets the working mark, a workroom with no current work that is assigned to a ticket in that lane gets that ticket (the most recently updated one).",
   record: CURRENT_WORK_RECORD,
   refers: w => (w.ticket === NO_TICKET ? [] : [{ subject: TICKET.id, id: w.ticket }]),
   keys: {
@@ -90,7 +151,14 @@ export const CURRENT_WORK = kit.defineSubject({
       id => parsed(TICKET.record, read.record(TICKET.id, id)),
       id => parsed(PROJECT.record, read.record(PROJECT.id, id)),
     )
-    return current ? { kind: "working", key: { subject: TICKET.id, id: current.ticket.id } } : { kind: "idle" }
+    if (current) return { kind: "working", key: { subject: TICKET.id, id: current.ticket.id } }
+    // 空きでも、担当で作業中のレーンにあるチケットが残っていれば、それを AI に知らせる
+    const tickets = read.find(TICKET.id, ASSIGNED).flatMap(r => {
+      const t = parsed(TICKET.record, r)
+      return t ? [t] : []
+    })
+    const forAi = waitingLineOf(workroom, tickets, id => parsed(PROJECT.record, read.record(PROJECT.id, id)))
+    return forAi ? { kind: "idle", forAi } : { kind: "idle" }
   },
 })
 
@@ -121,8 +189,9 @@ export const currentWorksOf = (ctx: Pick<ActionContext, "records">): CurrentWork
   })
 
 // チケットが before（作る前は none）から after（消したら removed）に変わったときの、カレントワークの直し（others）。
-// project はチケットのプロジェクト、works は読んだカレントワーク。
-// - そのチケットを指すカレントワークのうち、カレントチケットでなくなったワークルームの物を none にする
+// project はチケットのプロジェクト、works は読んだカレントワーク、open は担当のいるチケット全部とプロジェクトの引き方（openTicketsIn。カレントチケットでなくなり得る変わりのときだけ読む）。
+// - そのチケットを指すカレントワークのうち、カレントチケットでなくなったワークルームの物を、nextWorkOf で選び直す（このチケットを除いて、
+//   担当で作業中のレーンにある物が 1 枚ならそれ、0 枚か 2 枚以上なら none）
 // - 新しくカレントチケットになれたワークルーム（担当に入った・作業中のレーンに入った）で、カレントワークが none の物は、このチケットにする。
 //   ほかのチケットを指したまま古くなったカレントワーク（そのレーンの作業中の印を外したなど）は、ここでは埋めない（そのチケットを読まないため）
 export function currentWorkChanges(
@@ -130,13 +199,16 @@ export function currentWorkChanges(
   after: Ticket | "removed",
   project: Project | undefined,
   works: readonly CurrentWork[],
+  open?: { tickets: readonly (TicketLike & { id: string })[]; projectOf: (id: string) => Project | undefined },
 ): ReturnType<typeof currentWorkSet>[] {
   const id = before === "none" ? (after === "removed" ? undefined : after.id) : before.id
   if (id === undefined) return []
   const can = (t: Ticket | "none" | "removed", w: string) =>
     t !== "none" && t !== "removed" && isCurrentFor(t, w, project)
   const byRoom = new Map(works.map(w => [w.id, w]))
-  const emptied = works.filter(w => w.ticket === id && !can(after, w.id)).map(w => currentWorkSet(w.id, NO_TICKET))
+  const emptied = works
+    .filter(w => w.ticket === id && !can(after, w.id))
+    .map(w => currentWorkSet(w.id, open ? nextWorkOf(w.id, open.tickets, open.projectOf, [id]) : NO_TICKET))
   const filled =
     after === "removed"
       ? []

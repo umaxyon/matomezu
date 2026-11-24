@@ -11,7 +11,18 @@ import { projectOf } from "../project/actions"
 import { TICKET, type Ticket } from "../ticket"
 import { assignedMessages } from "../ticket/actions"
 import { resolve } from "../ticket/resolve"
-import { CURRENT_WORK, currentWorkSet, currentWorksOf, NO_TICKET, READS_CURRENT_WORK } from "./work"
+import {
+  CURRENT_WORK,
+  currentWorkSet,
+  currentWorksOf,
+  NO_TICKET,
+  nextWorkOf,
+  openTicketsIn,
+  READS_ASSIGNED_TICKETS,
+  READS_CURRENT_WORK,
+  READS_PROJECTS,
+  workingTicketsOf,
+} from "./work"
 
 const WORKROOM_ARG = zod.string().min(1).optional()
 
@@ -33,7 +44,7 @@ export const TICKET_START = kit.defineAction({
   id: "ticket-start",
   title: "start ticket",
   aiDescription:
-    "Make the ticket named by on.record your workroom's current ticket (the user names the workroom with workroom; an AI leaves it out). The ticket is moved to the first working lane of its project when it is not in a working lane, and your workroom is added to its assignees when it is not one of them. The ticket your workroom was working on before stays assigned to it, but is not its current ticket any more. You do not need this when your workroom gets its first current ticket: a workroom with no current ticket gets one by itself when it is assigned to a ticket in a working lane, or a ticket it is assigned to comes into one. Refused when the project has no working lane or the ticket is completed. Returns the workroom's id, the ticket it was working on before (or none) and the ticket's lane.",
+    "Make the ticket named by on.record your workroom's current ticket (the user names the workroom with workroom; an AI leaves it out). The ticket is moved to the first working lane of its project when it is not in a working lane, and your workroom is added to its assignees when it is not one of them. The ticket your workroom was working on before stays assigned to it, but is not its current ticket any more (it can become current again when this one ends, as current work tells). You do not need this when your workroom gets its first current ticket: a workroom with no current ticket gets one by itself when it is assigned to a ticket in a working lane, or a ticket it is assigned to comes into one. Refused when the project has no working lane or the ticket is completed. Returns the workroom's id, the ticket it was working on before (or none) and the ticket's lane.",
   target: TICKET.id,
   writes: [CURRENT_WORK.id],
   reads: (_args, actor) => readsFor(actor),
@@ -70,10 +81,11 @@ export const TICKET_LEAVE = kit.defineAction({
   id: "ticket-leave",
   title: "leave ticket",
   aiDescription:
-    "Stop working on the ticket named by on.record (the user names the workroom with workroom; an AI leaves it out): when it is your workroom's current ticket, your workroom has no current ticket any more. With unassign: true, your workroom is also taken off its assignees (do this when you helped on the ticket and your part is done; the lead leaves the ticket to be completed with ticket-complete instead). The ticket stays in its lane. Refused when the ticket is neither your workroom's current ticket nor assigned to it. Returns the workroom's id, whether it was the current ticket (left) and whether the workroom was taken off the assignees (unassigned).",
+    "Stop working on the ticket named by on.record (the user names the workroom with workroom; an AI leaves it out): when it is your workroom's current ticket, it is not your current ticket any more. Then, of the other tickets assigned to your workroom in working lanes, the only one becomes your current ticket; when there are none or several, your workroom has no current ticket (with several, ask the user which one to work on and start it with ticket-start). With unassign: true, your workroom is also taken off its assignees (do this when you helped on the ticket and your part is done; the lead leaves the ticket to be completed with ticket-complete instead). The ticket stays in its lane. Refused when the ticket is neither your workroom's current ticket nor assigned to it. Returns the workroom's id, whether it was the current ticket (left), whether the workroom was taken off the assignees (unassigned), and when it left: the workroom's current ticket now (current, or none) and, when it is none, the ids of the other tickets assigned to it in working lanes (waiting, newest first).",
   target: TICKET.id,
   writes: [CURRENT_WORK.id],
-  reads: (_args, actor) => readsFor(actor),
+  // 抜けたあとの次を選ぶのに、担当のいるチケットと全部のプロジェクトも読む
+  reads: (_args, actor) => [...readsFor(actor), READS_ASSIGNED_TICKETS, READS_PROJECTS],
   args: zod.strictObject({ workroom: WORKROOM_ARG, unassign: zod.boolean().optional() }),
   run: (now, args, ctx) => {
     if (now === "none") return null
@@ -88,11 +100,22 @@ export const TICKET_LEAVE = kit.defineAction({
     const next: Ticket = unassigned
       ? { ...now, assignees: now.assignees.filter(w => w !== room.id), updatedAt: ctx.now }
       : now
-    const others = left ? [currentWorkSet(room.id, NO_TICKET)] : []
+    // 抜けたら、このチケットを除いて、担当で作業中のレーンにある物が 1 枚ならそれを、ほかは none をカレントワークにする
+    const open = openTicketsIn(ctx.records)
+    const current = left ? nextWorkOf(room.id, open.tickets, open.projectOf, [now.id]) : undefined
+    const waiting =
+      current === NO_TICKET ? workingTicketsOf(room.id, open.tickets, open.projectOf, [now.id]).map(t => t.id) : []
+    const others = current === undefined ? [] : [currentWorkSet(room.id, current)]
     return {
       next,
       ...(others.length > 0 ? { others } : {}),
-      result: { workroom: room.id, left, unassigned },
+      result: {
+        workroom: room.id,
+        left,
+        unassigned,
+        ...(current === undefined ? {} : { current }),
+        ...(waiting.length > 0 ? { waiting } : {}),
+      },
     }
   },
 })
