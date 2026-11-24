@@ -296,7 +296,7 @@ type hostEnvelope struct {
 }
 
 // hostEnvelopes は、アクションバルクのフォローステップが返した常駐メッセージ messages の宛先を決める（h.mu を持って呼ぶ）。
-// 宛先のワークルームに参加の確定した参加者がいないときと、宛先が行った参加者のワークルームのとき（行った AI は結果で知っている）は、その 1 通を送らない
+// 宛先のワークルームに参加の確定した参加者がいないときと、宛先が行った参加者のワークルームのとき（行った AI には、エンジンが結果の notice で渡す）は、その 1 通を送らない
 func (h *Hub) hostEnvelopes(messages []engine.HostMessage, actor *engine.Actor) ([]hostEnvelope, error) {
 	if len(messages) == 0 {
 		return nil, nil
