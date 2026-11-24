@@ -209,6 +209,7 @@ test("送るときに読むのは、引数 book のブック 1 冊だけ（reads
 const mailRecord = (id: string, order: number, kind: string, props: object, seen = false): Mail => ({
   id,
   mail: kind,
+  senderKind: "ai",
   from: "E94",
   sentAt: "t",
   ...(seen ? { seenAt: "t" } : {}),

@@ -56,10 +56,18 @@ export const NO_PAIRING = "none"
 // 常駐がまだ知らない・相手が名乗っていない文字列の値（名前・番地・時刻・接続確認コードなど）
 export const NOT_TOLD: unique symbol = Symbol("not told")
 
+// ほかのホストのワークルーム 1 つ（相手の一覧の写し）: 名前と作業の様子（作業中・空き。答える種類が相手に無ければ unknown）
+export interface PeerWorkroom {
+  name: string
+  activity: "working" | "idle" | "unknown"
+}
+
 // プラグインに渡す、ペアリングしたホスト 1 つの様子（常駐だけが持つ物）
 export interface PeerLive {
   hostId: string
+  label: string // ホストエイリアス（常駐が決める。届く行と AI の send_message の host と同じ）
   connected: boolean
+  workrooms: readonly PeerWorkroom[] // 相手のワークルームの一覧の写し（つながっていなければ空）
   keyMismatch: boolean // 覚えた鍵と合わない相手が答えた
   lastSeen: string | typeof NOT_TOLD // 最後につながった時刻
   addr: string | typeof NOT_TOLD // 確かめた待っている所（番地:ポート）
@@ -99,7 +107,9 @@ const told = (s: string | undefined): string | typeof NOT_TOLD => (s === undefin
 const peersOf = (p: GivenPeers): HostPeers => ({
   paired: p.paired.map(l => ({
     hostId: l.hostId,
+    label: l.label,
     connected: l.connected,
+    workrooms: l.workrooms ?? [],
     keyMismatch: l.keyMismatch === true,
     lastSeen: told(l.lastSeen),
     addr: told(l.addr),

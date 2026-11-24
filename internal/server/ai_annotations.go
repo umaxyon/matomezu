@@ -391,6 +391,7 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	if len(req.Candidates) == 0 {
 		lent = o.Hub.WokenBy(req.Prompt)
 		if !req.Woken && !lent {
+			o.Hub.UserTalkedIn(req.SessionID)
 			if err := o.Hub.Talked(time.Now()); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return

@@ -15,6 +15,7 @@ import {
   disabledPluginsOf,
   hostNameOf,
   isParticipantAlive,
+  listedWorkroomsOf,
   restoreSettings,
   updateCheckOn,
   userNameOf,
@@ -49,7 +50,7 @@ import {
   subjectRolesOf,
   unlistedOf,
 } from "./records"
-import { joinedText, myWorkdesk, visitorJoinedText, windowWarningLines, workTitle } from "./texts"
+import { joinedText, myWorkdesk, visitorJoinedText, windowWarningLines, workroomActivities, workTitle } from "./texts"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
@@ -237,13 +238,15 @@ let lastAdded: readonly Plugin[] = []
 ;(globalThis as { matomezuUpdateCheck?: (settings: string) => boolean }).matomezuUpdateCheck = settings =>
   updateCheckOn(assembled.catalog.core, restoreSettings(JSON.parse(settings)))
 
-// ほかのホストとつなぐか・ホスト名・利用者名（利用者の設定で決まる。常駐が、ホストどうしの入口を開け閉めする前に読む。ホスト名は無ければ空）
+// ほかのホストとつなぐか・ホスト名・利用者名・AI 用ホストリストに載せるこのホストのワークルーム（利用者の設定で決まる。常駐が、ホストどうしの入口を開け閉めする前と、
+// AI にワークルームの一覧を答える前に読む。ホスト名は無ければ空）
 ;(globalThis as { matomezuHostSettings?: (settings: string) => string }).matomezuHostSettings = settings => {
   const s = restoreSettings(JSON.parse(settings))
   return JSON.stringify({
     connect: connectHostsOn(assembled.catalog.core, s),
     name: hostNameOf(assembled.catalog.core, s) ?? "",
     userName: userNameOf(assembled.catalog.core, s),
+    listedWorkrooms: listedWorkroomsOf(assembled.catalog.core, s),
   })
 }
 
@@ -258,6 +261,10 @@ let lastAdded: readonly Plugin[] = []
 ;(
   globalThis as { matomezuWorkTitle?: (settings: string, workroom: string, name: string) => string }
 ).matomezuWorkTitle = (settings, workroom, name) => workTitle(assembled, settings, workroom, name)
+
+// ワークルームそれぞれの作業の様子（working・idle・unknown。常駐が、ほかのホストに見せるワークルームの一覧に使う）。作業はレコードから決まるので、常駐が読み口を置いている間に呼ぶ
+;(globalThis as { matomezuWorkroomActivities?: (workrooms: string) => string }).matomezuWorkroomActivities =
+  workrooms => workroomActivities(assembled, workrooms)
 
 // AI のワークルームの作業机（AI の read_folder と参加の文に出す。folders は書庫のフォルダの行の全部〈JSON の並び〉）。作業はレコードから決まるので、常駐が読み口を置いている間に呼ぶ
 ;(globalThis as { matomezuMyWorkdesk?: (workroom: string, folders: string) => string }).matomezuMyWorkdesk = (

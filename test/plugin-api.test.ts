@@ -71,6 +71,7 @@ test("matomezu が出す名前", () => {
     "HOME_ID",
     "IN_BACKYARD",
     "LEN",
+    "LISTED_WORKROOMS",
     "MARKDOWN_DOCUMENT_TOKENS",
     "MARKDOWN_PANE_MODES",
     "MY_WORKDESK",
@@ -123,6 +124,9 @@ test("matomezu が出す名前", () => {
     "PAGE_PAPER_COLOR",
     "PAGE_TEXT_COLORS",
     "PAGE_THEME",
+    "PAIRED_HOST_LISTED",
+    "PAIRED_HOST_RALLY_LIMIT",
+    "PAIRED_HOST_REQUESTS",
     "PALETTE",
     "PAPER_IDS",
     "PLACE_LINES",
@@ -335,6 +339,7 @@ test("matomezu/ui が出す名前", () => {
     "BookOpenIcon",
     "CORNER_STATUSES",
     "CaptionField",
+    "ChevronIcon",
     "ChoiceBubble",
     "ChoiceSetting",
     "ChoiceText",
@@ -363,9 +368,9 @@ test("matomezu/ui が出す名前", () => {
     "LibraryView",
     "LineIcon",
     "LockToggle",
-    "MAILBOX_OPENS",
     "MAIL_ACTIONS",
     "MARKDOWN_PANE_MODE_ICONS",
+    "MailboxView",
     "MarkdownDocumentView",
     "MaxButton",
     "MultiChoices",
@@ -431,6 +436,7 @@ test("matomezu/ui が出す名前", () => {
     "Stand",
     "Switch",
     "SwitchPanel",
+    "TextAround",
     "TextBlockView",
     "TextSettingControl",
     "Tip",
@@ -505,7 +511,7 @@ test("matomezu/ui が出す名前", () => {
     "useLatestPan",
     "useLayoutWarnings",
     "useLeftSidePanel",
-    "useMailboxPanel",
+    "useMailboxScreen",
     "useMarkdownDocument",
     "useMatomezuCommand",
     "useMenu",
@@ -1041,6 +1047,14 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
 test("base の入口が出す名前は、どれもプラグイン API からも出る（ビルトインと追加プラグインが同じ名前を使えるように。base のプラグインそのものは除く）", () => {
   const shown = new Set([...names(api), ...names(ui)])
   // base のプラグインそのものと、ホストのエンジンだけが読む名前（プラグイン API には出さない）
-  const own = ["BASE", "BASE_UI", "JOINED_MESSAGE", "VISITOR_JOINED_MESSAGE", "workTitleIn", "myWorkdeskIn"]
+  const own = [
+    "BASE",
+    "BASE_UI",
+    "JOINED_MESSAGE",
+    "VISITOR_JOINED_MESSAGE",
+    "workTitleIn",
+    "myWorkdeskIn",
+    "workroomActivitiesFrom",
+  ]
   expect([...names(plugin), ...names(pluginUi)].filter(n => !own.includes(n) && !shown.has(n))).toEqual([])
 })

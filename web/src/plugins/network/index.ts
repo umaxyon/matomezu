@@ -1,29 +1,62 @@
 // ネットワークのプラグイン: マシンごとの matomezu のホストどうしをつなぐ。利用者の設定の項目（ほかのホストとつなぐか・ホスト名）を持ち、
 // 常駐がその設定でホストどうしの入口を開け閉めする（internal/server/hosts.go）
 import { defineBuiltin } from "../../plugin-api/builtin"
-import { PAIRING_DIALOG, PAIRING_REQUEST_DIALOG, PORT_REPICK_DIALOG, UNPAIR_DIALOG } from "./dialogs"
+import {
+  AS_USER_DIALOG,
+  PAIRED_HOST_INFO_DIALOG,
+  PAIRING_DIALOG,
+  PAIRING_REQUEST_DIALOG,
+  PORT_REPICK_DIALOG,
+  UNPAIR_DIALOG,
+} from "./dialogs"
 import { kit } from "./kit"
 import {
   PAIRED_HOST,
   PAIRED_HOST_ADD,
+  PAIRED_HOST_LISTED_SET,
+  PAIRED_HOST_RALLY_LIMIT_SET,
   PAIRED_HOST_REMOVE,
+  PAIRED_HOST_REQUESTS_SET,
   PAIRING_ACCEPT,
   PAIRING_DECLINE,
   PAIRING_REQUEST,
   PAIRING_REQUEST_ADD,
 } from "./pairing"
-import { CONNECT_HOSTS, HOST_NAME } from "./settings"
+import { CONNECT_HOSTS, HOST_NAME, LISTED_WORKROOMS_SETTING } from "./settings"
 
-export { PAIRING_DIALOG, PAIRING_REQUEST_DIALOG, PORT_REPICK_DIALOG, UNPAIR_DIALOG } from "./dialogs"
+export {
+  AS_USER_DIALOG,
+  PAIRED_HOST_INFO_DIALOG,
+  PAIRING_DIALOG,
+  PAIRING_REQUEST_DIALOG,
+  PORT_REPICK_DIALOG,
+  UNPAIR_DIALOG,
+} from "./dialogs"
 export { PAIRED_HOST, PAIRING_REQUEST, type PairedHost, type PairingRequest } from "./pairing"
-export { CONNECT_HOSTS, HOST_NAME } from "./settings"
+export { CONNECT_HOSTS, HOST_NAME, LISTED_WORKROOMS_SETTING } from "./settings"
 
 export const NETWORK_PLUGIN = defineBuiltin(
   kit.plugin({
-    userSettings: [HOST_NAME, CONNECT_HOSTS],
+    userSettings: [HOST_NAME, CONNECT_HOSTS, LISTED_WORKROOMS_SETTING],
     subjects: [PAIRED_HOST, PAIRING_REQUEST],
-    actions: [PAIRING_REQUEST_ADD, PAIRING_ACCEPT, PAIRING_DECLINE, PAIRED_HOST_ADD, PAIRED_HOST_REMOVE],
-    dialogs: [PORT_REPICK_DIALOG, PAIRING_DIALOG, PAIRING_REQUEST_DIALOG, UNPAIR_DIALOG],
+    actions: [
+      PAIRING_REQUEST_ADD,
+      PAIRING_ACCEPT,
+      PAIRING_DECLINE,
+      PAIRED_HOST_ADD,
+      PAIRED_HOST_REMOVE,
+      PAIRED_HOST_REQUESTS_SET,
+      PAIRED_HOST_LISTED_SET,
+      PAIRED_HOST_RALLY_LIMIT_SET,
+    ],
+    dialogs: [
+      PORT_REPICK_DIALOG,
+      PAIRING_DIALOG,
+      PAIRING_REQUEST_DIALOG,
+      UNPAIR_DIALOG,
+      AS_USER_DIALOG,
+      PAIRED_HOST_INFO_DIALOG,
+    ],
   }),
 )
 
@@ -39,15 +72,21 @@ declare module "../../core/catalog" {
     "@matomezu/network:pairing-decline": typeof PAIRING_DECLINE
     "@matomezu/network:paired-host-add": typeof PAIRED_HOST_ADD
     "@matomezu/network:paired-host-remove": typeof PAIRED_HOST_REMOVE
+    "@matomezu/network:paired-host-requests-set": typeof PAIRED_HOST_REQUESTS_SET
+    "@matomezu/network:paired-host-listed-set": typeof PAIRED_HOST_LISTED_SET
+    "@matomezu/network:paired-host-rally-limit-set": typeof PAIRED_HOST_RALLY_LIMIT_SET
   }
   interface DialogTable {
     "@matomezu/network:port-repick": typeof PORT_REPICK_DIALOG
     "@matomezu/network:pairing": typeof PAIRING_DIALOG
     "@matomezu/network:pairing-request": typeof PAIRING_REQUEST_DIALOG
     "@matomezu/network:unpair": typeof UNPAIR_DIALOG
+    "@matomezu/network:as-user": typeof AS_USER_DIALOG
+    "@matomezu/network:paired-host-info": typeof PAIRED_HOST_INFO_DIALOG
   }
   interface UserSettingTable {
     "@matomezu/network:connect-hosts": typeof CONNECT_HOSTS
     "@matomezu/network:host-name": typeof HOST_NAME
+    "@matomezu/network:listed-workrooms": typeof LISTED_WORKROOMS_SETTING
   }
 }

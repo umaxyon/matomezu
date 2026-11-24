@@ -42,7 +42,22 @@ type pairedHostRecord struct {
 	NameAtPairing     string `json:"nameAtPairing"`
 	UserNameAtPairing string `json:"userNameAtPairing"`
 	Addr              string `json:"addr"`
+	Requests          string `json:"requests"`   // そのホストの AI からの AI 間メッセージを、利用者の頼みとして受けるか（requestsAskUser・requestsAsUser）
+	Listed            string `json:"listed"`     // AI 用ホストリストにそのホストを載せるか（hostListed・hostHidden）
+	RallyLimit        int    `json:"rallyLimit"` // そのホストから届く AI ラリーの上限（向きごとの数。core/def/subject.ts の PAIRED_HOST_RALLY_LIMIT。rally.go）
 }
+
+// ペアリングしたホストの requests の値（core/def/subject.ts の PAIRED_HOST_REQUESTS）
+const (
+	requestsAskUser = "ask-user" // 受け取った AI が、実行してよいか利用者に聞く（既定）
+	requestsAsUser  = "as-user"  // 利用者の頼みとして受ける（届く行に印を付ける）
+)
+
+// ペアリングしたホストの listed の値（core/def/subject.ts の PAIRED_HOST_LISTED）
+const (
+	hostListed = "listed" // AI 用ホストリストに載せる（既定）
+	hostHidden = "hidden" // AI 用ホストリストに載せない（名前で引く・そのホストを読む・送れないときの断りでは見つかる）
+)
 
 type pairingRequestRecord struct {
 	ID     string `json:"id"`
@@ -72,13 +87,15 @@ type HostPairing struct {
 
 // PeerLive は、ペアリングしたホストの、常駐だけが持つ様子
 type PeerLive struct {
-	HostID      string `json:"hostId"`
-	Connected   bool   `json:"connected"`
-	LastSeen    string `json:"lastSeen,omitempty"` // 最後につながった時刻
-	Addr        string `json:"addr,omitempty"`     // 待っている所（番地:ポート）
-	Name        string `json:"name,omitempty"`     // 相手の今のホスト名
-	UserName    string `json:"userName,omitempty"`
-	KeyMismatch bool   `json:"keyMismatch,omitempty"`
+	HostID      string    `json:"hostId"`
+	Label       string    `json:"label"` // ホストエイリアス（labelsLocked。届く行・send_message の host・画面に同じ物を使う）
+	Connected   bool      `json:"connected"`
+	LastSeen    string    `json:"lastSeen,omitempty"` // 最後につながった時刻
+	Addr        string    `json:"addr,omitempty"`     // 待っている所（番地:ポート）
+	Name        string    `json:"name,omitempty"`     // 相手の今のホスト名
+	UserName    string    `json:"userName,omitempty"`
+	KeyMismatch bool      `json:"keyMismatch,omitempty"`
+	Workrooms   []RoomRow `json:"workrooms,omitempty"` // 相手のワークルームの一覧の写し（つながっていて、写しのあるときだけ）
 }
 
 // FoundHost は、mDNS で見つけた、ペアリングしていないホスト（申告のまま）
@@ -97,7 +114,7 @@ type HostPeers struct {
 }
 
 type peerState struct {
-	mu       sync.Mutex
+	mu       sync.Mutex // h.mu を持ったまま取らない（常駐の鍵を放してから写しを読む）
 	incoming map[string]*incomingPairing
 	outgoing *HostPairing
 	cancel   context.CancelFunc
@@ -106,10 +123,20 @@ type peerState struct {
 	dropping map[string]bool             // 常駐が消しているペアリングしたホスト（相手に知らせない）
 	beacon   *peer.Beacon
 	kick     chan struct{}
+	// ワークルームの一覧（peer_rooms.go）
+	rooms     localRooms           // 自分の一覧
+	copies    map[string]*roomCopy // ペアリングしたホスト id → 相手の一覧の写し
+	fetching  map[string]int       // ペアリングしたホスト id → 取り直しの様子
+	roomsKick chan struct{}
+	roomSeq   uint64 // 一覧の行の様子が変わった順の通し番号（自分の一覧と写しで共に使う。このホストの中だけの物）
 }
 
 func newPeerState() *peerState {
-	return &peerState{incoming: map[string]*incomingPairing{}, live: map[string]*PeerLive{}, known: map[string]pairedHostRecord{}, dropping: map[string]bool{}, kick: make(chan struct{}, 1)}
+	return &peerState{
+		incoming: map[string]*incomingPairing{}, live: map[string]*PeerLive{}, known: map[string]pairedHostRecord{}, dropping: map[string]bool{}, kick: make(chan struct{}, 1),
+		rooms:  localRooms{epoch: newEnvelopeID(), rows: map[string]roomEntry{}},
+		copies: map[string]*roomCopy{}, fetching: map[string]int{}, roomsKick: make(chan struct{}, 1),
+	}
 }
 
 // --- 記録を読む・役のアクションを行う ---
@@ -260,9 +287,14 @@ func (h *Hub) followPeers(e *hostEntrance) {
 			told = append(told, tell{r, addr})
 		}
 		delete(ps.live, id)
+		delete(ps.copies, id)
 	}
 	ps.known = now
 	ps.mu.Unlock()
+	known, asUser := ps.pairedAndAsUser()
+	h.mu.Lock()
+	h.followPeerLines(known, asUser)
+	h.mu.Unlock()
 	for _, t := range told {
 		go h.tellUnpaired(e, t.r, t.addr)
 	}
@@ -288,7 +320,12 @@ func (h *Hub) tellUnpaired(e *hostEntrance, r pairedHostRecord, addr string) {
 func (h *Hub) peerAddr(e *hostEntrance, r pairedHostRecord) string {
 	e.peers.mu.Lock()
 	defer e.peers.mu.Unlock()
-	if l := e.peers.live[r.HostID]; l != nil && l.Addr != "" {
+	return e.peers.addrLocked(r)
+}
+
+// addrLocked は、ペアリングしたホスト r の待っている所（つながったときに聞いた物。無ければ覚えた物）（ps.mu を持って呼ぶ）
+func (ps *peerState) addrLocked(r pairedHostRecord) string {
+	if l := ps.live[r.HostID]; l != nil && l.Addr != "" {
 		return l.Addr
 	}
 	return r.Addr
@@ -304,10 +341,16 @@ func (h *Hub) HostPeers() HostPeers {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 	out := HostPeers{Paired: []PeerLive{}, Found: []FoundHost{}}
+	labels := ps.labelsLocked()
 	for id := range ps.known {
 		l := PeerLive{HostID: id}
 		if x := ps.live[id]; x != nil {
 			l = *x
+		}
+		l.Label = labels[id]
+		l.Workrooms = nil
+		if l.Connected {
+			l.Workrooms = ps.roomsOfLocked(id)
 		}
 		out.Paired = append(out.Paired, l)
 	}
@@ -532,6 +575,9 @@ func (h *Hub) sawPeer(ps *peerState, id, addr, name, userName string) {
 	}
 	ps.mu.Unlock()
 	h.tellPeers()
+	if e := h.entrance.Load(); e != nil && e.peers == ps {
+		go h.refetchRooms(e, id)
+	}
 }
 
 func mustJSON(v any) []byte {

@@ -14,7 +14,7 @@ import { allowedOnBook } from "../../../core/perform-permit"
 import { sameData } from "../../../core/same"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
-import type { Mail } from "./mail"
+import { type Mail, SENT_BODY_MAX } from "./mail"
 import { ownChangedIn, ownValuesIn } from "./own-values"
 import { MAIL, mailAdded, readsMailSender } from "./subject"
 
@@ -32,7 +32,7 @@ const SnapshotSchema = z.record(z.string(), z.record(z.string(), z.unknown()))
 type Snapshot = z.output<typeof SnapshotSchema>
 
 const ProposalSchema = z.strictObject({
-  title: z.string().trim().min(1).max(80), // 題（一覧・しおり・ダイアログの見出し）
+  title: z.string().trim().min(1).max(80), // 題（一覧・しおり・郵便箱の画面の見出し）
   body: z.string().max(4000), // 本文（AI が書いた変更の説明。空でもよい）
   book: z.string().min(1), // 変えるブック
   page: z.string().min(1).optional(), // 変えるページ（許可スコープ。ページを持たないブックや、いくつものページを変えるなら無い）
@@ -149,7 +149,7 @@ export const snapshotIds = (snapshot: Snapshot): string[] => Object.values(snaps
 export const PROPOSAL_SEND = kit.defineAction({
   id: "proposal-send",
   aiDescription:
-    "Send a change proposal mail: when an action of yours on a book was refused with being-edited (the user is editing what it changes), put the actions here and the user applies them with one press when done. from your short name (as in mail-send), title (80 characters at most) and body (optional) tell the user what it changes and why. book is the book, page the page they change (leave it out if they change several pages), changes the actions in order, each {action, args, on} as you would perform it: for an action whose target is page, on is {page} (a page of that book); for an action whose target is book, leave on out (it is done on that book). Only actions that change things there now can be carried: no actions that add things, and only one book per mail. They are tried now without changing the book: if one cannot be done, nothing is sent and why is returned. When the user applies it, it fails if what it changes was changed or removed after you sent it; then nothing is changed and you are told the next time the user talks to you (think again from the book as it is then). If the mail is removed before it is applied (the mailbox keeps the newest 200 mails, or the user removes it), you are told that too, the next time the user talks to you. Returns the mail's id.",
+    "Send a change proposal mail: when an action of yours on a book was refused with being-edited (the user is editing what it changes), put the actions here and the user applies them with one press when done. from your short name (as in mail-send), title (80 characters at most) tells the user what it changes, and body (optional, 300 characters at most, Markdown) tells briefly what it changes and why. book is the book, page the page they change (leave it out if they change several pages), changes the actions in order, each {action, args, on} as you would perform it: for an action whose target is page, on is {page} (a page of that book); for an action whose target is book, leave on out (it is done on that book). Only actions that change things there now can be carried: no actions that add things, and only one book per mail. They are tried now without changing the book: if one cannot be done, nothing is sent and why is returned. When the user applies it, it fails if what it changes was changed or removed after you sent it; then nothing is changed and you are told the next time the user talks to you (think again from the book as it is then). If the mail is removed before it is applied (the mailbox keeps the newest 200 mails, or the user removes it), you are told that too, the next time the user talks to you. Returns the mail's id.",
   title: "Send a change proposal",
   target: MAIL.id,
   reads: (_, actor) => readsMailSender(actor),
@@ -158,7 +158,7 @@ export const PROPOSAL_SEND = kit.defineAction({
   args: z.strictObject({
     from: z.string().trim().min(1).max(40),
     title: ProposalSchema.shape.title,
-    body: ProposalSchema.shape.body.optional(),
+    body: z.string().max(SENT_BODY_MAX).optional(),
     book: z.string().min(1),
     page: z.string().min(1).optional(),
     changes: ChangesSchema,

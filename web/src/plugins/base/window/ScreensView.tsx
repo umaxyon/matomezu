@@ -22,8 +22,8 @@ import footerRow from "../utils/FooterRow.module.css"
 import styles from "./ScreensView.module.css"
 import { SLIDE_MS } from "./slide"
 import { SCREEN_FOOTER } from "./slots"
-import { planExpand, SCREEN_FLASH, SPLIT_ROWS } from "./split"
-import { applySplit, splitIn, useTallEnough, wideIn } from "./useScreenSplit"
+import { SCREEN_FLASH, SPLIT_ROWS } from "./split"
+import { splitIn, useTallEnough, wideIn } from "./useScreenSplit"
 
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
 
@@ -50,10 +50,10 @@ export function ScreensView() {
   // 上下に分けた並び（分けていなければ空）。カレントスクリーンが並びに無い間は、分けて見せない
   const arranged = useMatomezuState(useShallow(s => splitIn(s.window)))
   // 並びに入れたブックスクリーン（ステージを分けて、下に書庫のスクリーンを出しているときなど）。居れば、それを上の行に描き、コントロールセンターの側は並びの行だけを出す。
-  // 窓が低い間は、その並びを畳まずに（書庫のスクリーンから開く先が、置かれた所で決まるように）、カレントスクリーンだけを窓いっぱいに見せる
+  // 窓が低い間は、どの並びも畳まずに（下の行から開く先が、置かれた所で決まるように）、カレントスクリーンだけを窓いっぱいに見せる
   const tall = useTallEnough()
-  const lowMixed = !tall && arranged.some(id => stageScreens.includes(id))
-  const split = lowMixed ? NO_ROWS : arranged
+  const low = !tall && arranged.length > 0
+  const split = low ? NO_ROWS : arranged
   const splitting = split.length > 0
   const splitBook = split.find(id => stageScreens.includes(id))
   const mixed = splitBook !== undefined
@@ -66,8 +66,7 @@ export function ScreensView() {
   useEffect(() => {
     wasSplitting.current = splitting
   })
-  useCollapseWhenLow(lowMixed ? NO_ROWS : arranged, current)
-  useMarkFits(arranged.length > 0 && arranged.some(id => stageScreens.includes(id)), lowMixed)
+  useMarkFits(arranged.length > 0, low)
   const { makeScreenCurrent } = useStoreActions()
   // 下の行に置いたウィジェットがあるか（無ければ、下の行を描かない）
   const footer = (useLayout().slots[SCREEN_FOOTER]?.length ?? 0) > 0
@@ -90,18 +89,32 @@ export function ScreensView() {
     return () => clearTimeout(timer)
   }, [instant])
   // 閉じられたスクリーンは、滑り出る間だけ、閉じたときの位置で描き続ける
-  const last = useRef<{ screens: readonly OpenedScreen[]; rows: ReadonlyMap<string, Row | null> }>({
+  // （見えていなかった物は写さない。窓の上限で、見えていない物が閉じる）
+  const last = useRef<{
+    screens: readonly OpenedScreen[]
+    rows: ReadonlyMap<string, Row | null>
+    shown: ReadonlySet<string>
+  }>({
     screens: [],
     rows: new Map(),
+    shown: new Set(),
   })
   const opened = useMatomezuState(useShallow(s => s.window.screens.filter(x => !x.stages)))
   const [leaving, setLeaving] = useState<readonly { screen: OpenedScreen; row: Row | null }[]>([])
   const gone = last.current.screens.filter(
-    s => !s.stages && !opened.some(x => x.id === s.id) && !leaving.some(l => l.screen.id === s.id),
+    s =>
+      !s.stages &&
+      last.current.shown.has(s.id) &&
+      !opened.some(x => x.id === s.id) &&
+      !leaving.some(l => l.screen.id === s.id),
   )
   if (gone.length > 0)
     setLeaving([...leaving, ...gone.map(screen => ({ screen, row: last.current.rows.get(screen.id) ?? null }))])
-  last.current = { screens: opened, rows: new Map(plainScreens.map(id => [id, rowOf(id)])) }
+  last.current = {
+    screens: opened,
+    rows: new Map(plainScreens.map(id => [id, rowOf(id)])),
+    shown: new Set(plainScreens.filter(id => rowOf(id) !== null || (!splitting && id === top?.id))),
+  }
   // 窓いっぱいに見せるブックスクリーンが替わったら、新しく見せる物を、ほかのスクリーンの上に出す（over。その間、コントロールセンターの側は動かさずに残す）。
   // 並びの外から来た物は右から滑り込み、並びの中にいた物（下の行の □ で広げた）はその場から伸びる。閉じたスクリーンの後ろから出てきたときは、動かさない
   // （閉じたのと一緒に新しく開いた物は、閉じた物の上を滑り込む）。
@@ -235,34 +248,20 @@ export function ScreensView() {
   )
 }
 
-// 窓が低くなったら、上下に分けるのをやめる: カレントスクリーンだけを残し、並びのほかの物を閉じる（ブラウザの履歴に積まない）。
-// ブックスクリーンを入れた並びは畳まない（見せ方だけを 1 枚にする）
-function useCollapseWhenLow(split: readonly string[], current: string | undefined) {
-  const tall = useTallEnough()
-  const actions = useStoreActions()
-  const read = useReadState()
-  const low = !tall && split.length > 0
-  useEffect(() => {
-    if (!low || current === undefined) return
-    actions.replaceHistory()
-    applySplit(actions, read, planExpand(split, current))
-  }, [low, split, current, actions, read])
-}
-
-// ブックスクリーンを入れた並びの値に、低くてカレントスクリーンだけを見せているか（fits）を書く（スクリーンアレンジメントが答える見えているスクリーンを、描いている物に合わせる。
+// 上下に分けた並びの値に、低くてカレントスクリーンだけを見せているか（fits）を書く（スクリーンアレンジメントが答える見えているスクリーンを、描いている物に合わせる。
 // 利用者の操作でないので、ブラウザの履歴に積まない）
-function useMarkFits(mixed: boolean, low: boolean) {
+function useMarkFits(split: boolean, low: boolean) {
   const actions = useStoreActions()
   const read = useReadState()
   useEffect(() => {
-    if (!mixed) return
+    if (!split) return
     const win = read().window
     const value = win.arrangementValue as { fits?: string } | undefined
     const fits = low ? "current" : "split"
     if ((value?.fits ?? "split") === fits) return
     actions.replaceHistory()
     actions.setScreenArrangement(SPLIT_ROWS.id, { ...(win.arrangementValue as object), fits })
-  }, [mixed, low, actions, read])
+  }, [split, low, actions, read])
 }
 
 // 滑る物の位置 entered を、描いた次のコマで goal に合わせる（CSS の transition が動く）。waits（上の物が縮むのを待っている）は、入ってから縮む分と滑る分の間で解く
@@ -418,22 +417,34 @@ function PlainScreen({
   closed?: OpenedScreen
   onPress?: () => void
 }) {
-  const goal = !closed
+  // 並びから外れて見えなくなった物（閉じずに開いたまま）は、閉じる物と同じく右へ滑り出て、また見せるときに右から滑り込む
+  // （滑り出る間は、外れた行の位置のまま。out は外れた行）
+  const [out, setOut] = useState<Row | null>(null)
+  // 前に描き終えたときの行（描いている途中では書き換えない。描き直しが 2 回あっても同じに読む）
+  const lastRow = useRef(row)
+  if (lastRow.current !== null && row === null && !shown && out === null) setOut(lastRow.current)
+  if (out !== null && shown) setOut(null)
+  useEffect(() => {
+    lastRow.current = row
+  })
+  const at = row ?? out
+  const goal = !closed && out === null
   const [entered, setEntered] = useState(closed ? true : !slides)
   // 縮むのを待つのは、滑り込む 1 回だけ（入ったあとの位置の変わりは待たない）
   const [waits, setWaits] = useState(late && slides)
   useSlideFrames(entered, goal, setEntered, waits, setWaits)
   const place = {
     zIndex: layer,
-    ...(row ? { "--row-top": `${(row.index * 100) / row.of}%`, "--row-height": `${100 / row.of}%` } : {}),
+    ...(at ? { "--row-top": `${(at.index * 100) / at.of}%`, "--row-height": `${100 / at.of}%` } : {}),
   } as CSSProperties
   return (
     <div
       className={styles.plain}
       data-in={entered}
       data-top={top}
-      data-row={row !== null}
+      data-row={at !== null}
       data-late={waits}
+      data-out={out !== null}
       style={place}
       inert={!shown}
       onPointerDownCapture={onPress}

@@ -1,4 +1,4 @@
-// 郵便のダイアログの開くボタン（mail/open-choices.ts）: 画面の分割の状態で並べるボタンと決めるボタン、押したボタンで開くステージ
+// 郵便箱の画面の行き先を開くボタン（mail/open-choices.ts）: 画面の分割の状態で並べるボタンと決めるボタン、押したボタンで開くステージ
 import { expect, test } from "bun:test"
 import { openChoices, openStageOf } from "../../../web/src/plugins/base/mail/open-choices"
 

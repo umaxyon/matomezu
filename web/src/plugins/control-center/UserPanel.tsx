@@ -1,4 +1,4 @@
-// 左の列の最上段: 題（全体設定の歯車）・あなた・郵便/書庫/プロジェクトのボタン。郵便は左サイドパネルの郵便箱を開閉し、全体設定は設定画面を開く。
+// 左の列の最上段: 題（全体設定の歯車）・あなた・郵便/書庫/プロジェクトのボタン。郵便箱はコンテンツエリアを郵便箱の画面に替え、全体設定は設定画面を開く。
 // 新しい版があれば、題の左の巣箱が金色と元の色を行き来し、押すと設定画面の「更新」を開く
 import type { ReactNode } from "react"
 import { NO_NAME } from "../../plugin-api"
@@ -10,7 +10,6 @@ import {
   NO_UPDATE_STATUS,
   Panel,
   Tip,
-  useMailboxPanel,
   useOpenSettings,
   useUpdateStatus,
   useUserName,
@@ -31,7 +30,6 @@ type Tile = { label: string; icon: ReactNode; onClick: () => void; pressed: bool
 export function UserPanel({ screen, onShow }: { screen: ContentArea; onShow: (to: ContentArea) => void }) {
   const t = useMessages(kit)
   const userName = useUserName()
-  const mailbox = useMailboxPanel()
   const wideSearch = useWideSearchPanel()
   const settings = useCommand("@matomezu/base:settings-open")
   // 題の左の巣箱の絵（見た目だけ。チケットの帯の巣箱のボタンと同じ絵を、そのコマンドの id で引く）
@@ -40,7 +38,7 @@ export function UserPanel({ screen, onShow }: { screen: ContentArea; onShow: (to
   const newer = update !== NO_UPDATE_STATUS && update.state === "newer"
   const openUpdates = useOpenSettings(UPDATE_CATEGORY)
   const tiles: Tile[] = [
-    { label: t("Mailbox"), icon: <MailIcon />, onClick: mailbox.toggle, pressed: mailbox.open },
+    { label: t("Mailbox"), icon: <MailIcon />, onClick: () => onShow("mailbox"), pressed: screen === "mailbox" },
     { label: t("Library"), icon: <LibraryIcon />, onClick: () => onShow("library"), pressed: screen === "library" },
     { label: t("Projects"), icon: <ProjectIcon />, onClick: () => onShow("projects"), pressed: screen === "projects" },
     { label: t("Wide search"), icon: <SearchIcon />, onClick: wideSearch.toggle, pressed: wideSearch.open },

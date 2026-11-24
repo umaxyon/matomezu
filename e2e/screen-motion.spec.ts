@@ -70,3 +70,24 @@ test("窓いっぱいの書庫のスクリーンでは、ブックとページ�
   await below.getByRole("button", { name: "残課題" }).click()
   await expect(page.getByRole("menuitem", { name: "分割で開く" })).toHaveCount(0)
 })
+
+test("ブックスクリーンと上下に並んだ書庫のスクリーンで「開く」を選ぶと、開いたブックが窓いっぱいになる", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const library = page.getByRole("list", { name: "書庫 の中身" })
+  await library.getByRole("button", { name: "残課題" }).click()
+  await page.getByRole("menuitem", { name: "分割で開く" }).click()
+  await expect(library).toBeVisible()
+
+  await library.getByRole("button", { name: "まとめ図の構想" }).click()
+  await page.getByRole("menuitem", { name: "開く", exact: true }).click()
+  await expect(library).toBeHidden()
+  await expect(page.locator(BOOK).locator("visible=true")).toHaveCount(1)
+  // 並んでいたブックスクリーンは閉じずに、見えないまま開いている
+  await expect(page.locator(BOOK)).toHaveCount(2)
+  await expect(page.getByText("まとめ図の構想").locator("visible=true").first()).toBeVisible()
+  const { height } = await page.evaluate(() => ({ height: innerHeight }))
+  expect((await page.locator(BOOK).locator("visible=true").boundingBox())?.height ?? 0).toBeGreaterThan(height * 0.9)
+})

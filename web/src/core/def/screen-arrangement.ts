@@ -17,6 +17,8 @@ export interface ScreenArrangementDef<Tt extends string = MessageKey, V = unknow
   // 見えているスクリーンの id。screens は開いているスクリーン（開いた順）、order はその id をカレントにした順（最後がカレントスクリーン）、value はアレンジメントの値
   shown(screens: readonly OpenedScreen[], order: readonly string[], value: V): readonly string[]
   atStart?: true // 窓を開いたときのスクリーンアレンジメント（機能台帳で 1 つだけが名乗る）
+  // 窓に開いておくスクリーンの枚数（1 以上。窓を開いたときから開いているスクリーンは数えない。超えた分は、土台が見えていない物のうちカレントにしたのが古い物から閉じる。無ければ何枚でも）
+  maxScreens?: number
 }
 
 // 値を持たないスクリーンアレンジメントの値

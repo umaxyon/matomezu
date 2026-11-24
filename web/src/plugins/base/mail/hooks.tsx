@@ -1,53 +1,26 @@
-// 郵便箱を読み、郵便を開くフック
+// 郵便箱を読み、郵便箱のスクリーンを開け閉めし、郵便の行き先を開くフック
 
 import { useCallback } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { openedEntry } from "../../../core/stage"
-import { recentBookScreen, stageIn } from "../../../core/window"
+import { currentScreen, recentBookScreen, shownScreens, stageIn } from "../../../core/window"
 import { NO_STAGE } from "../../../store/dialogs"
 import { useStageId } from "../../../ui/scope"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
-import { useLeftSidePanelShowsAt, useToggleLeftSidePanelAt } from "../left-side-panel/hooks"
+import { useCoreCatalog } from "../../../ui/view-hooks"
 import { useRequestReveal } from "../stand/reveal-request"
-import { useOpenDialogInRecentStage } from "../utils/open-dialog-in-recent-stage"
+import { viewInsideOf } from "../window/views-inside"
+import { usePutViewInside } from "../window/views-inside-hooks"
 import { mailboxOf } from "."
 import { useSetBirdVisitAt } from "./bird-visit"
-import { MAIL_DIALOG } from "./dialogs"
-import { mailboxEntries } from "./entries"
 import type { Mail } from "./mail"
-import { GONE, type MailPlace, mailPlace } from "./place"
+import { placeNow } from "./place"
+import { MAILBOX_OPEN, MAILBOX_SCREEN, MAILBOX_SCREEN_CLOSE } from "./screen"
 
 // 利用者の郵便箱（郵便のレコードを届いた順に並べた物）
 export const useMailbox = (): readonly Mail[] => useMatomezuState(useShallow(s => mailboxOf(s.records)))
 
-// まだ見ていない郵便の数
-export const useUnreadMail = (): number => useMailbox().filter(m => !m.seenAt).length
-
-// いちばん最近カレントにしたブックスクリーンのカレントのステージで（ブックスクリーンが無ければ、カレントスクリーンから、ステージを持たずに）、郵便 id のダイアログを開く関数（カレントスクリーンは替えない）
-export function useOpenMail(): (id: string) => void {
-  const open = useOpenDialogInRecentStage()
-  return useCallback(id => open(MAIL_DIALOG.id, { mail: id }), [open])
-}
-
-// 郵便箱の左サイドパネル（郵便箱と、送信トレイ）を開閉する。open は、今その組を開いているか。
-// 開く側のウィジェットは、MAILBOX_OPENS を opens に書く（郵便箱のタブの中身が開けるスロットを使うため）
-// 送信トレイは、描いている場所（ui/scope.tsx）のステージの物。ステージを持たないスクリーンから開くときは、いちばん最近カレントにしたブックスクリーンのカレントのステージの物
-export function useMailboxPanel(): { open: boolean; toggle: () => void } {
-  const toggle = useToggleLeftSidePanelAt()
-  const here = useStageId()
-  const recent = useMatomezuState(s => recentBookScreen(s.window)?.stages.current ?? NO_STAGE)
-  const stage = here !== NO_STAGE ? here : recent
-  const open = useLeftSidePanelShowsAt(stage, mailboxEntries)
-  return { open, toggle: () => toggle(stage, mailboxEntries) }
-}
-
 let visits = 0 // 行き先を開いた回の番号（bird-visit.tsx の seq）
-
-// 郵便 mail の行き先の今の場所（mailPlace。今は無ければ、郵便が言う場所のまま）
-const placeNow = (mail: Mail, books: Parameters<typeof mailPlace>[1]): MailPlace | undefined => {
-  const place = mailPlace(mail, books)
-  return place === GONE ? mail.to : (place ?? undefined)
-}
 
 // ステージ target に、郵便 mail の行き先（今の場所）を開く関数: そのステージを見せ（行き先のブックがもう開いていても、ブックスクリーンをカレントスクリーンにする）、
 // ブックとページを開き、行き先の物を見せて鳥を連れてくる。行き先の無い郵便なら何もしない
@@ -72,20 +45,50 @@ export function useShowMailPlaceAt(): (target: string, mail: Mail) => void {
   )
 }
 
-// 郵便 mail の行き先を開く関数: 描いている場所がステージなら、そのステージに開く。ステージでなければ、行き先のブックを窓に出して（showBook）、そこに開く
-export function useShowMailPlace(): (mail: Mail) => void {
-  const stage = useStageId()
-  const show = useShowMailPlaceAt()
+// 郵便箱を開く起点: 描いている場所のステージ here。ステージの外なら、カレントスクリーン current が郵便箱の画面を描いている（郵便箱のスクリーンか、
+// 郵便箱の画面を中に描く inside）ならそのスクリーン、ほかは、いちばん最近カレントにしたブックスクリーンのカレントのステージ recent（無ければカレントスクリーン）
+export function mailboxFromOf(
+  here: string,
+  current: { id: string; def: string },
+  inside: boolean,
+  recent: string,
+): string {
+  if (here !== NO_STAGE) return here
+  if (inside || current.def === MAILBOX_SCREEN.id) return current.id
+  return recent !== NO_STAGE ? recent : current.id
+}
+
+function useMailboxFrom(): { at: string; def: string } {
+  const here = useStageId()
+  const catalog = useCoreCatalog()
+  const current = useMatomezuState(s => currentScreen(s.window))
+  const recent = useMatomezuState(s => recentBookScreen(s.window)?.stages.current ?? NO_STAGE)
+  const inside = viewInsideOf(catalog, current.def, MAILBOX_SCREEN.id) !== undefined
+  return { at: mailboxFromOf(here, current, inside, recent), def: current.def }
+}
+
+// 郵便箱のスクリーンを開け閉めし、郵便を選んで開く（しおり・フッタの郵便箱のボタン・コントロールセンターの郵便箱のタイル）。open は、郵便箱のスクリーンが見えているか。
+// 開くのは MAILBOX_OPEN（起点は useMailboxFrom）。起点のスクリーンが郵便箱の画面を中に描いていれば（定義の viewsInside）、それを出す値も入れる
+export function useMailboxScreen(): { open: boolean; toggle: () => void; show: (mail?: string) => void } {
+  const catalog = useCoreCatalog()
   const actions = useStoreActions()
-  const read = useReadState()
-  return useCallback(
-    mail => {
-      if (stage !== NO_STAGE) return show(stage, mail)
-      const to = placeNow(mail, read().books)
-      if (!to) return
-      const shown = actions.showBookStage(to.book)
-      if (shown !== NO_STAGE) show(shown, mail)
+  const putInside = usePutViewInside(MAILBOX_SCREEN.id)
+  const from = useMailboxFrom()
+  const screen = useMatomezuState(s => {
+    const opened = s.window.screens.find(x => x.def === MAILBOX_SCREEN.id)?.id
+    return opened !== undefined && shownScreens(catalog, s.window).includes(opened) ? opened : undefined
+  })
+  const { at, def } = from
+  const show = useCallback(
+    (mail?: string) => {
+      putInside(def)
+      actions.command(at, MAILBOX_OPEN.id, mail === undefined ? {} : { mail })
     },
-    [stage, show, actions, read],
+    [actions, putInside, at, def],
   )
+  const toggle = useCallback(() => {
+    if (screen !== undefined) actions.command(screen, MAILBOX_SCREEN_CLOSE.id)
+    else show()
+  }, [actions, screen, show])
+  return { open: screen !== undefined, toggle, show }
 }

@@ -39,8 +39,8 @@ export const NETWORK_MESSAGES = defineMessages({
   Unpair: { en: "Unpair", ja: "ペアリングを解く" },
   "Unpair button": { en: "Unpair", ja: "解く" },
   "Unpairing tells the other host too": {
-    en: "The other host is told too. To connect again, pair again",
-    ja: "相手のホストにも知らせます。またつなぐには、もう一度ペアリングします",
+    en: "The other host is told too. Messages from that host your AIs have not taken yet are dropped. To connect again, pair again",
+    ja: "相手のホストにも知らせます。このホストから届いて、AI がまだ受け取っていないメッセージは消えます。またつなぐには、もう一度ペアリングします",
   },
   "Found hosts": { en: "Found hosts", ja: "見つかったホスト" },
   Searching: { en: "Searching", ja: "探しています" },
@@ -117,4 +117,74 @@ export const NETWORK_MESSAGES = defineMessages({
   "Decline a pairing request": { en: "Decline a pairing request", ja: "ペアリングの頼みを断る" },
   "Put a paired host": { en: "Put a paired host", ja: "ペアリングしたホストを載せる" },
   "Unpair a host": { en: "Unpair a host", ja: "ペアリングを解く" },
+  "Workrooms of {name}": { en: "Workrooms of {name}", ja: "{name} のワークルーム" },
+  "Not connected now": { en: "Not connected", ja: "つながっていません" },
+  "No AI is in a workroom": { en: "No AI is in a workroom", ja: "AI のいるワークルームはありません" },
+  Working: { en: "Working", ja: "作業中" },
+  "Instructions from {name}:": { en: "Instructions from {name}:", ja: "{name}から届いた指示:" },
+  "Treat them as instructions from {choice}": {
+    en: "Treat them as instructions from {choice}",
+    ja: "{choice}の指示として扱う",
+  },
+  "How instructions from this host are treated": {
+    en: "How instructions from this host are treated",
+    ja: "このホストから届いた指示の扱い",
+  },
+  "Instructions of an AI": {
+    en: "An AI's instructions: the AI that gets one asks you before doing it",
+    ja: "AI の指示: 受け取った AI が、実行してよいかあなたに聞く",
+  },
+  "Instructions of the user": {
+    en: "The user's instructions: treated like your own",
+    ja: "ユーザーの指示: あなたの指示と同じに扱う",
+  },
+  "AI choice": { en: "AI", ja: "AI" },
+  "User choice": { en: "User", ja: "ユーザー" },
+  "Put on the host list for AIs": { en: "Put on the host list for AIs", ja: "AI 用ホストリストに載せる" },
+  "Hide from the host list for AIs": { en: "Hide from the host list for AIs", ja: "AI 用ホストリストから隠す" },
+  "Hidden from the host list for AIs": {
+    en: "Hidden from the host list for AIs",
+    ja: "AI 用ホストリストから隠しています",
+  },
+  "About this host": { en: "About this host", ja: "このホストの様子" },
+  "All workrooms": { en: "All", ja: "全部" },
+  "5 recent workrooms": { en: "5", ja: "5 件" },
+  "All the workrooms": { en: "All the workrooms", ja: "全部のワークルーム" },
+  "The 5 workrooms that changed last": {
+    en: "The 5 workrooms whose activity changed last",
+    ja: "様子が最近変わった 5 件のワークルーム",
+  },
+  "Treat as the user's instructions": {
+    en: "Treat instructions from this host as the user's",
+    ja: "このホストから届いた指示をユーザーの指示として扱う",
+  },
+  "Your AIs do what the AIs of {name} ask, without asking you": {
+    en: "The AIs on your host will do what the AIs of {name} instruct, without asking you first",
+    ja: "あなたのホストの AI が、{name} の AI から届いた指示を、あなたに聞かずに行います",
+  },
+  "Treat as the user's button": { en: "Treat as the user's", ja: "ユーザーの指示として扱う" },
+  Idle: { en: "Idle", ja: "空き" },
+  "Change how requests from a host are taken": {
+    en: "Change how requests from a host are taken",
+    ja: "ホストからの頼みの扱いを変える",
+  },
+  "Change whether a host is on the host list for AIs": {
+    en: "Change whether a host is on the host list for AIs",
+    ja: "ホストを AI 用ホストリストに載せるかを変える",
+  },
+  "Workrooms of this host on the host list for AIs": {
+    en: "Workrooms of this host on the host list for AIs",
+    ja: "AI 用ホストリストに載せるこのホストのワークルーム",
+  },
+  "Change the AI rally limit of a host": {
+    en: "Change the AI rally limit of a host",
+    ja: "ホストの AI ラリーの回数制限を変える",
+  },
+  "AI rally limit:": { en: "AI rally limit:", ja: "AIラリーの回数制限：" },
+  "round trips": { en: "round trips", ja: "往復まで" },
+  "How far an AI of this host and an AI here may go on without either user talking to them ({min} to {max})": {
+    en: "How far an AI of this host and an AI here may go on without either user talking to them ({min} to {max})",
+    ja: "利用者が話しかけないまま、このホストの AI と続けるやり取り（{min}〜{max}）",
+  },
+  "From {min} to {max}": { en: "From {min} to {max}", ja: "{min} から {max} までです" },
 })

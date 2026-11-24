@@ -10,7 +10,7 @@ import {
 } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { applySplitFrom } from "./apply-split"
-import { behindOf, planClose, shownSplit, splitOf } from "./split"
+import { planClose, shownSplit, splitOf } from "./split"
 
 // ブックスクリーン: ステージを並べて、ブックを見る・直すスクリーン。渡す値は無い
 export const BOOK_SCREEN_DEF = kit.defineScreen({
@@ -20,7 +20,6 @@ export const BOOK_SCREEN_DEF = kit.defineScreen({
     "The screen that shows books in stages (one, or two side by side), where the user reads and edits them.",
   props: z.strictObject({}),
   stages: true,
-  maxOpen: 3,
 })
 
 export { ONE_SCREEN } from "./one-screen"
@@ -61,7 +60,7 @@ export const SPLIT_BACK = kit.defineScreenCommand({
 })
 
 // ブックスクリーンを閉じる（何も開いていないステージ 1 つだけのときのステージの真ん中のボタンと、下の行の頭の閉じる）。前にカレントだったスクリーンへ戻る。
-// 上下に分けた並びの中なら、並びから外してから閉じる（並びから外すだけでは、ステージを並べるスクリーンは閉じない。並びが 1 枚になれば、前の並びを戻す）。
+// 上下に分けた並びの中なら、並びから外して閉じる（並びが 1 枚になれば、残った物を窓いっぱいに見せる）。
 // 窓の最後の 1 枚は土台が閉じないので、出さない（ブックスクリーンは最初から開いているスクリーンでないので、ほかにスクリーンがあれば閉じられる）
 export const BOOK_SCREEN_CLOSE = kit.defineScreenCommand({
   id: "book-screen-close",
@@ -69,14 +68,9 @@ export const BOOK_SCREEN_CLOSE = kit.defineScreenCommand({
   run: (ctx, a) => {
     const store = storeActionsOf(a)
     const id = calledScreenIdOf(ctx)
-    const screens = screensOf(ctx).map(s => ({ id: s.id, stages: s.stageList.length > 0 }))
-    const value = arrangementValueIn(ctx)
-    const split = splitOf(screens, value)
-    if (split.includes(id)) {
-      const stages = screens.filter(s => s.stages).map(s => s.id)
-      applySplitFrom(store, screens, value, planClose(split, behindOf(screens, value), id, stages))
-    }
-    store.closeScreen(id)
+    const split = splitOf(screensOf(ctx), arrangementValueIn(ctx))
+    if (split.includes(id)) applySplitFrom(store, planClose(split, id))
+    else store.closeScreen(id)
   },
   when: ctx => ctx.screen.def === BOOK_SCREEN_DEF.id && screensOf(ctx).length > 1,
 })

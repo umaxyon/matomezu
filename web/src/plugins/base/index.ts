@@ -106,7 +106,6 @@ import type {} from "./mail"
 import {
   MAIL,
   type MAIL_BIRD_VISIT,
-  MAIL_DIALOG,
   MAIL_LETTER,
   MAIL_PROPOSAL,
   MAIL_REMOVE,
@@ -114,6 +113,16 @@ import {
   MAIL_SEND,
   MAIL_STATES,
   MAIL_VISITED,
+  MAILBOX_KEY_SCOPE,
+  MAILBOX_KEYS,
+  MAILBOX_OPEN,
+  MAILBOX_PICK_MOVE,
+  type MAILBOX_PICKED,
+  MAILBOX_SCREEN,
+  MAILBOX_SCREEN_CLOSE,
+  MAILBOX_SCREEN_EXPAND,
+  type MAILBOX_SENDER_TAB,
+  MAILBOX_UNREAD,
   PROPOSAL_APPLY,
   PROPOSAL_SEND,
   PROPOSAL_SETTLE,
@@ -372,6 +381,7 @@ export {
   visitorName,
   type WorkroomRow,
   type WorkroomState,
+  workroomActivitiesFrom,
   workTitleIn,
 } from "./participant"
 // 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）
@@ -573,6 +583,7 @@ export const BASE = defineBuiltin(
       USER_TEXT_COLORS,
       TOOL_PICKER_HOLD,
       NOTE_EXPIRY,
+      MAILBOX_UNREAD,
       PARTICIPANT_ALIVE,
       SESSION_RENAME,
       CORNER_STATUS_ORDER,
@@ -594,7 +605,7 @@ export const BASE = defineBuiltin(
     followSteps: [FOLLOW_WORKROOM_GONE, FOLLOW_WORK_ENDED],
     mails: [MAIL_LETTER, MAIL_PROPOSAL],
     subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL, SCRAP],
-    screens: [BOOK_SCREEN_DEF, LIBRARY_SCREEN],
+    screens: [BOOK_SCREEN_DEF, LIBRARY_SCREEN, MAILBOX_SCREEN],
     screenArrangements: [ONE_SCREEN, SPLIT_ROWS],
     checks: [
       PROP_NAMES_CHECK,
@@ -664,6 +675,10 @@ export const BASE = defineBuiltin(
       LIBRARY_UNREADABLE_OPEN,
       LIBRARY_PLACE_OPEN,
       LIBRARY_SCREEN_EXPAND,
+      MAILBOX_OPEN,
+      MAILBOX_PICK_MOVE,
+      MAILBOX_SCREEN_CLOSE,
+      MAILBOX_SCREEN_EXPAND,
       LIBRARY_FOLDER_NEW,
       LIBRARY_PAGE_NEW,
       PAGE_NEW_IN_FOLDER,
@@ -702,7 +717,6 @@ export const BASE = defineBuiltin(
       LIBRARY_RENAME_DIALOG,
       LIBRARY_REMOVE_DIALOG,
       SETTINGS_DIALOG,
-      MAIL_DIALOG,
       JOIN_REQUEST_DIALOG,
       PARTICIPANT_JOIN_DIALOG,
       PARTICIPANT_WELCOME_DIALOG,
@@ -746,6 +760,7 @@ export const BASE = defineBuiltin(
       LIBRARY_TREE_AROUND_KEY_SCOPE,
       LIBRARY_CONTENTS_AROUND_KEY_SCOPE,
       LIBRARY_FOUND_KEY_SCOPE,
+      MAILBOX_KEY_SCOPE,
     ],
     keys: [
       ...TOOLBOX_KEYS,
@@ -756,6 +771,7 @@ export const BASE = defineBuiltin(
       ...HISTORY_KEYS,
       ...LIBRARY_KEYS,
       ...LIBRARY_SCREEN_KEYS,
+      ...MAILBOX_KEYS,
       ...RIGHT_SIDE_PANEL_KEYS,
       ...LEFT_SIDE_PANEL_KEYS,
       ...SPLIT_KEYS,
@@ -784,6 +800,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:lang": typeof LANG
     "@matomezu/base:tool-picker-hold": typeof TOOL_PICKER_HOLD
     "@matomezu/base:note-expiry": typeof NOTE_EXPIRY
+    "@matomezu/base:mailbox-unread": typeof MAILBOX_UNREAD
     "@matomezu/base:participant-alive": typeof PARTICIPANT_ALIVE
     "@matomezu/base:update-check": typeof UPDATE_CHECK
     "@matomezu/base:user-name": typeof USER_NAME
@@ -881,6 +898,7 @@ declare module "../../core/catalog" {
   interface ScreenTable {
     "@matomezu/base:book-screen": typeof BOOK_SCREEN_DEF
     "@matomezu/base:library-screen": typeof LIBRARY_SCREEN
+    "@matomezu/base:mailbox-screen": typeof MAILBOX_SCREEN
   }
   interface ScreenArrangementTable {
     "@matomezu/base:one-screen": typeof ONE_SCREEN
@@ -934,6 +952,10 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-book-new": typeof LIBRARY_BOOK_NEW
     "@matomezu/base:library-open": typeof LIBRARY_OPEN
     "@matomezu/base:library-screen-close": typeof LIBRARY_SCREEN_CLOSE
+    "@matomezu/base:mailbox-open": typeof MAILBOX_OPEN
+    "@matomezu/base:mailbox-pick-move": typeof MAILBOX_PICK_MOVE
+    "@matomezu/base:mailbox-screen-close": typeof MAILBOX_SCREEN_CLOSE
+    "@matomezu/base:mailbox-screen-expand": typeof MAILBOX_SCREEN_EXPAND
     "@matomezu/base:library-unreadable-open": typeof LIBRARY_UNREADABLE_OPEN
     "@matomezu/base:library-place-open": typeof LIBRARY_PLACE_OPEN
     "@matomezu/base:library-screen-expand": typeof LIBRARY_SCREEN_EXPAND
@@ -1038,6 +1060,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:print-areas-hidden": typeof PRINT_AREAS_HIDDEN
     "@matomezu/base:minimap-drawn": typeof MINIMAP_DRAWN
     "@matomezu/base:mail-bird-visit": typeof MAIL_BIRD_VISIT
+    "@matomezu/base:mailbox-picked": typeof MAILBOX_PICKED
+    "@matomezu/base:mailbox-sender-tab": typeof MAILBOX_SENDER_TAB
     "@matomezu/base:note-birds": typeof NOTE_BIRDS
     "@matomezu/base:mark-picker": typeof MARK_PICKER
     "@matomezu/base:mark-arriving": typeof MARK_ARRIVING
@@ -1055,9 +1079,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-contents-around": typeof LIBRARY_CONTENTS_AROUND_KEY_SCOPE // 書庫の画面の右の枠の中身の、行の外にフォーカスがある間のキー（矢印だけ）
     "@matomezu/base:library-found": typeof LIBRARY_FOUND_KEY_SCOPE // 書庫の画面の検索の結果の中にフォーカスがある間のキー
     "@matomezu/base:library": typeof LIBRARY_KEY_SCOPE // 書庫の画面の中にフォーカスがある間のキー
+    "@matomezu/base:mailbox": typeof MAILBOX_KEY_SCOPE // 郵便箱の画面の中にフォーカスがある間のキー
   }
   interface DialogTable {
-    "@matomezu/base:mail": typeof MAIL_DIALOG
     "@matomezu/base:join-request": typeof JOIN_REQUEST_DIALOG
     "@matomezu/base:participant-join": typeof PARTICIPANT_JOIN_DIALOG
     "@matomezu/base:participant-welcome": typeof PARTICIPANT_WELCOME_DIALOG

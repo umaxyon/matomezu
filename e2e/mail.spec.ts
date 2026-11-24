@@ -1,6 +1,6 @@
-// 郵便: AI が手紙を送ると、フォーカスのある窓にマーキーが流れ、画面の上からしおりがぶら下がる。左サイドパネルを開くボタンと郵便箱のタブに未読の数が出る。
-// しおりか郵便箱の行を押すとダイアログで本文が見え（見たことになる）、下の行の「開く」などで行き先へ移る（行き先を見たことになる）。行き先の物には鳥が来て枠が光る。
-// 行き先が無ければ「行き先がありません」と「閉じる」だけ
+// 郵便: AI が手紙を送ると、フォーカスのある窓にマーキーが流れ、画面の上からしおりがぶら下がる。フッタの郵便箱のボタン（封筒）に未読の数が出る。
+// しおりか郵便箱のボタンで、ブックスクリーンの下の段に郵便箱のスクリーンが開く。受信トレイの行を選ぶと右に本文が見え（見たことになる）、「開く」などで行き先へ移る（行き先を見たことになる）。
+// 行き先の物には鳥が来て枠が光る。開いても郵便箱は閉じない。行き先が無ければ「行き先がありません」と出て、行き先のボタンは出ない
 import {
   aiAuth,
   BOOK_SCREEN_URL,
@@ -17,7 +17,10 @@ import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 import { storedBooks } from "./helpers/stored"
 
-const leftPanel = (page: Page) => page.getByRole("complementary", { name: "左サイドパネル" })
+// 郵便箱の画面と、その受信トレイの行・選んだ郵便
+const mailboxPane = (page: Page) => page.getByRole("region", { name: "郵便箱" })
+const rows = (page: Page) => mailboxPane(page).getByRole("listitem")
+const letter = (page: Page) => mailboxPane(page).locator("article")
 const mailbox = async (page: Page) =>
   (
     await (
@@ -41,7 +44,7 @@ async function ready(page: Page): Promise<string> {
   return view.entry.id
 }
 
-test("AI が手紙を送るとマーキーとしおりが出て、未読の数が出る。しおりを押すとダイアログで本文が見え、開くで行き先の箱を見せ、鳥と光る枠が来て去る。AI はどちらも見たと知れる", async ({
+test("AI が手紙を送るとマーキーとしおりが出て、封筒に未読の数が出る。しおりを押すと下の段に郵便箱が開いてその郵便を選び、開くで行き先の箱を見せ、鳥と光る枠が来て去る。郵便箱は開いたまま。AI はどちらも見たと知れる", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -55,28 +58,30 @@ test("AI が手紙を送るとマーキーとしおりが出て、未読の数�
     args: {
       from: "D64",
       title: "見てください",
-      body: "箱を直しました",
+      body: "箱を**直しました**",
       to: { book, ids: [box, next] },
     },
   })
   await expect(page.getByRole("status").filter({ hasText: "郵便が届きました: 見てください" })).toBeVisible()
-  const bookmark = page.getByRole("button", { name: "見てください" })
+  const bookmark = page.getByRole("button", { name: "見てください", exact: true })
   await expect(bookmark).toBeVisible()
-  const count = (await fromMenu(page, "左サイドパネルを開く")).locator("[data-count]")
+  const count = (await fromMenu(page, "郵便箱")).locator("[data-count]")
   await expect(count).toHaveText("1")
-  await page.keyboard.press("Escape")
+  await page.mouse.move(10, 10)
   await bookmark.click()
-  const dialog = page.getByRole("dialog", { name: "見てください" })
-  await expect(dialog).toContainText("箱を直しました")
-  await expect(dialog).toContainText("D64")
+  await expect(mailboxPane(page)).toBeVisible()
+  await expect(letter(page).getByRole("heading", { name: "見てください" })).toBeVisible()
+  await expect(letter(page)).toContainText("D64")
+  // 本文はマークダウン
+  await expect(letter(page).locator("strong")).toHaveText("直しました")
   // 見たことになり、しおりは消える
   await expect.poll(async () => !!(await mailbox(page))[0]?.seenAt).toBe(true)
   await expect(bookmark).toHaveCount(0)
-  // 1 画面なら、閉じる・開く・分割で開く
-  await expect(dialog.getByRole("button")).toHaveText(["閉じる", "開く", "分割で開く"])
-  await dialog.getByRole("button", { name: "開く", exact: true }).click()
-  await expect(dialog).toHaveCount(0)
+  // 1 画面なら、開く・分割で開く
+  await expect(letter(page).getByRole("button")).toHaveText(["開く", "分割で開く"])
+  await letter(page).getByRole("button", { name: "開く", exact: true }).click()
   await expect.poll(async () => !!(await mailbox(page))[0]?.visitedAt).toBe(true)
+  await expect(mailboxPane(page)).toBeVisible()
   const stage = (await page.locator("[data-stage]").boundingBox())!
   const b = (await items(page).filter({ hasText: "遠く" }).boundingBox())!
   expect(b.x).toBeGreaterThan(stage.x)
@@ -88,9 +93,7 @@ test("AI が手紙を送るとマーキーとしおりが出て、未読の数�
   await expect(page.locator("[data-anchor-frame]")).toHaveCount(0)
 })
 
-test("1 画面で「分割で開く」は、右に分けたステージで行き先を開き、ブラウザの戻る 1 回で分ける前に戻る", async ({
-  page,
-}) => {
+test("1 画面で「分割で開く」は、上の段で右に分けたステージに行き先を開く", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   const book = await ready(page)
   await addBox(page, 300, 300, "右の箱")
@@ -99,17 +102,16 @@ test("1 画面で「分割で開く」は、右に分けたステージで行き
     action: "@matomezu/base:mail-send",
     args: { from: "a", title: "右へ", to: { book, ids: [box] } },
   })
-  await page.getByRole("button", { name: "右へ" }).click()
-  await page.getByRole("dialog", { name: "右へ" }).getByRole("button", { name: "分割で開く" }).click()
+  await page.getByRole("button", { name: "右へ", exact: true }).click()
+  await letter(page).getByRole("button", { name: "分割で開く" }).click()
   const stages = page.locator("[data-stage]")
   await expect(stages).toHaveCount(2)
   await expect(stages.nth(1).locator("[data-item]").filter({ hasText: "右の箱" })).toBeVisible()
   await expect(stages.nth(1).locator("[data-mail-bird]")).toBeVisible()
-  await page.goBack()
-  await expect(stages).toHaveCount(1)
+  await expect(mailboxPane(page)).toBeVisible()
 })
 
-test("2 画面なら「左に開く」「右に開く」で、Enter はダイアログを出したステージの側で開く", async ({ page }) => {
+test("2 画面なら「左に開く」「右に開く」", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   const book = await ready(page)
   await addBox(page, 300, 300, "二つの箱")
@@ -121,17 +123,14 @@ test("2 画面なら「左に開く」「右に開く」で、Enter はダイア
     action: "@matomezu/base:mail-send",
     args: { from: "a", title: "二つ", to: { book, ids: [box] } },
   })
-  await page.getByRole("button", { name: "二つ" }).click()
-  const dialog = page.getByRole("dialog", { name: "二つ" })
-  await expect(dialog.getByRole("button")).toHaveText(["閉じる", "左に開く", "右に開く"])
-  // カレントは右のステージなので、Enter は右に開く
-  await page.keyboard.press("Enter")
-  await expect(dialog).toHaveCount(0)
+  await page.getByRole("button", { name: "二つ", exact: true }).click()
+  await expect(letter(page).getByRole("button")).toHaveText(["左に開く", "右に開く"])
+  await letter(page).getByRole("button", { name: "右に開く" }).click()
   await expect(stages.nth(1).locator("[data-item]").filter({ hasText: "二つの箱" })).toBeVisible()
   await expect(stages.nth(1).locator("[data-mail-bird]")).toBeVisible()
 })
 
-test("しおりは古い順に 5 つまで並べ、残りは「ほか n 件」にまとめ、押すと郵便箱が開く。片づけば次が出る。郵便箱の行を押すとダイアログが開き、取消は確かめてから消す", async ({
+test("しおりは古い順に 5 つまで並べ、残りは「ほか n 件」にまとめ、押すと郵便箱が開く。片づけば次が出る。受信トレイは新しい順で、チェックした郵便をゴミ箱から確かめてまとめて消す", async ({
   page,
 }) => {
   await ready(page)
@@ -140,33 +139,64 @@ test("しおりは古い順に 5 つまで並べ、残りは「ほか n 件」�
       action: "@matomezu/base:mail-send",
       args: { from: "a", title: `題${n}` },
     })
-  for (const n of [1, 2, 3, 4, 5]) await expect(page.getByRole("button", { name: `題${n}` })).toBeVisible()
+  for (const n of [1, 2, 3, 4, 5]) await expect(page.getByRole("button", { name: `題${n}`, exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: /^ほか/ })).toHaveCount(0)
   await aiPerform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "題6" } })
-  const many = page.getByRole("button", { name: "ほか 1 件" })
+  const many = page.getByRole("button", { name: "ほか 1 件", exact: true })
   await expect(many).toBeVisible()
-  await expect(page.getByRole("button", { name: "題6" })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "題6", exact: true })).toHaveCount(0)
   // 1 通を見て片づけると、次の 1 通が出る
-  await page.getByRole("button", { name: "題1" }).click()
-  await page.keyboard.press("Escape")
-  await expect(page.getByRole("button", { name: "題6" })).toBeVisible()
+  await page.getByRole("button", { name: "題1", exact: true }).click()
+  await expect(page.getByRole("button", { name: "題6", exact: true })).toBeVisible()
   await expect(many).toHaveCount(0)
+  await page.getByRole("button", { name: "郵便箱を閉じる" }).click()
+  await expect(mailboxPane(page)).toHaveCount(0)
   await aiPerform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "題7" } })
   await expect(many).toBeVisible()
   await many.click()
-  await expect(leftPanel(page).getByRole("tab", { name: /郵便箱/ })).toHaveAttribute("aria-selected", "true")
-  const rows = leftPanel(page).getByRole("listitem")
-  await expect(rows).toHaveCount(7)
-  // 新しい順。行を押すとダイアログが開く
-  await expect(rows.first()).toContainText("題7")
-  await rows.first().getByRole("button").first().click()
-  await expect(page.getByRole("dialog", { name: "題7" })).toBeVisible()
+  // 何も選ばずに開く
+  await expect(rows(page)).toHaveCount(7)
+  await expect(letter(page)).toHaveCount(0)
+  // 新しい順。行を押すと右に出る
+  await expect(rows(page).first()).toContainText("題7")
+  await rows(page).first().getByRole("button").click()
+  await expect(letter(page).getByRole("heading", { name: "題7" })).toBeVisible()
+  // ゴミ箱は、チェックするまで押せない
+  const trash = mailboxPane(page).getByRole("button", { name: "チェックした郵便を消す" })
+  await expect(trash).toBeDisabled()
+  await mailboxPane(page).getByRole("checkbox", { name: "題1 をチェック" }).check()
+  await mailboxPane(page).getByRole("checkbox", { name: "題2 をチェック" }).check()
+  await trash.click()
+  const asking = page.getByRole("alertdialog", { name: "2 通の郵便を消しますか？" })
+  await asking.getByRole("button", { name: "キャンセル" }).click()
+  await expect(rows(page)).toHaveCount(7)
+  await trash.click()
+  await asking.getByRole("button", { name: "消す" }).click()
+  await expect(rows(page)).toHaveCount(5)
+  await expect(trash).toBeDisabled()
+})
+
+test("フッタの封筒で郵便箱を開け閉めし、受信トレイの中では ↑↓ で選ぶ行を移して見たことにし、Esc で閉じる", async ({
+  page,
+}) => {
+  await ready(page)
+  for (const n of [1, 2])
+    await aiPerform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: `行${n}` } })
+  const envelope = await fromMenu(page, "郵便箱")
+  await envelope.click()
+  await expect(mailboxPane(page)).toBeVisible()
+  await expect(envelope).toHaveAttribute("aria-pressed", "true")
+  await rows(page).first().getByRole("button").click()
+  await expect(letter(page).getByRole("heading", { name: "行2" })).toBeVisible()
+  await page.keyboard.press("ArrowDown")
+  await expect(letter(page).getByRole("heading", { name: "行1" })).toBeVisible()
+  await expect.poll(async () => (await mailbox(page)).every(m => !!m.seenAt)).toBe(true)
   await page.keyboard.press("Escape")
-  await expect(page.getByRole("dialog", { name: "題7" })).toHaveCount(0)
-  // ダイアログを閉じても、郵便箱は開いたまま
-  await leftPanel(page).getByRole("button", { name: "題1を取り消す" }).click()
-  await leftPanel(page).getByRole("group", { name: "取り消しますか？" }).getByRole("button", { name: "取消" }).click()
-  await expect(rows).toHaveCount(6)
+  await expect(mailboxPane(page)).toHaveCount(0)
+  await (await fromMenu(page, "郵便箱")).click()
+  await expect(mailboxPane(page)).toBeVisible()
+  await (await fromMenu(page, "郵便箱")).click()
+  await expect(mailboxPane(page)).toHaveCount(0)
 })
 
 test("参加済みの送り手の鳥を郵便ごとに表示し、受信や退室でもしおりの色を保つ", async ({ page }) => {
@@ -195,7 +225,7 @@ test("参加済みの送り手の鳥を郵便ごとに表示し、受信や退�
     expect(await response.json()).toMatchObject({ ok: true })
   }
   await userAction("@matomezu/base:mail-send", { from: "同じ表示名", title: "封筒の郵便" })
-  const envelope = page.getByRole("button", { name: "封筒の郵便" })
+  const envelope = page.getByRole("button", { name: "封筒の郵便", exact: true })
   await expect(envelope.locator("svg")).toBeVisible()
   const background = "background-color"
   const envelopeColor = await envelope.evaluate(node => getComputedStyle(node).backgroundColor)
@@ -206,7 +236,7 @@ test("参加済みの送り手の鳥を郵便ごとに表示し、受信や退�
   const birdColor = "rgb(239, 138, 50)" // 送り手が選んだ配色の旗の色
   await expect(bird).toHaveCSS(background, birdColor)
   await send("もう一通の鳥の郵便")
-  await expect(page.getByRole("button", { name: "もう一通の鳥の郵便" }).locator("img")).toBeVisible()
+  await expect(page.getByRole("button", { name: "もう一通の鳥の郵便", exact: true }).locator("img")).toBeVisible()
   await expect(envelope).toHaveCSS(background, envelopeColor)
   await expect(bird).toHaveCSS(background, birdColor)
 
@@ -219,18 +249,15 @@ test("参加済みの送り手の鳥を郵便ごとに表示し、受信や退�
   await expect(envelope).toHaveCSS(background, envelopeColor)
 })
 
-test("行き先の無くなった手紙は、ダイアログに「行き先がありません」と出て、ボタンは閉じるだけ", async ({ page }) => {
+test("行き先の無くなった手紙は、郵便箱に「行き先がありません」と出て、行き先のボタンは出ない", async ({ page }) => {
   const book = await ready(page)
   await aiPerform(page, {
     action: "@matomezu/base:mail-send",
     args: { from: "a", title: "消えた所", to: { book, ids: ["nothing"] } },
   })
-  await page.getByRole("button", { name: "消えた所" }).click()
-  const dialog = page.getByRole("dialog", { name: "消えた所" })
-  await expect(dialog).toContainText("行き先がありません")
-  await expect(dialog.getByRole("button")).toHaveText(["閉じる"])
-  await page.keyboard.press("Enter")
-  await expect(dialog).toHaveCount(0)
+  await page.getByRole("button", { name: "消えた所", exact: true }).click()
+  await expect(letter(page)).toContainText("行き先がありません")
+  await expect(letter(page).getByRole("button")).toHaveCount(0)
 })
 
 test("開くを使わなくても、行き先が画面に出ていれば行き先を見たことになる（郵便そのものは見ていないまま）", async ({
@@ -253,10 +280,11 @@ test("しおりに乗せると、待たずに自前の吹き出しで題が出�
     action: "@matomezu/base:mail-send",
     args: { from: "a", title: "吹き出しの題" },
   })
-  const bookmark = page.getByRole("button", { name: "吹き出しの題" })
+  const bookmark = page.getByRole("button", { name: "吹き出しの題", exact: true })
   await expect(bookmark).toBeVisible()
   await expect(bookmark).not.toHaveAttribute("title", /.+/)
-  const tip = page.getByText("吹き出しの題", { exact: true })
+  // 受信トレイ（コントロールセンターの、隠した郵便箱の画面）の行は数えない
+  const tip = page.getByText("吹き出しの題", { exact: true }).filter({ visible: true })
   await expect(tip).toBeHidden()
   await bookmark.hover()
   await expect(tip).toBeVisible({ timeout: 300 })
@@ -266,55 +294,7 @@ test("しおりに乗せると、待たずに自前の吹き出しで題が出�
   await expect(tip).toBeHidden()
 })
 
-test("郵便箱から開いたダイアログは、「閉じる」でも「開く」でも郵便箱を残し、「郵便箱も閉じる」ならダイアログと郵便箱を一緒に閉じる。しおりから開いたときは「郵便箱も閉じる」が出ない", async ({
-  page,
-}) => {
-  await page.emulateMedia({ reducedMotion: "reduce" })
-  const book = await ready(page)
-  await addBox(page, 300, 300, "行き先の箱")
-  const box = (await items(page).filter({ hasText: "行き先の箱" }).getAttribute("data-item"))!
-  await aiPerform(page, {
-    action: "@matomezu/base:mail-send",
-    args: { from: "a", title: "残す", to: { book, ids: [box] } },
-  })
-  // しおりから開く: 郵便箱は閉じているので「郵便箱も閉じる」は出ない
-  await page.getByRole("button", { name: "残す" }).click()
-  const dialog = page.getByRole("dialog", { name: "残す" })
-  await expect(dialog.getByRole("button")).toHaveText(["閉じる", "開く", "分割で開く"])
-  await dialog.getByRole("button", { name: "閉じる" }).click()
-  await expect(dialog).toHaveCount(0)
-  // 郵便箱から開く
-  await (await fromMenu(page, "左サイドパネルを開く")).click()
-  await expect(leftPanel(page)).toBeVisible()
-  const open = async () => {
-    await leftPanel(page).getByRole("listitem").first().getByRole("button").first().click()
-    await expect(dialog).toBeVisible()
-  }
-  await open()
-  await expect(dialog.getByRole("button")).toHaveText(["郵便箱も閉じる", "閉じる", "開く", "分割で開く"])
-  // 4 つのボタンはダイアログの幅に収まり、1 行に並ぶ
-  const boxes = await dialog.getByRole("button").evaluateAll(els => els.map(e => e.getBoundingClientRect()))
-  const frame = await dialog.boundingBox()
-  expect(new Set(boxes.map(r => Math.round(r.top))).size).toBe(1)
-  expect(Math.min(...boxes.map(r => r.left))).toBeGreaterThanOrEqual(frame?.x ?? 0)
-  expect(Math.max(...boxes.map(r => r.right))).toBeLessThanOrEqual((frame?.x ?? 0) + (frame?.width ?? 0))
-  // 「閉じる」をクリックしても、郵便箱は残る
-  await dialog.getByRole("button", { name: "閉じる", exact: true }).click()
-  await expect(dialog).toHaveCount(0)
-  await expect(leftPanel(page)).toBeVisible()
-  // 「開く」でも、郵便箱は残る
-  await open()
-  await dialog.getByRole("button", { name: "開く", exact: true }).click()
-  await expect(dialog).toHaveCount(0)
-  await expect(leftPanel(page)).toBeVisible()
-  // 「郵便箱も閉じる」で、ダイアログと郵便箱を一緒に閉じる
-  await open()
-  await dialog.getByRole("button", { name: "郵便箱も閉じる" }).click()
-  await expect(dialog).toHaveCount(0)
-  await expect(leftPanel(page)).toHaveCount(0)
-})
-
-test("「開く」は、行き先のブックを新しいブックスクリーンで開き、見ていたブックのスクリーンは後ろに残る", async ({
+test("「開く」は、行き先のブックを上の段に新しいブックスクリーンで開き、見ていたブックのスクリーンは後ろに残る。郵便箱は下の段のまま", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -325,8 +305,8 @@ test("「開く」は、行き先のブックを新しいブックスクリー�
     action: "@matomezu/base:mail-send",
     args: { from: "a", title: "別のブック", to: { book: other } },
   })
-  await page.getByRole("button", { name: "別のブック" }).click()
-  await page.getByRole("dialog", { name: "別のブック" }).getByRole("button", { name: "開く", exact: true }).click()
+  await page.getByRole("button", { name: "別のブック", exact: true }).click()
+  await letter(page).getByRole("button", { name: "開く", exact: true }).click()
   // 見ていたブックのスクリーンは閉じずに残り、行き先のブックのスクリーンがカレントスクリーンになる
   await expect.poll(() => urlStages(page)[0]?.b).toBe(other)
   expect(
@@ -334,4 +314,5 @@ test("「開く」は、行き先のブックを新しいブックスクリー�
       ?.s.filter(x => x.g)
       .map(x => x.g?.l[0]?.b),
   ).toEqual([book, other])
+  await expect(mailboxPane(page)).toBeVisible()
 })

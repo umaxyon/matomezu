@@ -6,7 +6,7 @@ import { AI } from "../../../web/src/core/actor"
 import { performIn } from "../../../web/src/core/perform-world"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { MAIL, mailboxOf } from "../../../web/src/plugins/base/mail"
-import type { Mail } from "../../../web/src/plugins/base/mail/mail"
+import { checkMail, type Mail } from "../../../web/src/plugins/base/mail/mail"
 import { placeShown } from "../../../web/src/plugins/base/mail/visited"
 import { CORE_CATALOG, newStore } from "../../support"
 
@@ -43,10 +43,19 @@ test("手紙を送ると郵便箱の末尾に届き、id を返す。送り手�
       to: { book: "b1", page: "p1" },
       props: { title: "済みました", body: "直しました" },
       order: 1,
+      senderKind: "user",
     },
   ])
   // 題が空なら送らない
   expect(send({ from: "D64", title: " " }).ok).toBe(false)
+})
+
+test("送る本文は 300 字まで（超えたら断る）。残した郵便の本文は 4000 字まで効く", () => {
+  const { mails, send } = ready()
+  expect(send({ from: "a", title: "x", body: "あ".repeat(300) }).ok).toBe(true)
+  expect(send({ from: "a", title: "x", body: "あ".repeat(301) }).ok).toBe(false)
+  const long = { ...mails()[0]!, id: "long", props: { title: "x", body: "あ".repeat(4000) } }
+  expect(checkMail(CORE_CATALOG, long)).toEqual([])
 })
 
 test("見た・行き先を見たは一度だけ付く。行き先の無い郵便は、行き先を見たにならない。消すと無くなる", () => {
@@ -89,7 +98,9 @@ test("AI は手紙を送れるが、見た・行き先を見た・消すはで�
     actor: AI,
   }
   const ai = (action: string, args: unknown, on?: { record: string }) => performIn(world, action, args, on, ctx)
-  expect(ai(SEND, { from: "b", title: "y" }).ok).toBe(true)
+  const sent = ai(SEND, { from: "b", title: "y" })
+  expect(sent.ok).toBe(true)
+  expect(sent.ok && sent.records?.[0]?.record).toMatchObject({ senderKind: "ai" })
   const refused = { ok: false, reason: "not-allowed" } as const
   expect(ai(SEEN, {}, { record: id })).toEqual(refused)
   expect(ai(VISITED, {}, { record: id })).toEqual(refused)
@@ -150,6 +161,7 @@ test("行き先が出ているか: そのブックのそのページを開いて
   const m = (to: Mail["to"]): Mail => ({
     id: "m",
     mail: "@matomezu/base:letter",
+    senderKind: "ai",
     from: "a",
     sentAt: "t",
     props: {},

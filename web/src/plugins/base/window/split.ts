@@ -1,14 +1,13 @@
 // スクリーンアレンジメント「上下に分ける」（SPLIT_ROWS）と、分けて並べるスクリーンの並びを決める純粋な関数。
-// 値は、分けて並べるスクリーンの id の並び（上から）と、並びから外したが閉じられずに開いたままの物（behind。新しい順。コントロールセンターなど）と、
-// 並びを覚えたまま窓いっぱいに広げているスクリーン（wide。下の行の □）。
-// ステージを並べるスクリーン（ブックスクリーン）も並びに入る（ステージを分けて、下に書庫のスクリーンを出すとき）。並びから外れても閉じない（applySplit）。
-// 見えているのは、カレントスクリーンがその並びにあれば並び全部（広げている間は、カレントスクリーンだけ）、無ければカレントスクリーンだけ
-// （分けている間に巣箱のコマンドでブックスクリーンへ行けば、ブックスクリーンだけ。戻れば、また分けて見せる）。生きている物が 2 枚に満たない並びは、分けていない物として扱う。
-// 並びから外れたスクリーンは閉じる（閉じられない物は土台が残す: 最初から開いているスクリーンの最後の 1 枚）。
+// 値は、分けて並べるスクリーンの id の並び（上から）と、並びを覚えたまま窓いっぱいに広げているスクリーン（wide。下の行の □）と、低くてカレントスクリーンだけを見せているか（fits）。
+// 並びには、どのスクリーンも入る（ステージを並べるかで扱いを分けない）。並びから外れた物は閉じずに、見えていないまま開いておく（閉じるのは、窓の上限を超えたときの土台）。
+// 見えているのは、カレントスクリーンがその並びにあれば並び全部（広げている間・低い間は、カレントスクリーンだけ）、無ければカレントスクリーンだけ
+// （分けている間に巣箱のコマンドでほかのスクリーンへ行けば、それだけ。戻れば、また分けて見せる）。生きている物が 2 枚に満たない並びは、分けていない物として扱う。
 // 並べる枚数の上限は、開く側が決める（max）
 import { z } from "zod"
 import type { OpenedScreen } from "../../../core/window"
 import { kit } from "../kit"
+import { SCREENS_KEPT } from "./one-screen"
 
 // スクリーンの枠を一瞬光らせる頼み（窓のプラグイン状態。画面の場所に入れない）: 光らせるスクリーンの id と、頼んだ回数（同じスクリーンを続けて頼んでも光り直す）
 export const SCREEN_FLASH = kit.definePluginStateOf<{ screen: string; n: number }>()({
@@ -19,22 +18,15 @@ export const SCREEN_FLASH = kit.definePluginStateOf<{ screen: string; n: number 
 // 分けて並べるのに要る、窓の高さ（px。これより低ければ分けずに開き、分けている間に低くなれば畳む）
 export const SPLIT_MIN_HEIGHT = 800
 
-// fits は、窓の高さで並べて見せられるか（"split" か、低くてカレントスクリーンだけを見せている "current"。ブックスクリーンを入れた並びは、低くても畳まずに "current" にする）
+// fits は、窓の高さで並べて見せられるか（"split" か、低くてカレントスクリーンだけを見せている "current"。どの並びも、低ければ畳まずに "current" にする）
 const SPLIT_VALUE = z.strictObject({
   screens: z.array(z.string()),
-  behind: z.array(z.string()),
   fits: z.enum(["split", "current"]).optional(),
   // 並びのうち、窓いっぱいに広げて見せているスクリーン（下の行の □。並びは覚えたまま、もう一度押すと戻す）
   wide: z.string().optional(),
 })
 export type SplitValue = z.output<typeof SPLIT_VALUE>
-export const NO_SPLIT: SplitValue = { screens: [], behind: [] }
-
-// 値の、並びから外したが開いたままの物（開いている物だけ）
-export function behindOf(screens: readonly Pick<OpenedScreen, "id">[], value: unknown): readonly string[] {
-  const fits = SPLIT_VALUE.safeParse(value)
-  return fits.success ? fits.data.behind.filter(id => screens.some(s => s.id === id)) : []
-}
+export const NO_SPLIT: SplitValue = { screens: [] }
 
 // 開いているスクリーンの並びのうち、生きている物（開いている・重ならない）
 export function splitOf(screens: readonly Pick<OpenedScreen, "id">[], value: unknown): readonly string[] {
@@ -84,16 +76,19 @@ export const SPLIT_ROWS = kit.defineScreenArrangement({
     "Shows the screens split into rows, from the top, while the current screen is one of them; otherwise only the current screen. While one of the rows is widened, only the current screen is shown and the rows are kept to restore.",
   value: { schema: SPLIT_VALUE, initial: NO_SPLIT },
   shown: splitShown,
+  maxScreens: SCREENS_KEPT,
 })
 
-// 分けた並びの変わり: 次の並び（2 枚に満たなければ分けない）と、並びから外れて閉じるスクリーン
+// 分けた並びの変わり: 次の並び（2 枚に満たなければ分けない）と、閉じるスクリーン（閉じるボタンなど、閉じると決めた物だけ）と、カレントスクリーンにする物。
+// 並びから外れただけの物は、閉じずに見えていないまま開いておく（閉じるのは、窓の上限を超えたときの土台）
 export interface SplitPlan {
   screens: readonly string[]
-  leaving: readonly string[]
+  closing?: readonly string[]
+  current?: string
 }
 
 // スクリーン here（分けていなければ here だけの並びとみなす）を起点に、開いたスクリーン added を入れる。
-// how: after（here の後ろ・下）・before（前・上）・in-place（here の代わり。here は外れる）。並びが max を超えたら、here と added のほかを、here から遠い物から外す
+// how: after（here の後ろ・下）・before（前・上）・in-place（here の代わり。here は外れる）。並びが max を超えたら、here と added のほかを、here から遠い物から外す（外れた物は開いたまま）
 export function planOpen(
   split: readonly string[],
   here: string,
@@ -113,9 +108,7 @@ export function planOpen(
     .filter(id => id !== here && id !== added)
     .sort((a, b) => Math.abs(next.indexOf(b) - pivot) - Math.abs(next.indexOf(a) - pivot))
     .slice(0, over)
-  const screens = next.filter(id => !far.includes(id))
-  const leaving = [...far, ...(how === "in-place" ? [here] : [])]
-  return { screens, leaving }
+  return { screens: next.filter(id => !far.includes(id)) }
 }
 
 // ブックスクリーンを「分割で開く」ときの入れ方: 分けていなければ起点の下。分けていれば、起点を替える（keepHere が false）か、
@@ -126,30 +119,18 @@ export function bookSplitWay(inSplit: boolean, index: number, keepHere: boolean)
   return index > 0 ? "before" : "after"
 }
 
-// 分けた並びの index 番目（上から）を、開いたスクリーン added に替える（そこにあった物は外れる）
+// 分けた並びの index 番目（上から）を、開いたスクリーン added に替える（そこにあった物は外れ、開いたまま）
 export function planAt(split: readonly string[], index: number, added: string): SplitPlan {
-  const was = split[index]
-  if (was === undefined) return { screens: split, leaving: [] }
-  return { screens: split.map((id, i) => (i === index ? added : id)), leaving: [was] }
+  if (split[index] === undefined) return { screens: split }
+  return { screens: split.map((id, i) => (i === index ? added : id)) }
 }
 
-// 分けた並びから target を閉じる。残りが 1 枚なら、並びから外したが開いたままの物（behind）のうち、いちばん新しい物を上に戻して分けたままにする（無ければ分けない）。
-// 残りの 1 枚がステージを並べるスクリーン（stages に在る物）で、behind が 2 枚以上なら（ステージを分ける前の並び）それに戻し、無ければ分けるのをやめる。
-// 閉じた物もステージを並べるスクリーンで、behind が 1 枚なら（その段に開いて替えた物）、ほかと同じく上に戻す
-export function planClose(
-  split: readonly string[],
-  behind: readonly string[],
-  target: string,
-  stages: readonly string[] = [],
-): SplitPlan {
+// 分けた並びから target を閉じる。残りが 1 枚なら分けるのをやめ、残った物をカレントスクリーンにして窓いっぱいに見せる
+export function planClose(split: readonly string[], target: string): SplitPlan {
   const rest = split.filter(id => id !== target)
-  if (rest.length !== 1) return { screens: rest, leaving: [target] }
-  // ブックスクリーンどうしの並びで片方を閉じたときは、behind の 1 枚（その段に開いて替えた物）を上に戻す
-  const bookPair = stages.includes(target) && behind.length === 1
-  if (rest[0] !== undefined && stages.includes(rest[0]) && !bookPair)
-    return { screens: behind.length >= 2 ? behind : [], leaving: [target] }
-  const back = behind.find(id => id !== target)
-  return { screens: back === undefined ? [] : [back, ...rest], leaving: [target] }
+  if (rest.length >= 2) return { screens: rest, closing: [target] }
+  const left = rest[0]
+  return left === undefined ? { screens: [], closing: [target] } : { screens: [], closing: [target], current: left }
 }
 
 // 並びの値 value に、窓いっぱいに広げるスクリーン wide を書いた値（wide が無ければ、広げるのをやめた値）
@@ -159,11 +140,8 @@ export function withWide(value: unknown, wide: string | undefined): SplitValue {
   return wide === undefined ? rest : { ...rest, wide }
 }
 
-// 分けた並びを全部外す（並びのブックスクリーンは、外したあとに閉じる側が閉じる）
-export const planLeaveAll = (split: readonly string[]): SplitPlan => ({ screens: [], leaving: split })
+// 分けた並びの物を全部閉じて、分けるのをやめる（閉じられない物は土台が残す）
+export const planCloseAll = (split: readonly string[]): SplitPlan => ({ screens: [], closing: split })
 
-// 分けた並びから here だけを残す（ほかは閉じる）。窓が低くなって畳むときは、here がカレントスクリーン
-export const planExpand = (split: readonly string[], here: string): SplitPlan => ({
-  screens: [],
-  leaving: split.filter(id => id !== here),
-})
+// 分けるのをやめて、here を窓いっぱいに見せる（ほかは開いたまま見えなくなる）
+export const planExpand = (here: string): SplitPlan => ({ screens: [], current: here })

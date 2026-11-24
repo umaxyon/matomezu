@@ -90,6 +90,12 @@ export function userNameOf(catalog: CoreCatalog, settings: Settings): string {
   return typeof name === "string" ? name.trim() : ""
 }
 
+// AI 用ホストリストに載せる、このホストのワークルーム: 全部（all）か、様子が最近変わった物だけ（recent）。role が listed-workrooms の項目の値（無いか形に合わなければ all）
+export const LISTED_WORKROOMS = ["all", "recent"] as const
+export function listedWorkroomsOf(catalog: CoreCatalog, settings: Settings): (typeof LISTED_WORKROOMS)[number] {
+  return byRole(catalog, settings, "listed-workrooms") === "recent" ? "recent" : "all"
+}
+
 // 常駐が新しい版を自分で確かめるか: role が update-check の項目の値が true（項目が無ければ確かめない）
 export function updateCheckOn(catalog: CoreCatalog, settings: Settings): boolean {
   return byRole(catalog, settings, "update-check") === true

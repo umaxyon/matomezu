@@ -7,6 +7,7 @@ import type { UnreadableNotice } from "../../../web/src/core/unreadable"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { LIBRARY_SCREEN } from "../../../web/src/plugins/base/library/screen"
 import { LIBRARY_FOLDER } from "../../../web/src/plugins/base/library/state"
+import { CONTENT_AREA } from "../../../web/src/plugins/control-center"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
 import { pluginValueOf } from "../../../web/src/store/plugin-state"
@@ -55,10 +56,12 @@ test("移った物は、数と訳ごとの数（多い順に 3 行、残りは�
   act(() => {
     fireEvent.click(screen.getByRole("button", { name: "見る", hidden: true }))
   })
+  // コントロールセンターの上なので、書庫のスクリーンは開かず、コンテンツエリアを書庫の画面に替えて、そこに読めない物のフォルダを出す
   const s = store.state.getState()
-  const library = s.window.screens.find(x => x.def === LIBRARY_SCREEN.id)?.id as string
-  expect(library).toBeDefined()
-  expect(pluginValueOf(s.pluginValues, library, LIBRARY_FOLDER)).toBe(UNREADABLE_ID)
+  const center = s.window.order.at(-1) as string
+  expect(s.window.screens.some(x => x.def === LIBRARY_SCREEN.id)).toBe(false)
+  expect(pluginValueOf(s.pluginValues, center, LIBRARY_FOLDER)).toBe(UNREADABLE_ID)
+  expect(pluginValueOf(s.pluginValues, center, CONTENT_AREA)).toBe("library")
   expect(screen.queryByText("読めない物が 9 件移りました")).toBeNull()
   redraw()
   expect(screen.queryByText("読めない物が 9 件移りました")).toBeNull()

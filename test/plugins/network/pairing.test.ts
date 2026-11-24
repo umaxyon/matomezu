@@ -1,13 +1,15 @@
 // ペアリングのアクション: 頼みを載せる・受け入れる（頼みを消し、ペアリングしたホストを同じ書き込みで載せる）・断る・ペアリングしたホストを載せる・解く。
 // どれも利用者だけが行え、同じホスト id の物は 2 つ載らない。常駐が行う役は、役ごとに 1 つのアクションが名乗る
 import { expect, test } from "bun:test"
+import { z } from "zod"
 import { type Actor, USER } from "../../../web/src/core/actor"
+import { checkCoreCatalog } from "../../../web/src/core/core-catalog-check"
 import { hostActions } from "../../../web/src/core/hosts"
 import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform-world"
 import { withCounters, withRecords } from "../../../web/src/core/records"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { PAIRED_HOST, PAIRING_REQUEST } from "../../../web/src/plugins/network"
-import { CORE_CATALOG } from "../../support"
+import { BUILTIN_PARTS, CORE_CATALOG } from "../../support"
 
 const N = (id: string) => `@matomezu/network:${id}`
 type Done = { ok: boolean; reason?: string; detail?: string; result?: Record<string, string> }
@@ -36,7 +38,7 @@ function host() {
     return done as unknown as Done
   }
   const all = (kind: typeof PAIRED_HOST.id | typeof PAIRING_REQUEST.id) =>
-    Object.values(w.records[kind] ?? {}) as Record<string, string>[]
+    Object.values(w.records[kind] ?? {}) as Record<string, string | number>[]
   return { act, all }
 }
 
@@ -58,6 +60,9 @@ test("受け入れると、頼みが消えて、頼みの名前のままペア�
       userNameAtPairing: "taro",
       addr: "",
       pairedAt: "2026-11-23T00:00:00.000Z",
+      requests: "ask-user",
+      listed: "listed",
+      rallyLimit: 15,
     },
   ])
 })
@@ -91,6 +96,41 @@ test("ペアリングを解くと消える。AI はどのアクションも行�
   expect(h.all(PAIRED_HOST.id)).toEqual([])
 })
 
+test("requests は既定で ask-user で、利用者だけが替えられる", () => {
+  const h = host()
+  const put = h.act(USER, "paired-host-add", { hostId: B, nameAtPairing: "w", userNameAtPairing: "", addr: "" })
+  const on = { record: put.result?.pairedHost as string }
+  expect(h.all(PAIRED_HOST.id)[0]?.requests).toBe("ask-user")
+  expect(h.act(AI, "paired-host-requests-set", { requests: "as-user" }, on).ok).toBe(false)
+  expect(h.act(USER, "paired-host-requests-set", { requests: "other" }, on).ok).toBe(false)
+  expect(h.act(USER, "paired-host-requests-set", { requests: "as-user" }, on).ok).toBe(true)
+  expect(h.all(PAIRED_HOST.id)[0]?.requests).toBe("as-user")
+})
+
+test("listed は既定で listed で、利用者だけが替えられる", () => {
+  const h = host()
+  const put = h.act(USER, "paired-host-add", { hostId: B, nameAtPairing: "w", userNameAtPairing: "", addr: "" })
+  const on = { record: put.result?.pairedHost as string }
+  expect(h.all(PAIRED_HOST.id)[0]?.listed).toBe("listed")
+  expect(h.act(AI, "paired-host-listed-set", { listed: "hidden" }, on).ok).toBe(false)
+  expect(h.act(USER, "paired-host-listed-set", { listed: "other" }, on).ok).toBe(false)
+  expect(h.act(USER, "paired-host-listed-set", { listed: "hidden" }, on).ok).toBe(true)
+  expect(h.all(PAIRED_HOST.id)[0]?.listed).toBe("hidden")
+})
+
+test("rallyLimit は既定で 15 で、利用者だけが 1 から 50 までに替えられる", () => {
+  const h = host()
+  const put = h.act(USER, "paired-host-add", { hostId: B, nameAtPairing: "w", userNameAtPairing: "", addr: "" })
+  const on = { record: put.result?.pairedHost as string }
+  expect(h.all(PAIRED_HOST.id)[0]?.rallyLimit).toBe(15)
+  expect(h.act(AI, "paired-host-rally-limit-set", { rallyLimit: 3 }, on).ok).toBe(false)
+  for (const bad of [0, 51, 2.5])
+    expect(h.act(USER, "paired-host-rally-limit-set", { rallyLimit: bad }, on).ok).toBe(false)
+  expect(h.act(USER, "paired-host-rally-limit-set", { rallyLimit: 50 }, on).ok).toBe(true)
+  expect(h.act(USER, "paired-host-rally-limit-set", { rallyLimit: 1 }, on).ok).toBe(true)
+  expect(h.all(PAIRED_HOST.id)[0]?.rallyLimit).toBe(1)
+})
+
 test("常駐が行う役は、4 つとも network のアクションが名乗る", () => {
   expect(hostActions(CORE_CATALOG)).toEqual({
     "add-pairing-request": N("pairing-request-add"),
@@ -98,4 +138,19 @@ test("常駐が行う役は、4 つとも network のアクションが名乗る
     "add-paired-host": N("paired-host-add"),
     "remove-paired-host": N("paired-host-remove"),
   })
+})
+
+test("役 paired-hosts の種類の requests は、常駐が読む値（ask-user・as-user）をちょうど受ける（違えば E130）", () => {
+  const owner = BUILTIN_PARTS.subjects.find(s => s.role === "paired-hosts")
+  if (!owner) throw new Error("役 paired-hosts の種類が無い")
+  const codesWith = (requests: z.ZodType) =>
+    checkCoreCatalog({
+      ...BUILTIN_PARTS,
+      subjects: BUILTIN_PARTS.subjects.map(s =>
+        s === owner ? { ...s, record: z.strictObject({ ...s.record.shape, requests }) } : s,
+      ),
+    }).map(p => p.code)
+  expect(checkCoreCatalog(BUILTIN_PARTS).map(p => p.code)).not.toContain("E130")
+  expect(codesWith(z.enum(["ask-user"]))).toContain("E130")
+  expect(codesWith(z.string())).toContain("E130")
 })

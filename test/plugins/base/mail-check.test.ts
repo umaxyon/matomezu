@@ -10,6 +10,7 @@ let order = 0
 const letter = (id: string, props: unknown, mail = "@matomezu/base:letter"): Mail => ({
   id,
   mail,
+  senderKind: "ai",
   from: "a",
   sentAt: "2026-11-06T00:00:00.000Z",
   props,

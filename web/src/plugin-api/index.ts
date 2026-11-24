@@ -89,6 +89,7 @@ export type { PresentationDef } from "../core/def/presentation"
 export { NOT_SET, type SettingDef, settingOr } from "../core/def/setting"
 export type { SkinDef } from "../core/def/skin"
 export type { SubjectDef } from "../core/def/subject"
+export { PAIRED_HOST_LISTED, PAIRED_HOST_RALLY_LIMIT, PAIRED_HOST_REQUESTS } from "../core/def/subject"
 export type { SystemFolderDef } from "../core/def/system-folder"
 export type { TextColorDef } from "../core/def/text-color"
 export type { ThemeDef } from "../core/def/theme"
@@ -122,6 +123,7 @@ export {
 // レコードが無いときの値（useRecord・アクションの文脈の record）
 export { NO_RECORD } from "../core/records"
 export type { Book, StageLineup } from "../core/schema/book"
+export { LISTED_WORKROOMS } from "../core/settings"
 export {
   areaOf,
   binderOf,

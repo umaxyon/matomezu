@@ -1,7 +1,7 @@
-// ほかのホストの行: 常駐の様子の名前があればそれ、無ければペアリングしたときの名前。同じ名前が 2 つ以上なら鍵の印の頭 4 字を添える
+// ほかのホストの行: 常駐の様子の名前があればそれ、無ければペアリングしたときの名前。出す名前は常駐が決めたホストエイリアスで、様子がまだ無ければペアリングしたときの名前
 import { expect, test } from "bun:test"
 import { NOT_TOLD } from "../../../web/src/plugins/base/ui"
-import { hostRows, ipOf, shownName } from "../../../web/src/plugins/network/hosts"
+import { hostRows, ipOf } from "../../../web/src/plugins/network/hosts"
 
 const record = (id: string, hostId: string, name: string) => ({
   id,
@@ -10,19 +10,21 @@ const record = (id: string, hostId: string, name: string) => ({
   userNameAtPairing: "",
   addr: "",
   pairedAt: "2026-11-23T00:00:00.000Z",
+  requests: "ask-user" as const,
+  listed: "listed" as const,
+  rallyLimit: 15,
 })
 
-test("同じ名前のホストにだけ鍵の印の頭 4 字を添え、常駐の様子の今の名前を使う", () => {
+test("出す名前は常駐のホストエイリアス、名前は常駐の様子の今の名前を使い、様子が無ければペアリングしたときの名前", () => {
   const rows = hostRows(
-    [
-      record("p1", "7f3a".repeat(16), "win-lan"),
-      record("p2", "b2c1".repeat(16), "old"),
-      record("p3", "c".repeat(64), "mac"),
-    ],
-    [{ hostId: "b2c1".repeat(16), name: "win-lan", userName: NOT_TOLD }],
+    [record("p1", "b2c1".repeat(16), "old"), record("p2", "c".repeat(64), "mac")],
+    [{ hostId: "b2c1".repeat(16), label: "win-lan · B2C1", name: "win-lan", userName: NOT_TOLD }],
     NOT_TOLD,
   )
-  expect(rows.map(r => shownName(r, rows))).toEqual(["win-lan · 7F3A", "win-lan · B2C1", "mac"])
+  expect(rows.map(r => [r.label, r.name])).toEqual([
+    ["win-lan · B2C1", "win-lan"],
+    ["mac", "mac"],
+  ])
 })
 
 test("番地:ポートから番地だけを取る（IPv6 の角括弧も外す）", () => {

@@ -1,5 +1,5 @@
 // コントロールセンターの画面: 左の列（利用者パネル・ワークルーム/参加者の一覧）と右の領域（プロジェクト・書庫）。
-// コンテンツエリアに出す画面を替えると履歴に積まれ、戻れる。郵便は左サイドパネルを開閉し、歯車は設定画面を開く。ワークルームは選ぶと枠に出て、王冠で管理者にし、退室で空室にするか消す
+// コンテンツエリアに出す画面を替えると履歴に積まれ、戻れる。郵便箱はコンテンツエリアの画面の 1 つで、歯車は設定画面を開く。ワークルームは選ぶと枠に出て、王冠で管理者にし、退室で空室にするか消す
 import { aiAuth, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 
 const NOW = "2026-11-12T00:00:00.000Z"
@@ -95,16 +95,21 @@ test("書庫は最大化でき、最大化の間は左の列が出ていく。�
   await expect(page.getByRole("heading", { name: "ワークルーム/参加者" })).toBeVisible()
 })
 
-test("郵便のボタンは本物の左サイドパネルを開閉し、歯車は設定画面を開く", async ({ page }) => {
+test("郵便箱のタイルはコンテンツエリアを郵便箱の画面に替え、最大化で左の列が退く。歯車は設定画面を開く", async ({
+  page,
+}) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
-  const panel = page.getByRole("complementary", { name: "左サイドパネル" })
-  const mail = page.getByRole("button", { name: "郵便", exact: true })
+  const mail = page.getByRole("button", { name: "郵便箱", exact: true })
   await mail.click()
-  await expect(panel).toBeVisible()
   await expect(mail).toHaveAttribute("aria-pressed", "true")
-  await mail.click()
-  await expect(panel).toBeHidden()
+  const pane = page.getByRole("region", { name: "郵便箱" })
+  await expect(pane).toBeVisible()
+  await expect(pane.getByRole("tab", { name: /AI/ })).toHaveAttribute("aria-selected", "true")
+  await page.getByRole("button", { name: "最大化" }).filter({ visible: true }).click()
+  await expect(mail).toBeHidden()
+  await page.getByRole("button", { name: "元の大きさに戻す" }).filter({ visible: true }).click()
+  await expect(mail).toBeVisible()
   await page.getByRole("button", { name: "全体設定" }).click()
   await expect(page.getByRole("dialog", { name: "設定" })).toBeVisible()
 })

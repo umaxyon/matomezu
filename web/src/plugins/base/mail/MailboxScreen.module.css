@@ -1,0 +1,63 @@
+/* 郵便箱のスクリーン: 上に帯、その下を郵便箱の画面が埋める */
+.screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--skin-stage);
+  color: var(--skin-text);
+}
+/* 帯: 閉じる・広げる（並べているとき）か、名前と閉じる（窓いっぱいのとき） */
+.band {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--skin-border);
+}
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+/* 「→ 閉じる」: アイコンと文字を 1 つのボタンに（チケットスクリーンの帯と同じ形） */
+.close {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px 0 4px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--skin-text);
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.close:hover {
+  background: var(--skin-btn-hover);
+}
+.close svg,
+.band svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.divider {
+  align-self: stretch;
+  width: 1px;
+  margin: 8px 2px;
+  background: var(--skin-border);
+}
+.pane {
+  flex: 1;
+  min-height: 0;
+}

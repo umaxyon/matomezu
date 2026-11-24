@@ -362,18 +362,12 @@ test("開く: 2 回押す・Enter・メニューの「開く」の 1 つの道�
   expect(shows("b2")).toBe(true)
 })
 
-test("書庫を開く: 書庫のスクリーンを 1 枚ずつの並べ方でカレントにする。開いていれば新しく開かず、それをカレントスクリーンにする", () => {
+test("書庫を開く: コントロールセンター（定義の viewsInside で書庫の画面を中に描く）から呼べば、書庫のスクリーンを開かず、コントロールセンターのまま", () => {
   const { store, center } = setup()
   const screens = () => store.state.getState().window.screens.filter(s => s.def === "@matomezu/base:library-screen")
-  const current = () => store.state.getState().window.order.at(-1)
   store.actions.command(center, "@matomezu/base:library-open")
-  expect(screens()).toHaveLength(1)
-  expect(current()).toBe(screens()[0]?.id)
-  store.actions.makeScreenCurrent(center)
-  store.actions.command(center, "@matomezu/base:library-open")
-  expect(screens()).toHaveLength(1)
-  expect(current()).toBe(screens()[0]?.id)
-  expect(store.state.getState().window.arrangement).toBe("@matomezu/base:one-screen")
+  expect(screens()).toHaveLength(0)
+  expect(store.state.getState().window.order.at(-1)).toBe(center)
 })
 
 test("ツリーで今いる行のゴミ箱入れをロックが止めていれば、Delete を押しても、右の枠で選んでいる別のブックはゴミ箱に入らない。右の枠の Delete は、選んでいる行に効く。ロックしたブックの F2 は何もしない", () => {
@@ -451,10 +445,9 @@ test("検索している間に、フォルダを開く・ツリーの矢印で�
 })
 
 test("読めない物のフォルダを開く: 書庫を開き、検索していればやめ、選んでいる行も外して、右の枠に読めない物のフォルダを出す", () => {
-  const { store, run, set } = setup()
-  run("library-open")
-  const library = store.state.getState().window.screens.find(s => s.def === "@matomezu/base:library-screen")
-    ?.id as string
+  // コントロールセンターから呼ぶので、コントロールセンターの中の書庫の画面に出す
+  const { store, run, set, center } = setup()
+  const library = center
   set(LIBRARY_QUERY.id, library, "企画")
   set(LIBRARY_PICKED.id, library, "b1")
   run("library-unreadable-open")

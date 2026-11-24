@@ -3,24 +3,22 @@
 import { NO_STATE } from "../../../core/def/plugin-state"
 import { SCREEN_REFUSED } from "../../../store/actions"
 import {
-  arrangementValueIn,
   type CommandContext,
   calledScreenIdOf,
   calledStageOf,
-  screensOf,
   storeActionsOf,
   workspaceOf,
 } from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { LIBRARY_SCREEN } from "../library/screen"
-import { SPLIT_ROWS, splitOf } from "../window/split"
+import { applySplitFrom } from "../window/apply-split"
 import { shownWideStage, WIDE_STAGE } from "./states"
 
 const isSplit = (ctx: CommandContext) => workspaceOf(ctx).stages.length > 1
 
 // 画面を分割: 右に何も開いていないステージを足し、窓の下半分に書庫のスクリーンを出す（書庫で選んだ物が、足したステージに開く）。
-// 窓が低ければ、分けて並べる窓の決まり（ScreensView）が、書庫のスクリーンだけを窓いっぱいに残す
+// 窓が低ければ、分けて並べる窓の決まり（ScreensView）が、カレントスクリーンだけを窓いっぱいに見せる
 export const STAGE_SPLIT = kit.defineCommand({
   id: "stage-split",
   title: "Split screen",
@@ -31,9 +29,7 @@ export const STAGE_SPLIT = kit.defineCommand({
     const book = calledScreenIdOf(ctx)
     const library = store.openScreenId(LIBRARY_SCREEN.id, {})
     if (library === SCREEN_REFUSED) return
-    // 前の並び（コントロールセンターとチケットなど）は behind に覚え、書庫のスクリーンを閉じたら戻す
-    const before = splitOf(screensOf(ctx), arrangementValueIn(ctx)).filter(id => id !== library)
-    store.setScreenArrangement(SPLIT_ROWS.id, { screens: [book, library], behind: before })
+    applySplitFrom(store, { screens: [book, library], current: library })
   },
   when: ctx => !isSplit(ctx),
   active: isSplit,

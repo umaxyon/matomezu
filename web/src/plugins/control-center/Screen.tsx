@@ -1,7 +1,7 @@
-// コントロールセンターの画面: 左の列（利用者パネル・ワークルーム/参加者の一覧）と、コンテンツエリア（プロジェクト・書庫の画面を重ねて、出す方を替える）。
+// コントロールセンターの画面: 左の列（利用者パネル・ワークルーム/参加者の一覧）と、コンテンツエリア（プロジェクト・書庫・郵便箱の画面を重ねて、出す方を替える）。
 // 左の列の利用者パネルと参加者の一覧の間には スロット side、参加者の一覧の下にはスロット below-participants（選んでいる物を渡す）、プロジェクトの画面の上のタスクボードの置き場にはスロット projects に置かれたウィジェットが入る（タスクボードなど）。
-// プロジェクトの画面は上にタスクボードの置き場、下にワークルーム。書庫は最大化できる。最大化の間（書庫の最大化と、中身が名乗った最大化）は、枠が出ていく（retreatOf）。
-// コンテンツエリアに出す画面は、このスクリーンの値として画面の場所に入る（CONTENT_AREA。値が無ければプロジェクト）。選んでいる物（ワークルーム・ビジター・ほかの種類のどれか 1 つ）も画面の場所に入る（PICKED。履歴には積まない）。書庫の最大化は、このスクリーンの中だけ
+// プロジェクトの画面は上にタスクボードの置き場、下にワークルーム。書庫と郵便箱は最大化できる。最大化の間（書庫・郵便箱の最大化と、中身が名乗った最大化）は、枠が出ていく（retreatOf）。
+// コンテンツエリアに出す画面は、このスクリーンの値として画面の場所に入る（CONTENT_AREA。値が無ければプロジェクト）。選んでいる物（ワークルーム・ビジター・ほかの種類のどれか 1 つ）も画面の場所に入る（PICKED。履歴には積まない）。書庫・郵便箱の最大化は、このスクリーンの中だけ
 import { useState } from "react"
 import { NO_RECORD, NO_STATE } from "../../plugin-api"
 import {
@@ -18,6 +18,7 @@ import {
   CONTENT_AREA,
   type ContentArea,
   LIBRARY_MAXIMIZED,
+  MAILBOX_MAXIMIZED,
   PARTICIPANT_KIND,
   PICKED,
   type Picked,
@@ -25,6 +26,7 @@ import {
 } from "./control-center"
 import { kit } from "./kit"
 import { LibraryArea } from "./LibraryArea"
+import { MailboxArea } from "./MailboxArea"
 import { ParticipantListView } from "./ParticipantListView"
 import { pickedRow, retreatOf } from "./rows"
 import styles from "./Screen.module.css"
@@ -38,9 +40,11 @@ export function ControlCenterScreen() {
   const setContentArea = useSetPluginState(kit, CONTENT_AREA)
   const setScreen = (to: ContentArea) => setContentArea(to)
   const maximized = usePluginState(kit, LIBRARY_MAXIMIZED) === true
-  const retreat = retreatOf(screen, maximized, useControlCenterMaximized())
+  const mailboxMaximized = usePluginState(kit, MAILBOX_MAXIMIZED) === true
+  const retreat = retreatOf(screen, { library: maximized, mailbox: mailboxMaximized }, useControlCenterMaximized())
   const setLibraryMaximized = useSetPluginState(kit, LIBRARY_MAXIMIZED)
   const setMaximized = (on: boolean) => setLibraryMaximized(on)
+  const setMailboxMaximized = useSetPluginState(kit, MAILBOX_MAXIMIZED)
   const chosen = usePluginState(kit, PICKED)
   const rows = useWorkroomRows()
   const visitors = useVisitorRows()
@@ -75,6 +79,9 @@ export function ControlCenterScreen() {
           </ScreenPane>
           <ScreenPane shown={screen === "library"} slideIn={switched}>
             <LibraryArea maximized={maximized} onToggleMaximize={() => setMaximized(!maximized)} />
+          </ScreenPane>
+          <ScreenPane shown={screen === "mailbox"} slideIn={switched}>
+            <MailboxArea maximized={mailboxMaximized} onToggleMaximize={() => setMailboxMaximized(!mailboxMaximized)} />
           </ScreenPane>
         </div>
       </div>

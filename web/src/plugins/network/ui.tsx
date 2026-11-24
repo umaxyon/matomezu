@@ -1,25 +1,34 @@
 // ネットワークのプラグインの見た目: 設定カテゴリ「ネットワーク」と、ホスト名の項目のビュー、コントロールセンターの「ほかのホスト」の節と詳しい所、
-// ペアリングのダイアログ（頼む側・届いた頼み）、届いた頼みのしおりと見張り、別のポートにする確かめ
+// ペアリングのダイアログ（頼む側・届いた頼み）、ペアリングしたホストの様子のダイアログ、届いた頼みのしおりと見張り、別のポートにする確かめ、頼みとして受ける確かめ
 import { definePluginUi, defineWidget } from "../../plugin-api/ui"
 import { defineBookmarks, defineSettingsCategory } from "../base/ui"
 import { NETWORK_PLUGIN } from "."
+import { AsUserDialog } from "./AsUserDialog"
 import { BELOW_PARTICIPANTS, PICKED_DETAIL } from "./control-center-ids"
-import { PAIRING_DIALOG, PAIRING_REQUEST_DIALOG, PORT_REPICK_DIALOG, UNPAIR_DIALOG } from "./dialogs"
+import {
+  AS_USER_DIALOG,
+  PAIRED_HOST_INFO_DIALOG,
+  PAIRING_DIALOG,
+  PAIRING_REQUEST_DIALOG,
+  PORT_REPICK_DIALOG,
+  UNPAIR_DIALOG,
+} from "./dialogs"
 import { kit } from "./kit"
-import { HostNameSetting, NetworkCategory } from "./NetworkCategory"
+import { HostNameSetting, ListedWorkroomsSetting, NetworkCategory } from "./NetworkCategory"
 import { OtherHosts } from "./OtherHosts"
 import { PairedHostDetail } from "./PairedHostDetail"
+import { PairedHostInfoDialog } from "./PairedHostInfoDialog"
 import { PairingDialog } from "./PairingDialog"
 import { PairingRequestBookmarks, PairingRequestDialog, PairingRequestWatch } from "./PairingRequest"
 import { PortRepickDialog } from "./PortRepickDialog"
 import { PAIRED_HOST } from "./pairing"
-import { CONNECT_HOSTS, HOST_NAME } from "./settings"
+import { CONNECT_HOSTS, HOST_NAME, LISTED_WORKROOMS_SETTING } from "./settings"
 import { UnpairDialog } from "./UnpairDialog"
 
 export const NETWORK_CATEGORY = defineSettingsCategory({
   id: kit.name("settings"),
   title: kit.message("Network"),
-  settings: [HOST_NAME.id, CONNECT_HOSTS.id],
+  settings: [HOST_NAME.id, CONNECT_HOSTS.id, LISTED_WORKROOMS_SETTING.id],
   view: NetworkCategory,
 })
 
@@ -44,13 +53,18 @@ export const PAIRING_REQUEST_WATCH = defineWidget({
 })
 
 export const NETWORK_UI = definePluginUi(NETWORK_PLUGIN, {
-  userSettingViews: { [HOST_NAME.id]: { control: HostNameSetting } },
+  userSettingViews: {
+    [HOST_NAME.id]: { control: HostNameSetting },
+    [LISTED_WORKROOMS_SETTING.id]: { control: ListedWorkroomsSetting },
+  },
   widgets: [NETWORK_CATEGORY, OTHER_HOSTS, PAIRED_HOST_DETAIL, PAIRING_REQUEST_BOOKMARKS, PAIRING_REQUEST_WATCH],
   dialogViews: {
     [PORT_REPICK_DIALOG.id]: PortRepickDialog,
     [PAIRING_DIALOG.id]: PairingDialog,
     [PAIRING_REQUEST_DIALOG.id]: PairingRequestDialog,
     [UNPAIR_DIALOG.id]: UnpairDialog,
+    [AS_USER_DIALOG.id]: AsUserDialog,
+    [PAIRED_HOST_INFO_DIALOG.id]: PairedHostInfoDialog,
   },
 })
 

@@ -22,7 +22,7 @@
   color: var(--skin-text-muted);
   font-size: 10px;
 }
-/* 郵便のダイアログ */
+/* 選んだ郵便（郵便箱の画面） */
 .meta {
   margin: 0 0 8px;
   color: var(--skin-text-muted);
@@ -38,10 +38,14 @@
   color: var(--skin-danger);
   font-size: 12px;
 }
-/* 郵便のダイアログの下の行のボタン */
+/* 選んだ郵便の下のボタン */
 .buttons {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 12px;
+}
+/* フッタの郵便箱のボタン: 角に未読の数を重ねる */
+.envelope {
+  position: relative;
 }

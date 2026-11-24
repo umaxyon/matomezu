@@ -151,7 +151,7 @@ func TestToolsDoNotDependOnTheCatalog(t *testing.T) {
 	for _, x := range got[0]["result"].(map[string]any)["tools"].([]any) {
 		names = append(names, x.(map[string]any)["name"].(string))
 	}
-	if strings.Join(names, ",") != "view,list_books,read_folder,read_book,read_page,read_records,search,read_settings,actions,show,perform,join_rules,join,send_message" {
+	if strings.Join(names, ",") != "view,list_books,read_folder,read_book,read_page,read_records,search,read_settings,actions,show,perform,join_rules,join,send_message,list_workrooms" {
 		t.Fatalf("tools = %v", names)
 	}
 }
@@ -379,6 +379,20 @@ func TestReadRecordsQueries(t *testing.T) {
 		`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"read_records","arguments":{"kind":"k","unlisted":"only"}}}`,
 	)
 	want := "api/ai/records?kind=k api/ai/records?before=m9&is.seenAt=absent&kind=k&limit=5&where.order=3&where.to=b1 api/ai/records?ids=m1&ids=m2&kind=k api/ai/records?kind=k&unlisted=only"
+	if strings.Join(api.gets, " ") != want {
+		t.Fatalf("gets = %v", api.gets)
+	}
+}
+
+// list_workrooms は、渡された host・name・offset（整数に直す）だけを常駐への問い合わせにする
+func TestListWorkroomsQueries(t *testing.T) {
+	api := &fakeAPI{}
+	talk(t, api,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_workrooms","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_workrooms","arguments":{"name":"win_note"}}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_workrooms","arguments":{"host":"b","offset":50}}}`,
+	)
+	want := "api/ai/workrooms api/ai/workrooms?name=win_note api/ai/workrooms?host=b&offset=50"
 	if strings.Join(api.gets, " ") != want {
 		t.Fatalf("gets = %v", api.gets)
 	}

@@ -9,9 +9,8 @@ export async function openLeftPanel(page: Page) {
   await expect(leftPanel(page)).toBeVisible()
 }
 
-// 左サイドパネルを開いて、送信トレイのタブにする（最初に開くのは郵便箱のタブ）
+// 送信トレイを開くボタンで左サイドパネルを開く（送信トレイのタブ）
 export async function openOutbox(page: Page) {
   await openLeftPanel(page)
-  await expect(leftPanel(page).getByRole("tab", { name: "郵便箱" })).toHaveAttribute("aria-selected", "true")
-  await leftPanel(page).getByRole("tab", { name: "送信トレイ" }).click()
+  await expect(leftPanel(page).getByRole("tab", { name: "送信トレイ" })).toHaveAttribute("aria-selected", "true")
 }

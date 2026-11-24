@@ -117,7 +117,7 @@ export type AIEditTicketRemovedCause = "limit" | "user"
 
 // レコードが対象のアクションが送る AI 間メッセージ 1 通: 宛先のワークルームの id と文。送り手は行った参加者で、ここには書かない。
 // 返せるのは、行う者がワークルームに入っている AI のときだけ。常駐は、アクションバルクが通ったときだけ送る。
-// 宛先のワークルームに参加の確定したほかの参加者がいないとき、noRecipient が refuse（省いたとき）ならバルクごと断り（no-recipient）、skip ならその 1 通を送らないだけにする（送らなかったことは返さない）
+// 宛先のワークルームに参加の確定したほかの参加者がいないとき、noRecipient が refuse（省いたとき）ならバルクごと断り（no-recipient）、skip ならその 1 通を送らないだけにする（送らなかったことは返さない）。AI ラリーの上限を超える 1 通も同じ（断るときは rally-limit）
 export interface AIMessage {
   workroom: string
   text: string

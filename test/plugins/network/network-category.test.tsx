@@ -1,9 +1,9 @@
-// 設定カテゴリ「ネットワーク」: ホスト名・ほかのホストとつなぐ・待っている所・鍵の印・開けなかった理由・WSL の案内
+// 設定カテゴリ「ネットワーク」: ホスト名・ほかのホストとつなぐ・待っている所・鍵の印・AI 用ホストリストに載せるワークルーム・開けなかった理由・WSL の案内
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { userSetting } from "../../../web/src/core/settings"
 import { CONTROL_CENTER } from "../../../web/src/plugins/control-center"
-import { CONNECT_HOSTS, HOST_NAME } from "../../../web/src/plugins/network"
+import { CONNECT_HOSTS, HOST_NAME, LISTED_WORKROOMS_SETTING } from "../../../web/src/plugins/network"
 import { shownHostKey } from "../../../web/src/plugins/network/NetworkCategory"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
@@ -27,7 +27,8 @@ function openNetwork() {
     act(() => store.setHostStatus({ hostId: HOST_ID, name: "desk", osHostName: "desk", open: false, ...s }))
   fireEvent.click(screen.getByRole("button", { name: "全体設定", hidden: true }))
   fireEvent.click(screen.getByRole("tab", { name: "ネットワーク" }))
-  return { value, setStatus, panel: () => screen.getByRole("tabpanel", { name: "ネットワーク" }) }
+  const stored = (id: string) => id in store.state.getState().settings
+  return { value, stored, setStatus, panel: () => screen.getByRole("tabpanel", { name: "ネットワーク" }) }
 }
 
 test("鍵の印は、ホスト id の頭 16 桁を大文字で 4 桁ずつ区切る", () => {
@@ -129,4 +130,19 @@ test("覚えたポートが使われていれば［別のポートにする］�
   })
   expect(asked).toEqual([{ kind: "repick-port" }])
   expect(screen.getByRole("tabpanel", { name: "ネットワーク" })).toBeTruthy()
+})
+
+test("AI 用ホストリストに載せるこのホストのワークルームは、つなぐが切でも［全部｜5 件］で選べ、全部に戻すと値を消す", () => {
+  const { panel, value, stored } = openNetwork()
+  const all = () => within(panel()).getByRole("radio", { name: "全部のワークルーム" }) as HTMLInputElement
+  const recent = () =>
+    within(panel()).getByRole("radio", { name: "様子が最近変わった 5 件のワークルーム" }) as HTMLInputElement
+  expect(all().checked).toBe(true)
+  fireEvent.click(recent())
+  expect(value(LISTED_WORKROOMS_SETTING.id)).toBe("recent")
+  expect(recent().checked).toBe(true)
+  fireEvent.click(all())
+  expect(value(LISTED_WORKROOMS_SETTING.id)).toBe("all")
+  expect(stored(LISTED_WORKROOMS_SETTING.id)).toBe(false)
+  expect(all().checked).toBe(true)
 })

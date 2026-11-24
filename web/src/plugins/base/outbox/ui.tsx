@@ -1,9 +1,12 @@
-// 送信トレイのウィジェット（左サイドパネルのタブ）と、行の絵のスロット annotation-icon（種類ごとに、defineAnnotationIcon で作ったウィジェットを置く）
+// 送信トレイのウィジェット（左サイドパネルのタブ）と、それを開くフッタのボタン、行の絵のスロット annotation-icon（種類ごとに、defineAnnotationIcon で作ったウィジェットを置く）
 import type { ReactNode } from "react"
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
-import { defineLeftSidePanelTab } from "../left-side-panel/ui"
+import { LeftSidePanelOpenButton } from "../left-side-panel/OpenButton"
+import type { LeftSidePanelEntry } from "../left-side-panel/state"
+import { defineLeftSidePanelTab, opensOf } from "../left-side-panel/ui"
 import { type PlaceInSlot, placeIn } from "../utils/place-in"
+import { STAGE_SLOTS } from "../workspace/ui"
 import { Outbox } from "./Outbox"
 import { ANNOTATION_ICON, type AnnotationIconProps } from "./slots"
 import { OUTBOX_TAB_ID } from "./tab-id"
@@ -31,5 +34,19 @@ export const OUTBOX = defineLeftSidePanelTab<typeof OUTBOX_TAB_ID>({
   opens: [ANNOTATION_ICON],
   view: Outbox,
 })
+
+// 送信トレイを開くボタン（フッタメニューに置く）: このステージの送信トレイを左サイドパネルに開き、開いていれば閉じる
+export const OUTBOX_BUTTON = defineWidget({
+  id: kit.name("outbox-button"),
+  slots: STAGE_SLOTS,
+  opens: opensOf(OUTBOX),
+  view: OutboxButton,
+})
+
+const OUTBOX_ENTRIES: readonly LeftSidePanelEntry[] = [{ tab: OUTBOX_TAB_ID, props: {} }]
+
+function OutboxButton() {
+  return <LeftSidePanelOpenButton entries={OUTBOX_ENTRIES} />
+}
 
 export { ANNOTATION_ICON, type AnnotationIconProps } from "./slots"

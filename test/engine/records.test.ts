@@ -11,6 +11,7 @@ const engine = globalThis as unknown as {
 const letter = (n: number, seen = false) => ({
   id: `m${n}`,
   mail: "@matomezu/base:letter",
+  senderKind: "ai",
   from: "a",
   sentAt: "2026-11-12T00:00:00.000Z",
   props: { title: `t${n}`, body: "" },

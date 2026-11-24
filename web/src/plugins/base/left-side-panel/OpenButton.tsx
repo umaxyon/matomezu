@@ -38,8 +38,12 @@ export function LeftSidePanelOpenButton({ entries }: { entries: readonly LeftSid
 
 // タブの数の合計（0 なら出さない）。数を答えるタブの並びが変わったら key が変わって作り直すので、1 つの間はフックを呼ぶ数が変わらない
 function Count({ counters }: { counters: readonly (() => number)[] }) {
+  return <CornerCount total={counters.map(use => use()).reduce((a, b) => a + b, 0)} />
+}
+
+// フッタのボタンの角に出す未読の数（0 なら出さない）。置くボタンは position: relative にする（opener の class）
+export function CornerCount({ total }: { total: number }) {
   const t = useMessages(kit)
-  const total = counters.map(use => use()).reduce((a, b) => a + b, 0)
   if (total === 0) return null
   return (
     <span className={own.count} title={t("{n} unread", { n: total })} data-count={total}>

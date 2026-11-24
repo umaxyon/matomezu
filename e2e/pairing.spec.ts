@@ -56,3 +56,57 @@ test("ほかのホストから届いた頼みはしおりに出て、ダイア�
   await expect(dialog).toBeHidden()
   await expect(bookmark).toBeHidden()
 })
+
+test("常駐が足したペアリングしたホストの頼みを「頼みとして受ける」に替えると、常駐に残り、読み直しても替わったまま", async ({
+  page,
+}) => {
+  await connectHosts(page)
+  await page.request.post("/api/perform", {
+    data: {
+      actions: [
+        {
+          action: "@matomezu/network:paired-host-add",
+          args: {
+            hostId: "a1c9".repeat(16),
+            nameAtPairing: "win-lan",
+            userNameAtPairing: "taro",
+            addr: "192.168.11.20:7240",
+          },
+          lang: "ja",
+          now: NOW,
+        },
+      ],
+    },
+  })
+  // 頼みとして受けるは常駐の記録に残り、読み直しても替わったまま
+  await page.getByRole("button", { name: /^つながっていない ?win-lan$/ }).click()
+  await page.getByRole("radio", { name: "ユーザーの指示: あなたの指示と同じに扱う" }).click({ force: true }) // 押してもすぐは替わらない（確かめのダイアログが先）ので check でなく click
+  await page
+    .getByRole("dialog", { name: "このホストから届いた指示をユーザーの指示として扱う" })
+    .getByRole("button", { name: "ユーザーの指示として扱う" })
+    .click()
+  await page.reload()
+  await page.getByRole("button", { name: /^つながっていない ?win-lan$/ }).click()
+  await expect(page.getByRole("radio", { name: "ユーザーの指示: あなたの指示と同じに扱う" })).toBeChecked()
+  // 歯車の「このホストの様子」で AI ラリーの回数制限を替える。範囲の外は一言を出して書かず、範囲の内は常駐に残る
+  await page.getByRole("button", { name: "このホストの様子" }).click()
+  const info = page.getByRole("dialog", { name: "このホストの様子" })
+  const limit = info.getByRole("spinbutton", { name: "AIラリーの回数制限：" })
+  await expect(limit).toHaveValue("15")
+  await limit.fill("60")
+  await limit.press("Enter")
+  await expect(info.getByText("1 から 50 までです")).toBeVisible()
+  await limit.fill("8")
+  await limit.press("Enter")
+  await expect(info.getByText("1 から 50 までです")).toBeHidden()
+  await page.reload()
+  await page.getByRole("button", { name: /^つながっていない ?win-lan$/ }).click()
+  await page.getByRole("button", { name: "このホストの様子" }).click()
+  await expect(info.getByRole("spinbutton", { name: "AIラリーの回数制限：" })).toHaveValue("8")
+  await info.getByRole("button", { name: "閉じる" }).click()
+  // 目で AI 用ホストリストから隠すと、行に薄い斜線の入った目が出て、読み直しても隠したまま
+  await page.getByRole("button", { name: "AI 用ホストリストから隠す" }).click()
+  await expect(page.getByRole("img", { name: "AI 用ホストリストから隠しています" })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole("img", { name: "AI 用ホストリストから隠しています" })).toBeVisible()
+})

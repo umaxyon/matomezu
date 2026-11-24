@@ -40,7 +40,7 @@ const boxOf = async (page: Page, name: string) =>
     height: -1,
   }
 
-test("窓が高ければ、カードでチケットを下に分けて開き、2 枚目は上に入る。広げると 1 枚だけ全画面に、もう 1 枚は閉じる", async ({
+test("窓が高ければ、カードでチケットを下に分けて開き、2 枚目は上に入る。広げると 1 枚だけ全画面に、もう 1 枚は見えなくなる", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -63,7 +63,7 @@ test("窓が高ければ、カードでチケットを下に分けて開き、2 
   expect((await boxOf(page, "上下の一枚目")).y).toBe(lower.y)
   // 2 枚並べている間だけ、帯に巣箱が出る（どちらの帯にも）
   await expect(tickets(page).getByRole("button", { name: "コントロールセンター" })).toHaveCount(2)
-  // 上を広げると、それだけが全画面になり、下の 1 枚は閉じる
+  // 上を広げると、それだけが全画面になり、下の 1 枚は開いたまま見えなくなる
   await tickets(page)
     .filter({ has: page.getByRole("heading", { name: "上下の二枚目" }) })
     .getByRole("button", { name: "広げる" })
@@ -71,10 +71,14 @@ test("窓が高ければ、カードでチケットを下に分けて開き、2 
   await expect(tickets(page)).toHaveCount(1)
   await expect(tickets(page).getByRole("heading", { name: "上下の二枚目" })).toBeVisible()
   expect((await boxOf(page, "上下の二枚目")).height).toBeGreaterThan(700)
+  // 見えなくなった 1 枚（と、2 枚目に段を替えられたコントロールセンター）は、右へ滑り出たまま開いている（閉じた物の写しは出ない）
+  await expect(page.locator('[data-out="true"]')).toHaveCount(2)
+  await expect(page.locator("[data-leaving]")).toHaveCount(0)
+  await expect(page.locator('[data-out="true"]').locator("visible=true")).toHaveCount(0)
   await expect(tickets(page).getByRole("button", { name: "戻る" })).toBeVisible()
 })
 
-test("分けている間に窓が低くなると、カレントの 1 枚を残して全画面に戻す。開いたカードをもう一度押すと閉じる", async ({
+test("分けている間に窓が低くなると、カレントの 1 枚だけを全画面に見せる。開いたカードをもう一度押すと閉じる", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -94,7 +98,9 @@ test("分けている間に窓が低くなると、カレントの 1 枚を残�
   await page.setViewportSize({ width: 1280, height: 700 })
   await expect(tickets(page)).toHaveCount(1)
   await expect(tickets(page).getByRole("heading", { name: "上下の二枚目" })).toBeVisible()
-  expect(new URL(page.url()).searchParams.get("sc")).not.toContain("split-rows")
+  // 高くなれば、上下に戻る
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await expect(tickets(page)).toHaveCount(2)
 })
 
 test("本文のチケットの番号を押すと「開く／分割で開く」を聞き、分割で開くと上の段に入る", async ({ page }) => {

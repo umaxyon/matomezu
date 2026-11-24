@@ -1,6 +1,7 @@
 // 参加者の一覧の行の名前の下（見た目でない所で決める）: 準備中は（準備中）、空室と参加済みは スロット workroom-row-line に置かれたウィジェットが出す（空室かを渡す）
 import type { NO_STATE } from "../../plugin-api"
 import { NO_OCCUPANT, NOT_CALLED, NOT_REQUESTED, type WorkroomRow } from "../base"
+import type { ContentArea } from "./control-center"
 
 export type RowDetail = "empty" | "preparing" | "slot"
 
@@ -97,7 +98,7 @@ export const lastAccessOf = (row: Pick<WorkroomRow, "calledAt" | "state">): Last
   row.calledAt !== NOT_CALLED ? "called" : row.state === "preparing" ? "preparing" : "none"
 
 // 枠（左の列・ワークルームの枠）が画面の外へ退くか。コンテンツエリアに出している画面の最大化と、中身が名乗った最大化（useControlCenterMaximized）から決める。
-// 書庫をコンテンツエリアに出して書庫を最大化している間は左の列だけ、プロジェクトの画面をコンテンツエリアに出して中身が最大化している間は左の列とワークルームの枠が退く。
+// 書庫・郵便箱をコンテンツエリアに出してそれを最大化している間は左の列だけ、プロジェクトの画面をコンテンツエリアに出して中身が最大化している間は左の列とワークルームの枠が退く。
 // コンテンツエリアに出していない画面の最大化は、枠を動かさない（ブラウザの戻るで画面が替わっても、枠が退いたまま戻れなくなるのを防ぐ）
 export interface Retreat {
   left: boolean
@@ -105,11 +106,11 @@ export interface Retreat {
 }
 
 export function retreatOf(
-  shown: "projects" | "library",
-  libraryMaximized: boolean,
+  shown: ContentArea,
+  maximized: { readonly library: boolean; readonly mailbox: boolean },
   contentMaximized: boolean,
 ): Retreat {
-  const library = shown === "library" && libraryMaximized
+  const area = (shown === "library" && maximized.library) || (shown === "mailbox" && maximized.mailbox)
   const projects = shown === "projects" && contentMaximized
-  return { left: library || projects, workroom: projects }
+  return { left: area || projects, workroom: projects }
 }

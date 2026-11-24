@@ -1,0 +1,10 @@
+/* 郵便箱の画面: 領域いっぱいに広げ、中の郵便箱が残りの高さを使う */
+.area {
+  flex: 1;
+  min-height: 0;
+}
+/* 郵便箱: 題の帯に付け（帯との間を空けない）、領域の左右と下の詰めの分だけ外へ広げる（区切りの線を枠の端まで） */
+.mailbox {
+  flex: 1;
+  margin: calc(-1 * var(--area-gap)) calc(-1 * var(--area-pad-x)) calc(-1 * var(--area-pad-bottom));
+}

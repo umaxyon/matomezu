@@ -75,7 +75,9 @@ export const HostPeersSchema = z.object({
   paired: z.array(
     z.object({
       hostId: z.string(),
+      label: z.string(),
       connected: z.boolean(),
+      workrooms: z.array(z.object({ name: z.string(), activity: z.enum(["working", "idle", "unknown"]) })).optional(),
       lastSeen: z.string().optional(),
       addr: z.string().optional(),
       name: z.string().optional(),

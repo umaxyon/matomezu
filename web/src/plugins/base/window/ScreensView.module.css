@@ -113,8 +113,16 @@
 .plain[data-in="false"] {
   transform: translateX(100%);
 }
+/* 並びから外れて右へ滑り出た物（開いたまま）は、滑り終えたら見せない */
+.plain[data-out="true"] {
+  visibility: hidden;
+  transition:
+    transform var(--screen-slide) ease,
+    visibility 0s linear var(--screen-slide);
+}
 @media (prefers-reduced-motion: reduce) {
-  .plain {
+  .plain,
+  .plain[data-out="true"] {
     transition: none;
   }
 }
@@ -169,7 +177,7 @@
 .center[data-mixed="true"] .footer {
   pointer-events: auto;
 }
-/* 並びに入っていないステージを並べないスクリーン（コントロールセンターなど）は、上の行のブックスクリーンを覆わないよう見せない */
+/* 並びに入っていないステージを並べないスクリーン（コントロールセンターなど）は、上の行のブックスクリーンを覆わないよう見せない（並びから外れて右へ滑り出ている物は、外れた行の位置のまま data-row で描く） */
 .center[data-mixed="true"] .plain[data-row="false"] {
   visibility: hidden;
 }

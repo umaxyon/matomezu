@@ -1,29 +1,19 @@
 // 上下に分けた並びの変わりを行う（useScreenSplit の applySplit と、base のコマンドが通る、ただ 1 つの道）と、ブックを分けて窓に出す（showBookSplit）
-import { type OpenedScreen, screenOfStage, type WindowState } from "../../../core/window"
+import { screenOfStage, type WindowState } from "../../../core/window"
 import type { Actions } from "../../../store/actions"
 import { NO_STAGE } from "../../../store/dialogs"
 import { ONE_SCREEN } from "./one-screen"
-import { behindOf, bookSplitWay, planOpen, SPLIT_ROWS, type SplitPlan, shownSplit } from "./split"
+import { bookSplitWay, planOpen, SPLIT_ROWS, type SplitPlan, shownSplit } from "./split"
 
-// 並びの変わり plan を行う（useScreenSplit の applySplit の中身。base のコマンドからも呼ぶ）: screens は変わる前に開いているスクリーン、value は変わる前の上下に分ける値（分けていなければ undefined）。
-// openAfter は、外れた物を閉じたあとに開いているスクリーン（渡さなければ、閉じた物がみな閉じたとみなす）
+// 並びの変わり plan を行う（useScreenSplit と base のコマンドが通る、ただ 1 つの道）: 閉じると決めた物を閉じ、カレントスクリーンにする物をカレントにしてから、並べ方を替える
+// （並べ方を替えたときに土台が窓の上限で閉じる物を、カレントにする物を見えている物として決めるため）
 export function applySplitFrom(
-  actions: Pick<Actions, "closeScreen" | "setScreenArrangement">,
-  screens: readonly { id: string; stages?: unknown }[], // stages は、ステージを並べるスクリーンなら真
-  value: unknown,
+  actions: Pick<Actions, "closeScreen" | "setScreenArrangement" | "makeScreenCurrent">,
   plan: SplitPlan,
-  openAfter?: () => readonly Pick<OpenedScreen, "id">[],
 ): void {
-  const was = behindOf(screens, value)
-  const staged = new Set(screens.filter(s => s.stages).map(s => s.id))
-  const closing = plan.leaving.filter(id => !staged.has(id))
-  for (const id of closing) actions.closeScreen(id)
-  const open = openAfter?.() ?? screens.filter(s => !closing.includes(s.id))
-  const kept = closing.filter(id => open.some(s => s.id === id))
-  const behind = [...kept, ...was].filter(
-    (id, i, list) => list.indexOf(id) === i && !plan.screens.includes(id) && open.some(s => s.id === id),
-  )
-  if (plan.screens.length >= 2) actions.setScreenArrangement(SPLIT_ROWS.id, { screens: plan.screens, behind })
+  for (const id of plan.closing ?? []) actions.closeScreen(id)
+  if (plan.current !== undefined) actions.makeScreenCurrent(plan.current)
+  if (plan.screens.length >= 2) actions.setScreenArrangement(SPLIT_ROWS.id, { screens: plan.screens })
   else actions.setScreenArrangement(ONE_SCREEN.id)
 }
 
@@ -31,7 +21,7 @@ export function applySplitFrom(
 // 窓が低い（tall でない）ときは、分けずに窓いっぱいに出す。出したブックスクリーンがもう並びに在れば、並べ直さずに flash で光らせる。
 // 「分割で開く」の、フック（useScreenSplit）とコマンドが通るただ 1 つの道。readWindow は窓の今の値（出した後の値も）を読む
 export function showBookSplit(o: {
-  actions: Pick<Actions, "showBook" | "showBookStage" | "closeScreen" | "setScreenArrangement">
+  actions: Pick<Actions, "showBook" | "showBookStage" | "closeScreen" | "setScreenArrangement" | "makeScreenCurrent">
   readWindow: () => WindowState
   here: string
   keepHere: boolean
@@ -60,6 +50,5 @@ export function showBookSplit(o: {
     o.flash(added)
     return
   }
-  const value = win.arrangement === SPLIT_ROWS.id ? win.arrangementValue : undefined
-  applySplitFrom(o.actions, win.screens, value, planOpen(now, o.here, added, how, o.max), () => o.readWindow().screens)
+  applySplitFrom(o.actions, planOpen(now, o.here, added, how, o.max))
 }

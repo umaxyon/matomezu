@@ -1,4 +1,4 @@
-// 郵便の行き先の物: 郵便のダイアログから行き先を開いたら、base のステージのプラグイン状態 mail-bird-visit（states.ts）に、その郵便と行き先を置く。
+// 郵便の行き先の物: 郵便箱の画面から行き先を開いたら、base のステージのプラグイン状態 mail-bird-visit（states.ts）に、その郵便と行き先を置く。
 // 行き先の物のレイヤー（MailLayer）が、行き先の物の枠を光らせ、鳥を連れてきて、鳥が飛び去ったら消す。ステージが行き先から離れても消す
 
 import { useCallback } from "react"
@@ -16,7 +16,7 @@ export function useBirdVisit(): BirdVisit | null {
   return visit === NO_STATE ? null : visit
 }
 
-// ステージ stage で、郵便の行き先の物を置く（null で消す）関数（郵便のダイアログが、行き先を開いたステージを名指して置く）
+// ステージ stage で、郵便の行き先の物を置く（null で消す）関数（郵便箱の画面が、行き先を開いたステージを名指して置く）
 export function useSetBirdVisitAt(): (stage: string, visit: BirdVisit | null) => void {
   const set = useSetPluginStateAt(kit, MAIL_BIRD_VISIT)
   const reset = useResetPluginStateAt(kit, MAIL_BIRD_VISIT)

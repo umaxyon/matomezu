@@ -1,4 +1,4 @@
-// 郵便の見せ方: 郵便の種類の定義に、base が拡張ポイントで書き足すフィールド shown（郵便箱の一覧・しおり・ダイアログに出す題と本文）
+// 郵便の見せ方: 郵便の種類の定義に、base が拡張ポイントで書き足すフィールド shown（郵便箱の一覧・しおり・郵便箱の画面に出す題と本文）
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { MessageKey, Params } from "../../../core/i18n/i18n"
 import type { Mail } from "./mail"

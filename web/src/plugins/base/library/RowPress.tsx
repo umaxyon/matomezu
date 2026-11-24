@@ -51,7 +51,7 @@ interface PressOptions {
   open: () => void
 }
 
-// ブックスクリーンと上下に並んでいる（beside）ときの全画面で開くは、並びのブックスクリーンを閉じてから、新しく窓いっぱいに出す（書庫の開くは、並びのブックスクリーンに開く）
+// ブックスクリーンと上下に並んでいる（beside）ときの全画面で開くは、出したブックスクリーンを窓いっぱいにし、並びの物は開いたまま見えなくする（書庫の開くは、並びのブックスクリーンに開く）
 function BookPress({
   opens,
   beside,
@@ -61,7 +61,7 @@ function BookPress({
 }: PressOptions & { opens: BookOpened; beside: boolean; children: (p: RowPress) => ReactNode }) {
   const choice = useBookOpenChoice({
     ...opens,
-    ...(beside ? { fullClosingRows: true } : { full: open }),
+    ...(beside ? { fullOverRows: true } : { full: open }),
     onClick: click,
   })
   return <>{children({ onClick: choice.onClick, onDoubleClick: undefined, bubble: choice.bubble })}</>
