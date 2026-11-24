@@ -3,6 +3,7 @@
 import { aiAuth, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
 import { track } from "./helpers/motion"
+import { fromMenu } from "./helpers/stage-menu"
 
 const BOOK = "[data-current][data-row='true']:not([data-leaving])"
 const WHOLE_OR_ROW = "[data-over]:not([data-leaving])"
@@ -105,7 +106,9 @@ test("分割で開いたブックスクリーンの下の行に閉じると □ 
   await expect(page.getByText("作業のメモ")).toHaveCount(0)
 })
 
-test("ブックスクリーンを 2 枚分割で開くと 2 段で見え、それぞれの下の行に閉じると □ が出る", async ({ page }) => {
+test("ブックスクリーンを 2 枚分割で開くと 2 段で見え、それぞれの下の行に閉じると □ が出る。片方を閉じると、もう片方が窓いっぱいになる", async ({
+  page,
+}) => {
   await page.goto(CONTROL_CENTER_URL)
   await memberWithPage(page, "あお", "あおのメモ")
   await memberWithPage(page, "あか", "あかのメモ")
@@ -128,45 +131,12 @@ test("ブックスクリーンを 2 枚分割で開くと 2 段で見え、そ�
   await settled(page)
   await page.screenshot({ path: "test-results/book-screen-footer-two.png" })
 
-  // 上の段（あか）の閉じる: 押した方だけ閉じ、もう片方は動かずに残る（替えたコントロールセンターの段が、伸び縮みせずに上に戻る）
-  // 文字で見分けた段に印を付け、その印で位置を追う（track は CSS のセレクタで探す）
-  const rowOf = async (text: string, mark: string) => {
-    await page
-      .locator("[data-over]:not([data-leaving])")
-      .filter({ hasText: text })
-      .evaluate((e, m) => {
-        e.setAttribute("data-probe", m)
-      }, mark)
-    return `[data-probe="${mark}"]:not([data-leaving])`
-  }
-  const height = await page.evaluate(() => innerHeight)
-  const [top] = await Promise.all([
-    track(page, { stays: await rowOf("あおのメモ", "stays"), plain: PLAIN }),
-    page.locator("[data-over]").filter({ hasText: "あかのメモ" }).locator("[data-footer-close]").click(),
-  ])
-  expect(new Set(top.flatMap(f => (f.stays ? [Math.round(f.stays.top)] : []))).size).toBe(1)
-  expect(top.every(f => f.plain === null || f.plain.height < height * 0.55)).toBe(true)
+  // 上の段（あか）の閉じる: 押した方だけ閉じ、残った 1 枚（あお）を窓いっぱいに見せる（替えたコントロールセンターの段には戻さない）
+  await page.locator("[data-over]").filter({ hasText: "あかのメモ" }).locator("[data-footer-close]").click()
   await expect(page.getByText("あかのメモ")).toHaveCount(0)
   await expect(page.getByText("あおのメモ").locator("visible=true")).toHaveCount(1)
-  await expect(lineOf("あお")).toBeVisible()
+  await expect(lineOf("あお")).toBeHidden()
   await expect(close).toHaveCount(1)
-  await settled(page)
-
-  // もう一度 2 段にして、下の段（あお）の閉じる: 下が右へ出ていき終えてから、上（あか）が下の段へ降りる
-  await lineOf("あか").click()
-  await page.getByRole("menuitem", { name: "分割で開く" }).click()
-  await expect(close).toHaveCount(2)
-  await settled(page)
-  const width = await page.evaluate(() => innerWidth)
-  const [bottom] = await Promise.all([
-    track(page, { leaving: "[data-leaving]", moves: await rowOf("あかのメモ", "moves"), plain: PLAIN }),
-    page.locator("[data-over]").filter({ hasText: "あおのメモ" }).locator("[data-footer-close]").click(),
-  ])
-  for (const f of bottom) if (f.leaving && f.leaving.left < width - 10) expect(f.moves?.top).toBe(0)
-  expect(bottom.some(f => f.moves && f.moves.top > 10 && f.moves.top < height * 0.45)).toBe(true)
-  expect(bottom.every(f => f.plain === null || f.plain.height < height * 0.55)).toBe(true)
-  await expect(page.getByText("あおのメモ")).toHaveCount(0)
-  await expect(lineOf("あか")).toBeVisible()
 })
 
 test("ブックスクリーンと並んだコントロールセンターの書庫で、ブックのクリックで 2 択を出す。分割で開くと上の段に入り、開くと並びのブックスクリーンを閉じて窓いっぱいに開く", async ({
@@ -191,8 +161,16 @@ test("ブックスクリーンと並んだコントロールセンターの書�
   await expect(line).toBeHidden()
   await settled(page)
 
-  // 上の段を閉じて、コントロールセンターの段に戻し、こんどは開く: 並びのブックスクリーンを閉じて、窓いっぱいに開く
+  // 上の段を閉じると、残ったあおのブックスクリーンが窓いっぱいになる（コントロールセンターの段には戻さない）
   await page.locator("[data-over]").filter({ hasText: "残課題" }).locator("[data-footer-close]").click()
+  await expect(line).toBeHidden()
+  await expect(close).toHaveCount(1)
+  await settled(page)
+  // コントロールセンターへ戻って、もう一度あおを分割で開き、こんどは書庫から開く: 並びのブックスクリーンを閉じて、窓いっぱいに開く
+  await (await fromMenu(page, "コントロールセンター")).click()
+  await line.click()
+  await page.getByRole("menuitem", { name: "分割で開く" }).click()
+  await expect(close).toHaveCount(1)
   await expect(line).toBeVisible()
   await settled(page)
   await library.getByRole("button", { name: "残課題" }).click()

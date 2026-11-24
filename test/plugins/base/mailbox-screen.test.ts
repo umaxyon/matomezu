@@ -184,3 +184,33 @@ test("郵便箱を開く起点: ステージの中ならそのステージ、郵
   expect(mailboxFromOf(NO_STAGE, ticket, false, "s1")).toBe("s1")
   expect(mailboxFromOf(NO_STAGE, ticket, false, NO_STAGE)).toBe("t")
 })
+
+test("チケットを窓いっぱいに見ているときに開くと、チケットを上・郵便箱を下に分ける。「開く」で上の行がブックスクリーンに替わり、チケットは開いたまま見えなくなる。閉じれば、そのブックスクリーンが窓いっぱい", () => {
+  const { store, win, of, run } = setup()
+  const ticket = store.actions.openScreenId("@matomezu/taskboard:ticket-screen", { ticket: "t1" }) as string
+  run(ticket, "mailbox-open")
+  const mailbox = of(MAILBOX)
+  expect(win().arrangementValue).toEqual({ screens: [ticket, mailbox] })
+  // 上の行がブックスクリーンでないので、起点のステージは無い（「開く」1 つ）
+  expect(startStage(win(), mailbox)).toBe(NO_STAGE)
+  const read = () => store.state.getState().window
+  const stage = showBookInUpperRow(store.actions, read, mailbox, SAMPLE_BOOKS[1]?.id ?? "")
+  const book = win().screens.find(s => s.stages?.stages.some(st => st.id === stage))?.id ?? ""
+  expect(win().arrangementValue).toEqual({ screens: [book, mailbox] })
+  expect(win().screens.some(s => s.id === ticket)).toBe(true)
+  run(mailbox, "mailbox-screen-close")
+  expect(win().arrangement).toBe("@matomezu/base:one-screen")
+  expect(win().order.at(-1)).toBe(book)
+  expect(win().screens.some(s => s.id === ticket)).toBe(true)
+})
+
+test("広げると、上の行の物は閉じずに見えなくなる", () => {
+  const { win, of, run } = setup()
+  const book = win().screens.find(s => s.stages !== undefined)?.id ?? ""
+  run("s1", "mailbox-open")
+  const mailbox = of(MAILBOX)
+  run(mailbox, "mailbox-screen-expand")
+  expect(win().arrangement).toBe("@matomezu/base:one-screen")
+  expect(win().order.at(-1)).toBe(mailbox)
+  expect(win().screens.some(s => s.id === book)).toBe(true)
+})

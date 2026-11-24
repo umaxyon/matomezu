@@ -113,6 +113,13 @@
 .plain[data-in="false"] {
   transform: translateX(100%);
 }
+/* 並びから外れて右へ滑り出た物（開いたまま）は、滑り終えたら見せない */
+.plain[data-out="true"] {
+  visibility: hidden;
+  transition:
+    transform var(--screen-slide) ease,
+    visibility 0s linear var(--screen-slide);
+}
 @media (prefers-reduced-motion: reduce) {
   .plain {
     transition: none;

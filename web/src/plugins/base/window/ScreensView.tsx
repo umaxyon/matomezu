@@ -430,6 +430,7 @@ function PlainScreen({
       data-out={out !== null}
       style={place}
       inert={!shown}
+      aria-hidden={!shown}
       onPointerDownCapture={onPress}
     >
       <ScreenView screen={screen} {...(closed ? { closed } : {})} />
