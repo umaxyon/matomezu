@@ -24,9 +24,9 @@ func TestPairedHostRequestsIsAdded(t *testing.T) {
 		return b
 	}
 	want := map[string]string{
-		`SELECT body FROM rec_2 WHERE id = 'h1'`:   `{"id":"h1","listed":"listed","requests":"ask-user"}`,
-		`SELECT body FROM rec_2 WHERE id = 'h2'`:   `{"id":"h2","listed":"listed","requests":"as-user"}`,
-		`SELECT body FROM records WHERE id = 'h3'`: `{"id":"h3","listed":"listed","requests":"ask-user"}`,
+		`SELECT body FROM rec_2 WHERE id = 'h1'`:   `{"id":"h1","listed":"listed","rallyLimit":15,"requests":"ask-user"}`,
+		`SELECT body FROM rec_2 WHERE id = 'h2'`:   `{"id":"h2","listed":"listed","rallyLimit":15,"requests":"as-user"}`,
+		`SELECT body FROM records WHERE id = 'h3'`: `{"id":"h3","listed":"listed","rallyLimit":15,"requests":"ask-user"}`,
 		`SELECT body FROM records WHERE id = 'o1'`: `{"id":"o1"}`,
 	}
 	for q, w := range want {

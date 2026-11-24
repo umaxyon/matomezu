@@ -46,7 +46,7 @@ func remoteMessageHead(from, host string, asUser bool) string {
 }
 
 // sendToHost は、ワークルーム from の参加者から、ホストエイリアス req.Host のペアリングしたホストのワークルーム req.To へ封筒を運ぶ（h.mu を持たずに呼ぶ）
-func (h *Hub) sendToHost(from string, req MessageRequest, now time.Time) MessageSent {
+func (h *Hub) sendToHost(from, fromID string, req MessageRequest, now time.Time) MessageSent {
 	e, target, refused := h.pairedByLabel(req.Host)
 	if target == nil {
 		return refused
@@ -59,12 +59,16 @@ func (h *Hub) sendToHost(from string, req MessageRequest, now time.Time) Message
 		return MessageSent{Reason: "unreachable", Detail: "where host " + req.Host + " listens is not known yet; the message was not sent"}
 	}
 	self := e.config.Identity.HostID
+	h.mu.Lock()
+	rally := h.rallyCountSent(fromID, target.HostID, req.To)
+	h.mu.Unlock()
 	env := Envelope{
 		ID:     newEnvelopeID(),
 		From:   Address{Host: self, Workroom: from},
 		To:     Address{Host: target.HostID, Workroom: req.To},
 		Text:   req.Text,
 		SentAt: storage.Stamp(now),
+		Rally:  rally,
 	}
 	body := mustJSON(env)
 	c := peerClient(e, target.HostID)
@@ -159,7 +163,7 @@ func (h *Hub) receiveEnvelope(env Envelope) MessageSent {
 	if e == nil {
 		return MessageSent{Reason: "unknown-recipient", Detail: "this host does not connect to other hosts now"}
 	}
-	label, asUser := e.peers.labelOf(env.From.Host)
+	label, asUser, limit := e.peers.labelOf(env.From.Host)
 	records, err := h.records()
 	if err != nil {
 		return MessageSent{Reason: "unknown-recipient", Detail: err.Error()}
@@ -168,8 +172,11 @@ func (h *Hub) receiveEnvelope(env Envelope) MessageSent {
 	if err != nil {
 		return MessageSent{Reason: "unknown-recipient", Detail: err.Error()}
 	}
-	open, ok := h.receiveHeld(records, rooms, env, label, asUser)
-	if ok {
+	open, found, delivered := h.receiveHeld(records, rooms, delivery{envelope: env, host: label, peer: env.From.Host, asUser: asUser, limit: limit})
+	if found {
+		if !delivered {
+			return rallyRefusal(env.To.Workroom, limit)
+		}
 		return MessageSent{OK: true, Queued: true}
 	}
 	// 断りの句は、常駐の鍵を放してから自分の一覧を読んで作る（一覧は ps.mu の下）
@@ -177,23 +184,23 @@ func (h *Hub) receiveEnvelope(env Envelope) MessageSent {
 		h.sendableClause(open, "list_workrooms with host and offset", "no AI is in a workroom now")}
 }
 
-// receiveHeld は、h.mu を持って、封筒 env を宛て先のワークルームの AI に届ける。いなければ、AI のいるワークルームの名前 open と false
-func (h *Hub) receiveHeld(records []participantRecord, rooms []workroomRecord, env Envelope, label string, asUser bool) ([]string, bool) {
+// receiveHeld は、h.mu を持って、封筒 d.envelope を宛て先のワークルームの AI に届ける（found。AI ラリーの上限を超えて届けなければ delivered が偽）。
+// いなければ、AI のいるワークルームの名前 open
+func (h *Hub) receiveHeld(records []participantRecord, rooms []workroomRecord, d delivery) (open []string, found, delivered bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	occupant := h.occupants(records)
-	var open []string
 	for _, room := range rooms {
 		if occupant[room.ID] == "" {
 			continue
 		}
 		open = append(open, room.Name)
-		if room.Name == env.To.Workroom {
-			h.deliver(delivery{to: occupant[room.ID], envelope: env, host: label, peer: env.From.Host, asUser: asUser})
-			return nil, true
+		if room.Name == d.envelope.To.Workroom {
+			d.to = occupant[room.ID]
+			return nil, true, h.deliver(d)
 		}
 	}
-	return open, false
+	return open, false, false
 }
 
 // followPeerLines は、行列に残っている、ほかのホストから届いた行を、ペアリングしたホストの今の様子に合わせる: ペアリングを解いたホスト（known に無い）から届いた物は
@@ -286,11 +293,12 @@ func (ps *peerState) byLabel(label string) (*pairedHostRecord, []string) {
 	return found, all
 }
 
-// labelOf は、ペアリングしたホスト hostID のホストエイリアスと、requests が as-user か
-func (ps *peerState) labelOf(hostID string) (string, bool) {
+// labelOf は、ペアリングしたホスト hostID のホストエイリアスと、requests が as-user かと、そのホストから届く AI ラリーの上限
+func (ps *peerState) labelOf(hostID string) (label string, asUser bool, rallyLimit int) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
-	return ps.labelsLocked()[hostID], ps.known[hostID].Requests == requestsAsUser
+	r := ps.known[hostID]
+	return ps.labelsLocked()[hostID], r.Requests == requestsAsUser, rallyLimitOf(r)
 }
 
 // pairedAndAsUser は、ペアリングしたホストの id と、そのうち requests が as-user の物

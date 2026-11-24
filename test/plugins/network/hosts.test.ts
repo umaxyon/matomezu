@@ -12,6 +12,7 @@ const record = (id: string, hostId: string, name: string) => ({
   pairedAt: "2026-11-23T00:00:00.000Z",
   requests: "ask-user" as const,
   listed: "listed" as const,
+  rallyLimit: 15,
 })
 
 test("出す名前は常駐のホストエイリアス、名前は常駐の様子の今の名前を使い、様子が無ければペアリングしたときの名前", () => {

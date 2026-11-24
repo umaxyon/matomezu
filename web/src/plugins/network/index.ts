@@ -14,6 +14,7 @@ import {
   PAIRED_HOST,
   PAIRED_HOST_ADD,
   PAIRED_HOST_LISTED_SET,
+  PAIRED_HOST_RALLY_LIMIT_SET,
   PAIRED_HOST_REMOVE,
   PAIRED_HOST_REQUESTS_SET,
   PAIRING_ACCEPT,
@@ -46,6 +47,7 @@ export const NETWORK_PLUGIN = defineBuiltin(
       PAIRED_HOST_REMOVE,
       PAIRED_HOST_REQUESTS_SET,
       PAIRED_HOST_LISTED_SET,
+      PAIRED_HOST_RALLY_LIMIT_SET,
     ],
     dialogs: [
       PORT_REPICK_DIALOG,
@@ -72,6 +74,7 @@ declare module "../../core/catalog" {
     "@matomezu/network:paired-host-remove": typeof PAIRED_HOST_REMOVE
     "@matomezu/network:paired-host-requests-set": typeof PAIRED_HOST_REQUESTS_SET
     "@matomezu/network:paired-host-listed-set": typeof PAIRED_HOST_LISTED_SET
+    "@matomezu/network:paired-host-rally-limit-set": typeof PAIRED_HOST_RALLY_LIMIT_SET
   }
   interface DialogTable {
     "@matomezu/network:port-repick": typeof PORT_REPICK_DIALOG
