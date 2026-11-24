@@ -32,8 +32,17 @@ export const MailSchema = z.object({
       palette: z.enum(BIRD_PALETTE_IDS).optional(),
     })
     .optional(), // 送信時に参加済みだった送り手と、その時の鳥と配色
+  senderKind: z.enum(["ai", "user"]).optional(), // 送り手が AI か利用者か（無い郵便は AI から。senderKindOf で読む）
 })
 export type Mail = z.output<typeof MailSchema>
+export type MailSenderKind = NonNullable<Mail["senderKind"]>
+
+// 郵便の送り手が AI か利用者か（senderKind の無い郵便は AI から）
+export const senderKindOf = (mail: Pick<Mail, "senderKind">): MailSenderKind => mail.senderKind ?? "ai"
+
+// 郵便を送るアクション（mail-send・proposal-send）の本文の上限。長い事はブックのページに書き、郵便はそこを案内する。
+// 郵便の種類の props は 4000 のまま（残した郵便を確かめるのは props なので、上限を下げても今ある郵便は効かなくならない）
+export const SENT_BODY_MAX = 300
 
 // 番号を振る区切りの名前（郵便は利用者に 1 つの並びなので、区切りは 1 つ）
 export const MAIL_ORDER_SCOPE = "mail"

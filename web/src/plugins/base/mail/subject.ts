@@ -7,15 +7,15 @@ import { kit } from "../kit"
 import { PARTICIPANT, readsParticipantsIn, WORKROOM } from "../participant"
 import { freshId } from "../utils/ids"
 import { keyRowsIn } from "../utils/key-rows"
-import { checkMail, MAIL_ORDER_SCOPE, type Mail, MailSchema, mailsInOrder } from "./mail"
+import { checkMail, MAIL_ORDER_SCOPE, type Mail, MailSchema, mailsInOrder, senderKindOf } from "./mail"
 import { ticketsOnRemoved } from "./removed"
 
-// 郵便のレコードの種類。AI は read_records で読む: 一覧は新しい順に 20 通（題と、種類・送り手・届いた時点・行き先・既読の 2 つ）、中身（props）は id を指して読む
+// 郵便のレコードの種類。AI は read_records で読む: 一覧は新しい順に 20 通（題と、種類・送り手・送り手が AI か人か・届いた時点・行き先・既読の 2 つ）、中身（props）は id を指して読む
 export const MAIL = kit.defineSubject({
   id: "mail",
   title: "Mail",
   aiDescription:
-    "A letter in the user's mailbox (send one with mail-send). Listed newest first: mail (the kind of letter), from, sentAt, to (the place it points at), seenAt (when the user opened the letter; left out: not yet), visitedAt (when the user saw the place it points at; left out: not yet) and brief (a line that tells the letter apart). Its props (title and body, and more for some kinds) come with id or ids. Index keys: seenAt (where {seenAt: {is: absent}} lists the letters the user has not opened yet), visitedAt, to (the id of the book it points at; {to: {is: present}, visitedAt: {is: absent}} lists the letters whose place the user has not seen yet) and order (the number it arrived as).",
+    "A letter in the user's mailbox (send one with mail-send). Listed newest first: mail (the kind of letter), from, senderKind (ai: an AI sent it; user: a person did), sentAt, to (the place it points at), seenAt (when the user opened the letter; left out: not yet), visitedAt (when the user saw the place it points at; left out: not yet) and brief (a line that tells the letter apart). Its props (title and body, and more for some kinds) come with id or ids. Index keys: seenAt (where {seenAt: {is: absent}} lists the letters the user has not opened yet), visitedAt, to (the id of the book it points at; {to: {is: present}, visitedAt: {is: absent}} lists the letters whose place the user has not seen yet) and order (the number it arrived as).",
   numbered: true,
   record: MailSchema,
   // 郵便の種類が機能台帳にあり、その形にも合うか
@@ -36,6 +36,7 @@ export const MAIL = kit.defineSubject({
   aiRow: m => ({
     mail: m.mail,
     from: m.from,
+    senderKind: senderKindOf(m),
     sentAt: m.sentAt,
     ...(m.to ? { to: m.to } : {}),
     ...(m.seenAt ? { seenAt: m.seenAt } : {}),
@@ -96,12 +97,12 @@ function overLimit(mailbox: readonly MailKeys[]): readonly string[] {
   return mailbox.flatMap(m => (drop.has(m.id) ? [m.id] : []))
 }
 
-// 郵便を 1 通足すアクション（mail-send・proposal-send）が返す物: 足す郵便（id と届いた順の番号を振る）と、上限を守るために消す古い郵便と、
+// 郵便を 1 通足すアクション（mail-send・proposal-send）が返す物: 足す郵便（id と届いた順の番号を振り、送り手が AI か利用者かを行った者から決める）と、上限を守るために消す古い郵便と、
 // 消す郵便の種類が答えた AI 編集チケットの変え方（removed.ts。足す郵便のアクションが返す aiEditTickets に入れる）。
 // 今ある郵便は、索引キーだけを ctx.keys から読み（アクションの reads に READS_MAILBOX_KEYS を書く）、消す郵便だけ中身を ctx.record で読む。番号を受け取れなければ null
 export function mailAdded(
   ctx: ActionContext,
-  mail: Omit<Mail, "id" | "order" | "sender">,
+  mail: Omit<Mail, "id" | "order" | "sender" | "senderKind">,
 ): {
   next: Mail
   others: readonly { id: string; record: "removed" }[]
@@ -117,7 +118,13 @@ export function mailAdded(
     mailbox.map(m => m.id),
   )
   const sender = mailSender(ctx)
-  const next: Mail = { ...mail, id, order: ctx.number(MAIL_ORDER_SCOPE), ...(sender ? { sender } : {}) }
+  const next: Mail = {
+    ...mail,
+    id,
+    order: ctx.number(MAIL_ORDER_SCOPE),
+    senderKind: ctx.actor.kind,
+    ...(sender ? { sender } : {}),
+  }
   const dropped = overLimit([...mailbox, { id, seen: false }])
   const gone = dropped.flatMap(id => {
     const mail = ctx.record?.(MAIL.id, id)

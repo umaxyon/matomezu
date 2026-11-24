@@ -3,6 +3,7 @@
 // 既読は 2 つ: 利用者が郵便を開いて見た時点 seenAt（画面の未読の数はこれで数える）と、郵便が示した物を見た時点 visitedAt（AI は read_records でこれを知る）
 import { z } from "zod"
 import { kit } from "../kit"
+import { SENT_BODY_MAX } from "./mail"
 import { ticketsOnRemoved } from "./removed"
 import { MAIL, mailAdded, readsMailSender } from "./subject"
 
@@ -37,14 +38,14 @@ const NO_ARGS = z.strictObject({})
 export const MAIL_SEND = kit.defineAction({
   id: "mail-send",
   aiDescription:
-    "Send a letter to the user's mailbox (it shows at once on the user's screen, wherever the user is). from is a short name telling who sends it (use the same name all through your session, such as your task or work name). title (80 characters at most) and body (optional) are the letter. to points at a place: a book, and optionally a page of it and things (ids) on that page; the user can move there from the letter. The place is not checked now (if it is gone when the user opens the letter, the user is told). The mailbox keeps the newest 200 letters (seen ones go first). Returns the letter's id; read_records (kind @matomezu/base:mail) tells later whether the user saw it and the place.",
+    "Send a letter to the user's mailbox (it shows at once on the user's screen, wherever the user is). from is a short name telling who sends it (use the same name all through your session, such as your task or work name). title (80 characters at most) and body (optional, 300 characters at most) are the letter; body is Markdown. Keep the letter short: write what is longer on a page of a book and point the letter at it with to. to points at a place: a book, and optionally a page of it and things (ids) on that page; the user can move there from the letter. The place is not checked now (if it is gone when the user opens the letter, the user is told). The mailbox keeps the newest 200 letters (seen ones go first). Returns the letter's id; read_records (kind @matomezu/base:mail) tells later whether the user saw it and the place.",
   title: "Send mail",
   target: MAIL.id,
   reads: (_, actor) => readsMailSender(actor),
   args: z.strictObject({
     from: z.string().trim().min(1).max(40),
     title: LetterSchema.shape.title,
-    body: LetterSchema.shape.body.optional(),
+    body: z.string().max(SENT_BODY_MAX).optional(),
     to: ToSchema.optional(),
   }),
   run: (now, args, ctx) => {
