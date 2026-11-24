@@ -29,7 +29,7 @@ export function ChoiceBubble({
   onClose: () => void
 }) {
   const box = useRef<HTMLDivElement>(null)
-  // 測るまでは見せない（測ってから、描く前に置き直す）
+  // 測ってから、描く前に置き直す（隠すと最初の物に焦点を移せないので、隠さない）
   const [placed, setPlaced] = useState<Point | null>(null)
   const { x, y, above } = at
   useLayoutEffect(() => {
@@ -59,7 +59,7 @@ export function ChoiceBubble({
     <div
       ref={box}
       className={styles.bubble}
-      style={placed ? { left: placed.x, top: placed.y } : { left: at.x, top: at.y, visibility: "hidden" }}
+      style={{ left: (placed ?? at).x, top: (placed ?? at).y }}
       role="menu"
       onKeyDown={e => {
         if (e.key !== "Escape") return
