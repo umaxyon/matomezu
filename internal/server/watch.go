@@ -80,7 +80,7 @@ type wakeItem struct {
 	participant string    // 宛て先の参加者の id
 	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage・wakeUpdate・wakeHost
 	line        string    // 流す 1 行
-	from        string    // AI 間メッセージの送り手のワークルーム名
+	head        string    // AI 間メッセージの、送り手を名乗る頭（messageHead）
 	body        string    // AI 間メッセージの本文（JSON の文字列にした物。改行を受ける通り道には、送り手の行のあとの行で流す）
 	pointed     bool      // 1 回の知らせに入りきらず、通り道に「届いた」だけを渡した（本文は呼び出しの返事で渡す）
 	replyOnly   bool      // 通り道の AI のプログラムにその会話が無かった（absent）。呼び出しの返事だけで渡す
@@ -293,12 +293,12 @@ func (h *Hub) nextWake(l *wakeLine, now time.Time) (WakeOut, bool) {
 	pick.lentPointer = !l.limits.fits(pick.line)
 	text := pick.line
 	if l.limits.Breaks && pick.kind == wakeMessage {
-		text = messageHead(pick.from) + "\n" + pick.body
+		text = pick.head + "\n" + pick.body
 	}
 	if pick.lentPointer {
 		head := "matomezu:"
 		if pick.kind == wakeMessage {
-			head = messageHead(pick.from)
+			head = pick.head
 		}
 		text = head + " too long, call any matomezu tool"
 	}

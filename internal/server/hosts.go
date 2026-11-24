@@ -109,6 +109,14 @@ func (h *Hub) HostStatus() HostStatus {
 	return e.status
 }
 
+// selfHostID は、このホストのホスト id（SetHostEntrance の前は空）。鍵は立ったあと変わらないので、どの鍵も持たずに読める（h.mu を持っていてもよい）
+func (h *Hub) selfHostID() string {
+	if e := h.entrance.Load(); e != nil {
+		return e.config.Identity.HostID
+	}
+	return ""
+}
+
 // CloseHostEntrance は、入口を閉じ、そのあとは開かない（常駐が止まるとき）
 func (h *Hub) CloseHostEntrance() {
 	e := h.entrance.Swap(nil)
