@@ -574,10 +574,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const setPluginStateById = (
     id: string,
     value: unknown,
-    caller: { screen?: string; screenDef?: string; stage?: string },
+    caller: { screen?: string; screenDef?: string; stage?: string; ifNow?: { value: unknown } },
   ): boolean => {
     const at = pluginPlaceById(defs.catalog.store.pluginStates, getState().window, id, value, caller)
     if (at === null) return false
+    const def = defs.catalog.store.pluginStates.get(id)
+    if (caller.ifNow !== undefined && def !== undefined) {
+      const now = pluginValueOf(getState().pluginValues, at, def) ?? def.default
+      if (!sameData(now, caller.ifNow.value)) return false
+    }
     setPluginState(id, at, value)
     return true
   }

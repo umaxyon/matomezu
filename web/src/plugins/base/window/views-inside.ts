@@ -7,6 +7,9 @@ import type { CoreCatalog } from "../../../core/core-catalog"
 export interface ViewInside {
   readonly state: string // 画面の場所に入れるプラグイン状態の宣言の id（スクリーンの持ち主の物）
   readonly value: unknown // その画面を出すときの値
+  // その base のスクリーンを新しく開くとき（中に描いていないスクリーンから開くとき）、中の画面をほかの画面に替える値（無ければ替えない）。
+  // 開く側のフックが、宣言の値が value なら、新しく開くのと同じ同期の処理の中で入れる（ブラウザの履歴は 1 つ）
+  readonly away?: unknown
 }
 
 declare module "../../../core/catalog" {

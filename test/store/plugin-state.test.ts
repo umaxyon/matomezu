@@ -236,3 +236,21 @@ test("値の場所は範囲で決まる: 窓の範囲は WINDOW_PLACE、ステ�
   expect(placeAt("stage", "s1")).toBe("s1")
   expect(placeAt("stage", WINDOW_PLACE)).toBeNull()
 })
+
+test("id と値で入れる道の ifNow: 書き先の今の値（無ければ宣言の既定）が同じときだけ入れる", () => {
+  const instance = make()
+  const id = "@matomezu/control-center:content-area"
+  const screenDef = "@matomezu/control-center:screen"
+  const center = instance.state.getState().window.screens.find(s => s.def === screenDef)!.id
+  const now = () => instance.state.getState().pluginValues.screens[center]?.[id]
+  // 値が無ければ既定（projects）と比べる
+  expect(instance.setPluginStateById(id, "library", { screenDef, ifNow: { value: "mailbox" } })).toBe(false)
+  expect(now()).toBeUndefined()
+  expect(instance.setPluginStateById(id, "mailbox", { screenDef, ifNow: { value: "projects" } })).toBe(true)
+  expect(now()).toBe("mailbox")
+  // 違えば入れない・同じなら入れる
+  expect(instance.setPluginStateById(id, "projects", { screenDef, ifNow: { value: "library" } })).toBe(false)
+  expect(now()).toBe("mailbox")
+  expect(instance.setPluginStateById(id, "projects", { screenDef, ifNow: { value: "mailbox" } })).toBe(true)
+  expect(now()).toBe("projects")
+})

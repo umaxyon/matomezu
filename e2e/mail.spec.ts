@@ -4,6 +4,7 @@
 import {
   aiAuth,
   BOOK_SCREEN_URL,
+  CONTROL_CENTER_URL,
   expect,
   joinedAiAuth,
   type Page,
@@ -315,4 +316,40 @@ test("「開く」は、行き先のブックを上の段に新しいブック�
       .map(x => x.g?.l[0]?.b),
   ).toEqual([book, other])
   await expect(mailboxPane(page)).toBeVisible()
+})
+
+test("フッタの封筒で郵便箱のスクリーンを開くと、コンテンツエリアに郵便箱を出していたコントロールセンターはプロジェクトに戻る。戻る 1 回で両方が戻る", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  const book = ((await storedBooks(page.request)) as { id: string }[])[0]?.id
+  await page.goto(CONTROL_CENTER_URL)
+  await page.bringToFront()
+  await aiPerform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "行き先", to: { book } } })
+  const tile = (name: string) => page.getByRole("button", { name, exact: true }).filter({ visible: true }).first()
+  const panes = mailboxPane(page).locator("visible=true")
+  // コンテンツエリアに郵便箱を出し、郵便の行き先を窓いっぱいに開いて、フッタの封筒で郵便箱のスクリーンを出す
+  await tile("郵便箱").click()
+  await panes
+    .getByRole("listitem")
+    .getByRole("button", { name: /行き先/ })
+    .first()
+    .click()
+  await panes.locator("article").getByRole("button", { name: "開く", exact: true }).click()
+  await expect(panes).toHaveCount(0)
+  await (await fromMenu(page, "郵便箱")).click()
+  await expect(panes).toHaveCount(1)
+  // 戻る 1 回で、郵便箱のスクリーンが閉じ、コントロールセンターのコンテンツエリアも郵便箱のまま
+  await page.goBack()
+  await expect(panes).toHaveCount(0)
+  await (await fromMenu(page, "コントロールセンター")).click()
+  await expect(tile("郵便箱")).toHaveAttribute("aria-pressed", "true")
+  // もう一度開いた所から封筒を押すと、コントロールセンターはプロジェクトに戻る
+  await page.goBack()
+  await (await fromMenu(page, "郵便箱")).click()
+  await expect(panes).toHaveCount(1)
+  await page.getByRole("button", { name: "郵便箱を閉じる" }).filter({ visible: true }).click()
+  await (await fromMenu(page, "コントロールセンター")).click()
+  await expect(tile("郵便箱")).toHaveAttribute("aria-pressed", "false")
+  await expect(tile("プロジェクト")).toHaveAttribute("aria-pressed", "true")
 })

@@ -52,7 +52,7 @@ export const CONTROL_CENTER_SCREEN = kit.defineScreen({
   shownLibraryAppearances: read => (read(CONTENT_AREA) === "library" ? ["@matomezu/base:library"] : []),
   // 郵便箱と書庫は、コンテンツエリアの画面に出す（しおりや読めない物の知らせの［見る］を押せば、郵便箱・書庫のスクリーンを開かずに、ここに替える）
   viewsInside: {
-    "@matomezu/base:mailbox-screen": { state: CONTENT_AREA.id, value: "mailbox" },
+    "@matomezu/base:mailbox-screen": { state: CONTENT_AREA.id, value: "mailbox", away: "projects" },
     "@matomezu/base:library-screen": { state: CONTENT_AREA.id, value: "library" },
   },
 })

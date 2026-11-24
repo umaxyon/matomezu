@@ -305,11 +305,12 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // ほかのプラグインの宣言に値を入れる道: 画面の場所に入れる宣言（address を持つ）の id と値だけで、宣言の形で確かめて入れる。入れたら true。
   // 宣言が無い・address が無い・形に合わない値・場所の無い範囲（ステージの宣言でステージを渡さない・開いていないスクリーン）は、何もせず false。
   // ステージの宣言は caller.stage のステージの値、窓の宣言は窓の値。スクリーンの宣言は、caller.screenDef（書き先のスクリーンの定義の id）の開いているスクリーン（複数なら最後にカレントにした 1 枚）の値、
-  // screenDef を渡さなければ caller.screen（呼んだビューがいるスクリーン）の値（窓のカレントスクリーンには落とさない）。同じ値なら何も変わらない（ブラウザの履歴に積まない）
+  // screenDef を渡さなければ caller.screen（呼んだビューがいるスクリーン）の値（窓のカレントスクリーンには落とさない）。同じ値なら何も変わらない（ブラウザの履歴に積まない）。
+  // ifNow を渡すと、その場所の今の値（無ければ宣言の既定）が ifNow と同じときだけ入れる（違えば何もせず false。base だけが使い、プラグイン API には出さない）
   setPluginStateById(
     id: string,
     value: unknown,
-    caller: { screen?: string; screenDef?: string; stage?: string },
+    caller: { screen?: string; screenDef?: string; stage?: string; ifNow?: { value: unknown } },
   ): boolean
   // 複数の値をまとめて書く（store には 1 回で書く。途中の、片方だけ変わった状態を知らせない）。1 つでも知らない id・範囲違い・形違いがあれば、何も書かずに error
   setPluginStates(changes: readonly (readonly [id: string, at: PluginPlace, value: unknown])[]): void
