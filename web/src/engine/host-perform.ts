@@ -1,7 +1,7 @@
 // 常駐が受けたアクションバルクを、台帳アセンブルの結果（Assembled）の機能台帳で世界（ブックと設定）に行い、変わったものを返す。
 // 台帳アセンブルの結果は、呼ぶたびに引数で受ける。振る id と時点は、受けた物が無ければここで決める
 
-import { actorOfWire, type WireActor } from "../core/actor"
+import { type Actor, actorOfWire, isAI, type WireActor, workroomOfActor } from "../core/actor"
 import { type Annotations, restoreAnnotations } from "../core/annotation"
 import { findPage, foundPage, pageById, pagesOf, readLibrary } from "../core/book"
 import { bulkActionOf, type LibraryRows, performBulk } from "../core/bulk"
@@ -197,7 +197,11 @@ export function perform(of: Assembled, input: Input): Output {
     id => atOutsidePagePlace(tables.folders, id) || atOutsideBinderPlace(tables.folders, id),
   )
   const restoring = binned.restored.filter(id => id in next)
-  const notice = [shiftNotice(books, changed, tables, after), followedNotice(done.followed ?? [])]
+  const notice = [
+    shiftNotice(books, changed, tables, after),
+    followedNotice(done.followed ?? []),
+    ownHostNotice(done.hostMessages ?? [], actor),
+  ]
     .filter(n => n !== null)
     .join(" ")
   const changes = done.changes ?? NO_CHANGES
@@ -284,6 +288,13 @@ function shiftNotice(
   return moved.length
     ? `The contents of a variable page were shifted by whole papers, so every position there changed (${moved.join("; ")}); read_page before using positions.`
     : null
+}
+
+// 行った AI のワークルームに宛てた常駐メッセージ（常駐は送らないので、結果の知らせで渡す）
+function ownHostNotice(messages: readonly HostMessage[], actor: Actor): string | null {
+  if (!isAI(actor)) return null
+  const own = messages.filter(m => m.workroom === workroomOfActor(actor)).map(m => m.text)
+  return own.length > 0 ? own.join(" ") : null
 }
 
 // フォローステップが応じて変えたレコードがあれば、AI への知らせ（アクションのほかに変わった物）

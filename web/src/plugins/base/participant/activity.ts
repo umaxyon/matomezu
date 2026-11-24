@@ -24,8 +24,8 @@ function narrowed(reader: RecordReader, subjects: Iterable<string>): RecordReade
   }
 }
 
-// 作業中なら、取り組んでいるレコード key（種類と id）
-export type WorkroomWork = { kind: "working"; key: WorkKey } | { kind: "idle" }
+// 作業中なら、取り組んでいるレコード key（種類と id）。空きなら、そのワークルームの AI に参加の文と作業机で添える英語の文 forAi（答える種類が決める。次に取り組む物など）
+export type WorkroomWork = { kind: "working"; key: WorkKey } | { kind: "idle"; forAi?: string }
 export type WorkroomActivity = WorkroomWork["kind"]
 
 declare module "../../../core/catalog" {
@@ -77,16 +77,20 @@ export const workroomWorkReadsOf = (catalog: CoreCatalog): readonly string[] => 
 ]
 
 // レコードの読み口 read から、ワークルーム workroom の作業を答える: 答える種類のうち、機能台帳の並びで最初に作業中と答えた物。
-// 答える種類があってどれも作業中でなければ空き、答える種類が無ければ unknown。どの種類にも、その workroomWorkReads の種類だけを読ませる
+// 答える種類があってどれも作業中でなければ空き（forAi は答えた種類の物を並びの順につなぐ）、答える種類が無ければ unknown。
+// どの種類にも、その workroomWorkReads の種類だけを読ませる
 export function workroomWorkIn(catalog: CoreCatalog, read: RecordReader, workroom: string): WorkroomWork | "unknown" {
   let answered = false
+  const forAi: string[] = []
   for (const s of catalog.subjects.values()) {
     if (!s.workroomWork) continue
     answered = true
     const work = s.workroomWork(workroom, narrowed(read, s.workroomWorkReads ?? []))
     if (work.kind === "working") return work
+    if (work.forAi) forAi.push(work.forAi)
   }
-  return answered ? { kind: "idle" } : "unknown"
+  if (!answered) return "unknown"
+  return forAi.length > 0 ? { kind: "idle", forAi: forAi.join(" ") } : { kind: "idle" }
 }
 
 // 読み口 source から、ワークルーム workroom の作業を答える（workroomWorkIn。読むのは workroomWorkReads に書いた種類だけ）

@@ -78,3 +78,18 @@ test("チケットの作業は、完了のレーンに入ったときだけ終�
   expect(ends(ticket("todo"), ticket("doing"))).toBe(false)
   expect(TICKET.completesWorkReads?.("none", ticket("done"))).toEqual([{ subject: PROJECT.id, id: "p" }])
 })
+
+test("カレントチケットが終わり、担当で作業中のレーンに 2 枚以上残れば、その並びを知らせ、どれにするかを利用者に聞くように言う", () => {
+  const b = board()
+  const r = b.room("r")
+  const t1 = b.ticket({ assignees: [r] })
+  const t2 = b.ticket({ assignees: [r] })
+  const t3 = b.ticket({ assignees: [r] })
+  const texts = (d: Done) => (d.hostMessages ?? []).filter(m => m.workroom === r).map(m => m.text)
+  const [text] = texts(b.user("ticket-complete", {}, { record: t1 }))
+  expect(text).toContain("no current ticket")
+  expect(text).toContain("Ask the user which one")
+  expect(text).toContain(t2)
+  expect(text).toContain(t3)
+  expect(text).not.toContain(t1)
+})
