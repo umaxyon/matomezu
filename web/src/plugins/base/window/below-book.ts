@@ -17,11 +17,27 @@ import { applySplitFrom } from "./apply-split"
 import { ONE_SCREEN } from "./one-screen"
 import { behindOf, planClose, planExpand, SPLIT_ROWS, splitOf } from "./split"
 
+const NO_BOOK_SCREEN = "none"
+
+// 下の段のスクリーンを出す上の段のブックスクリーン: 呼んだスクリーン called がブックスクリーンならそれ、ブックスクリーンと上下に並んでいる下の段のスクリーンなら
+// そのブックスクリーン（下の段を入れ替える）。どちらでもなければ NO_BOOK_SCREEN
+function bookOf(
+  screens: readonly Pick<OpenScreen, "id" | "stages">[],
+  value: unknown,
+  called: string,
+  stages: boolean,
+): string {
+  if (stages) return called
+  const rows = splitOf(screens, value)
+  if (!rows.includes(called)) return NO_BOOK_SCREEN
+  return rows.find(id => screens.find(s => s.id === id)?.stages) ?? NO_BOOK_SCREEN
+}
+
 type Arranged = Pick<OpenScreen, "id" | "stages" | "stageList" | "currentStage">
 type Store = Pick<Actions, "closeScreen" | "setScreenArrangement" | "makeScreenCurrent">
 
 // スクリーンの定義 def のスクリーンを、呼んだスクリーンの下の段に出して、その id を返す（出せなければ SCREEN_REFUSED）。開いていれば、新しく開かずにそれを使う。
-// 呼んだのがステージの無いスクリーンなら、窓いっぱいに出す
+// 呼んだのがブックスクリーンと上下に並んでいる下の段のスクリーンなら、下の段を入れ替える。ほかのステージの無いスクリーンなら、窓いっぱいに出す
 export function openBelowBook(
   ctx: ScreenCommandContext,
   a: CommandActions,
@@ -32,14 +48,15 @@ export function openBelowBook(
   const opened = screens.find(s => s.def === def)?.id
   const below = opened ?? store.openScreenId(def, {})
   if (below === SCREEN_REFUSED) return below
-  if (!ctx.screen.stages) {
+  const value = arrangementValueIn(ctx)
+  const book = bookOf(screens, value, calledScreenIdOf(ctx), ctx.screen.stages)
+  if (book === NO_BOOK_SCREEN) {
     store.setScreenArrangement(ONE_SCREEN.id)
     store.makeScreenCurrent(below)
     return below
   }
-  const book = calledScreenIdOf(ctx)
-  // 前の並び（コントロールセンターとチケットなど）は behind に覚え、下の段のスクリーンを閉じたら戻す
-  const before = splitOf(screens, arrangementValueIn(ctx)).filter(id => id !== below && id !== book)
+  // 前の並び（コントロールセンターとチケットなど・下の段のほかのスクリーン）は behind に覚え、下の段のスクリーンを閉じたら戻す
+  const before = splitOf(screens, value).filter(id => id !== below && id !== book)
   store.setScreenArrangement(SPLIT_ROWS.id, { screens: [book, below], behind: before })
   store.makeScreenCurrent(below)
   return below
@@ -53,7 +70,11 @@ export function leaveBelowBook(store: Store, screens: readonly Arranged[], value
     return
   }
   const stages = screens.filter(s => s.stages).map(s => s.id)
-  applySplitFrom(store, screens, value, planClose(rows, behindOf(screens, value), below, stages))
+  const plan = planClose(rows, behindOf(screens, value), below, stages)
+  applySplitFrom(store, screens, value, plan)
+  // 1 枚に戻すなら、上の段のブックスクリーンを出す（下の段を入れ替えて後ろへ回した物は、開いたまま後ろに置く）
+  const book = rows.find(id => id !== below && stages.includes(id))
+  if (plan.screens.length === 0 && book !== undefined) store.makeScreenCurrent(book)
 }
 
 // 下の段のスクリーン below を窓いっぱいに広げる（同じスクリーンのまま。並べていたブックスクリーンは開いたまま後ろへ）

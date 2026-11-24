@@ -121,7 +121,15 @@ function MailDialogBody({ stage, mail: mailId, onClose }: { stage: string; mail:
         {Actions ? (
           <>
             <ActionButton onClick={onClose}>{t("Close")}</ActionButton>
-            <Actions mail={mail} onClose={onClose} dock={() => setDocked(true)} />
+            <Actions
+              mail={mail}
+              showPlace={() => {
+                if (!mail.to) return
+                setDocked(true)
+                showPlace(stage, mail)
+                if (!mail.visitedAt) actions.perform(MAIL_VISITED.id, {}, { record: mail.id })
+              }}
+            />
           </>
         ) : opens ? (
           <>

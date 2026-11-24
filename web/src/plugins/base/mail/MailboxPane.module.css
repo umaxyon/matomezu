@@ -1,0 +1,164 @@
+/* 郵便箱の画面: 左に受信トレイ、右に選んだ郵便（2:3） */
+.pane {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  min-height: 0;
+  background: var(--skin-stage);
+  color: var(--skin-text);
+  outline: none;
+}
+.inbox {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--skin-border);
+}
+/* 受信トレイの上: タブ「AI｜人」と、右の端にゴミ箱 */
+.head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--skin-border);
+}
+.head svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tabs {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+}
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--skin-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.tab:hover {
+  background: var(--skin-btn-hover);
+}
+.tab[aria-selected="true"] {
+  border-color: var(--skin-border);
+  color: var(--skin-text);
+  font-weight: 600;
+}
+.count {
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--skin-accent);
+  color: var(--skin-on-accent);
+  font-size: 10px;
+  text-align: center;
+}
+.empty {
+  margin: 12px;
+  color: var(--skin-text-muted);
+  font-size: 13px;
+}
+.rows {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+/* 行: 左にチェックボックス、右に 2 行（未読の印・送り手・時刻と、題・種類の印） */
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--skin-border);
+}
+.row[data-picked="true"] {
+  background: var(--skin-btn);
+  outline: 1px solid var(--skin-accent);
+  outline-offset: -1px;
+}
+.check {
+  flex: none;
+  margin: 3px 0 0;
+}
+.open {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.from {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--skin-text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.time {
+  flex: none;
+  color: var(--skin-text-muted);
+  font-size: 11px;
+}
+.title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row[data-read="false"] .title {
+  font-weight: 600;
+}
+/* 選んだ郵便: 題・送り手と時刻・本文（マークダウン）・右下に行き先のボタン */
+.reader {
+  min-height: 0;
+  overflow-y: auto;
+}
+.letter {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 12px 16px;
+  box-sizing: border-box;
+}
+.subject {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.body {
+  flex: 1;
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}

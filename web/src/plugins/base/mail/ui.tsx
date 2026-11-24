@@ -84,4 +84,5 @@ function MailboxButton() {
 }
 
 export { useMailboxPanel } from "./hooks"
+export { MAILBOX_SCREEN_VIEW } from "./screen-ui"
 export { MAIL_ACTIONS, type MailActionsProps } from "./slots"

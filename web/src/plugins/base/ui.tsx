@@ -34,6 +34,7 @@ import {
   MAIL_LAYER,
   MAIL_WATCH,
   MAILBOX_BUTTON,
+  MAILBOX_SCREEN_VIEW,
   MAILBOX_TAB,
   PROPOSAL_ACTIONS,
 } from "./mail/ui"
@@ -296,6 +297,7 @@ export const BASE_UI = definePluginUi(BASE, {
     WINDOW,
     SCREENS_WIDGET,
     LIBRARY_SCREEN_VIEW,
+    MAILBOX_SCREEN_VIEW,
     WORKSPACE,
     DIALOG_HOST,
     MENU_HOST,
@@ -427,6 +429,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:screens-view": typeof SCREENS_WIDGET
     "@matomezu/base:workspace": typeof WORKSPACE
     "@matomezu/base:library-screen-view": typeof LIBRARY_SCREEN_VIEW
+    "@matomezu/base:mailbox-screen-view": typeof MAILBOX_SCREEN_VIEW
     "@matomezu/base:dialog-host": typeof DIALOG_HOST
     "@matomezu/base:menu-host": typeof MENU_HOST
     "@matomezu/base:toast-host": typeof TOAST_HOST
