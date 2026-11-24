@@ -422,7 +422,7 @@ test("AI の show は、ステージも split も言わなければ窓に出す�
   expect(bookScreens(store).map(s => s.books)).toEqual([["b2"], ["b3"]])
 })
 
-test("場所を当てはめても、ブックスクリーンは 3 枚まで。ブックスクリーンの無い場所は、今の 1 枚を後ろに残す", () => {
+test("場所を当てはめても、窓のスクリーンは 3 つまで。ブックスクリーンの無い場所は、今の 1 枚を後ろに残す", () => {
   const store = newStore({ bookScreen: "none" })
   const none = store.address()
   store.actions.showBook("b1")

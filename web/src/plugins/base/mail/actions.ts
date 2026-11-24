@@ -6,7 +6,7 @@ import { ticketsOnRemoved } from "./removed"
 import { MAIL, mailAdded, readsMailSender } from "./subject"
 
 const LetterSchema = z.strictObject({
-  title: z.string().trim().min(1).max(80), // 題（一覧・しおり・ダイアログの見出し）
+  title: z.string().trim().min(1).max(80), // 題（一覧・しおり・郵便箱の画面の見出し）
   body: z.string().max(4000), // 本文（空でもよい）
 })
 export type LetterProps = z.output<typeof LetterSchema>
@@ -18,7 +18,7 @@ export const MAIL_LETTER = kit.defineMail({
     "A letter to the user: title, an optional body, and an optional place it points at (to: a book, a page in it, things on the page). The user opens it from their mailbox and moves to the place from it.",
   props: LetterSchema,
   aiBrief: (p: LetterProps) => p.title,
-  // 一覧・しおり・ダイアログに出す題と本文
+  // 一覧・しおり・郵便箱の画面に出す題と本文
   shown: { title: (p: LetterProps) => p.title, body: (p: LetterProps) => p.body },
 })
 

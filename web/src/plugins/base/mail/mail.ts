@@ -42,7 +42,7 @@ export type Mail = z.output<typeof MailSchema>
 export type MailSenderKind = Mail["senderKind"]
 
 // 郵便を送るアクション（mail-send・proposal-send）の本文の上限。長い事はブックのページに書き、郵便はそこを案内する。
-// 郵便の種類の props は 4000 のまま（残した郵便を確かめるのは props なので、上限を下げても今ある郵便は効かなくならない）
+// 送るときの上限で、残した郵便を確かめる郵便の種類の props の上限とは別
 export const SENT_BODY_MAX = 300
 
 // 番号を振る区切りの名前（郵便は利用者に 1 つの並びなので、区切りは 1 つ）

@@ -1,5 +1,5 @@
 // 郵便箱の画面の、選んだ郵便の行き先を開くボタン: 画面の分割の状態から、どのボタンを並べ、どれを決めるボタン（Enter）にするかを決める純粋な計算と、押したボタンで開くステージ。
-// 1 画面なら「開く」（このステージ）と「分割で開く」（右に分けたステージ）、2 画面なら「左に開く」「右に開く」。決めるボタンは、ダイアログを出したステージで開くボタン
+// 1 画面なら「開く」（このステージ）と「分割で開く」（右に分けたステージ）、2 画面なら「左に開く」「右に開く」。決めるボタンは、行き先を開くステージで開くボタン
 import type { Workspace } from "../../../core/workspace"
 
 export type OpenChoice = "here" | "split" | "left" | "right"
@@ -9,7 +9,7 @@ export interface OpenChoices {
   primary: OpenChoice
 }
 
-// ダイアログを出したステージ stage で、行き先がある郵便の開くボタン（stage が無ければ、ボタンを出さない）
+// 行き先を開くステージ stage で、行き先がある郵便の開くボタン（stage が無ければ、ボタンを出さない）
 export function openChoices(ws: Pick<Workspace, "stages">, stage: string): OpenChoices | null {
   const index = ws.stages.findIndex(s => s.id === stage)
   if (index < 0) return null

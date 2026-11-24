@@ -32,7 +32,7 @@ const SnapshotSchema = z.record(z.string(), z.record(z.string(), z.unknown()))
 type Snapshot = z.output<typeof SnapshotSchema>
 
 const ProposalSchema = z.strictObject({
-  title: z.string().trim().min(1).max(80), // 題（一覧・しおり・ダイアログの見出し）
+  title: z.string().trim().min(1).max(80), // 題（一覧・しおり・郵便箱の画面の見出し）
   body: z.string().max(4000), // 本文（AI が書いた変更の説明。空でもよい）
   book: z.string().min(1), // 変えるブック
   page: z.string().min(1).optional(), // 変えるページ（許可スコープ。ページを持たないブックや、いくつものページを変えるなら無い）

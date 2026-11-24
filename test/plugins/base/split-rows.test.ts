@@ -53,7 +53,7 @@ test("開く: 分けていなければ起点と 2 枚で分け、分けていれ
   expect(planOpen(["c1", "c3"], "c3", "c4", "after", 3)).toEqual({ screens: ["c1", "c3", "c4"] })
 })
 
-test("閉じる: 閉じる物を閉じ、残りが 1 枚なら分けるのをやめて、残った物をカレントスクリーンにする（前の並びには戻さない）。ステージを並べるかで分けない", () => {
+test("閉じる: 閉じる物を閉じ、残りが 1 枚なら分けるのをやめて、残った物をカレントスクリーンにする。ステージを並べるかで分けない", () => {
   expect(planClose(["c4", "c3"], "c4")).toEqual({ screens: [], closing: ["c4"], current: "c3" })
   expect(planClose(["b1", "lib"], "lib")).toEqual({ screens: [], closing: ["lib"], current: "b1" })
   // 3 枚から 1 枚を閉じれば、残りで分けたまま

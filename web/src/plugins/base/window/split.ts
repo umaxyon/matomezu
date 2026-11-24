@@ -125,7 +125,7 @@ export function planAt(split: readonly string[], index: number, added: string): 
   return { screens: split.map((id, i) => (i === index ? added : id)) }
 }
 
-// 分けた並びから target を閉じる。残りが 1 枚なら分けるのをやめ、残った物をカレントスクリーンにして窓いっぱいに見せる（前の並びには戻さない）
+// 分けた並びから target を閉じる。残りが 1 枚なら分けるのをやめ、残った物をカレントスクリーンにして窓いっぱいに見せる
 export function planClose(split: readonly string[], target: string): SplitPlan {
   const rest = split.filter(id => id !== target)
   if (rest.length >= 2) return { screens: rest, closing: [target] }
