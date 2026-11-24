@@ -38,6 +38,24 @@ func TestCheckUpdateTellsTheWindows(t *testing.T) {
 	}
 }
 
+// 更新の様子の知らせは、窓の出入りと重なっても窓の並びを h.mu で守る（go test -race で留める）
+func TestUpdateStatusIsToldUnderTheLockWhileWindowsComeAndGo(t *testing.T) {
+	h := emptyHub(t)
+	latest, _ := fakeLatest("1.1.0", true, nil)
+	h.SetUpdateCheck("1.0.0", latest)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for range 200 {
+			h.Leave(h.Join())
+		}
+	}()
+	for range 200 {
+		h.CheckUpdate(context.Background())
+	}
+	<-done
+}
+
 // 聞けなかった確かめは、頼んだかによらず前の結果（新しい版）を残す。利用者が頼んだときだけ誤りを返す
 func TestAFailedCheckKeepsTheLastResult(t *testing.T) {
 	h := emptyHub(t)
