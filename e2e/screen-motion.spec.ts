@@ -9,8 +9,20 @@ import { storedBooks } from "./helpers/stored"
 const BOOK = "[data-over]:not([data-leaving])"
 const PLAIN = "section [data-top]"
 
+// スクリーンの動きが止まるまで待つ（郵便を送ると流れるマーキー（role="status"）は、スクリーンの動きと関わらないので待たない）
 const settled = (page: Page) =>
-  expect.poll(() => page.evaluate(() => document.getAnimations().filter(a => a.playState === "running").length)).toBe(0)
+  expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          document
+            .getAnimations()
+            .filter(a => a.playState === "running")
+            .filter(a => !((a.effect as KeyframeEffect | null)?.target as Element | null)?.closest('[role="status"]'))
+            .length,
+      ),
+    )
+    .toBe(0)
 
 test("「画面を分割」では、ブックスクリーンが上に縮み終えてから、書庫のスクリーンが右から入る", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)

@@ -9,7 +9,7 @@
 // 並びに入れたブックスクリーンは上の行に描き、押せばカレントスクリーンにする。その間、並びに入っていないステージを並べないスクリーンは見せない。
 // ステージを並べないスクリーンが出ている間の下の行は、スロット screen-footer に置いたウィジェットを並べる（置いた物が無ければ、下の行を描かない）
 
-import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { type CSSProperties, type TransitionEvent, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { NO_STATE } from "../../../core/def/plugin-state"
 import { bookScreenCurrent, type OpenedScreen, recentBookScreen, recentPlainScreen } from "../../../core/window"
@@ -20,6 +20,7 @@ import { useLayout, useMatomezuState, useReadState, useStoreActions } from "../.
 import { kit } from "../kit"
 import footerRow from "../utils/FooterRow.module.css"
 import styles from "./ScreensView.module.css"
+import { ScreenSlidingContext } from "./screen-sliding"
 import { SLIDE_MS } from "./slide"
 import { SCREEN_FOOTER } from "./slots"
 import { SCREEN_FLASH, SPLIT_ROWS } from "./split"
@@ -376,6 +377,14 @@ function BookScreen({
     wasOver.current = slidesOver
   })
   useSlideFrames(entered, true, setEntered, waits, setWaits)
+  // 箱の位置か大きさを動かしている間（箱そのものの transition だけを数える。中の物の transition は数えない）
+  const running = useRef(0)
+  const [sliding, setSliding] = useState(false)
+  const slide = (e: TransitionEvent<HTMLDivElement>, by: 1 | -1) => {
+    if (e.target !== e.currentTarget || !SLIDING.has(e.propertyName)) return
+    running.current = Math.max(0, running.current + by)
+    setSliding(running.current > 0)
+  }
   return (
     <div
       className={styles.bookScreen}
@@ -391,11 +400,19 @@ function BookScreen({
       style={row ? ({ "--row-index": row.index, "--row-of": row.of } as CSSProperties) : undefined}
       inert={inert}
       onPointerDownCapture={onPress}
+      onTransitionRun={e => slide(e, 1)}
+      onTransitionEnd={e => slide(e, -1)}
+      onTransitionCancel={e => slide(e, -1)}
     >
-      <ScreenView screen={screen} />
+      <ScreenSlidingContext value={sliding}>
+        <ScreenView screen={screen} />
+      </ScreenSlidingContext>
     </div>
   )
 }
+
+// ブックスクリーンの箱の transition のうち、中のステージの大きさを変える物
+const SLIDING = new Set(["top", "height"])
 
 // 閉じたブックスクリーン screen を、閉じたときの見た目のまま右へ滑り出させる（中のステージはもう読めないので、描いた物の写しを動かし、動き終えたら消す）。
 // 写しはコントロールセンターの側より上に置く。描き直しで外れただけ（スクリーンがまだ開いている）なら写さない

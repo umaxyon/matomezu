@@ -7,7 +7,7 @@
 // Ctrl+ホイール（Mac は Cmd も。ピンチも）は、回した量とポインタの位置をそのままコマンド zoom-wheel に渡す（倍率はコマンドが決める。
 // コマンドが出ているステージならブラウザの拡大は止める）
 
-import { memo, type PointerEvent, useEffect, useRef, useState, type WheelEvent } from "react"
+import { memo, type PointerEvent, useContext, useEffect, useRef, useState, type WheelEvent } from "react"
 import { NO_PAPER, NO_STAGE, NOTHING_OPENED, paperOf } from "../../../core/stage"
 import { NO_TOOL } from "../../../core/tools"
 import { workspaceOf } from "../../../core/window"
@@ -25,10 +25,11 @@ import { PrintPreviewView } from "../print-preview/PrintPreviewView"
 import { AnchorsProvider } from "../stand/anchors"
 import { keepsPan } from "../tool-switch/tools"
 import { BOOK_SCREEN_CLOSE } from "../window"
+import { ScreenSlidingContext } from "../window/screen-sliding"
 import { BOOK_LAYERS } from "../workspace/slots"
 import { ZOOM_WHEEL } from "../zoom"
 import styles from "./StageView.module.css"
-import { useSettledResize } from "./useSettledResize"
+import { useHeldResize } from "./useHeldResize"
 import { scrollsInside, type WheelLatch, wheelTaker } from "./wheel-chain"
 
 // ドラッグ中のポインタと、前に知らせた位置
@@ -58,7 +59,7 @@ function StageBody({ id }: { id: string }) {
   const ref = useRef<HTMLElement>(null)
   const drag = useRef<Drag | null>(null)
   const [dragging, setDragging] = useState(false)
-  useSettledResize(ref, view => resizeStage(id, view))
+  useHeldResize(ref, view => resizeStage(id, view), useContext(ScreenSlidingContext))
   const wheel = useRef({ zoom: wheelZoom, keepsPan: keeps })
   wheel.current = { zoom: wheelZoom, keepsPan: keeps }
   const latch = useRef<WheelLatch | null>(null) // 一続きの回しで決めた、ホイールを受ける物
