@@ -736,8 +736,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     openScreenId: (def, props) => {
       const fits = catalog.screens.get(def)?.props.safeParse(props)
       if (!fits?.success) return SCREEN_REFUSED
-      const { win, id } = openScreen(getState().window, catalog, def, fits.data)
-      commit({ window: withinLimits(win, catalog) })
+      const before = getState().window
+      const { win, id } = openScreen(before, catalog, def, fits.data)
+      commit({ window: withinLimits(win, catalog, before) })
       return id
     },
     openScreen: (def, props) => actions.openScreenId(def, props) !== SCREEN_REFUSED,
@@ -816,7 +817,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return true
     },
     makeScreenCurrent: id => withWindow(win => makeCurrent(win, id)),
-    setScreenArrangement: (def, value) => withWindow(win => setArrangement(win, catalog, def, value)),
+    setScreenArrangement: (def, value) =>
+      withWindow(win => withinLimits(setArrangement(win, catalog, def, value), catalog)),
     replaceHistory: () => setState({ historyReplaces: getState().historyReplaces + 1 }),
     closeScreen: at => {
       const screen = screenAt(getState().window, at)

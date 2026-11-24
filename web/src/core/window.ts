@@ -214,12 +214,26 @@ const NO_STAGE_LIST: readonly StageListed[] = []
 // スクリーン screen のカレントのステージの id（ステージを並べないスクリーンなら NO_STAGE）
 export const currentStageOf = (screen: Pick<OpenedScreen, "stages">): string => screen.stages?.current ?? NO_STAGE
 
-// 開いたままにする枚数（定義の maxOpen）を超えたスクリーンを閉じる（カレントにしたのが古い物から。超えていなければ同じ窓を返す）
-export function withinLimits(win: WindowState, catalog: CoreCatalog): WindowState {
+// 開いたままにする枚数を超えたスクリーンを閉じる（超えていなければ同じ窓を返す）: スクリーンの定義の maxOpen を超えた分を、カレントにしたのが古い物から閉じ、
+// 続けてスクリーンアレンジメントの定義の maxScreens（窓を開いたときから開いているスクリーンは数えない）を超えた分を、見えていない物のうち、カレントにしたのが古い物から閉じる。
+// before（開く前の窓）を渡せば、そのとき見えていた物も閉じない（並べ方を替える前に開いた物を数えるとき、並べる相手を閉じないため）
+export function withinLimits(win: WindowState, catalog: CoreCatalog, before?: WindowState): WindowState {
   let next = win
   for (const d of catalog.screens.values())
     if (d.maxOpen !== undefined)
       for (const id of overLimit(next, d.id, d.maxOpen)) next = closeScreen(next, catalog, id)
+  const max = catalog.screenArrangements.get(next.arrangement)?.maxScreens
+  if (max === undefined) return next
+  const atStart = (id: string) => catalog.screens.get(next.screens.find(s => s.id === id)?.def ?? "")?.atStart === true
+  const keep = new Set([...shownScreens(catalog, next), ...(before ? shownScreens(catalog, before) : [])])
+  let counted = next.screens.filter(s => !atStart(s.id)).length
+  for (const id of next.order) {
+    if (counted <= max) break
+    if (atStart(id) || keep.has(id)) continue
+    const closed = closeScreen(next, catalog, id)
+    if (closed !== next) counted--
+    next = closed
+  }
   return next
 }
 
@@ -282,6 +296,7 @@ function shown(
       win: withinLimits(
         mapScreenOfStage(opened.win, stage, ws => mapStage(ws, stage, open)),
         catalog,
+        win,
       ),
       stage,
     }

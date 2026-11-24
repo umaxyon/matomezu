@@ -9,6 +9,7 @@
 import { z } from "zod"
 import type { OpenedScreen } from "../../../core/window"
 import { kit } from "../kit"
+import { SCREENS_KEPT } from "./one-screen"
 
 // スクリーンの枠を一瞬光らせる頼み（窓のプラグイン状態。画面の場所に入れない）: 光らせるスクリーンの id と、頼んだ回数（同じスクリーンを続けて頼んでも光り直す）
 export const SCREEN_FLASH = kit.definePluginStateOf<{ screen: string; n: number }>()({
@@ -84,6 +85,7 @@ export const SPLIT_ROWS = kit.defineScreenArrangement({
     "Shows the screens split into rows, from the top, while the current screen is one of them; otherwise only the current screen. While one of the rows is widened, only the current screen is shown and the rows are kept to restore.",
   value: { schema: SPLIT_VALUE, initial: NO_SPLIT },
   shown: splitShown,
+  maxScreens: SCREENS_KEPT,
 })
 
 // 分けた並びの変わり: 次の並び（2 枚に満たなければ分けない）と、並びから外れて閉じるスクリーン

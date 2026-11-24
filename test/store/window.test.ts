@@ -170,6 +170,40 @@ test("AI の show は、ブックを渡すとブックスクリーンをカレ�
   expect(openedEntry(screenOf(store.state.getState().window).stages[0]?.opened)?.id).toBe("b2")
 })
 
+const MAILBOX = "@matomezu/base:mailbox-screen"
+const LIBRARY = "@matomezu/base:library-screen"
+const SPLIT = "@matomezu/base:split-rows"
+const ONE = "@matomezu/base:one-screen"
+const openIds = (store: ReturnType<typeof newStore>) =>
+  store.state.getState().window.screens.map(s => s.def.split(":")[1])
+
+test("窓の上限は、ブックスクリーンとほかのスクリーンを合わせて数え、開く前に見えていた物（並べる相手）は閉じない", () => {
+  const store = newStore({ bookScreen: "none" })
+  store.actions.showBook("b1")
+  store.actions.showBook("b2")
+  const b2 = currentScreen(store.state.getState().window).id
+  const mailbox = store.actions.openScreenId(MAILBOX, {}) as string
+  store.actions.setScreenArrangement(SPLIT, { screens: [b2, mailbox], behind: [] })
+  // 下に書庫を開く途中（まだ並べ方を替えていない）: 見えていた b2 と郵便箱は残し、古い b1 を閉じる
+  store.actions.openScreenId(LIBRARY, {})
+  expect(openIds(store)).toEqual(["screen", "book-screen", "mailbox-screen", "library-screen"])
+  expect(store.state.getState().window.screens.some(s => s.id === b2)).toBe(true)
+})
+
+test("見えている物は上限を超えても閉じず、並べ方を替えて見えなくなったときに閉じる", () => {
+  const store = newStore({ bookScreen: "none" })
+  store.actions.showBook("b1")
+  store.actions.showBook("b2")
+  store.actions.showBook("b3")
+  const [, b1, b2, b3] = store.state.getState().window.screens.map(s => s.id)
+  store.actions.setScreenArrangement(SPLIT, { screens: [b1 as string, b2 as string, b3 as string], behind: [] })
+  store.actions.openScreenId(MAILBOX, {})
+  expect(store.state.getState().window.screens).toHaveLength(5)
+  store.actions.setScreenArrangement(ONE)
+  expect(store.state.getState().window.screens.map(s => s.id)).not.toContain(b1)
+  expect(store.state.getState().window.screens).toHaveLength(4)
+})
+
 test("store の openScreen は、定義の渡す値の形に合えば開いてカレントスクリーンにし、合わない値と無い定義は開かない。closeScreen で閉じると前の物に戻る", () => {
   const { actions, state } = newStore()
   const before = currentScreen(state.getState().window).id
@@ -345,7 +379,7 @@ test("showBook は、新しいブックスクリーンで開き、もう開い�
   expect(store.actions.showBook("nope")).toBe(false)
 })
 
-test("ブックスクリーンは 3 枚まで: 4 枚目を開くと、カレントにしたのが古い 1 枚を閉じる", () => {
+test("窓のスクリーンは、コントロールセンターを数えずに 3 枚まで: 4 枚目を開くと、見えていない物のうちカレントにしたのが古い 1 枚を閉じる", () => {
   const store = newStore({ bookScreen: "none" })
   store.actions.showBook("b1")
   store.actions.showBook("b2")

@@ -20,7 +20,6 @@ export const BOOK_SCREEN_DEF = kit.defineScreen({
     "The screen that shows books in stages (one, or two side by side), where the user reads and edits them.",
   props: z.strictObject({}),
   stages: true,
-  maxOpen: 3,
 })
 
 export { ONE_SCREEN } from "./one-screen"
