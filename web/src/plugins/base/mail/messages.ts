@@ -22,7 +22,6 @@ export const MAIL_MESSAGES = defineMessages({
   "Mark mail seen": { en: "Mark mail seen", ja: "郵便を見た" },
   "Mark mail place seen": { en: "Mark mail place seen", ja: "郵便の行き先を見た" },
   "Remove mail": { en: "Remove mail", ja: "郵便を消す" },
-  "Close the mailbox too": { en: "Close the mailbox too", ja: "郵便箱も閉じる" },
   Open: { en: "Open", ja: "開く" },
   "Open in split": { en: "Open in split", ja: "分割で開く" },
   "Open on the left": { en: "Open on the left", ja: "左に開く" },

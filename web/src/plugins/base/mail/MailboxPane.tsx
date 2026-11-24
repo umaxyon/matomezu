@@ -23,7 +23,7 @@ import { clampChars } from "../text/text"
 import { IconButton } from "../utils/IconButton"
 import { refusalMessage } from "../utils/refusal"
 import { shownTime } from "../utils/shown-time"
-import { bookStageAbove } from "../window/below-book"
+import { bookStageAbove, showBookAbove } from "../window/below-book"
 import { MAIL_REMOVE, MAIL_SEEN, MAIL_VISITED } from "./actions"
 import { useMailbox, useShowMailPlaceAt } from "./hooks"
 import { inboxOf, unreadOf } from "./inbox"
@@ -81,7 +81,12 @@ export function MailboxPane({ className }: { className?: string }) {
   const checkedRows = rows.filter(m => checked.has(m.id))
   const now = new Date()
   return (
-    <div className={`${styles.pane} ${className ?? ""}`} data-key-scope={MAILBOX_SCOPE} tabIndex={-1}>
+    <section
+      className={`${styles.pane} ${className ?? ""}`}
+      aria-label={t("Mailbox")}
+      data-key-scope={MAILBOX_SCOPE}
+      tabIndex={-1}
+    >
       <section className={styles.inbox} aria-label={t("Inbox")}>
         <div className={styles.head}>
           <div className={styles.tabs} role="tablist">
@@ -123,7 +128,7 @@ export function MailboxPane({ className }: { className?: string }) {
         )}
       </section>
       <section className={styles.reader}>{picked && <Reader mail={picked} />}</section>
-    </div>
+    </section>
   )
 }
 
@@ -265,7 +270,11 @@ function useOpenPlace(mail: Mail): { choices: OpenChoices; run: (choice: OpenCho
     if (!to) return
     if (start !== NO_STAGE && choice === "split") actions.split(start)
     const ws = start === NO_STAGE ? undefined : screenOfStage(read().window, start)?.stages
-    const target = ws ? openStageOf(ws, start, choice) : actions.showBookStage(to.book)
+    // 「開く」は、行き先のブックを窓に出す（下の段に並べていれば、上の段をそのブックのブックスクリーンに替えて、見ていた物は後ろへ）。ほかは起点のステージの並びに開く
+    const target =
+      choice === "here" || !ws
+        ? showBookAbove(actions, () => read().window, here ?? "", to.book)
+        : openStageOf(ws, start, choice)
     if (!target || target === NO_STAGE) return
     showPlace(target, mail)
     if (!mail.visitedAt) actions.perform(MAIL_VISITED.id, {}, { record: mail.id })

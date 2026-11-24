@@ -1,6 +1,8 @@
-// ブックスクリーンの下の段に出すスクリーン（書庫のスクリーン・郵便箱のスクリーン）の、開く・並びから外す・窓いっぱいに広げる並びの計算。
+// ブックスクリーンの下の段に出すスクリーン（書庫のスクリーン・郵便箱のスクリーン）の、開く・並びから外す・窓いっぱいに広げる・上の段のブックを替える並びの計算。
 // ブックスクリーンから開けば上下に分けて（SPLIT_ROWS）その下に出し、前の並びは behind に覚えて、外したら戻す。ステージの無いスクリーンから開けば、1 枚ずつ（ONE_SCREEN）で窓いっぱいに出す。
 // ステージの扱い（ステージを分けて足した空のステージを閉じるなど）は、出すスクリーンの側が持つ
+
+import { screenOfStage, type WindowState } from "../../../core/window"
 import type { Actions } from "../../../store/actions"
 import { SCREEN_REFUSED } from "../../../store/actions"
 import {
@@ -15,7 +17,7 @@ import {
 import { NO_STAGE } from "../../../store/dialogs"
 import { applySplitFrom } from "./apply-split"
 import { ONE_SCREEN } from "./one-screen"
-import { behindOf, planClose, planExpand, SPLIT_ROWS, splitOf } from "./split"
+import { behindOf, planAt, planClose, planExpand, SPLIT_ROWS, splitOf } from "./split"
 
 const NO_BOOK_SCREEN = "none"
 
@@ -96,4 +98,30 @@ export function bookStageAbove(
     if (stage !== NO_STAGE) return stage
   }
   return NO_STAGE
+}
+
+// 下の段のスクリーン below から、ブック book を窓に出す（下の段の「開く」）: 上の段のブックスクリーンを、そのブックのブックスクリーン（開いていなければ新しく開く）に替え、
+// 見ていたブックスクリーンは開いたまま後ろへ回す。下の段はそのまま。上下に並んでいなければ、窓に出すだけ。出したステージの id を返す（出せなければ NO_STAGE）
+export function showBookAbove(
+  store: Pick<Actions, "showBookStage" | "closeScreen" | "setScreenArrangement">,
+  readWindow: () => WindowState,
+  below: string,
+  book: string,
+): string {
+  const was = readWindow()
+  const rows = splitOf(was.screens, was.arrangementValue)
+  const upper = rows.find(id => id !== below && was.screens.some(s => s.id === id && s.stages))
+  const stage = store.showBookStage(book)
+  if (stage === NO_STAGE || upper === undefined || !rows.includes(below)) return stage
+  const win = readWindow()
+  const added = screenOfStage(win, stage)?.id
+  if (added === undefined || added === upper) return stage
+  applySplitFrom(
+    store,
+    win.screens,
+    was.arrangementValue,
+    planAt(rows, rows.indexOf(upper), added),
+    () => readWindow().screens,
+  )
+  return stage
 }

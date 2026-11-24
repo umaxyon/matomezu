@@ -6,7 +6,7 @@ import type { WindowState } from "../../../web/src/core/window"
 import { MAIL, mailboxOf } from "../../../web/src/plugins/base/mail"
 import type { Mail } from "../../../web/src/plugins/base/mail/mail"
 import { MAILBOX_PICKED, MAILBOX_SENDER_TAB } from "../../../web/src/plugins/base/mail/states"
-import { bookStageAbove } from "../../../web/src/plugins/base/window/below-book"
+import { bookStageAbove, showBookAbove } from "../../../web/src/plugins/base/window/below-book"
 import { NO_STAGE } from "../../../web/src/store/dialogs"
 import { pluginValueOf } from "../../../web/src/store/plugin-state"
 import { SAMPLE_BOOKS } from "../../sample-books"
@@ -118,4 +118,18 @@ test("コントロールセンター（定義に mailboxArea を書いた）か�
     "user",
     id.u1,
   ])
+})
+
+test("下の段の「開く」: 上の段を行き先のブックのブックスクリーンに替え、見ていたブックスクリーンは開いたまま後ろへ。下の段の郵便箱はそのまま", () => {
+  const { store, win, of, run } = setup()
+  const book = win().screens.find(s => s.stages !== undefined)?.id ?? ""
+  run("s1", "mailbox-open")
+  const mailbox = of(MAILBOX)
+  const other = SAMPLE_BOOKS[1]?.id ?? ""
+  const stage = showBookAbove(store.actions, () => store.state.getState().window, mailbox, other)
+  expect(stage).not.toBe(NO_STAGE)
+  const added = win().screens.find(s => s.stages?.stages.some(st => st.id === stage))?.id
+  expect(added).not.toBe(book)
+  expect(win().arrangementValue).toMatchObject({ screens: [added, mailbox] })
+  expect(win().screens.some(s => s.id === book)).toBe(true)
 })

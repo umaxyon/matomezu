@@ -105,27 +105,29 @@ test("コントロールセンターの間は、行き先のブックが後ろ�
   await expect.poll(() => visitedAt(page)).toBeTruthy()
 })
 
-test("コントロールセンターの間でも、しおりから開くとブックスクリーンがカレントスクリーンになって行き先が見える", async ({
+test("コントロールセンターの間にしおりを押すと、コンテンツエリアの郵便箱でその郵便を選び、「開く」でブックスクリーンがカレントスクリーンになって行き先が見える", async ({
   page,
 }) => {
   const book = await startOnCenter(page)
   await send(page, { title: "開いてください", to: { book } })
-  await page.getByRole("button", { name: "開いてください" }).click()
-  const dialog = page.getByRole("dialog", { name: "開いてください" })
-  await dialog.getByRole("button", { name: "開く", exact: true }).click()
-  await expect(dialog).toHaveCount(0)
+  await page.getByRole("button", { name: "開いてください", exact: true }).click()
+  const letter = page.getByRole("region", { name: "郵便箱" }).locator("article")
+  await expect(center(page)).toBeVisible()
+  await letter.getByRole("button", { name: "開く", exact: true }).click()
   await expect(center(page)).toBeHidden()
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
 })
 
-test("コントロールセンターの間でも、しおりの「ほか n 件」を押すと、ブックスクリーンがカレントスクリーンになって左サイドパネルが開く", async ({
+test("コントロールセンターの間にしおりの「ほか n 件」を押すと、コンテンツエリアが郵便箱になり、何も選ばない", async ({
   page,
 }) => {
   await startOnCenter(page)
   for (const n of [1, 2, 3, 4, 5, 6]) await send(page, { title: `手紙 ${n}` })
   await page.getByRole("button", { name: "ほか 1 件" }).click()
-  await expect(center(page)).toBeHidden()
-  await expect(page.getByRole("complementary", { name: "左サイドパネル" })).toBeVisible()
+  await expect(center(page)).toBeVisible()
+  const pane = page.getByRole("region", { name: "郵便箱" })
+  await expect(pane.getByRole("listitem")).toHaveCount(6)
+  await expect(pane.locator("article")).toHaveCount(0)
 })
 
 test("コントロールセンターがカレントスクリーンの間の Esc では、ブックスクリーンへ戻らない", async ({ page }) => {
@@ -171,33 +173,26 @@ test("別の窓が、開いているブックをゴミ箱に入れると、そ�
   await expect.poll(() => page.url()).not.toContain(`%22${mine}%22`)
 })
 
-test("ブックスクリーンが無い窓でも、郵便のダイアログは Esc で閉じ、Enter で行き先のブックを新しいブックスクリーンで開く", async ({
+test("ブックスクリーンが無い窓でしおりを押すと、コントロールセンターの郵便箱で選び、「開く」で行き先のブックを新しいブックスクリーンで開く", async ({
   page,
 }) => {
   await page.goto("/")
   await page.bringToFront()
   const book = ((await storedBooks(page.request)) as { id: string }[])[0]?.id ?? ""
-  const open = async (title: string) => {
-    const sent = await page.request.post("/api/ai/perform", {
-      headers: await joinedAiAuth(),
-      data: { action: "@matomezu/base:mail-send", args: { from: "a", title, to: { book } } },
-    })
-    expect(sent.ok()).toBe(true)
-    await page.getByRole("button", { name: title }).click()
-    const dialog = page.getByRole("dialog", { name: title })
-    await expect(dialog).toBeVisible()
-    return dialog
-  }
-  const first = await open("閉じる手紙")
-  await page.keyboard.press("Escape")
-  await expect(first).toHaveCount(0)
+  const sent = await page.request.post("/api/ai/perform", {
+    headers: await joinedAiAuth(),
+    data: { action: "@matomezu/base:mail-send", args: { from: "a", title: "開く手紙", to: { book } } },
+  })
+  expect(sent.ok()).toBe(true)
+  await page.getByRole("button", { name: "開く手紙", exact: true }).click()
+  const letter = page.getByRole("region", { name: "郵便箱" }).locator("article")
+  await expect(letter.getByRole("heading", { name: "開く手紙" })).toBeVisible()
+  await expect(letter.getByRole("button")).toHaveText(["開く"])
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
-  await open("開く手紙")
-  await page.keyboard.press("Enter")
+  await letter.getByRole("button", { name: "開く" }).click()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(1)
   await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
 })
-
 test("ブラウザの戻るでブックスクリーンへ戻っても、可変ページは並べた広さのまま（紙 1 枚ぶんに縮まない）", async ({
   page,
 }) => {
