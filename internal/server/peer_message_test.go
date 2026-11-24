@@ -3,6 +3,9 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -109,7 +112,7 @@ func TestMessagesToOtherHostsAreRefused(t *testing.T) {
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
 	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
 	for _, c := range []struct{ host, to, reason, detail string }{
-		{"c", "s2", "unknown-host", "you can send to hosts: b"},
+		{"c", "s2", "unknown-host", "the paired hosts are: b"},
 		{"b", "s3", "unknown-recipient", "you can send to: s2"},
 	} {
 		if sent := sendTo(t, as.URL, s1, c.host, c.to, "hi"); sent.OK || sent.Reason != c.reason || !strings.Contains(sent.Detail, c.detail) {
@@ -225,5 +228,53 @@ func TestAIListsTheWorkroomsOfPairedHosts(t *testing.T) {
 	}
 	if got := read("?host=c"); !strings.Contains(got, `"reason":"unknown-host"`) || !strings.Contains(got, "the paired hosts are: b") {
 		t.Fatalf("c = %s", got)
+	}
+}
+
+// ホストの呼び名は今の名前（つながったときに聞いた物。無ければペアリングしたときの名前）で、同じ名前が 2 つ以上あるときだけ鍵の印の頭 4 字を添える
+func TestPairedHostLabelsAddTheKeyHeadOnlyWhenNamesRepeat(t *testing.T) {
+	a, b, c := "7f3a"+strings.Repeat("0", 60), "c41e"+strings.Repeat("1", 60), "9b20"+strings.Repeat("2", 60)
+	ps := &peerState{
+		known: map[string]pairedHostRecord{
+			a: {HostID: a, NameAtPairing: "win-lan"},
+			b: {HostID: b, NameAtPairing: "old"},
+			c: {HostID: c, NameAtPairing: "mac"},
+		},
+		live: map[string]*PeerLive{b: {Name: "win-lan"}},
+	}
+	got := ps.labelsLocked()
+	want := map[string]string{a: "win-lan · 7F3A", b: "win-lan · C41E", c: "mac"}
+	for id, w := range want {
+		if got[id] != w {
+			t.Errorf("label of %s = %q, want %q", id[:4], got[id], w)
+		}
+	}
+	if r, _ := ps.byLabel("win-lan · C41E"); r == nil || r.HostID != b {
+		t.Errorf("byLabel did not find the host by its label: %v", r)
+	}
+	ps.live[b].Name = "linux"
+	if got := ps.labelsLocked(); got[a] != "win-lan" || got[b] != "linux" {
+		t.Errorf("labels after the name changed = %v", got)
+	}
+}
+
+// 確かに届いていないと言えるのは、つなげなかった・鍵が合わなかった・TLS を結べなかった・ペアリングしていないと答えたときだけ
+func TestNotSentOnlyWhenTheMessageCertainlyDidNotArrive(t *testing.T) {
+	cases := []struct {
+		err  error
+		want bool
+	}{
+		{&net.OpError{Op: "dial", Err: errors.New("connection refused")}, true},
+		{fmt.Errorf("Post: %w", peer.ErrKeyMismatch), true},
+		{errors.New("net/http: TLS handshake timeout"), true},
+		{errNotPaired, true},
+		{&net.OpError{Op: "read", Err: errors.New("connection reset")}, false},
+		{errors.New("context deadline exceeded (Client.Timeout exceeded while awaiting headers)"), false},
+		{fmt.Errorf("the message answered %d", 500), false},
+	}
+	for _, c := range cases {
+		if got := notSent(c.err); got != c.want {
+			t.Errorf("notSent(%v) = %v, want %v", c.err, got, c.want)
+		}
 	}
 }

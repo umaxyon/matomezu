@@ -311,7 +311,12 @@ func (h *Hub) tellUnpaired(e *hostEntrance, r pairedHostRecord, addr string) {
 func (h *Hub) peerAddr(e *hostEntrance, r pairedHostRecord) string {
 	e.peers.mu.Lock()
 	defer e.peers.mu.Unlock()
-	if l := e.peers.live[r.HostID]; l != nil && l.Addr != "" {
+	return e.peers.addrLocked(r)
+}
+
+// addrLocked は、ペアリングしたホスト r の待っている所（つながったときに聞いた物。無ければ覚えた物）（ps.mu を持って呼ぶ）
+func (ps *peerState) addrLocked(r pairedHostRecord) string {
+	if l := ps.live[r.HostID]; l != nil && l.Addr != "" {
 		return l.Addr
 	}
 	return r.Addr

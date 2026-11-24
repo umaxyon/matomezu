@@ -169,11 +169,7 @@ func (h *Hub) refreshRooms(e *hostEntrance) {
 	var targets []target
 	for id, r := range ps.known {
 		if lv := ps.live[id]; lv != nil && lv.Connected {
-			addr := r.Addr
-			if lv.Addr != "" {
-				addr = lv.Addr
-			}
-			if addr != "" {
+			if addr := ps.addrLocked(r); addr != "" {
 				targets = append(targets, target{id, addr})
 			}
 		}
@@ -403,15 +399,19 @@ func peerClient(e *hostEntrance, hostID string) *http.Client {
 
 // --- AI が読む ---
 
-// workroomsAnswer は、list_workrooms の答え
-type workroomsAnswer struct {
+// localWorkrooms は、host を付けない list_workrooms の答え: このホストのワークルームと、ペアリングしたホスト（「ほかのホストとつなぐ」が入のときだけ）
+type localWorkrooms struct {
 	OK        bool        `json:"ok"`
-	Reason    string      `json:"reason,omitempty"`
-	Detail    string      `json:"detail,omitempty"`
-	Host      string      `json:"host,omitempty"`      // host を付けたとき: そのホストの呼び名
-	Connected *bool       `json:"connected,omitempty"` // host を付けたとき: つながっているか（つながっていなければ workrooms は無い）
 	Workrooms []RoomRow   `json:"workrooms"`
-	Hosts     []hostBrief `json:"hosts,omitempty"` // host を付けないとき: ペアリングしたホスト
+	Hosts     []hostBrief `json:"hosts,omitempty"`
+}
+
+// hostWorkrooms は、host を付けた list_workrooms の答え: そのホストの呼び名と、つながっているか、写しのワークルーム（つながっていなければ空）
+type hostWorkrooms struct {
+	OK        bool      `json:"ok"`
+	Host      string    `json:"host"`
+	Connected bool      `json:"connected"`
+	Workrooms []RoomRow `json:"workrooms"`
 }
 
 type hostBrief struct {
@@ -419,18 +419,16 @@ type hostBrief struct {
 	Connected bool   `json:"connected"`
 }
 
-// Workrooms は、送れるワークルームの一覧。host が空なら、このホストの一覧（参加の確定した AI のいるワークルーム）と、ペアリングしたホストの呼び名
-// （「ほかのホストとつなぐ」が入のときだけ）。host があれば、その呼び名のペアリングしたホストの写し（相手に聞かない）
-func (h *Hub) Workrooms(host string) (workroomsAnswer, error) {
-	e := h.entrance.Load()
-	open := e != nil && h.HostStatus().Open
+// Workrooms は、送れるワークルームの一覧（localWorkrooms・hostWorkrooms か、断りの MessageSent）。host が空なら、このホストの一覧（参加の確定した AI のいるワークルーム）と、
+// ペアリングしたホストの呼び名。host があれば、その呼び名のペアリングしたホストの写し（相手に聞かない）
+func (h *Hub) Workrooms(host string) (any, error) {
 	if host == "" {
 		rows, err := h.roomsNow()
 		if err != nil {
-			return workroomsAnswer{}, err
+			return nil, err
 		}
-		out := workroomsAnswer{OK: true, Workrooms: rowsOf(rows)}
-		if open {
+		out := localWorkrooms{OK: true, Workrooms: rowsOf(rows)}
+		if e := h.entrance.Load(); e != nil && h.HostStatus().Open {
 			out.Hosts = []hostBrief{}
 			for _, p := range h.HostPeers().Paired {
 				out.Hosts = append(out.Hosts, hostBrief{Name: p.Label, Connected: p.Connected})
@@ -439,18 +437,9 @@ func (h *Hub) Workrooms(host string) (workroomsAnswer, error) {
 		}
 		return out, nil
 	}
-	if !open {
-		return workroomsAnswer{Reason: "host-closed", Detail: "this host does not connect to other hosts now (the user's setting is off)"}, nil
-	}
-	target, labels := e.peers.byLabel(host)
+	e, target, refused := h.pairedByLabel(host)
 	if target == nil {
-		detail := "no paired host is named " + host
-		if len(labels) > 0 {
-			detail += "; the paired hosts are: " + strings.Join(labels, ", ")
-		} else {
-			detail += "; this host is paired with no host"
-		}
-		return workroomsAnswer{Reason: "unknown-host", Detail: detail}, nil
+		return refused, nil
 	}
 	ps := e.peers
 	ps.mu.Lock()
@@ -462,7 +451,26 @@ func (h *Hub) Workrooms(host string) (workroomsAnswer, error) {
 		}
 	}
 	ps.mu.Unlock()
-	return workroomsAnswer{OK: true, Host: host, Connected: &connected, Workrooms: rows}, nil
+	return hostWorkrooms{OK: true, Host: host, Connected: connected, Workrooms: rows}, nil
+}
+
+// pairedByLabel は、呼び名 label のペアリングしたホストを引く。引けなければ target は nil で、AI への断り（host-closed・unknown-host）を返す
+func (h *Hub) pairedByLabel(label string) (*hostEntrance, *pairedHostRecord, MessageSent) {
+	e := h.entrance.Load()
+	if e == nil || !h.HostStatus().Open {
+		return nil, nil, MessageSent{Reason: "host-closed", Detail: "this host does not connect to other hosts now (the user's setting is off)"}
+	}
+	target, labels := e.peers.byLabel(label)
+	if target == nil {
+		detail := "no paired host is named " + label
+		if len(labels) > 0 {
+			detail += "; the paired hosts are: " + strings.Join(labels, ", ")
+		} else {
+			detail += "; this host is paired with no host"
+		}
+		return e, nil, MessageSent{Reason: "unknown-host", Detail: detail}
+	}
+	return e, target, MessageSent{}
 }
 
 func rowsOf(rows map[string]string) []RoomRow {

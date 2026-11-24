@@ -44,21 +44,11 @@ func remoteMessageHead(from, host string, asUser bool) string {
 	return head + ":"
 }
 
-// sendToHost は、参加者 sender（ワークルーム名 from）から、呼び名 label のペアリングしたホストのワークルーム req.To へ封筒を運ぶ（h.mu を持たずに呼ぶ）
+// sendToHost は、ワークルーム from の参加者から、呼び名 req.Host のペアリングしたホストのワークルーム req.To へ封筒を運ぶ（h.mu を持たずに呼ぶ）
 func (h *Hub) sendToHost(from string, req MessageRequest, now time.Time) MessageSent {
-	e := h.entrance.Load()
-	if e == nil || !h.HostStatus().Open {
-		return MessageSent{Reason: "host-closed", Detail: "this host does not connect to other hosts now (the user's setting is off)"}
-	}
-	target, labels := e.peers.byLabel(req.Host)
+	e, target, refused := h.pairedByLabel(req.Host)
 	if target == nil {
-		detail := "no paired host is named " + req.Host
-		if len(labels) > 0 {
-			detail += "; you can send to hosts: " + strings.Join(labels, ", ")
-		} else {
-			detail += "; this host is paired with no host"
-		}
-		return MessageSent{Reason: "unknown-host", Detail: detail}
+		return refused
 	}
 	addr := h.peerAddr(e, *target)
 	if addr == "" {
@@ -73,7 +63,7 @@ func (h *Hub) sendToHost(from string, req MessageRequest, now time.Time) Message
 		SentAt: storage.Stamp(now),
 	}
 	body := mustJSON(env)
-	c := peer.Client(e.config.Identity, target.HostID, peerAskTimeout)
+	c := peerClient(e, target.HostID)
 	var sent MessageSent
 	var err error
 	for try := 0; try < 2; try++ {
@@ -102,7 +92,13 @@ func notSent(err error) bool {
 	var op *net.OpError
 	var rec tls.RecordHeaderError
 	return errors.Is(err, errNotPaired) || errors.Is(err, peer.ErrKeyMismatch) ||
-		(errors.As(err, &op) && op.Op == "dial") || errors.As(err, &rec) || strings.Contains(err.Error(), "TLS handshake")
+		(errors.As(err, &op) && op.Op == "dial") || errors.As(err, &rec) || handshakeFailed(err)
+}
+
+// handshakeFailed は、TLS を結ぶ所で失敗したか。net/http は、TLS を結ぶ途中の時間切れ・切断を型でなく文で返す
+// （transport.go の "net/http: TLS handshake timeout" と、tls の "tls: ... handshake ..."）。型で見分けられない間は、この文に頼る
+func handshakeFailed(err error) bool {
+	return strings.Contains(err.Error(), "TLS handshake")
 }
 
 // postEnvelope は、ホスト hostID の待っている所 addr に封筒 body を渡し、相手の答えを返す。相手が「ペアリングしていない」と答えたら、こちらも消す

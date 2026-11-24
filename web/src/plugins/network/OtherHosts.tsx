@@ -7,6 +7,7 @@ import { NO_STATE } from "../../plugin-api"
 import { useActions, useMessages, useRecords, useSetPluginStateById, useSettings } from "../../plugin-api/ui"
 import {
   Band,
+  ChevronIcon,
   type HostPeers,
   IconButton,
   LineIcon,
@@ -20,7 +21,6 @@ import {
 import { PICKED_STATE } from "./control-center-ids"
 import { PAIRING_DIALOG } from "./dialogs"
 import { hostRows } from "./hosts"
-import { ChevronIcon } from "./icons"
 import { kit } from "./kit"
 import styles from "./OtherHosts.module.css"
 import { PAIRED_HOST } from "./pairing"
@@ -79,7 +79,7 @@ function Section({ picked }: { picked: { kind: string; id: string } | typeof NO_
                 aria-label={t("Workrooms of {name}", { name: row.label })}
                 onClick={() => toggle(row.record.id)}
               >
-                <ChevronIcon />
+                <ChevronIcon size={12} />
               </button>
               <button
                 type="button"

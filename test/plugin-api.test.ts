@@ -336,6 +336,7 @@ test("matomezu/ui が出す名前", () => {
     "BookOpenIcon",
     "CORNER_STATUSES",
     "CaptionField",
+    "ChevronIcon",
     "ChoiceBubble",
     "ChoiceSetting",
     "ChoiceText",

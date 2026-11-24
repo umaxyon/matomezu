@@ -27,12 +27,6 @@ export const ExpandIcon = () => (
   </LineIcon>
 )
 
-export const ChevronIcon = ({ className }: { className?: string }) => (
-  <LineIcon size={14} stroke={1.8} className={className}>
-    <path d="M9 6l6 6-6 6" />
-  </LineIcon>
-)
-
 export const SortIcon = () => (
   <LineIcon size={14} stroke={1.7}>
     <path d="M8 19V5M4.5 8.5L8 5l3.5 3.5M16 5v14M12.5 15.5L16 19l3.5-3.5" />

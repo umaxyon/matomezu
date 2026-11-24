@@ -94,7 +94,7 @@ export const ERRORS = {
   E127: "item {id}: scrapFrame is for a shape whose props are a scrap",
   E128: "{name} is used outside a screen arrangement (only the widget that lays out the screens names them)",
   E129: "setting {id}: printPreview is only for a setting a stage entry holds (holder outermost)",
-  E130: "subject {id}: the state of role participants takes exactly {states}",
+  E130: "subject {id}: the {field} of role {role} takes exactly {values}",
   E131: "paper {paper}: there is no paper in the catalog to draw it with",
   E132: "system folders {first} and {second} have the same title {title} in {lang}",
   E133: "subject {id}: workroomWorkSubjects has {ref}, which is not in the catalog or lacks completesWork or workRecordName (the worker book of a work record is cleaned up through completesWork and named through workRecordName)",

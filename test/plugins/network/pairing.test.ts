@@ -1,13 +1,15 @@
 // ペアリングのアクション: 頼みを載せる・受け入れる（頼みを消し、ペアリングしたホストを同じ書き込みで載せる）・断る・ペアリングしたホストを載せる・解く。
 // どれも利用者だけが行え、同じホスト id の物は 2 つ載らない。常駐が行う役は、役ごとに 1 つのアクションが名乗る
 import { expect, test } from "bun:test"
+import { z } from "zod"
 import { type Actor, USER } from "../../../web/src/core/actor"
+import { checkCoreCatalog } from "../../../web/src/core/core-catalog-check"
 import { hostActions } from "../../../web/src/core/hosts"
 import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform-world"
 import { withCounters, withRecords } from "../../../web/src/core/records"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { PAIRED_HOST, PAIRING_REQUEST } from "../../../web/src/plugins/network"
-import { CORE_CATALOG } from "../../support"
+import { BUILTIN_PARTS, CORE_CATALOG } from "../../support"
 
 const N = (id: string) => `@matomezu/network:${id}`
 type Done = { ok: boolean; reason?: string; detail?: string; result?: Record<string, string> }
@@ -110,4 +112,19 @@ test("常駐が行う役は、4 つとも network のアクションが名乗る
     "add-paired-host": N("paired-host-add"),
     "remove-paired-host": N("paired-host-remove"),
   })
+})
+
+test("役 paired-hosts の種類の requests は、常駐が読む値（ask-user・as-user）をちょうど受ける（違えば E130）", () => {
+  const owner = BUILTIN_PARTS.subjects.find(s => s.role === "paired-hosts")
+  if (!owner) throw new Error("役 paired-hosts の種類が無い")
+  const codesWith = (requests: z.ZodType) =>
+    checkCoreCatalog({
+      ...BUILTIN_PARTS,
+      subjects: BUILTIN_PARTS.subjects.map(s =>
+        s === owner ? { ...s, record: z.strictObject({ ...s.record.shape, requests }) } : s,
+      ),
+    }).map(p => p.code)
+  expect(checkCoreCatalog(BUILTIN_PARTS).map(p => p.code)).not.toContain("E130")
+  expect(codesWith(z.enum(["ask-user"]))).toContain("E130")
+  expect(codesWith(z.string())).toContain("E130")
 })
