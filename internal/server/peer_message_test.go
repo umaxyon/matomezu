@@ -285,7 +285,7 @@ func TestPairedHostLabelsAddTheKeyHeadOnlyWhenNamesRepeat(t *testing.T) {
 	}
 }
 
-// 確かに届いていないと言えるのは、つなげなかった・鍵が合わなかった・TLS を結べなかった・ペアリングしていないと答えたときだけ
+// 確かに届いていないと言えるのは、つなげなかった・鍵が合わなかった・TLS を結べなかった・ペアリングしていないと答えた・相手が受けなかったと答えたときだけ
 func TestNotSentOnlyWhenTheMessageCertainlyDidNotArrive(t *testing.T) {
 	cases := []struct {
 		err  error

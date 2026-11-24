@@ -107,7 +107,7 @@ func notSent(err error) bool {
 }
 
 // handshakeFailed は、TLS を結ぶ所で失敗したか。net/http は、TLS を結ぶ途中の時間切れ・切断を型でなく文で返す
-// （transport.go の "net/http: TLS handshake timeout" と、tls の "tls: ... handshake ..."）。型で見分けられない間は、この文に頼る
+// （transport.go の "net/http: TLS handshake timeout" と、tls の "tls: ... handshake ..."）ので、文で見分ける
 func handshakeFailed(err error) bool {
 	return strings.Contains(err.Error(), "TLS handshake")
 }
