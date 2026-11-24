@@ -81,12 +81,12 @@ export function ControlCenterScreen() {
           </ScreenPane>
           <ScreenPane shown={screen === "mailbox"} slideIn={switched}>
             <div className={styles.overRoom}>
-              <div className={styles.aboveRoom} data-max={retreat.workroom}>
-                <MailboxArea
-                  maximized={mailboxMaximized}
-                  onToggleMaximize={() => setMailboxMaximized(!mailboxMaximized)}
-                />
-              </div>
+              <MailboxArea
+                className={styles.aboveRoom}
+                retreat={retreat.workroom}
+                maximized={mailboxMaximized}
+                onToggleMaximize={() => setMailboxMaximized(!mailboxMaximized)}
+              />
             </div>
           </ScreenPane>
           <WorkroomView

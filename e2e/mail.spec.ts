@@ -14,6 +14,7 @@ import {
   urlStages,
 } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
+import { stillBox } from "./helpers/motion"
 import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 import { storedBooks } from "./helpers/stored"
@@ -379,4 +380,21 @@ test("受信トレイは 30 通ずつ出し、下の帯で古い方・新しい�
   await pane.getByRole("button", { name: "古い郵便" }).click()
   await expect(rows(page).first().getByRole("checkbox")).not.toBeChecked()
   await expect(pane.getByRole("button", { name: "古い郵便" })).toBeDisabled()
+})
+
+test("コントロールセンターの郵便箱は、下のワークルームの枠との間を空けて止まり、受信トレイの下の帯が見える", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  for (let n = 1; n <= 35; n++)
+    await aiPerform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: `行${n}` } })
+  await page.getByRole("button", { name: "郵便箱", exact: true }).filter({ visible: true }).first().click()
+  const pane = mailboxPane(page).locator("visible=true")
+  const band = pane.getByText("1–30 / 35")
+  await expect(band).toBeVisible()
+  const room = await stillBox(page.locator("[data-workroom-panel]"))
+  const area = await stillBox(pane.locator("xpath=ancestor::section[1]").last())
+  const shown = await stillBox(band)
+  expect(shown.y + shown.height).toBeLessThanOrEqual(room.y)
+  expect(area.y + area.height).toBeLessThan(room.y)
 })
