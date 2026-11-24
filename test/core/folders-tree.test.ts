@@ -196,6 +196,25 @@ describe("木の決まり", () => {
     expect(treeHolds(withChanges(t, purged))).toBe(true)
   })
 
+  test("バックヤード: ブックの中を置き直しても、バックヤードの並びのブックは残る", () => {
+    // b2 をバックヤードに入れた世界
+    const backyard: Folder = {
+      folderRole: "backyard",
+      id: "library-backyard-x",
+      backyard: "x",
+      lineup: [{ kind: "book", id: "b2", workKey: { subject: "s", id: "w" } }],
+    }
+    const t = withFolders(tables(), { ...old, lineup: [old.lineup[0]!] }, backyard)
+    const b1Lineup = (t.folders.b1 as Folder).lineup
+    const restored = restoredTables(t, {
+      pages: { p1: { absent: true, was: t.pages.p1 } },
+      folders: { b1: { fields: { lineup: { set: b1Lineup.filter(r => r.id !== "p1"), was: b1Lineup } } } },
+    }) as Library
+    expect(restored).not.toBeNull()
+    expect(restored.folders["library-backyard-x"]).toBe(backyard)
+    expect(Object.keys(restored.pages)).toContain("p2")
+  })
+
   test("置き場所の行のまま確かめる: 読めないブックの行も木に入り、どこにも入っていないブックとページ・形に合わないフォルダの行・書庫ホームが無いと破れる", () => {
     const rows = Object.values(tables().folders) as unknown[]
     const ids = Object.keys(tables().pages)

@@ -158,10 +158,14 @@ func withoutVoltaImages(path string) string {
 	return strings.Join(kept, string(os.PathListSeparator))
 }
 
-// restartOlderServer は、立っている常駐が今入っている版より古ければ、止めて今の版で立て直す（ensure が見る）
+// restartOlderServer は、立っている常駐が今入っている版より古ければ、止めて今の版で立て直す（ensure が見る）。
+// 相手の常駐を使う保管庫では何もしない（その常駐は、相手の OS の matomezu update が立て直す）
 func restartOlderServer() error {
 	h, err := openHome()
 	if err != nil {
+		return err
+	}
+	if u, err := h.ReadCounterpart(); err != nil || u != nil {
 		return err
 	}
 	s, err := running(h)

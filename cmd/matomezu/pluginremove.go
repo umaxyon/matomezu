@@ -45,7 +45,7 @@ func (c *pluginRemoveCmd) Run() error {
 }
 
 func (c *pluginRemoveCmd) removeInstalled() error {
-	if err := (&stopCmd{}).Run(); err != nil {
+	if err := stopHere(); err != nil {
 		fmt.Printf("The matomezu server could not be stopped: %v\n", err)
 	}
 	r := remover{out: os.Stdout, findProgram: findProgram, run: func(name string, args ...string) error {
@@ -61,10 +61,26 @@ func (c *pluginRemoveCmd) removeInstalled() error {
 		}
 	}
 	if h, herr := openHome(); herr == nil {
-		fmt.Printf("Your books stay in %s. Delete the folder yourself if you no longer need them.\n", h.Dir)
+		fmt.Printf("Your books stay in %s. Delete the folder yourself if you no longer need them.\n", residentDir(h))
 	}
 	fmt.Printf("Close Claude Code, Claude Desktop, Codex and opencode, then remove matomezu: %s uninstall -g matomezu\n", typedName("npm"))
 	return err
+}
+
+// stopHere は、この OS の常駐を止める（相手の常駐を使う保管庫では、その常駐は止めない。相手の OS の AI のプログラムが使っている）
+func stopHere() error {
+	useDevHere()
+	h, err := openHome()
+	if err != nil {
+		return err
+	}
+	if u, err := h.ReadCounterpart(); err != nil {
+		return err
+	} else if u != nil {
+		fmt.Printf("The matomezu server of %s keeps running.\n", counterpartName(*u))
+		return nil
+	}
+	return (&stopCmd{}).Run()
 }
 
 // remove は、名前 names の AI（空なら全部）のプラグインを外す。AI のプログラムが見つからない AI は飛ばし、外すのに失敗しても残りを続ける。
