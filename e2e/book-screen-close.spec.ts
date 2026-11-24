@@ -139,7 +139,7 @@ test("ブックスクリーンを 2 枚分割で開くと 2 段で見え、そ�
   await expect(close).toHaveCount(1)
 })
 
-test("ブックスクリーンと並んだコントロールセンターの書庫で、ブックのクリックで 2 択を出す。分割で開くと上の段に入り、開くと並びのブックスクリーンを閉じて窓いっぱいに開く", async ({
+test("ブックスクリーンと並んだコントロールセンターの書庫で、ブックのクリックで 2 択を出す。分割で開くと上の段に入り、開くと窓いっぱいに開く（並びのブックスクリーンは開いたまま見えなくなる）", async ({
   page,
 }) => {
   await page.goto(CONTROL_CENTER_URL)
@@ -166,7 +166,7 @@ test("ブックスクリーンと並んだコントロールセンターの書�
   await expect(line).toBeHidden()
   await expect(close).toHaveCount(1)
   await settled(page)
-  // コントロールセンターへ戻って、もう一度あおを分割で開き、こんどは書庫から開く: 並びのブックスクリーンを閉じて、窓いっぱいに開く
+  // コントロールセンターへ戻って、もう一度あおを分割で開き、こんどは書庫から開く: 窓いっぱいに開き、並びのブックスクリーンは開いたまま見えなくなる
   await (await fromMenu(page, "コントロールセンター")).click()
   await line.click()
   await page.getByRole("menuitem", { name: "分割で開く" }).click()
@@ -176,7 +176,8 @@ test("ブックスクリーンと並んだコントロールセンターの書�
   await library.getByRole("button", { name: "残課題" }).click()
   await page.getByRole("menuitem", { name: "開く", exact: true }).click()
   await expect(line).toBeHidden()
-  await expect(page.getByText("あおのメモ")).toHaveCount(0)
+  await expect(page.getByText("あおのメモ").locator("visible=true")).toHaveCount(0)
+  await expect(page.getByText("あおのメモ")).toHaveCount(1)
   await expect(close).toHaveCount(1)
 })
 
@@ -234,7 +235,7 @@ test("下の段にだけブックスクリーンがあるとき、書庫から�
   // 窓いっぱいの高さで、右から入る（途中の位置を通る）
   expect(frames.some(f => f.book && f.book.top === 0 && f.book.left > 10 && f.book.left < width - 10)).toBe(true)
   await settled(page)
-  await expect(page.getByText("あおのメモ")).toHaveCount(0)
+  await expect(page.getByText("あおのメモ").locator("visible=true")).toHaveCount(0)
 })
 
 test("最初から窓いっぱいに開いたブックスクリーンにも □ を「上下に分ける」で出し、押すとその場から縮んでコントロールセンターと上下に分かれる", async ({
