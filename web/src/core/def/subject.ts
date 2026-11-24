@@ -13,7 +13,17 @@ import type { Warning } from "../warnings"
 export const SUBJECT_ROLE_FIELDS = {
   participants: ["id", "state", "ai", "model", "env", "sessionName", "link", "workroom", "requestedAt", "joinedAt"],
   workrooms: ["id", "name"],
-  "paired-hosts": ["id", "hostId", "nameAtPairing", "userNameAtPairing", "addr", "pairedAt", "requests", "listed"],
+  "paired-hosts": [
+    "id",
+    "hostId",
+    "nameAtPairing",
+    "userNameAtPairing",
+    "addr",
+    "pairedAt",
+    "requests",
+    "listed",
+    "rallyLimit",
+  ],
   "pairing-requests": ["id", "hostId", "name", "userName", "addr", "code", "requestedAt"],
 } as const
 export type SubjectRole = keyof typeof SUBJECT_ROLE_FIELDS
@@ -25,6 +35,8 @@ export const PAIRED_HOST_REQUESTS = ["ask-user", "as-user"] as const
 // ペアリングしたホスト（役 paired-hosts）の listed の値: AI 用ホストリスト（引数なしの list_workrooms）にそのホストを載せる（既定）・
 // 載せない（名前で引く・そのホストを読む・送れないときの断りでは見つかる）。常駐もこの値で読む
 export const PAIRED_HOST_LISTED = ["listed", "hidden"] as const
+// ペアリングしたホスト（役 paired-hosts）の rallyLimit の既定と範囲: そのホストから届く AI ラリーの上限（向きごとの数の整数）。常駐もこの値で読み、範囲の外は既定として扱う
+export const PAIRED_HOST_RALLY_LIMIT = { default: 15, min: 1, max: 50 } as const
 // 役ごとの、常駐が値で読むフィールドと、そのフィールドがちょうど受ける値（台帳アセンブルのときに確かめる）
 export const SUBJECT_ROLE_VALUES: { readonly [R in SubjectRole]?: Readonly<Record<string, readonly string[]>> } = {
   participants: { state: PARTICIPANT_STATES },

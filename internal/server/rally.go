@@ -14,9 +14,10 @@ import (
 // rallyLocalLimit は、同じホストの中の AI ラリーの上限（向きごとの数）
 const rallyLocalLimit = 50
 
-// ペアリングしたホストの rallyLimit（そのホストから届く AI ラリーの上限）の既定と範囲（web/src/plugins/network/pairing.ts と同じ）
+// ペアリングしたホストの rallyLimit（そのホストから届く AI ラリーの上限）の既定と範囲（core/def/subject.ts の PAIRED_HOST_RALLY_LIMIT）
 const (
 	rallyLimitDefault = 15
+	rallyLimitMin     = 1
 	rallyLimitMax     = 50
 )
 
@@ -37,7 +38,7 @@ type rallySentKey struct {
 
 // rallyLimitOf は、ペアリングしたホストの記録の上限（範囲の外は既定）
 func rallyLimitOf(r pairedHostRecord) int {
-	if r.RallyLimit < 1 || r.RallyLimit > rallyLimitMax {
+	if r.RallyLimit < rallyLimitMin || r.RallyLimit > rallyLimitMax {
 		return rallyLimitDefault
 	}
 	return r.RallyLimit
@@ -56,7 +57,7 @@ func (h *Hub) rallyPasses(d delivery) bool {
 		limit = d.limit
 	}
 	n := h.rallies[k] + 1
-	// 封筒に送り手の側の数が無い（古いホスト）ときは、こちらの数だけで決める
+	// 封筒に送り手の側の数を載せないホストからのときは、こちらの数だけで決める
 	if n > limit && (d.peer == "" || d.envelope.Rally == 0 || d.envelope.Rally > limit) {
 		if !h.ralliesStopped[k] {
 			h.ralliesStopped[k] = true

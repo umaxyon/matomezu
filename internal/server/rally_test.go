@@ -49,7 +49,7 @@ func TestRallyStopsAtTheLimitUntilAUserTalks(t *testing.T) {
 	}
 }
 
-// ほかのホストから届く物は、こちらの数と封筒の送り手の側の数の両方が上限を超えたときだけ止め、封筒に数が無い（古いホスト）ならこちらの数だけで決める
+// ほかのホストから届く物は、こちらの数と封筒の送り手の側の数の両方が上限を超えたときだけ止め、封筒に数を載せないホストからならこちらの数だけで決める
 func TestRallyFromAnotherHostCountsBothSides(t *testing.T) {
 	h := emptyHub(t)
 	peerFrom := func(rally int) bool {

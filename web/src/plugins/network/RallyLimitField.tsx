@@ -1,12 +1,11 @@
 // ペアリングしたホストの AI ラリーの回数制限（「このホストの様子」のダイアログの 1 行）: 数を入れて Enter か入力を離れたら書き、
-// 1〜50 の整数でなければ書かずに入力の下に一言。替えられない（利用者でない）ときは数だけを見せる
+// 範囲の内の整数でなければ書かずに入力の下に一言。替えられない（利用者でない）ときは数だけを見せる
 import { useState } from "react"
+import { PAIRED_HOST_RALLY_LIMIT } from "../../plugin-api"
 import { useActions, useAllowedOn, useMessages } from "../../plugin-api/ui"
 import { kit } from "./kit"
 import styles from "./OtherHosts.module.css"
-import { PAIRED_HOST_RALLY_LIMIT_SET, RALLY_LIMIT_MAX } from "./pairing"
-
-const RALLY_LIMIT_MIN = 1
+import { PAIRED_HOST_RALLY_LIMIT_SET, rallyLimitOf } from "./pairing"
 
 export function RallyLimitField({ id, value }: { id: string; value: number }) {
   const t = useMessages(kit)
@@ -14,11 +13,11 @@ export function RallyLimitField({ id, value }: { id: string; value: number }) {
   const canSet = useAllowedOn(PAIRED_HOST_RALLY_LIMIT_SET.id, { rallyLimit: value }, { record: id }).ok
   const [draft, setDraft] = useState<string | null>(null)
   const [wrong, setWrong] = useState(false)
-  const range = { min: RALLY_LIMIT_MIN, max: RALLY_LIMIT_MAX }
+  const range = { min: PAIRED_HOST_RALLY_LIMIT.min, max: PAIRED_HOST_RALLY_LIMIT.max }
   const commit = () => {
     if (draft === null) return
-    const n = Number(draft)
-    if (draft.trim() === "" || !Number.isInteger(n) || n < RALLY_LIMIT_MIN || n > RALLY_LIMIT_MAX) {
+    const n = rallyLimitOf(draft)
+    if (n === null) {
       setWrong(true)
       return
     }
@@ -35,8 +34,8 @@ export function RallyLimitField({ id, value }: { id: string; value: number }) {
             <input
               className={styles.rallyInput}
               type="number"
-              min={RALLY_LIMIT_MIN}
-              max={RALLY_LIMIT_MAX}
+              min={range.min}
+              max={range.max}
               aria-label={t("AI rally limit:")}
               aria-invalid={wrong}
               value={draft ?? String(value)}

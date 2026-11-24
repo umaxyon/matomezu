@@ -7,7 +7,7 @@
 // （paired-host-requests-set・paired-host-listed-set・paired-host-rally-limit-set）。
 // 相手の身元はホスト id（鍵の印）だけで決まる。名前・利用者名はペアリングしたときに相手が名乗った物で、今の名前は常駐だけが持つ
 import { z } from "zod"
-import { type ActionContext, PAIRED_HOST_LISTED, PAIRED_HOST_REQUESTS } from "../../plugin-api"
+import { type ActionContext, PAIRED_HOST_LISTED, PAIRED_HOST_RALLY_LIMIT, PAIRED_HOST_REQUESTS } from "../../plugin-api"
 import { kit } from "./kit"
 
 const HOST_ID = z.string().regex(/^[0-9a-f]{64}$/)
@@ -16,9 +16,12 @@ const ADDR = z.string().max(300) // 番地とポート（例 192.168.11.20:7240�
 const REQUESTS = z.enum(PAIRED_HOST_REQUESTS)
 const LISTED = z.enum(PAIRED_HOST_LISTED)
 // AI ラリーの上限の既定と最大（常駐の rally.go と同じ）
-export const RALLY_LIMIT_DEFAULT = 15
-export const RALLY_LIMIT_MAX = 50
-const RALLY_LIMIT = z.number().int().min(1).max(RALLY_LIMIT_MAX)
+const RALLY_LIMIT = z.number().int().min(PAIRED_HOST_RALLY_LIMIT.min).max(PAIRED_HOST_RALLY_LIMIT.max)
+// rallyLimitOf は、利用者が入れた文字を rallyLimit として読む（範囲の内の整数でなければ null）
+export function rallyLimitOf(text: string): number | null {
+  const n = RALLY_LIMIT.safeParse(text.trim() === "" ? Number.NaN : Number(text))
+  return n.success ? n.data : null
+}
 
 export const PAIRED_HOST = kit.defineSubject({
   id: "paired-host",
@@ -118,7 +121,7 @@ export const PAIRING_ACCEPT = kit.defineAction({
       pairedAt: ctx.now,
       requests: "ask-user",
       listed: "listed",
-      rallyLimit: RALLY_LIMIT_DEFAULT,
+      rallyLimit: PAIRED_HOST_RALLY_LIMIT.default,
     }
     return {
       next: "removed",
@@ -155,7 +158,14 @@ export const PAIRED_HOST_ADD = kit.defineAction({
     if (hasHost(ctx, PAIRED_HOST.id, args.hostId)) return { declined: "that host is paired already" }
     const id = ctx.newId()
     return {
-      next: { id, ...args, pairedAt: ctx.now, requests: "ask-user", listed: "listed", rallyLimit: RALLY_LIMIT_DEFAULT },
+      next: {
+        id,
+        ...args,
+        pairedAt: ctx.now,
+        requests: "ask-user",
+        listed: "listed",
+        rallyLimit: PAIRED_HOST_RALLY_LIMIT.default,
+      },
       result: { pairedHost: id },
     }
   },

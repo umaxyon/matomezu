@@ -37,7 +37,7 @@ type Envelope struct {
 	To     Address `json:"to"`
 	Text   string  `json:"text"`
 	SentAt string  `json:"sentAt"`
-	Rally  int     `json:"rally,omitempty"` // ほかのホストへ送る物の、送り手の AI の利用者トリガートークの後に、その宛て先へ送った何通目か（rally.go。古いホストは載せない）
+	Rally  int     `json:"rally,omitempty"` // ほかのホストへ送る物の、送り手の AI の利用者トリガートークの後に、その宛て先へ送った何通目か（rally.go。載せないホストもある）
 }
 
 // MessageRequest は AI 間メッセージを送る頼み。Participant は呼び出しに付いていた参加の id

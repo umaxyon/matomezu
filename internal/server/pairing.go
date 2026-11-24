@@ -44,7 +44,7 @@ type pairedHostRecord struct {
 	Addr              string `json:"addr"`
 	Requests          string `json:"requests"`   // そのホストの AI からの AI 間メッセージを、利用者の頼みとして受けるか（requestsAskUser・requestsAsUser）
 	Listed            string `json:"listed"`     // AI 用ホストリストにそのホストを載せるか（hostListed・hostHidden）
-	RallyLimit        int    `json:"rallyLimit"` // そのホストから届く AI ラリーの上限（向きごとの数。rally.go）
+	RallyLimit        int    `json:"rallyLimit"` // そのホストから届く AI ラリーの上限（向きごとの数。core/def/subject.ts の PAIRED_HOST_RALLY_LIMIT。rally.go）
 }
 
 // ペアリングしたホストの requests の値（core/def/subject.ts の PAIRED_HOST_REQUESTS）
