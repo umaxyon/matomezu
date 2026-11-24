@@ -1,16 +1,20 @@
 // 読めない物が移った・戻ったときの知らせ（窓が読み直したあと 1 回）: 移った物の数と訳ごとの数（多い順に 3 行まで、残りは「ほか」）と、戻った物の数のダイアログ。
 // 移った物が在れば［閉じる］［見る］（読めない物のフォルダを開く）、戻っただけなら［閉じる］だけ。閉じたら、同じ窓では二度と出さない（閉じた印はプラグイン状態 unreadable-notice-closed）。
 // 何を知らせるかはホストクライアントが決めて運ぶ（自分の設定で無効にして移った分は除いてある）
+
+import { currentScreen } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { defineWidget } from "../../../ui/layout"
 import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
+import { useMatomezuState } from "../../../ui/store-context"
 import { Confirm, Notice } from "../dialog-host/Confirm"
 import { kit } from "../kit"
+import { usePutViewInside } from "../window/views-inside-hooks"
 import { useUnreadableNotice } from "./hooks"
 import { NO_TYPE } from "./outline"
 import { useReasonOf } from "./reasons"
-import { LIBRARY_UNREADABLE_OPEN } from "./screen"
+import { LIBRARY_SCREEN, LIBRARY_UNREADABLE_OPEN } from "./screen"
 import { NOTICE_CLOSED, UNREADABLE_NOTICE_CLOSED } from "./state"
 
 // 名前を出す訳の行の数（ほかは数だけ）
@@ -22,7 +26,14 @@ export function UnreadableNoticeView() {
   const setClosed = useSetPluginState(kit, UNREADABLE_NOTICE_CLOSED)
   const t = useMessages(kit)
   const reasonOf = useReasonOf()
-  const open = useCommand(LIBRARY_UNREADABLE_OPEN.id).run
+  const run = useCommand(LIBRARY_UNREADABLE_OPEN.id).run
+  // コントロールセンターなど、書庫の画面を中に描くスクリーンの上なら、その画面を出す値を入れてから開く
+  const putInside = usePutViewInside(LIBRARY_SCREEN.id)
+  const current = useMatomezuState(s => currentScreen(s.window).def)
+  const open = () => {
+    putInside(current)
+    run()
+  }
   if (!notice || closed) return null
   const moved = notice.moved.reduce((n, m) => n + m.count, 0)
   if (moved === 0 && notice.returned === 0) return null

@@ -19,7 +19,7 @@ test("並びの値が無ければ（分けていなければ）、空のステ�
   expect(vacantStageBeside(screens, undefined, "lib")).toBe(NO_STAGE)
 })
 
-test("書庫のスクリーンから選ぶ: 「画面を分割」なら空のステージ、「書庫を開く」ならカレントのステージ、コントロールセンターから開いた書庫なら新しいブックスクリーンに開き、書庫のスクリーンを閉じる", () => {
+test("書庫のスクリーンから選ぶ: 「画面を分割」なら空のステージ、「書庫を開く」ならカレントのステージ、書庫のスクリーンを閉じる。コントロールセンターからは書庫のスクリーンを開かない", () => {
   const open = () => store.state.getState().window
   const store = newStore()
   const libs = () => open().screens.filter(s => s.def === "@matomezu/base:library-screen")
@@ -42,14 +42,12 @@ test("書庫のスクリーンから選ぶ: 「画面を分割」なら空のス
   expect(
     stages().map(st => st.opened !== NOTHING_OPENED && "outermost" in st.opened && st.opened.outermost.id),
   ).toEqual(["b1", "b4"])
-  // コントロールセンターから「書庫を開く」: 窓いっぱい。選ぶと新しいブックスクリーンに開いて書庫のスクリーンを閉じる
+  // コントロールセンターから「書庫を開く」: 書庫のスクリーンは開かず、コントロールセンターの中の書庫の画面に出す（コンテンツエリアを替えるのは開く側のフック）
   const center = open().screens.find(s => s.stages === undefined)?.id ?? ""
   store.actions.makeScreenCurrent(center)
   store.actions.command(center, "@matomezu/base:library-open")
-  expect(open().arrangement).toBe("@matomezu/base:one-screen")
-  expect(open().order.at(-1)).toBe(libs()[0]?.id)
-  store.actions.command(libs()[0]?.id ?? "", "@matomezu/base:library-entry-open", { entry: "b5" })
   expect(libs()).toHaveLength(0)
+  expect(open().order.at(-1)).toBe(center)
 })
 
 test("下に出した書庫のスクリーンの帯: 閉じると空のステージも閉じて 1 枚に戻り、広げると空のステージを閉じて書庫のスクリーンを窓いっぱいに出す", () => {

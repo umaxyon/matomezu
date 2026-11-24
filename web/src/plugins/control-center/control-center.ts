@@ -50,8 +50,11 @@ export const CONTROL_CENTER_SCREEN = kit.defineScreen({
   // 書庫の画面を出している間だけ、base の書庫（LibraryView）を見せている（プロジェクトの画面の間は、描いたまま隠している）
   libraryAppearances: ["@matomezu/base:library"],
   shownLibraryAppearances: read => (read(CONTENT_AREA) === "library" ? ["@matomezu/base:library"] : []),
-  // 郵便箱は、コンテンツエリアの郵便箱の画面に出す（しおりを押せば、郵便箱のスクリーンを開かずに、ここに替えて選ぶ）
-  mailboxArea: { state: CONTENT_AREA.id, value: "mailbox" },
+  // 郵便箱と書庫は、コンテンツエリアの画面に出す（しおりや読めない物の知らせの［見る］を押せば、郵便箱・書庫のスクリーンを開かずに、ここに替える）
+  viewsInside: {
+    "@matomezu/base:mailbox-screen": { state: CONTENT_AREA.id, value: "mailbox" },
+    "@matomezu/base:library-screen": { state: CONTENT_AREA.id, value: "library" },
+  },
 })
 
 // 選んでいる物（画面の場所に入れるプラグイン状態。スクリーン 1 枚ごとの値で、履歴には積まない）: 種類の id（kind）とレコードの id。どれか 1 つだけを選ぶ。

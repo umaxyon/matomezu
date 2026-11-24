@@ -1,6 +1,6 @@
 // 郵便箱のスクリーン（郵便箱の画面だけを見せる、ステージを並べないスクリーン）と、それを開いて郵便を選ぶコマンド・閉じる・広げる・↑↓で選ぶ行を移すコマンドとキー。
 // 開く先は書庫のスクリーンと同じ（base/window/below-book.ts）: ブックスクリーンから開けば下の段、ほかのステージの無いスクリーンからなら窓いっぱい。
-// ただし、定義に mailboxArea を書いたスクリーン（コントロールセンター）から開けば、新しく開かずに、そのスクリーンの郵便箱の画面で選ぶ（コンテンツエリアを替えるのは、開く側のフック）
+// ただし、郵便箱の画面を中に描く（定義の viewsInside。コントロールセンター）スクリーンから開けば、新しく開かずに、そのスクリーンの郵便箱の画面で選ぶ（コンテンツエリアを替えるのは、開く側のフック）
 import { z } from "zod"
 import { NO_STATE } from "../../../core/def/plugin-state"
 import { SCREEN_REFUSED } from "../../../store/actions"
@@ -22,14 +22,6 @@ import { type Mail, mailsInOrder } from "./mail"
 import { MAILBOX_PICKED, MAILBOX_SENDER_TAB } from "./states"
 import { MAIL } from "./subject"
 
-declare module "../../../core/catalog" {
-  interface ScreenExtras {
-    // このスクリーンが郵便箱の画面を中に描いているとき、それを出すための、持ち主のプラグイン状態の宣言の id と値（画面の場所に入れる宣言）。
-    // 書けば、このスクリーンから郵便箱を開くコマンドは、郵便箱のスクリーンを開かずに、このスクリーンの郵便箱の画面で選び、開く側のフックがこの値を入れる
-    mailboxArea?: { readonly state: string; readonly value: unknown }
-  }
-}
-
 export const MAILBOX_SCREEN = kit.defineScreen({
   id: "mailbox-screen",
   title: "Mailbox",
@@ -43,10 +35,9 @@ export const MAILBOX_SCREEN = kit.defineScreen({
 export const MAILBOX_SCOPE = kit.name("mailbox")
 export const MAILBOX_KEY_SCOPE = kit.defineKeyScope({ id: "mailbox", title: "Mailbox", commandsFrom: "screen" })
 
-// 郵便箱の画面を描いているスクリーン: 定義に mailboxArea を書いたスクリーンから呼べばそのスクリーン、ほかは郵便箱のスクリーンを出して（出せなければ SCREEN_REFUSED）
+// 郵便箱の画面を描いているスクリーン: 郵便箱のスクリーンから呼べばそれ、ほかは openBelowBook（郵便箱の画面を中に描くスクリーンならそれ。出せなければ SCREEN_REFUSED）
 function mailboxScreenOf(ctx: ScreenCommandContext, a: CommandActions): string | typeof SCREEN_REFUSED {
   if (ctx.screen.def === MAILBOX_SCREEN.id) return calledScreenIdOf(ctx)
-  if (ctx.catalog.screens.get(ctx.screen.def)?.mailboxArea !== undefined) return calledScreenIdOf(ctx)
   return openBelowBook(ctx, a, MAILBOX_SCREEN.id)
 }
 

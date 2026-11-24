@@ -2,6 +2,7 @@
 // ブックスクリーンから開けば上下に分けて（SPLIT_ROWS）その下に出し、前の並びは behind に覚えて、外したら戻す。ステージの無いスクリーンから開けば、1 枚ずつ（ONE_SCREEN）で窓いっぱいに出す。
 // ステージの扱い（ステージを分けて足した空のステージを閉じるなど）は、出すスクリーンの側が持つ
 
+import type { ScreenId } from "../../../core/catalog"
 import { screenOfStage, type WindowState } from "../../../core/window"
 import type { Actions } from "../../../store/actions"
 import { SCREEN_REFUSED } from "../../../store/actions"
@@ -18,6 +19,7 @@ import { NO_STAGE } from "../../../store/dialogs"
 import { applySplitFrom } from "./apply-split"
 import { ONE_SCREEN } from "./one-screen"
 import { behindOf, planAt, planClose, planExpand, SPLIT_ROWS, splitOf } from "./split"
+import { viewInsideOf } from "./views-inside"
 
 const NO_BOOK_SCREEN = "none"
 
@@ -39,12 +41,15 @@ type Arranged = Pick<OpenScreen, "id" | "stages" | "stageList" | "currentStage">
 type Store = Pick<Actions, "closeScreen" | "setScreenArrangement" | "makeScreenCurrent">
 
 // スクリーンの定義 def のスクリーンを、呼んだスクリーンの下の段に出して、その id を返す（出せなければ SCREEN_REFUSED）。開いていれば、新しく開かずにそれを使う。
-// 呼んだのがブックスクリーンと上下に並んでいる下の段のスクリーンなら、下の段を入れ替える。ほかのステージの無いスクリーンなら、窓いっぱいに出す
+// 呼んだのがブックスクリーンと上下に並んでいる下の段のスクリーンなら、下の段を入れ替える。ほかのステージの無いスクリーンなら、窓いっぱいに出す。
+// 呼んだスクリーンが def の画面を中に描いている（定義の viewsInside。コントロールセンター）なら、何も開かずに、呼んだスクリーンの id を返す
 export function openBelowBook(
   ctx: ScreenCommandContext,
   a: CommandActions,
-  def: string,
+  def: ScreenId,
 ): string | typeof SCREEN_REFUSED {
+  // 呼んだスクリーンが、その画面を中に描いている（定義の viewsInside）なら、そのスクリーン
+  if (viewInsideOf(ctx.catalog, ctx.screen.def, def) !== undefined) return calledScreenIdOf(ctx)
   const store = storeActionsOf(a)
   const screens = screensOf(ctx)
   const opened = screens.find(s => s.def === def)?.id

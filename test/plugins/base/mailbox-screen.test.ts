@@ -108,7 +108,7 @@ test("書庫が下の段にあれば入れ替える。閉じるとブックス�
   expect(stages()).toHaveLength(2)
 })
 
-test("コントロールセンター（定義に mailboxArea を書いた）から開く: 郵便箱のスクリーンは開かず、そのスクリーンの郵便箱の画面で選ぶ", () => {
+test("コントロールセンター（定義の viewsInside で郵便箱の画面を中に描く）から開く: 郵便箱のスクリーンは開かず、そのスクリーンの郵便箱の画面で選ぶ", () => {
   const { store, win, of, run, id } = setup()
   const center = win().screens.find(s => s.stages === undefined)?.id ?? ""
   store.actions.makeScreenCurrent(center)
@@ -178,11 +178,10 @@ test("郵便箱のスクリーン（下の段）から書庫を開くと、下�
 })
 
 test("郵便箱を開く起点: ステージの中ならそのステージ、郵便箱の画面を描くスクリーンならそのスクリーン、ほかは最近のブックスクリーンのステージ", () => {
-  const area = { state: "@matomezu/control-center:content-area", value: "mailbox" }
   const ticket = { id: "t", def: "@matomezu/taskboard:ticket-screen" }
-  expect(mailboxFromOf("s2", ticket, area, "s1")).toEqual({ at: "s2", area: undefined })
-  expect(mailboxFromOf(NO_STAGE, { id: "c", def: "x" }, area, "s1")).toEqual({ at: "c", area })
-  expect(mailboxFromOf(NO_STAGE, { id: "m", def: MAILBOX }, undefined, "s1")).toEqual({ at: "m", area: undefined })
-  expect(mailboxFromOf(NO_STAGE, ticket, undefined, "s1")).toEqual({ at: "s1", area: undefined })
-  expect(mailboxFromOf(NO_STAGE, ticket, undefined, NO_STAGE)).toEqual({ at: "t", area: undefined })
+  expect(mailboxFromOf("s2", ticket, false, "s1")).toBe("s2")
+  expect(mailboxFromOf(NO_STAGE, { id: "c", def: "x" }, true, "s1")).toBe("c")
+  expect(mailboxFromOf(NO_STAGE, { id: "m", def: MAILBOX }, false, "s1")).toBe("m")
+  expect(mailboxFromOf(NO_STAGE, ticket, false, "s1")).toBe("s1")
+  expect(mailboxFromOf(NO_STAGE, ticket, false, NO_STAGE)).toBe("t")
 })
