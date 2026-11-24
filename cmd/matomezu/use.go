@@ -120,6 +120,13 @@ func (useLocalCmd) Run() error {
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "this vault no longer uses the server of %s; the server of this OS starts when it is needed: %s\n", counterpartName(*u), h.Dir)
+	// 相手の常駐は止めない（相手の OS の AI のプログラムが使っていることがある）。同じポートで待っていれば、この OS の常駐が立たない
+	if s, _ := counterpartRunning(u); s != nil {
+		port, _ := listenPort(h, nil)
+		if serverPort(s) == port {
+			fmt.Fprintf(os.Stderr, "the server of %s still runs at %s, the port the server of this OS uses: stop it there (matomezu stop) first\n", counterpartName(*u), s.URL)
+		}
+	}
 	return nil
 }
 
