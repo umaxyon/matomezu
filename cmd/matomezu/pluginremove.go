@@ -67,17 +67,17 @@ func (c *pluginRemoveCmd) removeInstalled() error {
 	return err
 }
 
-// stopHere は、この OS の常駐を止める（ほかの OS の常駐を使う保管庫では、その常駐は止めない。その OS の AI のプログラムが使っている）
+// stopHere は、この OS の常駐を止める（相手の常駐を使う保管庫では、その常駐は止めない。相手の OS の AI のプログラムが使っている）
 func stopHere() error {
 	useDevHere()
 	h, err := openHome()
 	if err != nil {
 		return err
 	}
-	if u, err := h.ReadUse(); err != nil {
+	if u, err := h.ReadCounterpart(); err != nil {
 		return err
 	} else if u != nil {
-		fmt.Printf("The matomezu server of %s keeps running.\n", otherName(*u))
+		fmt.Printf("The matomezu server of %s keeps running.\n", counterpartName(*u))
 		return nil
 	}
 	return (&stopCmd{}).Run()

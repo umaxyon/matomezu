@@ -27,7 +27,8 @@
 | ペアリングを解く | ペアリングしたホストを消し、相手にも知らせること |
 | 接続確認コード | ペアリングのとき両方の画面に出る 6 桁の数。利用者が見比べる。画面 cookie の鍵を渡す使い捨てのコードとは別 |
 | peer | コードで、ほかのホスト（ペアリングしたホストと、同じ LAN で見つけた、まだペアリングしていないホスト）を指す名前（`HostPeers`・`PeerLive`）。Go のパッケージ `peer` は、ホストどうしのつなぎの部品 |
-| matomezu 保管庫フォルダ | 利用者ごとに 1 つの、ホストが使うフォルダ（`internal/home`） |
+| matomezu 保管庫フォルダ | 利用者ごと・OS（WSL は distro）ごとに 1 つの、ホストが使うフォルダ（`internal/home`） |
+| WSL と Windows の相手の常駐 | 同じ機械の Windows と WSL の、もう片方の OS で動く常駐。matomezu 保管庫フォルダに使うと覚えさせると（`matomezu use wsl`・`matomezu use windows`）、その OS の matomezu は自分では常駐を立てずにこれを使う。ホストは 1 つだけで、ペアリングしたホスト・peer とは別物。「相手の常駐」と略してよい。コードでは `counterpart`（`home.Counterpart`） |
 | ホストクライアント | 画面の中で、ホストとブラウザ（URL・履歴・クリップボード・印刷など）に頼む口（`web/src/host-client`。`HostClient`） |
 | ホストのエンジン | ホストの goja で、画面と同じアクションを行う入口（`web/src/engine`） |
 

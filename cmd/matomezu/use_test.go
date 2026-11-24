@@ -3,6 +3,9 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -46,8 +49,8 @@ func (f *fakeResident) wasStopped() bool {
 	return f.stopped
 }
 
-// otherVault は、ほかの OS の常駐の保管庫の代わり（server.json に version の常駐 f のつなぎ方を書く。f が nil なら書かない）
-func otherVault(t *testing.T, f *fakeResident, version string) string {
+// counterpartVault は、相手の常駐の保管庫の代わり（server.json に version の常駐 f のつなぎ方を書く。f が nil なら書かない）
+func counterpartVault(t *testing.T, f *fakeResident, version string) string {
 	t.Helper()
 	dir := t.TempDir()
 	if f != nil {
@@ -58,11 +61,11 @@ func otherVault(t *testing.T, f *fakeResident, version string) string {
 	return dir
 }
 
-// ほかの OS の常駐を使うと覚えた保管庫は、鍵を見ず、その常駐の保管庫の server.json で、答えれば立っているとみなす
-func TestRunningUsesTheOtherOSsResident(t *testing.T) {
+// 相手の常駐を使うと覚えた保管庫は、鍵を見ず、その常駐の保管庫の server.json で、答えれば立っているとみなす
+func TestRunningUsesTheCounterpart(t *testing.T) {
 	h := openTestHome(t, t.TempDir())
 	f := newFakeResident(t, nil)
-	if err := h.WriteUse(home.Use{OS: home.UseWSL, Distro: "Ubuntu", Vault: otherVault(t, f, "")}); err != nil {
+	if err := h.WriteCounterpart(home.Counterpart{OS: home.CounterpartWSL, Distro: "Ubuntu", Vault: counterpartVault(t, f, "")}); err != nil {
 		t.Fatal(err)
 	}
 	if s, err := running(h); err != nil || s == nil || s.URL != f.ts.URL+"/" {
@@ -71,7 +74,7 @@ func TestRunningUsesTheOtherOSsResident(t *testing.T) {
 	if residentDir(h) == h.Dir {
 		t.Error("residentDir is the vault of this OS")
 	}
-	if err := h.WriteUse(home.Use{OS: home.UseWSL, Distro: "Ubuntu", Vault: otherVault(t, nil, "")}); err != nil {
+	if err := h.WriteCounterpart(home.Counterpart{OS: home.CounterpartWSL, Distro: "Ubuntu", Vault: counterpartVault(t, nil, "")}); err != nil {
 		t.Fatal(err)
 	}
 	if s, err := running(h); err != nil || s != nil {
@@ -79,21 +82,21 @@ func TestRunningUsesTheOtherOSsResident(t *testing.T) {
 	}
 }
 
-// 立っていなければ、ensure はこの OS に立てず、その OS の matomezu start を動かして、答えるまで待つ
-func TestEnsureStartsTheOtherOSsResident(t *testing.T) {
+// 立っていなければ、ensure はこの OS に立てず、相手の OS の matomezu start を動かして、答えるまで待つ
+func TestEnsureStartsTheCounterpart(t *testing.T) {
 	h := openTestHome(t, t.TempDir())
 	f := newFakeResident(t, nil)
-	vault := otherVault(t, nil, "")
-	if err := h.WriteUse(home.Use{OS: home.UseWSL, Distro: "Ubuntu", Vault: vault}); err != nil {
+	vault := counterpartVault(t, nil, "")
+	if err := h.WriteCounterpart(home.Counterpart{OS: home.CounterpartWSL, Distro: "Ubuntu", Vault: vault}); err != nil {
 		t.Fatal(err)
 	}
 	var ran []string
-	old := sideOutput
-	sideOutput = func(dir, name string, args ...string) ([]byte, error) {
+	old := commandOutput
+	commandOutput = func(dir, name string, args ...string) ([]byte, error) {
 		ran = append([]string{name}, args...)
 		return nil, openTestHome(t, vault).WriteServer(home.Server{URL: f.ts.URL + "/", Token: "t"})
 	}
-	t.Cleanup(func() { sideOutput = old })
+	t.Cleanup(func() { commandOutput = old })
 	s, err := ensure(h, serverFlags{})
 	if err != nil || s == nil {
 		t.Fatalf("ensure: %v, %v", s, err)
@@ -104,11 +107,11 @@ func TestEnsureStartsTheOtherOSsResident(t *testing.T) {
 	}
 }
 
-// stop は、ほかの OS の常駐を、答えなくなるまで待って止める
-func TestStopServerStopsTheOtherOSsResident(t *testing.T) {
+// stop は、相手の常駐を、答えなくなるまで待って止める
+func TestStopServerStopsTheCounterpart(t *testing.T) {
 	h := openTestHome(t, t.TempDir())
 	f := newFakeResident(t, nil)
-	if err := h.WriteUse(home.Use{OS: home.UseWindows, Vault: otherVault(t, f, "")}); err != nil {
+	if err := h.WriteCounterpart(home.Counterpart{OS: home.CounterpartWindows, Vault: counterpartVault(t, f, "")}); err != nil {
 		t.Fatal(err)
 	}
 	s, err := running(h)
@@ -123,8 +126,8 @@ func TestStopServerStopsTheOtherOSsResident(t *testing.T) {
 	}
 }
 
-// 覚えるときは、先にこの OS の常駐を止めてから覚える（覚えたあとでは、止める先がほかの OS の常駐になる）
-func TestUseOtherStopsThisOSsResidentFirst(t *testing.T) {
+// 覚えるときは、先にこの OS の常駐を止めてから覚える（覚えたあとでは、止める先が相手の常駐になる）
+func TestUseCounterpartStopsThisOSsResidentFirst(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv(home.EnvHome, dir)
 	h := openTestHome(t, dir)
@@ -137,29 +140,29 @@ func TestUseOtherStopsThisOSsResidentFirst(t *testing.T) {
 		t.Fatal(err)
 	}
 	other := newFakeResident(t, nil)
-	u := home.Use{OS: home.UseWSL, Distro: "Ubuntu", Vault: otherVault(t, other, "")}
-	if err := useOther(u, hereInfo{Vault: "/home/me/.matomezu"}); err != nil {
+	u := home.Counterpart{OS: home.CounterpartWSL, Distro: "Ubuntu", Vault: counterpartVault(t, other, "")}
+	if err := useCounterpart(u, hereInfo{Vault: "/home/me/.matomezu"}); err != nil {
 		t.Fatal(err)
 	}
 	if !local.wasStopped() || other.wasStopped() {
 		t.Errorf("stopped: this OS %v, the other OS %v", local.wasStopped(), other.wasStopped())
 	}
-	if got, err := h.ReadUse(); err != nil || got == nil || *got != u {
+	if got, err := h.ReadCounterpart(); err != nil || got == nil || *got != u {
 		t.Errorf("use: %v, %v", got, err)
 	}
 	if err := (useLocalCmd{}).Run(); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := h.ReadUse(); err != nil || got != nil {
+	if got, err := h.ReadCounterpart(); err != nil || got != nil {
 		t.Errorf("after use local: %v, %v", got, err)
 	}
 }
 
-// この OS で常駐を立てる serve は、ほかの OS の常駐を使う保管庫では断る
-func TestServeRefusesWhileUsingTheOtherOS(t *testing.T) {
+// この OS で常駐を立てる serve は、相手の常駐を使う保管庫では断る
+func TestServeRefusesWhileUsingTheCounterpart(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv(home.EnvHome, dir)
-	if err := openTestHome(t, dir).WriteUse(home.Use{OS: home.UseWSL, Distro: "Ubuntu", Vault: t.TempDir()}); err != nil {
+	if err := openTestHome(t, dir).WriteCounterpart(home.Counterpart{OS: home.CounterpartWSL, Distro: "Ubuntu", Vault: t.TempDir()}); err != nil {
 		t.Fatal(err)
 	}
 	if err := (&serveCmd{}).Run(); err == nil || !strings.Contains(err.Error(), "matomezu use local") {
@@ -167,17 +170,17 @@ func TestServeRefusesWhileUsingTheOtherOS(t *testing.T) {
 	}
 }
 
-// ほかの OS の matomezu の答えは、ログインのシェルが先に書いた行があっても、最後の行
-func TestAskHereReadsTheLastLine(t *testing.T) {
-	old := sideOutput
-	sideOutput = func(dir, name string, args ...string) ([]byte, error) {
+// 相手の OS の matomezu の答えは、ログインのシェルが先に書いた行があっても、最後の行
+func TestAskCounterpartReadsTheLastLine(t *testing.T) {
+	old := commandOutput
+	commandOutput = func(dir, name string, args ...string) ([]byte, error) {
 		if name != "cmd.exe" || dir != "/mnt/c" || !slices.Equal(args, []string{"/c", "matomezu use here"}) {
 			t.Errorf("ran %s %q in %s", name, args, dir)
 		}
 		return []byte("welcome\n{\"vault\":\"C:\\\\Users\\\\me\\\\.matomezu\",\"version\":\"1.2.3\"}\r\n"), nil
 	}
-	t.Cleanup(func() { sideOutput = old })
-	in, err := askHere(home.Use{OS: home.UseWindows})
+	t.Cleanup(func() { commandOutput = old })
+	in, err := askCounterpart(home.Counterpart{OS: home.CounterpartWindows})
 	if err != nil || in.Vault != `C:\Users\me\.matomezu` || in.Version != "1.2.3" {
 		t.Fatalf("%+v, %v", in, err)
 	}
@@ -191,7 +194,7 @@ func TestWSLVaultFromWindows(t *testing.T) {
 
 // 版が違えば知らせる（同じ・開発の版・分からないなら知らせない）
 func TestVersionNote(t *testing.T) {
-	u := home.Use{OS: home.UseWSL, Distro: "Ubuntu"}
+	u := home.Counterpart{OS: home.CounterpartWSL, Distro: "Ubuntu"}
 	here := installedVersion()
 	for _, other := range []string{"", here, devVersion} {
 		if note := versionNote(u, other); note != "" {
@@ -207,32 +210,32 @@ func TestVersionNote(t *testing.T) {
 }
 
 // 相手の保管庫もこちらの常駐を使うと覚えていれば、覚えずに断る（互いに相手の常駐を立てさせ合う）
-func TestUseOtherRefusesWhenTheOtherUsesThisOS(t *testing.T) {
+func TestUseCounterpartRefusesWhenItUsesThisOS(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv(home.EnvHome, dir)
-	err := useOther(home.Use{OS: home.UseWSL, Distro: "Ubuntu", Vault: t.TempDir()}, hereInfo{Vault: "/home/me/.matomezu", Uses: true})
+	err := useCounterpart(home.Counterpart{OS: home.CounterpartWSL, Distro: "Ubuntu", Vault: t.TempDir()}, hereInfo{Vault: "/home/me/.matomezu", Uses: true})
 	if err == nil || !strings.Contains(err.Error(), "matomezu use local there") {
-		t.Fatalf("useOther: %v", err)
+		t.Fatalf("useCounterpart: %v", err)
 	}
-	if u, err := openTestHome(t, dir).ReadUse(); err != nil || u != nil {
+	if u, err := openTestHome(t, dir).ReadCounterpart(); err != nil || u != nil {
 		t.Errorf("use: %v, %v", u, err)
 	}
 }
 
-// ほかの OS の常駐を使う保管庫では、update の立て直しと plugin-remove の止めは、その常駐に触らず、その OS のコマンドも動かさない
-func TestUpdateAndPluginRemoveLeaveTheOtherOSsResident(t *testing.T) {
+// 相手の常駐を使う保管庫では、update の立て直しと plugin-remove の止めは、その常駐に触らず、相手の OS のコマンドも動かさない
+func TestUpdateAndPluginRemoveLeaveTheCounterpart(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv(home.EnvHome, dir)
 	f := newFakeResident(t, nil)
-	if err := openTestHome(t, dir).WriteUse(home.Use{OS: home.UseWSL, Distro: "Ubuntu", Vault: otherVault(t, f, "0.0.1")}); err != nil {
+	if err := openTestHome(t, dir).WriteCounterpart(home.Counterpart{OS: home.CounterpartWSL, Distro: "Ubuntu", Vault: counterpartVault(t, f, "0.0.1")}); err != nil {
 		t.Fatal(err)
 	}
-	old := sideOutput
-	sideOutput = func(dir, name string, args ...string) ([]byte, error) {
+	old := commandOutput
+	commandOutput = func(dir, name string, args ...string) ([]byte, error) {
 		t.Errorf("ran %s %q", name, args)
 		return nil, nil
 	}
-	t.Cleanup(func() { sideOutput = old })
+	t.Cleanup(func() { commandOutput = old })
 	if err := restartOlderServer(); err != nil {
 		t.Fatal(err)
 	}
@@ -244,19 +247,19 @@ func TestUpdateAndPluginRemoveLeaveTheOtherOSsResident(t *testing.T) {
 	}
 }
 
-// その OS の matomezu を動かすコマンド: WSL は distro のホームのフォルダの対話のログインのシェル、Windows は C: の cmd.exe
+// 相手の OS の matomezu を動かすコマンド: WSL は distro のホームのフォルダの対話のログインのシェル、Windows は C: の cmd.exe
 func TestSideCommand(t *testing.T) {
 	for _, c := range []struct {
-		u    home.Use
+		u    home.Counterpart
 		name string
 		args []string
 		dir  string
 	}{
-		{home.Use{OS: home.UseWSL, Distro: "Ubuntu"}, "wsl.exe", []string{"-d", "Ubuntu", "--cd", "~", "--", "bash", "-lic", "matomezu use here"}, ""},
-		{home.Use{OS: home.UseWSL}, "wsl.exe", []string{"--cd", "~", "--", "bash", "-lic", "matomezu use here"}, ""},
-		{home.Use{OS: home.UseWindows}, "cmd.exe", []string{"/c", "matomezu use here"}, "/mnt/c"},
+		{home.Counterpart{OS: home.CounterpartWSL, Distro: "Ubuntu"}, "wsl.exe", []string{"-d", "Ubuntu", "--cd", "~", "--", "bash", "-lic", "matomezu use here"}, ""},
+		{home.Counterpart{OS: home.CounterpartWSL}, "wsl.exe", []string{"--cd", "~", "--", "bash", "-lic", "matomezu use here"}, ""},
+		{home.Counterpart{OS: home.CounterpartWindows}, "cmd.exe", []string{"/c", "matomezu use here"}, "/mnt/c"},
 	} {
-		name, args, dir := sideCommand(c.u, "use", "here")
+		name, args, dir := counterpartCommand(c.u, "use", "here")
 		if name != c.name || !slices.Equal(args, c.args) || dir != c.dir {
 			t.Errorf("%+v: %s %q in %q", c.u, name, args, dir)
 		}
@@ -264,21 +267,43 @@ func TestSideCommand(t *testing.T) {
 }
 
 // WSL が NAT モードなら、Windows の常駐に届かないので、use windows は断る
-func TestUseWindowsRefusesNATNetworking(t *testing.T) {
+func TestCounterpartWindowsRefusesNATNetworking(t *testing.T) {
 	if !onWSL() {
 		t.Skip("only on WSL")
 	}
 	dir := t.TempDir()
 	t.Setenv(home.EnvHome, dir)
-	old := sideOutput
-	sideOutput = func(dir, name string, args ...string) ([]byte, error) {
+	old := commandOutput
+	commandOutput = func(dir, name string, args ...string) ([]byte, error) {
 		if name != "wslinfo" {
 			t.Errorf("ran %s %q", name, args)
 		}
 		return []byte("nat\n"), nil
 	}
-	t.Cleanup(func() { sideOutput = old })
+	t.Cleanup(func() { commandOutput = old })
 	if err := (useWindowsCmd{}).Run(); err == nil || !strings.Contains(err.Error(), "networkingMode=mirrored") {
 		t.Fatalf("use windows: %v", err)
+	}
+}
+
+// 常駐を探す・止めるコードは running・ensure・stopServer を通す（WSL と Windows の相手の常駐を使う保管庫で、相手を見落とさない）。
+// 保管庫の鍵や server.json を直に見てよいのは、それらを書く serve.go と use.go だけ
+func TestOnlyServeAndUseLookAtTheVaultsServerDirectly(t *testing.T) {
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	direct := regexp.MustCompile(`localRunning\(|stopLocal\(|\.Running\(\)|\.ReadServer\(\)`)
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") || f == "serve.go" || f == "use.go" {
+			continue
+		}
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if loc := direct.FindIndex(b); loc != nil {
+			t.Errorf("%s: %s looks at the vault's server directly: use running, ensure or stopServer", f, b[loc[0]:loc[1]])
+		}
 	}
 }
