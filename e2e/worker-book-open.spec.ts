@@ -1,6 +1,6 @@
 // ワーカーブックを開く口: 参加者一覧の行の、本を頭に付けたチケット番号の行と、書庫のワーカーブックの行と、チケットのナレッジの「作業ブック」。
 // ページが無い間は押せない。番号の行はクリックで「開く／分割で開く」を出し、分割で開くとコントロールセンターの下にブックスクリーンが入る。ダブルクリックは全画面で開く。
-// 窓が低いと、番号の行のクリックで全画面で開く。書庫の行はクリックで 2 択を出す。「作業ブック」はクリックで右にページの一覧を出し、もう一度のクリックで閉じ、ダブルクリックで全画面で開く
+// 窓が低いと、番号の行のクリックで全画面で開く。書庫の行はクリックで 2 択を出す。「作業ブック」はクリックで右を本文からページの一覧に替え（もう一度押しても閉じない）、ダブルクリックで全画面で開く
 import { aiAuth, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
 
@@ -110,10 +110,16 @@ test("チケットのワーカーブックは、ページが足されると参�
   await list.locator("[data-worker-page]").click()
   await expect(page.getByRole("menuitem", { name: "開く", exact: true })).toBeVisible()
   await page.keyboard.press("Escape")
-  // ページの一覧に［閉じる］は無く、「作業ブック」をもう一度押すと閉じる
+  // ページの一覧に［閉じる］は無く、もう一度押しても閉じない。「本文」を押すと本文に入れ替わり、本文ももう一度押しても閉じない
   await expect(list.getByRole("button", { name: "閉じる" })).toHaveCount(0)
   await history.click()
+  await expect(list).toHaveAttribute("data-open", "true")
+  const body = page.getByRole("region", { name: "本文", exact: true })
+  await page.getByRole("button", { name: "本文", exact: true }).click()
+  await expect(body).toHaveAttribute("data-open", "true")
   await expect(list).toHaveAttribute("data-open", "false")
+  await page.getByRole("button", { name: "本文", exact: true }).click()
+  await expect(body).toHaveAttribute("data-open", "true")
   await history.dblclick()
   await expect(page.locator("[data-work-book]")).toBeHidden()
   await expect(page.getByText("作業のメモ").first()).toBeVisible()
