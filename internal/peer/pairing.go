@@ -27,7 +27,6 @@ const PairingPath = "/peer/v1/pairing"
 // PairingCommit は、A の 1 回目の頼み
 type PairingCommit struct {
 	Step     string `json:"step"` // "commit"
-	Protocol int    `json:"protocol"`
 	Name     string `json:"name"`
 	UserName string `json:"userName"`
 	Port     int    `json:"port"`   // A の待っている所のポート（B が、あとで A へつなぐのに使う）
@@ -36,7 +35,6 @@ type PairingCommit struct {
 
 // PairingHello は、B の 1 回目の答え
 type PairingHello struct {
-	Protocol int    `json:"protocol"`
 	HostID   string `json:"hostId"`
 	Name     string `json:"name"`
 	UserName string `json:"userName"`

@@ -242,6 +242,7 @@ export {
   NOT_FAILED,
   NOT_TOLD,
   type PeerLive,
+  type PeerState,
   useAskHosts,
   useHostPeers,
   useHostStatus,

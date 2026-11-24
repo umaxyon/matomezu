@@ -61,7 +61,7 @@ test("「ほかのホスト」の節は、つなぐが入のときだけ出し�
   })
   const row = () => screen.getByRole("button", { name: /^つながっていない ?win-lan$/ })
   expect(within(row()).getByRole("img", { name: "つながっていない" })).toBeTruthy()
-  peers([{ hostId: B, label: "win-lan2", connected: true, name: "win-lan2" }])
+  peers([{ hostId: B, label: "win-lan2", state: "connected", name: "win-lan2" }])
   expect(
     within(screen.getByRole("button", { name: /^つながっている ?win-lan2$/ })).getByRole("img", {
       name: "つながっている",
@@ -179,7 +179,7 @@ test("ホストの行の ▸ で開くと、相手のワークルームの写し
     {
       hostId: B,
       label: "win-lan",
-      connected: true,
+      state: "connected",
       workrooms: [
         { name: "win_claude_cli", activity: "idle" },
         { name: "win_haiku", activity: "working" },
@@ -257,4 +257,24 @@ test("詳しい所の目: 押すと AI 用ホストリストから隠し（行�
   expect(screen.getByRole("img", { name: "AI 用ホストリストから隠しています" })).toBeTruthy()
   fireEvent.click(screen.getByRole("button", { name: "AI 用ホストリストに載せる" }))
   expect(listed()).toBe("listed")
+})
+
+test("約束の版が合わないホストは、つながっていない点のまま、詳しい所にどちらを更新すれば合うかの一言を出す", () => {
+  const { store, connect, peers } = open()
+  connect()
+  act(() => {
+    store.actions.perform("@matomezu/network:paired-host-add", {
+      hostId: B,
+      nameAtPairing: "win-lan",
+      userNameAtPairing: "taro",
+      addr: "",
+    })
+  })
+  peers([{ hostId: B, label: "win-lan", state: "update-this" }])
+  fireEvent.click(screen.getByRole("button", { name: /^つながっていない ?win-lan$/ }))
+  expect(screen.getByText("matomezu の版が合いません。このホストを更新してください")).toBeTruthy()
+  peers([{ hostId: B, label: "win-lan", state: "update-that" }])
+  expect(screen.getByText("matomezu の版が合いません。win-lan で更新してください")).toBeTruthy()
+  peers([{ hostId: B, label: "win-lan", state: "connected" }])
+  expect(screen.queryByText(/matomezu の版が合いません/)).toBeNull()
 })

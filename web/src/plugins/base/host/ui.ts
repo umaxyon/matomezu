@@ -62,13 +62,16 @@ export interface PeerWorkroom {
   activity: "working" | "idle" | "unknown"
 }
 
+// ペアリングしたホストとのつながりの様子（確かめた時点の物）: key-mismatch は覚えた鍵と合わない相手が答えた、
+// update-this・update-that は約束の版が合わず、このホスト・相手のホストを更新すれば合う
+export type PeerState = GivenPeers["paired"][number]["state"]
+
 // プラグインに渡す、ペアリングしたホスト 1 つの様子（常駐だけが持つ物）
 export interface PeerLive {
   hostId: string
   label: string // ホストエイリアス（常駐が決める。届く行と AI の send_message の host と同じ）
-  connected: boolean
+  state: PeerState
   workrooms: readonly PeerWorkroom[] // 相手のワークルームの一覧の写し（つながっていなければ空）
-  keyMismatch: boolean // 覚えた鍵と合わない相手が答えた
   lastSeen: string | typeof NOT_TOLD // 最後につながった時刻
   addr: string | typeof NOT_TOLD // 確かめた待っている所（番地:ポート）
   name: string | typeof NOT_TOLD // 今のホスト名
@@ -108,9 +111,8 @@ const peersOf = (p: GivenPeers): HostPeers => ({
   paired: p.paired.map(l => ({
     hostId: l.hostId,
     label: l.label,
-    connected: l.connected,
+    state: l.state,
     workrooms: l.workrooms ?? [],
-    keyMismatch: l.keyMismatch === true,
     lastSeen: told(l.lastSeen),
     addr: told(l.addr),
     name: told(l.name),

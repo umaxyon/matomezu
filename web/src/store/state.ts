@@ -97,19 +97,18 @@ export interface HostStatus {
   failed?: "port-in-use" | "listen"
 }
 
-// ペアリングしたホストの、常駐だけが持つ様子: connected はつながっているか（確かめた時点で）、lastSeen は最後につながった時刻、addr は待っている所（番地:ポート）、
-// name と userName は相手の今のホスト名と利用者名（つながったときに聞いた物）、keyMismatch は覚えた鍵と合わない相手が答えたか、
+// ペアリングしたホストの、常駐だけが持つ様子: state はつながりの様子（確かめた時点で）、lastSeen は最後につながった時刻、addr は待っている所（番地:ポート）、
+// name と userName は相手の今のホスト名と利用者名（つながったときに聞いた物）、
 // label はホストエイリアス（常駐が決める。同じ名前のホストがあれば鍵の印の頭（違うまで伸ばす）を添える）、workrooms は相手のワークルームの一覧の写し（つながっていて写しのあるときだけ）
 export interface PeerLive {
   hostId: string
   label: string
-  connected: boolean
+  state: "connected" | "unreachable" | "key-mismatch" | "update-this" | "update-that"
   workrooms?: readonly { name: string; activity: "working" | "idle" | "unknown" }[]
   lastSeen?: string
   addr?: string
   name?: string
   userName?: string
-  keyMismatch?: boolean
 }
 
 // mDNS で見つけた、ペアリングしていないホスト（相手が名乗ったまま）。addr は待っている所（番地:ポート）

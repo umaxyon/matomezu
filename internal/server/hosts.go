@@ -59,11 +59,12 @@ type hostEntrance struct {
 	closed bool          // CloseHostEntrance のあとは開かない
 	peers  *peerState    // ペアリングとペアリングしたホストの様子（pairing.go）
 	user   string        // mDNS で知らせている利用者名
+	proto  int           // ホストどうしの約束の版（peer.Protocol。版の違う常駐を組むテストだけが、閉じているあいだに替える）
 }
 
 // SetHostEntrance は、ホストどうしの入口の用意を渡し、設定に合わせて開け閉めし始める（立ったときに 1 度呼ぶ）
 func (h *Hub) SetHostEntrance(c HostConfig) {
-	e := &hostEntrance{config: c, kick: make(chan struct{}, 1), done: make(chan struct{}), peers: newPeerState()}
+	e := &hostEntrance{config: c, proto: peer.Protocol, kick: make(chan struct{}, 1), done: make(chan struct{}), peers: newPeerState()}
 	e.status = HostStatus{HostID: c.Identity.HostID, Name: c.OSHostName, OSHostName: c.OSHostName, WSL: c.WSL}
 	h.entrance.Store(e)
 	// 起動し直す前の受け入れ待ちの頼みは、待っているつなぎがもう無いので消す
@@ -229,7 +230,7 @@ func (e *hostEntrance) open(h *Hub) {
 			e.config.Port = port
 		}
 	}
-	srv := peer.Server(e.config.Identity, h.hostsHandler())
+	srv := peer.Server(e.config.Identity, h.hostsHandler(e.proto))
 	e.srv, e.ln = srv, ln
 	go func() {
 		err := srv.ServeTLS(ln, "", "")

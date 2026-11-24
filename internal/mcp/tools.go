@@ -695,6 +695,7 @@ const sendMessageDescription = "Send a message to another AI that has joined mat
 	"Without host, it goes to a workroom on this host; it is refused with unknown-recipient when no AI is in a workroom with that name on this host, and the refusal names the paired hosts that have a workroom with that name. " +
 	"With host, it goes to a workroom on a host this host is paired with (list_workrooms gives the names); it is refused with unknown-host when no paired host has that name, " +
 	"unreachable when that host cannot be reached or did not take it (it did not arrive; you may send it again later), " +
+	"protocol-mismatch when that host's matomezu keeps another protocol (it did not arrive; the detail says which host to update with matomezu update), " +
 	"no-answer when that host did not answer twice (it may have arrived; do not send it again before you hear from that AI), and host-closed when this host does not connect to other hosts now. " +
 	"It is refused with rally-limit when you and that AI have sent each other too many messages while neither user talked to you (the limit is set by the host that receives it): it is not delivered, and that AI is told too. " +
 	"matomezu keeps it until that AI takes it: its turn starts with the message when its program can be woken (such as Claude Code with matomezu's plugin), otherwise it comes with that AI's next matomezu call. " +

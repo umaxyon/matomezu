@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-var testAdvert = Advert{HostID: strings.Repeat("ab", 32), Port: 7240, Name: "masa-wsl", UserName: "あなた"}
+var testAdvert = Advert{HostID: strings.Repeat("ab", 32), Protocol: Protocol, Port: 7240, Name: "masa-wsl", UserName: "あなた"}
 
 func TestTheAnswerReadsBackAsASighting(t *testing.T) {
 	msg, err := buildAnswer(testAdvert, []string{"192.168.11.11", "10.0.0.2"}, mdnsTTL)
@@ -65,12 +65,12 @@ func TestTwoBeaconsFindEachOther(t *testing.T) {
 		gone bool
 	}
 	events := make(chan event, 32)
-	a, err := StartBeacon(Advert{HostID: strings.Repeat("a", 64), Port: 1, Name: "a"}, nil)
+	a, err := StartBeacon(Advert{HostID: strings.Repeat("a", 64), Protocol: Protocol, Port: 1, Name: "a"}, nil)
 	if err != nil {
 		t.Skip("cannot listen on 5353:", err)
 	}
 	defer a.Close()
-	b, err := StartBeacon(Advert{HostID: strings.Repeat("b", 64), Port: 2, Name: "b"}, func(s Sighting, gone bool) { events <- event{s, gone} })
+	b, err := StartBeacon(Advert{HostID: strings.Repeat("b", 64), Protocol: Protocol, Port: 2, Name: "b"}, func(s Sighting, gone bool) { events <- event{s, gone} })
 	if err != nil {
 		t.Skip("cannot listen on 5353 twice:", err)
 	}

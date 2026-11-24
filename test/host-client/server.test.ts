@@ -1206,7 +1206,7 @@ test("ほかのホストの様子の知らせは store に入れ、頼みはそ�
   const s = await connected()
   const peers = {
     paired: [
-      { hostId: "b".repeat(64), label: "win-lan", connected: true, addr: "192.168.11.20:7240", name: "win-lan" },
+      { hostId: "b".repeat(64), label: "win-lan", state: "connected", addr: "192.168.11.20:7240", name: "win-lan" },
     ],
     found: [],
     pairing: { phase: "waiting", addr: "192.168.11.20:7240", code: "482913" },

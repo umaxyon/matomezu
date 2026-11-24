@@ -79,29 +79,67 @@ func get(t *testing.T, c *http.Client, url string) (int, string, error) {
 func TestPinnedTakesOnlyKnownHostsAndUnpinnedTakesAny(t *testing.T) {
 	a, b, stranger := newIdentity(t), newIdentity(t), newIdentity(t)
 	mux := http.NewServeMux()
-	mux.Handle("GET /pinned", Pinned(func(id string) bool { return id == b.HostID }, func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("GET /pinned", Pinned(Protocol, func(id string) bool { return id == b.HostID }, func(w http.ResponseWriter, r *http.Request) {
 		id, _ := RequestHost(r)
 		io.WriteString(w, id)
 	}))
-	mux.Handle("GET /unpinned", Unpinned(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok") }))
+	mux.Handle("GET /unpinned", Unpinned(Protocol, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok") }))
 	url := serve(t, a, mux)
 
-	code, body, err := get(t, Client(b, a.HostID, 5*time.Second), url+"/pinned")
+	code, body, err := get(t, Client(b, a.HostID, Protocol, 5*time.Second), url+"/pinned")
 	if err != nil || code != 200 || body != b.HostID {
 		t.Fatalf("paired host: %d %q %v", code, body, err)
 	}
-	if code, _, err := get(t, Client(stranger, a.HostID, 5*time.Second), url+"/pinned"); err != nil || code != http.StatusForbidden {
-		t.Fatalf("unknown key should be refused: %d %v", code, err)
+	if _, _, err := get(t, Client(stranger, a.HostID, Protocol, 5*time.Second), url+"/pinned"); !errors.Is(err, ErrNotPaired) {
+		t.Fatalf("unknown key should be answered not paired: %v", err)
 	}
-	if code, body, err := get(t, Client(stranger, "", 5*time.Second), url+"/unpinned"); err != nil || code != 200 || body != "ok" {
+	if code, body, err := get(t, Client(stranger, "", Protocol, 5*time.Second), url+"/unpinned"); err != nil || code != 200 || body != "ok" {
 		t.Fatalf("unpinned: %d %q %v", code, body, err)
+	}
+}
+
+// どちらの包みも、ペアリングしているかより先に約束の版を見て断り、Client はその断りを相手の版の付いた error にする。
+// 版を名乗らない頼み（Client を通さない物）も断る。包みの答えでない 409（ペアリングの断りなど）は、本文ごとそのまま返す
+func TestBothWrappersRefuseAnotherProtocolFirst(t *testing.T) {
+	a, b, stranger := newIdentity(t), newIdentity(t), newIdentity(t)
+	mux := http.NewServeMux()
+	mux.Handle("GET /pinned", Pinned(Protocol, func(id string) bool { return id == b.HostID }, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok") }))
+	mux.Handle("GET /unpinned", Unpinned(Protocol, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok") }))
+	mux.Handle("GET /refusing", Unpinned(Protocol, func(w http.ResponseWriter, r *http.Request) { http.Error(w, `{"reason":"busy"}`, http.StatusConflict) }))
+	url := serve(t, a, mux)
+
+	for _, c := range []struct {
+		name   string
+		id     *Identity
+		proto  int
+		path   string
+		theirs int // 0 なら版の断りでない
+	}{
+		{"newer asks pinned", b, Protocol + 1, "/pinned", Protocol},
+		{"older asks pinned", b, Protocol - 1, "/pinned", Protocol},
+		{"not paired and newer", stranger, Protocol + 1, "/pinned", Protocol},
+		{"newer asks unpinned", stranger, Protocol + 1, "/unpinned", Protocol},
+	} {
+		_, _, err := get(t, Client(c.id, "", c.proto, 5*time.Second), url+c.path)
+		var pm ProtocolMismatchError
+		if !errors.As(err, &pm) || pm.Theirs != c.theirs || pm.Ours != c.proto || pm.TheirsNewer() != (c.theirs > c.proto) {
+			t.Fatalf("%s: want protocol mismatch, got %v", c.name, err)
+		}
+	}
+
+	bare := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{TLSClientConfig: ClientConfig(b, "")}}
+	if code, body, err := get(t, bare, url+"/pinned"); err != nil || code != http.StatusConflict || strings.TrimSpace(body) != protocolMismatch {
+		t.Fatalf("a request without the protocol: %d %q %v", code, body, err)
+	}
+	if code, body, err := get(t, Client(b, "", Protocol, 5*time.Second), url+"/refusing"); err != nil || code != http.StatusConflict || strings.TrimSpace(body) != `{"reason":"busy"}` {
+		t.Fatalf("another 409 should come back as it is: %d %q %v", code, body, err)
 	}
 }
 
 func TestClientRefusesAHostWhoseKeyDoesNotMatch(t *testing.T) {
 	a, b, other := newIdentity(t), newIdentity(t), newIdentity(t)
 	url := serve(t, a, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-	_, _, err := get(t, Client(b, other.HostID, 5*time.Second), url+"/")
+	_, _, err := get(t, Client(b, other.HostID, Protocol, 5*time.Second), url+"/")
 	if err == nil || !errors.Is(err, ErrKeyMismatch) && !strings.Contains(err.Error(), ErrKeyMismatch.Error()) {
 		t.Fatalf("want key mismatch, got %v", err)
 	}

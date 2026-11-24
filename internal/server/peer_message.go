@@ -4,7 +4,7 @@ package server
 // 送り手のホストは TLS で見た相手の鍵で決まり、封筒の From.Host と違えば断る（書き換えない）。宛て先の参加者は受けたホストが引く。
 // 届く行には、送り手のホストエイリアスを添え、そのホストの requests が as-user なら印を付ける。
 // requests を ask-user に戻したら、行列に残っている印つきの行から印を外し、ペアリングを解いたら、そのホストから届いた行を捨てる（followPeerLines）。
-// つながらなかった・相手が受けなかったと答えた（確かに届いていない）ときは unreachable で断り、送ったのに答えが無ければ同じ封筒をもう 1 回送る（受けた側は同じ id を 1 通にする）。
+// つながらなかった・相手が受けなかったと答えた（確かに届いていない）ときは unreachable、約束の版が合わないときは protocol-mismatch で断り、送ったのに答えが無ければ同じ封筒をもう 1 回送る（受けた側は同じ id を 1 通にする）。
 // それにも答えが無ければ、届いたかもしれないので no-answer で返す
 //
 //	POST /peer/v1/message 封筒（Envelope）  {"ok": true, "queued": true}、または断った理由 {"ok": false, "reason", "detail"}（unknown-recipient）。形の合わない封筒は 400
@@ -83,10 +83,12 @@ func (h *Hub) sendToHost(from, fromID string, req MessageRequest, now time.Time)
 	switch {
 	case err == nil:
 		return sent
-	case errors.Is(err, errNotPaired):
+	case errors.Is(err, peer.ErrNotPaired):
 		return MessageSent{Reason: "unknown-host", Detail: "host " + req.Host + " is not paired with this host any more; the message was not sent"}
+	case errors.As(err, new(peer.ProtocolMismatchError)):
+		return h.protocolRefused(e, target.HostID, req.Host, err)
 	case errors.As(err, new(answeredError)):
-		return MessageSent{Reason: "unreachable", Detail: "host " + req.Host + " did not take the message (" + err.Error() + "; its matomezu may be older); the message was not sent"}
+		return MessageSent{Reason: "unreachable", Detail: "host " + req.Host + " did not take the message (" + err.Error() + "); the message was not sent"}
 	case notSent(err):
 		return MessageSent{Reason: "unreachable", Detail: "host " + req.Host + " could not be reached; the message was not sent"}
 	default:
@@ -94,19 +96,16 @@ func (h *Hub) sendToHost(from, fromID string, req MessageRequest, now time.Time)
 	}
 }
 
-// errNotPaired は、相手が「ペアリングしていない」と答えたこと（こちらの側も消した）
-var errNotPaired = errors.New("the host answered that it is not paired")
-
 // answeredError は、相手が 200 でない答えで封筒を受けなかったこと（受けていないと相手が言った）
 type answeredError struct{ status int }
 
 func (e answeredError) Error() string { return fmt.Sprintf("it answered %d", e.status) }
 
-// notSent は、頼みが相手に届いていないと確かに言える失敗か: つなげなかった・鍵が合わなかった・TLS を結べなかった・相手が受けなかったと答えた
+// notSent は、頼みが相手に届いていないと確かに言える失敗か: つなげなかった・鍵が合わなかった・TLS を結べなかった・約束の版が合わなかった・相手が受けなかったと答えた
 func notSent(err error) bool {
 	var op *net.OpError
 	var rec tls.RecordHeaderError
-	return errors.Is(err, errNotPaired) || errors.Is(err, peer.ErrKeyMismatch) || errors.As(err, new(answeredError)) ||
+	return errors.Is(err, peer.ErrNotPaired) || errors.Is(err, peer.ErrKeyMismatch) || errors.As(err, new(peer.ProtocolMismatchError)) || errors.As(err, new(answeredError)) ||
 		(errors.As(err, &op) && op.Op == "dial") || errors.As(err, &rec) || handshakeFailed(err)
 }
 
@@ -116,18 +115,37 @@ func handshakeFailed(err error) bool {
 	return strings.Contains(err.Error(), "TLS handshake")
 }
 
+// protocolRefused は、ホスト hostID（ホストエイリアス label）と約束の版が合わず送れなかったときの断り。様子にも書いて窓に知らせる（確かめたときと同じ）
+func (h *Hub) protocolRefused(e *hostEntrance, hostID, label string, err error) MessageSent {
+	var pm peer.ProtocolMismatchError
+	errors.As(err, &pm)
+	state := protocolState(pm)
+	ps := e.peers
+	ps.mu.Lock()
+	if l := ps.live[hostID]; l != nil {
+		l.State = state
+		delete(ps.copies, hostID)
+	}
+	ps.mu.Unlock()
+	h.tellPeers()
+	which := "this host"
+	if state == PeerUpdateThat {
+		which = "host " + label
+	}
+	return MessageSent{Reason: "protocol-mismatch", Detail: "host " + label + "'s matomezu keeps another protocol; update " + which + " with matomezu update. The message was not sent"}
+}
+
 // postEnvelope は、ホスト hostID の待っている所 addr に封筒 body を渡し、相手の答えを返す。相手が「ペアリングしていない」と答えたら、こちらも消す
 func (h *Hub) postEnvelope(e *hostEntrance, c *http.Client, hostID, addr string, body []byte) (MessageSent, error) {
 	resp, err := c.Post("https://"+addr+"/peer/v1/message", "application/json", bytes.NewReader(body))
+	if errors.Is(err, peer.ErrNotPaired) {
+		h.dropPairedHost(e.peers, hostID, "because it answered that it is not paired")
+	}
 	if err != nil {
 		return MessageSent{}, err
 	}
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 16<<10))
 	resp.Body.Close()
-	if resp.StatusCode == http.StatusForbidden && strings.TrimSpace(string(b)) == peer.NotPaired {
-		h.dropPairedHost(e.peers, hostID, "because it answered that it is not paired")
-		return MessageSent{}, errNotPaired
-	}
 	if resp.StatusCode != http.StatusOK {
 		return MessageSent{}, answeredError{resp.StatusCode}
 	}

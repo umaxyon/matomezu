@@ -175,7 +175,29 @@ export function commandContext(
 type Called =
   | { def: StageCommandDef<never>; ctx: CommandContext }
   | { def: ScreenCommandDef<never>; ctx: ScreenCommandContext }
+// 同じインスタンス・同じ状態で、同じ場所から同じコマンドを呼ぶときは、作った組を使い回す（状態は書き換えないので、状態が同じなら文脈も同じ。
+// 出ているボタンごとに、出すか・押せるか・押されているかを問うたびに、文脈を一から作り直さないため）
+const calledMade = new WeakMap<Assembled, WeakMap<MatomezuState, Map<string, Called | null>>>()
 export function called(defs: Assembled, state: MatomezuState, at: string, id: CommandId | string): Called | null {
+  let byState = calledMade.get(defs)
+  if (!byState) {
+    byState = new WeakMap()
+    calledMade.set(defs, byState)
+  }
+  let made = byState.get(state)
+  if (!made) {
+    made = new Map()
+    byState.set(state, made)
+  }
+  const key = `${at}\n${id}`
+  const found = made.get(key)
+  if (found !== undefined) return found
+  const c = makeCalled(defs, state, at, id)
+  made.set(key, c)
+  return c
+}
+
+function makeCalled(defs: Assembled, state: MatomezuState, at: string, id: CommandId | string): Called | null {
   const def = commandDef(defs, id)
   if (def.from === "screen")
     return {

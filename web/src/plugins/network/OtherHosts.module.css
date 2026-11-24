@@ -202,6 +202,15 @@
   margin: 0;
   font-size: 13px;
 }
+/* ダイアログの「つながり」の下の行に置く一言 */
+.facts dd:has(> .warnBelow) {
+  flex-wrap: wrap;
+}
+.warnBelow {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+  color: var(--skin-danger);
+}
 /* 隠したホストの行の、薄い斜線の入った目 */
 .hidden {
   display: flex;

@@ -101,6 +101,7 @@ export {
   type PageSettingsDialogViewProps,
   type PaperValue,
   type PeerLive,
+  type PeerState,
   type PrintMeasured,
   type PrintMeasureProps,
   type PrintSheetProps,
