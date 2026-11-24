@@ -7,7 +7,7 @@ import { MAIL, mailboxOf } from "../../../web/src/plugins/base/mail"
 import { mailboxFromOf } from "../../../web/src/plugins/base/mail/hooks"
 import type { Mail } from "../../../web/src/plugins/base/mail/mail"
 import { MAILBOX_PICKED, MAILBOX_SENDER_TAB } from "../../../web/src/plugins/base/mail/states"
-import { bookStageAbove, expandBelowBook, showBookAbove } from "../../../web/src/plugins/base/window/below-book"
+import { bookStageAbove, showBookAbove } from "../../../web/src/plugins/base/window/below-book"
 import { NO_STAGE } from "../../../web/src/store/dialogs"
 import { pluginValueOf } from "../../../web/src/store/plugin-state"
 import { SAMPLE_BOOKS } from "../../sample-books"
@@ -159,7 +159,7 @@ test("郵便箱のスクリーンが窓いっぱいなら、「開く」は行�
   run("s1", "mailbox-open")
   const mailbox = of(MAILBOX)
   const read = () => store.state.getState().window
-  expandBelowBook(store.actions, read().screens, read().arrangementValue, mailbox)
+  expect(run(mailbox, "mailbox-screen-expand")).toBe(true)
   expect(win().arrangement).toBe("@matomezu/base:one-screen")
   const stage = showBookAbove(store.actions, read, mailbox, SAMPLE_BOOKS[1]?.id ?? "")
   expect(stage).not.toBe(NO_STAGE)
