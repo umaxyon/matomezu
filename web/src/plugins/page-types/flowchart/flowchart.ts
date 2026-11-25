@@ -1,11 +1,10 @@
 // フローチャートのページのタイプ: ページごとに紙を置き、紙の上に形（@matomezu/shape）・箱・線を置く。
-// 流れの向き（下へ・右へ）はページの設定の項目で持つ。分岐（ひし形）から出る線には、キャプションの候補 Yes / No を線に渡す。見た目（テーマと紙の色）・文字の色と線の既定の通り方も設定の項目で変えられる
+// 流れの向き（下へ・右へ）はページの設定の項目で持つ。分岐（ひし形）から出る線には、キャプションの候補 Yes / No を線に渡す。見た目（テーマと紙の色）と線の既定の通り方も設定の項目で変えられる
 import { z } from "zod"
 import {
   BACKGROUND_PRINT,
   DIAGRAM_THEME_TYPE,
   PAGE_PAPER_COLOR,
-  PAGE_TEXT_COLORS,
   PAGE_THEME,
   PAPER_IDS,
   type SettingReader,
@@ -118,7 +117,6 @@ export const FLOWCHART = kit.definePageType({
     PAGE_PAPER_COLOR.id,
     "@matomezu/line:line-route",
     kit.name("flow-direction"),
-    PAGE_TEXT_COLORS.id,
     BACKGROUND_PRINT.id,
   ],
 })

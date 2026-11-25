@@ -134,7 +134,6 @@ export {
   newClash,
   nextItemId,
   PAGE_PAPER_COLOR,
-  PAGE_TEXT_COLORS,
   PAGE_THEME,
   PAPER_IDS,
   PLACE_LINES,

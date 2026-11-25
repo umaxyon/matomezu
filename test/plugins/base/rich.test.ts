@@ -107,18 +107,12 @@ test("記号の字の前の \\ でただの文字になり、戻すときは記�
   }
 })
 
-test("文字の色は定義の色を、テーマ、ページの設定、利用者の上書きの順に上書きする", () => {
-  const page = drawingPage("p1", { settings: { "@matomezu/base:page-text-colors": { [W]: "#111111" } } })
+test("文字の色は定義の色を、テーマ、利用者の上書きの順に上書きする", () => {
   const plain = drawingPage("p1")
   expect(textColorsOf(CORE_CATALOG, plain).get(W)).toBe("#d97706")
-  expect(textColorsOf(CORE_CATALOG, page).get(W)).toBe("#111111")
-  expect(textColorsOf(CORE_CATALOG, page, { [W]: "#222222" }).get(W)).toBe("#222222")
-  const themed = (more: Record<string, unknown>) =>
-    drawingPage("p1", { settings: { "@matomezu/base:page-theme": "@matomezu/base:matomezu", ...more } })
-  expect(textColorsOf(CORE_CATALOG, themed({})).get(W)).toBe("#b86e00")
-  expect(textColorsOf(CORE_CATALOG, themed({ "@matomezu/base:page-text-colors": { [W]: "#111111" } })).get(W)).toBe(
-    "#111111",
-  )
+  const themed = drawingPage("p1", { settings: { "@matomezu/base:page-theme": "@matomezu/base:matomezu" } })
+  expect(textColorsOf(CORE_CATALOG, themed).get(W)).toBe("#b86e00")
+  expect(textColorsOf(CORE_CATALOG, themed, { [W]: "#222222" }).get(W)).toBe("#222222")
   expect([...textColorsOf(CORE_CATALOG, plain).keys()]).toEqual([
     "@matomezu/base:success",
     "@matomezu/base:info",
@@ -127,7 +121,7 @@ test("文字の色は定義の色を、テーマ、ページの設定、利用�
   ])
 })
 
-test("利用者の文字の色は利用者の設定の項目 text-colors で、値を丸ごと置き換え（null で既定に戻す）、ページの色より強い。形の合わない色は断り、無い色の id は残す", () => {
+test("利用者の文字の色は利用者の設定の項目 text-colors で、値を丸ごと置き換え（null で既定に戻す）、テーマの色より強い。形の合わない色は断り、無い色の id は残す", () => {
   const store = newStore()
   const { state, actions } = store
   const set = (colors: Record<string, string> | null) =>

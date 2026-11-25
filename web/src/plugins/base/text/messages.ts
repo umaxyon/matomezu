@@ -10,6 +10,10 @@ export const TEXT_MESSAGES = defineMessages({
   "Body decoration": { en: "Body decoration", ja: "本文の装飾" },
   "No color": { en: "No color", ja: "色なし" },
   "Text colors": { en: "Text colors", ja: "文字の色" },
+  "The colors you can give part of a text in a text box. Used in the body of a box on a drawing and so on": {
+    en: "The colors you can give part of a text in a text box. Used in the body of a box on a drawing and so on",
+    ja: "マルチ入力ボックスで変更可能な文字色の指定。図面ボックスの本文などで使用",
+  },
   Caption: { en: "Caption", ja: "キャプション" },
   "Caption alignment": { en: "Caption alignment", ja: "キャプションの寄せ" },
   Divider: { en: "Divider", ja: "区切り線" },

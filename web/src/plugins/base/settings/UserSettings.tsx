@@ -19,7 +19,7 @@ import { Switch } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { SETTINGS_SET } from "./actions"
 import { SETTINGS_SET_COMMAND } from "./commands"
-import { SettingRow } from "./SettingRow"
+import { helpOf, SettingRow } from "./SettingRow"
 import { SETTINGS_CATEGORIES } from "./settings-screen"
 import styles from "./UserSettings.module.css"
 import { type AutoInput, autoInputOf } from "./user-settings"
@@ -40,6 +40,7 @@ export function UserSettings({ settings }: { settings?: readonly string[] | unde
   const groups = new Map<string, ReactNode[]>()
   for (const def of defs) {
     const label = t(def.title)
+    const help = helpOf(def, t)
     const value = userSetting(catalog, values, def.id)
     const onChange = (v: unknown) => set.run({ [def.id]: v === undefined ? null : v })
     const onReset = () => set.run({ [def.id]: null })
@@ -51,9 +52,15 @@ export function UserSettings({ settings }: { settings?: readonly string[] | unde
       ...(groups.get(owner) ?? []),
       <SettingItem key={def.id} id={def.id} enabled={set.enabled}>
         {View ? (
-          <View label={label} value={value === undefined ? NOT_SET : value} onChange={onChange} onReset={onReset} />
+          <View
+            label={label}
+            help={help}
+            value={value === undefined ? NOT_SET : value}
+            onChange={onChange}
+            onReset={onReset}
+          />
         ) : (
-          <SettingRow label={label}>
+          <SettingRow label={label} help={help}>
             {input && <AutoControl input={input} def={def} label={label} value={value} onChange={onChange} />}
           </SettingRow>
         )}

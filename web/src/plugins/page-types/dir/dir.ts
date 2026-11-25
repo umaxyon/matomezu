@@ -1,15 +1,8 @@
 // ディレクトリ構成図のページのタイプ: ページごとに紙を置き、ページのフィールド root（根のフォルダ）から下の中身を、自分のプレゼンテーション（dir）で上から下へ並べて描く。紙に置けるアイテムは無い。
 // 新しいページを作るダイアログは自分の物（根のフォルダの名前を聞く）、ページの設定のダイアログは base の物（ページ名・削除と、説明の見せ方の設定の項目）。道具は自分の組（tools.ts。鉛筆とハンド）。
-// 見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる。名前は太字と文字の色で装飾できる
+// 見た目（テーマと紙の色）は base の設定の項目で変えられる。名前は太字と文字の色で装飾できる
 import type { NewPageDialogArgs } from "../../../plugin-api"
-import {
-  BACKGROUND_PRINT,
-  DIAGRAM_THEME_TYPE,
-  PAGE_PAPER_COLOR,
-  PAGE_TEXT_COLORS,
-  PAGE_THEME,
-  PAPER_IDS,
-} from "../../base"
+import { BACKGROUND_PRINT, DIAGRAM_THEME_TYPE, PAGE_PAPER_COLOR, PAGE_THEME, PAPER_IDS } from "../../base"
 import { nodeOf } from "./edit"
 import { dirFits } from "./fit"
 import { kit } from "./kit"
@@ -86,5 +79,5 @@ export const DIR = kit.definePageType({
     { id: "dir-line", fallback: "line" }, // 罫線
   ],
   tools: DIR_TOOLS.id,
-  settings: [PAGE_THEME.id, PAGE_PAPER_COLOR.id, PAGE_TEXT_COLORS.id, kit.name("notes"), BACKGROUND_PRINT.id], // notes は説明の見せ方（notes.ts）
+  settings: [PAGE_THEME.id, PAGE_PAPER_COLOR.id, kit.name("notes"), BACKGROUND_PRINT.id], // notes は説明の見せ方（notes.ts）
 })

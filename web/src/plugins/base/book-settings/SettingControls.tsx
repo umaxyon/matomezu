@@ -10,6 +10,7 @@ import { NO_BOOK } from "../../../store/commands/def"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
+import { helpOf } from "../settings/SettingRow"
 import { outermostSettingDefs, ownSettings, settingDefs } from "."
 
 // 変えた項目（項目の id → 値。消すなら null）
@@ -46,6 +47,7 @@ export function useSettingControls(at: SettingsAt, only?: readonly string[]) {
         key={def.id}
         of={at.of}
         label={t(def.title)}
+        help={helpOf(def, t)}
         value={value}
         inherited={def.default ?? NOT_SET}
         page={draftPage}
