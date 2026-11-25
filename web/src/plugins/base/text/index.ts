@@ -30,7 +30,6 @@ export {
 export type { Font, Weight } from "./text"
 export { clampLines, textWidth, wrap } from "./text"
 export {
-  PAGE_TEXT_COLORS,
   THEME_TEXT_COLORS_CHECK,
   textColorsOf,
   textColorVars,

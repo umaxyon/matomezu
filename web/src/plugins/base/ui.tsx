@@ -77,7 +77,6 @@ import {
   STAND_LAYER,
 } from "./stage/ui"
 import { STARTUP_ERROR } from "./startup-error/ui"
-import { TEXT_SETTING_VIEWS } from "./text/ui"
 import { TOAST_HOST } from "./toast-host/ui"
 import { TOOL_PICKER_WIDGET } from "./tool-picker/ui"
 import { TOOL_ICONS, TOOL_SWITCH } from "./tool-switch/ui"
@@ -323,7 +322,7 @@ export const BASE_UI = definePluginUi(BASE, {
     ...PARTICIPANT_DIALOG_VIEWS,
     ...SCRAP_DIALOG_VIEWS,
   },
-  settingViews: { ...BOOK_LOOK_SETTING_VIEWS, ...TEXT_SETTING_VIEWS, ...PRINT_PREVIEW_SETTING_VIEWS },
+  settingViews: { ...BOOK_LOOK_SETTING_VIEWS, ...PRINT_PREVIEW_SETTING_VIEWS },
   userSettingViews: USER_SETTING_VIEWS,
   widgets: [
     WINDOW,

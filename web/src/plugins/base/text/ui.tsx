@@ -1,7 +1,4 @@
-// 文字の見た目: 文字の色の設定の項目のビューと、装飾した本文を描くコンポーネント・装飾のボックス・本文の入力Form
-
-import { TextColorsSetting } from "./TextColorsSetting"
-import { PAGE_TEXT_COLORS } from "./text-colors"
+// 文字の見た目: 装飾した本文を描くコンポーネント・装飾のボックス・本文の入力Form
 
 export { RichBar } from "./RichBar"
 export { RichBody } from "./RichBody"
@@ -11,5 +8,3 @@ export { BodyField, CaptionField, DividerField, type TextDraft } from "./TextBlo
 export { TextBlockView } from "./TextBlockView"
 export { useBodyGrips } from "./useBodyGrips"
 export { NO_WRITING, NOT_COMPOSING, useEndWhenBlocked, useInPlaceInput } from "./useInPlaceInput"
-
-export const TEXT_SETTING_VIEWS = { [PAGE_TEXT_COLORS.id]: { control: TextColorsSetting } }

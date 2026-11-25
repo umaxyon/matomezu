@@ -54,6 +54,8 @@ test("カレントチケットが変わるたびに、そのワークルーム�
   expect(texts(left)).toEqual([expect.stringContaining("no current ticket")])
   const started = b.act(ai(r), "ticket-start", {}, { record: t })
   expect(texts(started)).toEqual([expect.stringContaining("Your current ticket is now")])
+  // 今の作業の相談はワーカーブックへ、と伝える
+  expect(texts(started)[0]).toContain("add a page to that worker book with worker-page-add instead of making a book")
 })
 
 test("担当に別のワークルームが入ったら、前からの担当へ知らせる（入ったワークルームには送らない）", () => {

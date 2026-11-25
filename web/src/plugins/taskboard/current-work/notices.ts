@@ -51,7 +51,7 @@ export const NOTICE_CURRENT_TICKET: FollowStepDef<typeof CURRENT_WORK.id> = {
       hostMessages: [
         {
           workroom: change.id,
-          text: `Your current ticket is now ${ticketText(ticket, project === "none" ? undefined : project)}. Your workdesk now shows the worker book of that ticket: read your workdesk again (read_folder with folder "${MY_WORKDESK}").`,
+          text: `Your current ticket is now ${ticketText(ticket, project === "none" ? undefined : project)}. Your workdesk now shows the worker book of that ticket: read your workdesk again (read_folder with folder "${MY_WORKDESK}"). To write to the user about this ticket (to consult or to ask), add a page to that worker book with worker-page-add instead of making a book with book-create.`,
         },
       ],
     }

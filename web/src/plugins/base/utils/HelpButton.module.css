@@ -1,0 +1,42 @@
+/* 「？」の丸いボタン: 名前の右に置く小さな丸。押せることが分かるよう、乗せると色を濃くする */
+.button {
+  all: unset;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  border: 1px solid var(--skin-border);
+  border-radius: 50%;
+  color: var(--skin-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+  cursor: pointer;
+}
+.button:hover,
+.button:focus-visible,
+.button[aria-expanded="true"] {
+  border-color: var(--skin-accent);
+  color: var(--skin-accent);
+}
+/* 説明の吹き出し: ボタンの下（入らなければ上）に、窓の上に重ねて出す。見た目はほかの吹き出しと同じ */
+.bubble {
+  position: fixed;
+  z-index: 1000;
+  box-sizing: border-box;
+  max-width: 280px;
+  padding: 6px 10px;
+  border: 1px solid var(--skin-border);
+  border-radius: 8px;
+  background: var(--skin-bubble);
+  box-shadow: var(--skin-shadow-2);
+  color: var(--skin-text);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: normal;
+}

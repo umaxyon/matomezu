@@ -1,6 +1,6 @@
 // 装飾のボックス: 太字のボタンと、文字の色の丸・色なし。押すと、入力Form target（RichInput）の選んだ範囲に装飾を付ける（もう付いていれば外す。
 // 範囲が無ければ、次に書く字に付ける。edit.ts）。押しても入力Form から焦点を外さない（その場の編集は焦点が外れると終わるため）。
-// 色の丸は効いている色（ステージが開いているブックの上書きと、利用者の上書き）
+// 色の丸は効いている色（ステージが開いているページのテーマの色と、利用者の上書き）
 import type { CSSProperties, RefObject } from "react"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"

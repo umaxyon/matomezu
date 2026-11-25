@@ -295,7 +295,7 @@ import {
   type WIDE_STAGE,
 } from "./stage"
 import { REVEAL_REQUEST_STATES, type REVEALING_STATE } from "./stand"
-import { PAGE_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
+import { TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_CLOSE, TOOL_PICKER_HOLD, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { HAND_TOOL, SELECT_TOOL, TOOL_NEXT } from "./tool-switch"
 // 拡張ポイントに書き足したフィールド toolbox の型（toolbox.ts の declare module）
@@ -483,7 +483,6 @@ export {
   clampLines,
   clampRich,
   FULL_WIDTH,
-  PAGE_TEXT_COLORS,
   PLACE_LINES,
   parseRich,
   plainOf,
@@ -573,7 +572,6 @@ export const BASE = defineBuiltin(
     settings: [
       PAGE_THEME,
       PAGE_PAPER_COLOR,
-      PAGE_TEXT_COLORS,
       PRINT_PREVIEW_FLOW,
       PRINT_PREVIEW_ORDER,
       PRINT_PREVIEW_SHEET_NUMBERS,
@@ -793,7 +791,6 @@ declare module "../../core/catalog" {
   interface SettingTable {
     "@matomezu/base:page-theme": typeof PAGE_THEME
     "@matomezu/base:page-paper-color": typeof PAGE_PAPER_COLOR
-    "@matomezu/base:page-text-colors": typeof PAGE_TEXT_COLORS
     "@matomezu/base:print-preview-flow": typeof PRINT_PREVIEW_FLOW
     "@matomezu/base:background-print": typeof BACKGROUND_PRINT
     "@matomezu/base:print-preview-order": typeof PRINT_PREVIEW_ORDER
