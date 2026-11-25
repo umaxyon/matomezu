@@ -141,12 +141,15 @@ export interface HostPeers {
   pairing?: HostPairing
 }
 
-// 承認待ちの AI 間メッセージ 1 通（常駐だけが持つ）。receiver は受け手の参加者 id、sender は送り手の参加者 id、senderHost は送り手のホスト id（同じホストなら空）
+// 承認待ちの AI 間メッセージ 1 通（常駐だけが持つ）。receiver は受け手の参加者 id、sender は送り手の参加者 id（ほかのホストから届いた物は空）、
+// senderRoom は送り手のワークルームの名前、senderHost は送り手のホスト id で senderHostName はそのホストエイリアス（どちらも、同じホストなら空）
 export interface PendingMessage {
   id: string
   receiver: string
   sender: string
+  senderRoom: string
   senderHost: string
+  senderHostName: string
   body: string
   at: string
 }
@@ -449,6 +452,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   updateHost?: { check(): Promise<void>; ask(workroom: string): Promise<boolean> }
   // ほかのホストについてホストに頼む口。無ければ、頼むと投げる（E412）
   hostsHost?: { ask(request: HostRequest): Promise<void> }
+  // 承認待ちの AI 間メッセージの承認・キャンセルをホストに頼む口。無ければ、頼むと投げる（E414）
   messageHost?: { answer(id: string, answer: "approve" | "cancel"): Promise<void> }
   // 読めない物のフォルダについてホストに頼む口（完全に消す・無効にしたら移る物を数える）。無ければ、頼むと投げる（E406）
   unreadableHost?: {

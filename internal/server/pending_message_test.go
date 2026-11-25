@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -201,6 +202,81 @@ func TestPendingListIsToldToWindows(t *testing.T) {
 			return
 		case <-deadline:
 			t.Fatal("no pending-messages event")
+		}
+	}
+}
+
+// 受け手 1 人の承認待ちは wakeQueueMax 件までで、超えたら古い物から捨てる（ほかの受け手の分は残る）
+func TestPendingKeepsAtMostTheQueueSizePerReceiver(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	env := func(id, to string) Envelope {
+		return Envelope{ID: id, From: Address{Host: "h", Workroom: "ひよこ"}, To: Address{Host: "h", Workroom: to}, Text: "t"}
+	}
+	hub.mu.Lock()
+	hub.addPendingHeld(delivery{to: a, from: b, envelope: env("other", "ひよこ")})
+	for i := 0; i <= wakeQueueMax; i++ {
+		hub.addPendingHeld(delivery{to: b, from: a, envelope: env(fmt.Sprintf("m%d", i), "すずめ")})
+	}
+	got := append([]pendingMessage(nil), hub.pending...)
+	hub.mu.Unlock()
+	if len(got) != wakeQueueMax+1 || got[0].ID != "other" || got[1].ID != "m1" || got[len(got)-1].ID != fmt.Sprintf("m%d", wakeQueueMax) {
+		t.Fatalf("pending = %d, first %s, second %s", len(got), got[0].ID, got[1].ID)
+	}
+}
+
+// ほかのホストから届いた AI 間メッセージをキャンセルすると、受け手と、ほかのホストの送り手の両方に知らせる（送り手へは封筒で運ぶ）。
+// 画面に出す承認待ちは、送り手のワークルームの名前とホストエイリアスを持つ
+func TestCancelReachesASenderOnAnotherHost(t *testing.T) {
+	as, bs, a, b := pairedWorlds(t)
+	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
+	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
+	if sent := sendTo(t, as.URL, s1, "b", "s2", "頼み"); !sent.OK {
+		t.Fatalf("sent = %+v", sent)
+	}
+	got := pendingNow(b)
+	if len(got) != 1 || got[0].SenderRoom != "s1" || got[0].SenderHost != a.selfHostID() || got[0].SenderHostName != "a" || got[0].Sender != "" {
+		t.Fatalf("pending = %+v", got)
+	}
+	id := got[0].ID
+	if out := answerPending(t, bs.URL, "/api/message/cancel", id); !strings.Contains(out, `"ok":true`) {
+		t.Fatalf("cancel = %s", out)
+	}
+	if lines := wakesWith(b, "200", "cancelled message "+id); len(lines) != 1 || lines[0] != `matomezu: the user cancelled message `+id+` from AI "s1" on host "a"; it is not the user's request` {
+		t.Fatalf("receiver wakes = %q", lines)
+	}
+	want := `matomezu: the user cancelled message ` + id + ` you sent to AI "s2" on host "b"; it is not the user's request`
+	var lines []string
+	waitFor(t, "the cancel on A", func() bool {
+		lines = append(lines, wakesWith(a, "100", "cancelled message "+id)...)
+		return len(lines) > 0
+	})
+	if len(lines) != 1 || lines[0] != want {
+		t.Fatalf("sender wakes = %q", lines)
+	}
+}
+
+// 受け手が、ほかのホストの送り手へ返事を送ったら、承認待ちは知らせずに消える
+func TestReplyToAnotherHostDropsThePending(t *testing.T) {
+	as, bs, a, b := pairedWorlds(t)
+	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
+	s2 := joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
+	if sent := sendTo(t, as.URL, s1, "b", "s2", "question"); !sent.OK {
+		t.Fatalf("sent = %+v", sent)
+	}
+	if n := len(pendingNow(b)); n != 1 {
+		t.Fatalf("pending on B = %d", n)
+	}
+	if sent := sendTo(t, bs.URL, s2, "a", "s1", "answer"); !sent.OK {
+		t.Fatalf("reply = %+v", sent)
+	}
+	if n := len(pendingNow(b)); n != 0 {
+		t.Fatalf("pending on B after the reply = %d", n)
+	}
+	for _, line := range wakesWith(a, "100", "") {
+		if strings.Contains(line, "cancelled") {
+			t.Fatalf("a cancel on reply: %q", line)
 		}
 	}
 }

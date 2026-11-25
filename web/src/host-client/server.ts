@@ -24,11 +24,11 @@ import type {
   Build,
   ForeignChange,
   HostPeers,
-  PendingMessage,
   HostRequest,
   HostStatus,
   MatomezuInstance,
   ParticipantLive,
+  PendingMessage,
   UpdateStatus,
 } from "../store/state"
 import type { HostClient, Loaded } from "./client"
@@ -49,8 +49,8 @@ import {
   NoticeSchema,
   ParticipantCallSchema,
   ParticipantLiveSchema,
-  PENDING_MESSAGES,
   ParticipantReadySchema,
+  PENDING_MESSAGES,
   PluginsSchema,
   PURGE_ANSWER,
   SCREEN_PLUGINS_REMOVED,
@@ -381,6 +381,11 @@ export function serverClient(net: Net = browserNet): HostClient {
       const hello = HelloSchema.parse(JSON.parse(data))
       client = hello.client
       watch.opened()
+      // 承認待ちは常駐がつないだ直後に、あるときだけ送り直す。持っている物は捨てる（常駐を起動し直したら、前の承認待ちは消えている）
+      if (pendingMessages?.length) {
+        pendingMessages = []
+        instance?.setPendingMessages(pendingMessages)
+      }
       if (first) {
         build = hello.build
         first.resolve()

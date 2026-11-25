@@ -82,7 +82,7 @@ func (h *Hub) sendToHost(from, fromID string, req MessageRequest, now time.Time)
 			// 受け手が、ほかのホストの送り手へ送れたので、その組の承認待ちは知らせずに消す（返事。pending_message.go）
 			h.mu.Lock()
 			h.dropRepliedHeld(func(p pendingMessage) bool {
-				return p.Receiver == fromID && p.SenderHost == target.HostID && p.senderRoom == req.To
+				return p.Receiver == fromID && p.SenderHost == target.HostID && p.SenderRoom == req.To
 			})
 			h.mu.Unlock()
 		}
@@ -170,12 +170,23 @@ func (h *Hub) peerMessage(w http.ResponseWriter, r *http.Request) {
 	}
 	self := h.selfHostID()
 	if env.ID == "" || env.From.Host != fromHost || self == "" || env.To.Host != self ||
-		!fitsName(env.From.Workroom) || !fitsName(env.To.Workroom) || env.Text == "" || utf8.RuneCountInString(env.Text) > messageTextMax {
+		!fitsName(env.From.Workroom) || !fitsName(env.To.Workroom) || !fitsBody(env) {
 		http.Error(w, "bad envelope", http.StatusBadRequest)
 		return
 	}
 	writeJSON(w, h.receiveEnvelope(env))
 }
+
+// fitsBody は、封筒の中身が形に合うか: AI 間メッセージは本文があってキャンセルが無く、キャンセルの知らせは本文が無い（pending_message.go）
+func fitsBody(env Envelope) bool {
+	if env.Cancel != "" {
+		return env.Text == "" && len(env.Cancel) <= envelopeIDMax
+	}
+	return env.Text != "" && utf8.RuneCountInString(env.Text) <= messageTextMax
+}
+
+// envelopeIDMax は、キャンセルの知らせが載せる封筒の id の長さの上限（バイト。newEnvelopeID の作る id より十分長い）
+const envelopeIDMax = 128
 
 func fitsName(s string) bool { return s != "" && utf8.RuneCountInString(s) <= workroomNameMax }
 
@@ -207,7 +218,7 @@ func (h *Hub) receiveEnvelope(env Envelope) MessageSent {
 }
 
 // receiveHeld は、h.mu を持って、封筒 d.envelope を宛て先のワークルームの AI に届ける（found。AI ラリーの上限を超えて届けなければ delivered が偽）。
-// いなければ、AI のいるワークルームの名前 open
+// キャンセルの知らせの封筒は、AI ラリーにも承認待ちにも数えず、宛て先に知らせるだけ（receiveCancelHeld）。いなければ、AI のいるワークルームの名前 open
 func (h *Hub) receiveHeld(records []participantRecord, rooms []workroomRecord, d delivery) (open []string, found, delivered bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -219,6 +230,10 @@ func (h *Hub) receiveHeld(records []participantRecord, rooms []workroomRecord, d
 		open = append(open, room.Name)
 		if room.Name == d.envelope.To.Workroom {
 			d.to = occupant[room.ID]
+			if d.envelope.Cancel != "" {
+				h.receiveCancelHeld(d.to, d.envelope, d.host)
+				return nil, true, true
+			}
 			return nil, true, h.deliver(d)
 		}
 	}

@@ -204,6 +204,7 @@ import {
   PARTICIPANT_REMOVE,
   PARTICIPANT_REQUEST,
   PARTICIPANT_WELCOME_DIALOG,
+  PENDING_MESSAGE_DIALOG,
   SESSION_RENAME,
   WORK_SUBJECTS_CHECK,
   WORKER_BOOK,
@@ -722,6 +723,7 @@ export const BASE = defineBuiltin(
       JOIN_REQUEST_DIALOG,
       PARTICIPANT_JOIN_DIALOG,
       PARTICIPANT_WELCOME_DIALOG,
+      PENDING_MESSAGE_DIALOG,
     ],
     libraryAppearances: [LIBRARY_APPEARANCE],
     pluginStates: [
@@ -1087,6 +1089,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:join-request": typeof JOIN_REQUEST_DIALOG
     "@matomezu/base:participant-join": typeof PARTICIPANT_JOIN_DIALOG
     "@matomezu/base:participant-welcome": typeof PARTICIPANT_WELCOME_DIALOG
+    "@matomezu/base:pending-message": typeof PENDING_MESSAGE_DIALOG
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG
     "@matomezu/base:library-book-new": typeof LIBRARY_NEW_BOOK_DIALOG
     "@matomezu/base:library-folder-new": typeof LIBRARY_NEW_FOLDER_DIALOG

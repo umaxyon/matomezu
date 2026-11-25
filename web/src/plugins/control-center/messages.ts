@@ -45,11 +45,4 @@ export const CONTROL_CENTER_MESSAGES = defineMessages({
   Cancel: { en: "Cancel", ja: "キャンセル" },
   "Leave the room": { en: "Leave the room", ja: "部屋を出る" },
   "Delete the room": { en: "Delete the room", ja: "部屋を削除する" },
-  "Message waiting for approval": { en: "Message waiting for approval", ja: "承認待ちのメッセージ" },
-  "Sender: {name}": { en: "Sender: {name}", ja: "送り手: {name}" },
-  Approve: { en: "Approve", ja: "承認" },
-  "The answer could not be sent. Try again.": {
-    en: "The answer could not be sent. Try again.",
-    ja: "返事を送れませんでした。もう一度押してください",
-  },
 })

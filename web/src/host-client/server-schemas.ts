@@ -168,13 +168,16 @@ export const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unk
 // 更新を頼んだ答え（ok が偽なら、そのワークルームに参加の確定した AI がいない）
 export const ASK_UPDATE_ANSWER = z.object({ ok: z.boolean() })
 
-// 承認待ちの AI 間メッセージ（M-0216。常駐だけが持つ。知らせ pending-messages の中身は、その並び）。senderHost は、ほかのホストから届いたときだけ入る（同じホストなら空）
+// 承認待ちの AI 間メッセージ（常駐だけが持つ。知らせ pending-messages の中身は、その並び）。
+// senderHost と senderHostName は、ほかのホストから届いたときだけ常駐が載せる（載せなければ空）
 export const PENDING_MESSAGES = z.array(
   z.object({
     id: z.string(),
     receiver: z.string(),
     sender: z.string(),
-    senderHost: z.string(),
+    senderRoom: z.string(),
+    senderHost: z.string().default(""),
+    senderHostName: z.string().default(""),
     body: z.string(),
     at: z.string(),
   }),

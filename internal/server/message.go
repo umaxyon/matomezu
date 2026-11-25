@@ -38,6 +38,8 @@ type Envelope struct {
 	Text   string  `json:"text"`
 	SentAt string  `json:"sentAt"`
 	Rally  int     `json:"rally,omitempty"` // ほかのホストへ送る物の、送り手の AI の利用者トリガートークの後に、その宛て先へ送った何通目か（rally.go。載せないホストもある）
+	// Cancel は、ほかのホストへ運ぶ、キャンセルの知らせの封筒だけが持つ: 宛て先（送り手の AI）が送った封筒の、利用者がキャンセルした id。Text は空（pending_message.go）
+	Cancel string `json:"cancel,omitempty"`
 }
 
 // MessageRequest は AI 間メッセージを送る頼み。Participant は呼び出しに付いていた参加の id
@@ -225,25 +227,34 @@ func (h *Hub) senderHeld(records []participantRecord, occupant map[string]string
 	return nil, &MessageSent{Reason: "not-joined", Detail: "only an AI whose request to join was accepted can send messages (call join first)"}
 }
 
+// markSeenHeld は、封筒の id を入れた物として覚え（seenEnvelopesMax 件まで。古い物から忘れる）、初めて見た id なら真を返す（h.mu を持って呼ぶ）
+func (h *Hub) markSeenHeld(id string) bool {
+	if h.seenEnvelopes == nil {
+		h.seenEnvelopes = map[string]bool{}
+	}
+	if h.seenEnvelopes[id] {
+		return false
+	}
+	h.seenEnvelopes[id] = true
+	h.seenOrder = append(h.seenOrder, id)
+	if len(h.seenOrder) > seenEnvelopesMax {
+		delete(h.seenEnvelopes, h.seenOrder[0])
+		h.seenOrder = h.seenOrder[1:]
+	}
+	return true
+}
+
 // deliver は、封筒 d.envelope を宛て先の参加者 d.to の行列に入れる。同じ id の封筒は二度入れない。
 // AI ラリーの上限を超える物は入れずに偽を返す（rally.go）（h.mu を持って呼ぶ）
 func (h *Hub) deliver(d delivery) bool {
 	e := d.envelope
-	if h.seenEnvelopes == nil {
-		h.seenEnvelopes = map[string]bool{}
-	}
 	if h.seenEnvelopes[e.ID] {
 		return true
 	}
 	if !h.rallyPasses(d) {
 		return false
 	}
-	h.seenEnvelopes[e.ID] = true
-	h.seenOrder = append(h.seenOrder, e.ID)
-	if len(h.seenOrder) > seenEnvelopesMax {
-		delete(h.seenEnvelopes, h.seenOrder[0])
-		h.seenOrder = h.seenOrder[1:]
-	}
+	h.markSeenHeld(e.ID)
 	head := messageHead(e.From.Workroom, d.asUser)
 	if d.peer != "" {
 		head = remoteMessageHead(e.From.Workroom, d.host, d.asUser)

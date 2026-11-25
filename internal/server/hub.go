@@ -25,7 +25,7 @@ package server
 //	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
 //	update-status {"state", "version", "latest"?, "checkedAt"?, "askedAt"?} 新しい版の確かめの結果が変わった（update.go）
 //	host-status {"hostId", "name", "osHostName", "open", "port"?, "addrs"?, "wsl"?, "failed"?} ホストどうしの入口の様子が変わった（hosts.go）
-//	pending-messages [PendingMessage...] 承認待ちの並びが変わった（届いた・承認・キャンセル・消えた。pending_message.go）。窓がつながったときに、あれば 1 度送る
+//	pending-messages [PendingMessage...] 承認待ちの並びが変わった（届いた・承認・キャンセル・消えた。pending_message.go）。窓がつながったときに、あれば 1 度送る（窓は hello で空にする）
 //	keep      {} keepAlive ごとに送る。窓は、これも含めて知らせが QUIET_MS（host-client/server.ts）届かなければ、黙って切れたとみてつなぎ直す
 
 import (

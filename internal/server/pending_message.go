@@ -1,21 +1,26 @@
 package server
 
-// 承認待ち（M-0216）: 届いた AI 間メッセージのうち、利用者の頼みの印が付かない物（自動の印の物は作らない）を、受け手ごとに 1 件ずつ覚える。
+// 承認待ち: 届いた AI 間メッセージのうち、利用者の頼みの印が付かない物（自動の印の物は作らない）を、届いた 1 通ごとに覚える。
 // 受け手の参加者リストに吹き出しを出し、利用者が承認すると受け手に「利用者の頼みとして扱う」知らせを、キャンセルすると送り手と受け手に知らせを送る。
 // メッセージ自体は届いた時点で受け手に届いている（承認待ちは、その上に乗る利用者の判断だけ）。
 // 受け手が送り手へ AI 間メッセージを送ったら（返事）、知らせを送らずに消す。利用者が受け手の AI に話しかけたら、キャンセル扱い（知らせあり）。
 // 受け手が参加者でなくなったら、知らせを送らずに消す。記録はメモリだけに持つ（常駐を起動し直すと消える）。
+// 受け手 1 人の承認待ちは wakeQueueMax 件までで、超えたら古い物から知らせずに捨てる。
 // 変わったら全部の窓に pending-messages（承認待ちの並び。PendingMessage の並び）で知らせる。
 //
 //	POST /api/message/approve {"id"}  {"ok": true}、または {"ok": false, "reason": "not-pending"}
-//	POST /api/message/cancel  {"id"}  同じ答え（画面の吹き出しの「閉じる」も、これと同じ）
+//	POST /api/message/cancel  {"id"}  同じ答え
 //
-// 知らせの文は英語。送り手がほかのホストの AI のときは、頭にそのホストのホストエイリアスを添える（pendingWho）。
+// 知らせの文は英語。送り手がほかのホストの AI のときは、そのホストのホストエイリアスを添える（pendingWho）。
+// 送り手がほかのホストの AI のキャンセルは、取り消す封筒の id を載せた封筒（Envelope.Cancel）で送り手のホストへ運び、
+// そのホストが送り手に知らせる（sendCancelToHost・receiveCancelHeld）。
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/umaxyon/matomezu/internal/storage"
@@ -23,23 +28,24 @@ import (
 
 // PendingMessage は承認待ち 1 件。
 // id は封筒の id（AI 間メッセージ 1 通）、receiver と sender は参加者の id（sender はほかのホストから届いたときは空）、
-// senderHost は送り手のホスト id（ほかのホストから届いたときだけ）、body は本文、at は届いた時刻
+// senderRoom は送り手のワークルームの名前、senderHost は送り手のホスト id で senderHostName はそのホストエイリアス（どちらも、ほかのホストから届いたときだけ）、
+// body は本文、at は届いた時刻
 type PendingMessage struct {
-	ID         string `json:"id"`
-	Receiver   string `json:"receiver"`
-	Sender     string `json:"sender"`
-	SenderHost string `json:"senderHost,omitempty"`
-	Body       string `json:"body"`
-	At         string `json:"at"`
+	ID             string `json:"id"`
+	Receiver       string `json:"receiver"`
+	Sender         string `json:"sender"`
+	SenderRoom     string `json:"senderRoom"`
+	SenderHost     string `json:"senderHost,omitempty"`
+	SenderHostName string `json:"senderHostName,omitempty"`
+	Body           string `json:"body"`
+	At             string `json:"at"`
 }
 
-// pendingMessage は承認待ち 1 件と、知らせに要る内部の値（送り手とその宛て先のワークルームの名前、送り手のホストエイリアス、AI ラリーの向き）
+// pendingMessage は承認待ち 1 件と、知らせに要る内部の値（宛て先のワークルームの名前、AI ラリーの向き）
 type pendingMessage struct {
 	PendingMessage
-	senderRoom string   // 送り手のワークルームの名前
-	toRoom     string   // 宛て先（受け手）のワークルームの名前
-	hostAlias  string   // 送り手のホストエイリアス（ほかのホストから届いたときだけ）
-	rally      rallyKey // AI ラリーの向き（承認・キャンセルで、その数を 0 に戻す。rally.go）
+	toRoom string   // 宛て先（受け手）のワークルームの名前
+	rally  rallyKey // AI ラリーの向き（承認・キャンセルで、その数を 0 に戻す。rally.go）
 }
 
 // newPending は、届いた AI 間メッセージ d の承認待ち 1 件を作る
@@ -47,26 +53,26 @@ func newPending(d delivery) pendingMessage {
 	k, _ := rallyOf(d)
 	return pendingMessage{
 		PendingMessage: PendingMessage{
-			ID:         d.envelope.ID,
-			Receiver:   d.to,
-			Sender:     d.from,
-			SenderHost: d.peer,
-			Body:       d.envelope.Text,
-			At:         storage.Stamp(time.Now()),
+			ID:             d.envelope.ID,
+			Receiver:       d.to,
+			Sender:         d.from,
+			SenderRoom:     d.envelope.From.Workroom,
+			SenderHost:     d.peer,
+			SenderHostName: d.host,
+			Body:           d.envelope.Text,
+			At:             storage.Stamp(time.Now()),
 		},
-		senderRoom: d.envelope.From.Workroom,
-		toRoom:     d.envelope.To.Workroom,
-		hostAlias:  d.host,
-		rally:      k,
+		toRoom: d.envelope.To.Workroom,
+		rally:  k,
 	}
 }
 
 // pendingWho は、送り手を名乗る句（ほかのホストからなら、ホストエイリアスを添える）
 func pendingWho(p pendingMessage) string {
 	if p.SenderHost != "" {
-		return "AI " + quote(p.senderRoom) + " on host " + quote(p.hostAlias)
+		return "AI " + quote(p.SenderRoom) + " on host " + quote(p.SenderHostName)
 	}
-	return "AI " + quote(p.senderRoom)
+	return "AI " + quote(p.SenderRoom)
 }
 
 // approvedLine は、承認された AI 間メッセージを受け手に流す 1 行（利用者の頼みの印を付ける）
@@ -79,9 +85,13 @@ func cancelledReceiverLine(p pendingMessage) string {
 	return "matomezu: the user cancelled message " + p.ID + " from " + pendingWho(p) + "; it is not the user's request"
 }
 
-// cancelledSenderLine は、キャンセルされた AI 間メッセージを送り手に流す 1 行
-func cancelledSenderLine(p pendingMessage) string {
-	return "matomezu: the user cancelled message " + p.ID + " you sent to AI " + quote(p.toRoom) + "; it is not the user's request"
+// cancelledSenderLine は、キャンセルされた AI 間メッセージ id を送り手に流す 1 行（to は宛て先のワークルームの名前。host は、宛て先がほかのホストの AI なら、そのホストエイリアス）
+func cancelledSenderLine(id, to, host string) string {
+	who := "AI " + quote(to)
+	if host != "" {
+		who += " on host " + quote(host)
+	}
+	return "matomezu: the user cancelled message " + id + " you sent to " + who + "; it is not the user's request"
 }
 
 // pendingListHeld は、承認待ちの並び（画面に出す形）
@@ -114,12 +124,26 @@ func (h *Hub) takePendingHeld(match func(pendingMessage) bool) []pendingMessage 
 }
 
 // addPendingHeld は、届いた AI 間メッセージ d を承認待ちに入れて、画面に知らせる（h.mu を持って呼ぶ）。
-// 利用者の頼みの印が付く物（d.asUser）は入れない
+// 利用者の頼みの印が付く物（d.asUser）は入れない。受け手 1 人の分が wakeQueueMax 件を超えたら、その受け手の古い物から知らせずに捨てる
 func (h *Hub) addPendingHeld(d delivery) {
 	if d.asUser {
 		return
 	}
 	h.pending = append(h.pending, newPending(d))
+	n := 0
+	for _, p := range h.pending {
+		if p.Receiver == d.to {
+			n++
+		}
+	}
+	for over := n - wakeQueueMax; over > 0; over-- {
+		for i, p := range h.pending {
+			if p.Receiver == d.to {
+				h.pending = append(h.pending[:i], h.pending[i+1:]...)
+				break
+			}
+		}
+	}
 	h.tellPendingHeld()
 }
 
@@ -154,7 +178,7 @@ func (h *Hub) dropGonePendingHeld() {
 }
 
 // settlePendingHeld は、承認・キャンセルで外した承認待ち gone の知らせを行列に入れ、AI ラリーの数を 0 に戻す（h.mu を持って呼ぶ）。
-// approved なら受け手に承認の知らせ、そうでなければ受け手と（このホストの）送り手にキャンセルの知らせを入れる
+// approved なら受け手に承認の知らせ、そうでなければ受け手と送り手にキャンセルの知らせを入れる（送り手がほかのホストの AI なら、そのホストへ封筒で運ぶ）
 func (h *Hub) settlePendingHeld(gone []pendingMessage, approved bool) {
 	for _, p := range gone {
 		delete(h.rallies, p.rally)
@@ -163,8 +187,12 @@ func (h *Hub) settlePendingHeld(gone []pendingMessage, approved bool) {
 			continue
 		}
 		h.enqueueWake(wakeItem{participant: p.Receiver, kind: wakeMessageCancelled, line: cancelledReceiverLine(p)})
-		if p.Sender != "" {
-			h.enqueueWake(wakeItem{participant: p.Sender, kind: wakeMessageCancelled, line: cancelledSenderLine(p)})
+		switch {
+		case p.SenderHost != "":
+			// 封筒は、常駐の鍵を放したところで運ぶ（ほかのホストの答えを、鍵を持ったまま待たない）
+			go h.sendCancelToHost(p)
+		case p.Sender != "":
+			h.enqueueWake(wakeItem{participant: p.Sender, kind: wakeMessageCancelled, line: cancelledSenderLine(p.ID, p.toRoom, "")})
 		}
 	}
 	if len(gone) > 0 {
@@ -202,6 +230,45 @@ func (h *Hub) cancelReceiverPendingHeld(receiver string) {
 		return
 	}
 	h.settlePendingHeld(h.takePendingHeld(func(p pendingMessage) bool { return p.Receiver == receiver }), false)
+}
+
+// sendCancelToHost は、ほかのホストの送り手へ、承認待ち p をキャンセルしたことを封筒で運ぶ（2 度まで試す。届かなくても、こちらの動きは変えず、常駐のログに残す）
+func (h *Hub) sendCancelToHost(p pendingMessage) {
+	e := h.entrance.Load()
+	if e == nil {
+		return
+	}
+	c, base, ok := h.peerTarget(e, p.SenderHost)
+	if !ok {
+		fmt.Fprintln(os.Stderr, stamp(), "the cancel of message", p.ID, "was not sent: where host", p.SenderHostName, "listens is not known")
+		return
+	}
+	env := Envelope{
+		ID:     newEnvelopeID(),
+		From:   Address{Host: e.config.Identity.HostID, Workroom: p.toRoom},
+		To:     Address{Host: p.SenderHost, Workroom: p.SenderRoom},
+		SentAt: storage.Stamp(time.Now()),
+		Cancel: p.ID,
+	}
+	body := mustJSON(env)
+	var err error
+	for try := 0; try < 2; try++ {
+		if _, err = h.postEnvelope(e, c, p.SenderHost, base, body); err == nil || notSent(err) {
+			break
+		}
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, stamp(), "the cancel of message", p.ID, "did not reach host", p.SenderHostName+":", err)
+	}
+}
+
+// receiveCancelHeld は、ほかのホスト（ホストエイリアス host）から届いた、キャンセルを運ぶ封筒 env を、宛て先（このホストの送り手）の参加者 to に知らせる。
+// 同じ id の封筒は 1 度だけ（h.mu を持って呼ぶ）
+func (h *Hub) receiveCancelHeld(to string, env Envelope, host string) {
+	if !h.markSeenHeld(env.ID) {
+		return
+	}
+	h.enqueueWake(wakeItem{participant: to, kind: wakeMessageCancelled, line: cancelledSenderLine(env.Cancel, env.From.Workroom, host), peer: env.From.Host})
 }
 
 // approveMessage と cancelMessage は、画面の口（承認・キャンセル）。答えは ok か not-pending
