@@ -12,6 +12,7 @@ import { kit } from "../kit"
 import { withDateFolder } from "../library/date-folder"
 import { holdsEntries } from "../library/entries"
 import { describeNewPage, NEW_PAGE_ARGS, type NewPageResult, withNewPage } from "../pages/page-add"
+import { WRITE_IN_WORKER_BOOK } from "../participant/worker-page-add"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1),
@@ -22,8 +23,7 @@ const ARGS = z.strictObject({
 
 export const BOOK_CREATE = kit.defineAction({
   id: "book-create",
-  aiDescription:
-    "Create a book: title is its name, into the id of the folder to put it in (see read_folder; without it, the folder named today's date (YYYY-MM-DD) in the documents folder, made when missing), and at where in it: first (the default; in the library home, after its system folders) or last. A book has no type and starts with no pages; page (the same arguments as page-add) makes its first page with it, in this one call. Returns the new book's id, into (the id of the folder it was put in), and page: what page-add returns for the first page (when page is given). Refused when the first page cannot be made, and (title-taken) when that folder already has an entry with the same title.",
+  aiDescription: `${WRITE_IN_WORKER_BOOK} Create a book: title is its name, into the id of the folder to put it in (see read_folder; without it, the folder named today's date (YYYY-MM-DD) in the documents folder, made when missing), and at where in it: first (the default; in the library home, after its system folders) or last. A book has no type and starts with no pages; page (the same arguments as page-add) makes its first page with it, in this one call. Returns the new book's id, into (the id of the folder it was put in), and page: what page-add returns for the first page (when page is given). Refused when the first page cannot be made, and (title-taken) when that folder already has an entry with the same title.`,
   title: "New book",
   target: "library",
   permissionScope: (args: { into?: string }): LibraryTargets => ({
