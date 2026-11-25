@@ -118,6 +118,13 @@ export const PROJECT = kit.defineSubject({
   keys: { prefix: { type: "text", of: p => prefixKey(p.prefix) } },
   aiBrief: p => `${p.prefix} ${p.name}`,
   aiListed: { when: p => !p.closed, unlisted: "closed projects" },
+  // チケットプレフィクスが変わったら、このプロジェクトのチケットの番号の見せ方が変わる（チケットのプロジェクトと番号は変わらないので、番号の見せ方が変わるのはここだけ。
+  // チケットの種類はこのファイルを読むので、id を名前で書く）
+  workRecordsRenamedBy: (before, after) => {
+    const [was, now] = [before as { prefix: string } | "none", after as { id: string; prefix: string } | "removed"]
+    if (was === "none" || now === "removed" || was.prefix === now.prefix) return []
+    return [{ subject: kit.name("ticket"), where: [{ key: "project", eq: now.id }] }]
+  },
 })
 
 // プロジェクトのレコードの形

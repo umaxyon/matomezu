@@ -8,7 +8,7 @@ import { type PerformedIn, performIn, type World } from "../../../web/src/core/p
 import { REMOVED } from "../../../web/src/core/records"
 import { BUILTIN } from "../../../web/src/plugins"
 import { TICKETS_HISTORY } from "../../../web/src/plugins/base/library/backyards"
-import { FOLLOW_WORK_ENDED, FOLLOW_WORKROOM_GONE } from "../../../web/src/plugins/base/participant"
+import { FOLLOW_WORK_ENDED, FOLLOW_WORKROOM } from "../../../web/src/plugins/base/participant"
 import { assemble, defineBuiltin } from "../../../web/src/store/plugin"
 import { drawingPage, testBook } from "../../lineup"
 import { libraryWith } from "../../support"
@@ -91,10 +91,7 @@ const act = (action: string, on: string, args: unknown = {}) =>
   ) as Extract<PerformedIn, { ok: true }>
 
 test("base はワーカーブックを片付ける 2 つのフォローステップを持ち、どちらも tickets-history だけに行う", () => {
-  expect([FOLLOW_WORKROOM_GONE.backyards, FOLLOW_WORK_ENDED.backyards]).toEqual([
-    [TICKETS_HISTORY.id],
-    [TICKETS_HISTORY.id],
-  ])
+  expect([FOLLOW_WORKROOM.backyards, FOLLOW_WORK_ENDED.backyards]).toEqual([[TICKETS_HISTORY.id], [TICKETS_HISTORY.id]])
 })
 
 test("ワークルームを消すと、そのワークルーム自身のブックを完全に消し、作業のブックは残す", () => {

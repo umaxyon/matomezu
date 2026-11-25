@@ -30,6 +30,12 @@ export function followedInBackyard(
       needs.push(book)
       continue
     }
+    if (d.does === "retitle") {
+      const row = now.folders[book]
+      if (row?.folderRole === "book" && d.title !== "" && row.title !== d.title)
+        now = { ...now, folders: { ...now.folders, [book]: { ...row, title: d.title } } }
+      continue
+    }
     clear(rowsWithin(now.folders, book).pages)
     if (d.does === "clear-annotations") continue
     const next = removedEntry(now, book)

@@ -192,7 +192,8 @@ import {
   ADMIN_MARK,
   ADMIN_SET,
   FOLLOW_WORK_ENDED,
-  FOLLOW_WORKROOM_GONE,
+  FOLLOW_WORK_RENAMED,
+  FOLLOW_WORKROOM,
   JOIN_REQUEST_DIALOG,
   PARTICIPANT,
   PARTICIPANT_ACCEPT,
@@ -209,6 +210,7 @@ import {
   WORK_SUBJECTS_CHECK,
   WORKER_BOOK,
   WORKER_PAGE_ADD,
+  WORKER_PAGE_TITLE,
   WORKROOM,
   WORKROOM_ADD,
   WORKROOM_REMOVE,
@@ -603,11 +605,11 @@ export const BASE = defineBuiltin(
     textColors: TEXT_COLORS,
     skins: [DARK, LIGHT, MATOMEZU_LIGHT_SKIN, MATOMEZU_DARK_SKIN],
     tools: [SELECT_TOOL, HAND_TOOL],
-    permissions: [LOCK, WORKER_BOOK, IN_WORKROOMS],
+    permissions: [LOCK, WORKER_BOOK, WORKER_PAGE_TITLE, IN_WORKROOMS],
     annotations: [NOTE, MARK],
     systemFolders: [DOCUMENTS, WORKROOMS],
     backyards: [TICKETS_HISTORY],
-    followSteps: [FOLLOW_WORKROOM_GONE, FOLLOW_WORK_ENDED],
+    followSteps: [FOLLOW_WORKROOM, FOLLOW_WORK_ENDED, FOLLOW_WORK_RENAMED],
     mails: [MAIL_LETTER, MAIL_PROPOSAL],
     subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL, SCRAP],
     screens: [BOOK_SCREEN_DEF, LIBRARY_SCREEN, MAILBOX_SCREEN],
@@ -888,6 +890,7 @@ declare module "../../core/catalog" {
   interface PermissionTable {
     "@matomezu/base:lock": typeof LOCK
     "@matomezu/base:worker-book": typeof WORKER_BOOK
+    "@matomezu/base:worker-page-title": typeof WORKER_PAGE_TITLE
     "@matomezu/base:in-workrooms": typeof IN_WORKROOMS
   }
   interface AnnotationTable {

@@ -236,7 +236,7 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
       : null
   if (permission) return { ok: false, reason: "denied", permission }
   if (before) {
-    // バックヤードに在るブックは、名前を変えない
+    // アクションは、バックヤードに在るブックの名前を変えない（直すのは、持ち主のプラグインのフォローステップ）
     if (backyardEntryIn(ctx, before.id) && (done.next as Book).title !== before.title)
       return inBackyard("a book in a backyard cannot be renamed")
     // ページのタイプは作ったあと変えない（アクションが替えていたら断る）
