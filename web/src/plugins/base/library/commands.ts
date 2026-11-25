@@ -65,6 +65,7 @@ import {
   treeRowsOf,
 } from "./outline"
 import { PAGE_CREATE } from "./page-create"
+import { LIBRARY_REFERENCE_REMOVE } from "./reference-actions"
 import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
 import { unreadableShownIn } from "./show-unreadable"
 import {
@@ -420,20 +421,62 @@ export const LIBRARY_ENTRY_TRASH = kit.defineScreenCommand({
   id: "library-entry-trash",
   readsSubjects: workdesksReadsOf,
   title: "Move to trash",
-  performs: [ENTRY_TRASH.id, ENTRY_REMOVE.id], // 中の物は、開いたダイアログが entry-remove を行う
+  performs: [ENTRY_TRASH.id, ENTRY_REMOVE.id, LIBRARY_REFERENCE_REMOVE.id], // 中の物は、開いたダイアログが entry-remove を行う
   run: (ctx, a, named: Named | undefined) => {
+    // 参照エントリの行は、確かめずに消す（Delete キーは、このコマンドにだけ結ぶ）
+    const ref = referenceAt(ctx, entryOf(ctx, named))
+    if (ref) return removeReferenceIn(ctx, a, ref)
     const trashed = handled(ctx, trashes, named)
     if (trashed !== undefined) return trash(ctx, a, trashed)
     const entry = handled(ctx, removes, named)
     if (entry !== undefined) a.openDialog(LIBRARY_REMOVE_DIALOG.id, { entry })
   },
   performsWith: (ctx, named) => {
+    const ref = referenceAt(ctx, entryOf(ctx, named))
+    if (ref) return [{ action: LIBRARY_REFERENCE_REMOVE.id, args: ref }]
     const trashed = handled(ctx, trashes, named)
     if (trashed !== undefined) return [{ action: ENTRY_TRASH.id, args: { entry: trashed } }]
     const entry = handled(ctx, removes, named)
     return entry === undefined ? [] : [{ action: ENTRY_REMOVE.id, args: { entry } }]
   },
   when: inMenuHandled(trashes),
+})
+
+// 参照エントリ id と、それを置いたブック（id が参照エントリでなければ undefined）
+function referenceAt(
+  ctx: ScreenCommandContext,
+  id: string | undefined,
+): { book: string; reference: string } | undefined {
+  const book = id === undefined ? undefined : bookOfReference(ctx.folders, id)
+  return book && id !== undefined ? { book: book.id, reference: id } : undefined
+}
+
+// 参照エントリ at を、確かめずに消す。断られたらトーストで知らせる。行えたら、それを選んでいれば外す
+function removeReferenceIn(
+  ctx: ScreenCommandContext,
+  a: CommandActions,
+  at: { book: string; reference: string },
+): void {
+  const done = a.perform(LIBRARY_REFERENCE_REMOVE.id, at)
+  if (done.ok) a.updatePluginState(LIBRARY_PICKED, now => (now === at.reference ? NO_STATE : now))
+  else a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Could not delete")) })
+}
+
+// 参照エントリの行の右クリックの「削除」: 確かめずに消す（指す先は変わらない）
+export const LIBRARY_REFERENCE_DELETE = kit.defineScreenCommand({
+  id: "library-reference-delete",
+  readsSubjects: workdesksReadsOf,
+  title: "Delete",
+  performs: [LIBRARY_REFERENCE_REMOVE.id],
+  run: (ctx, a, { reference }: { reference: string }) => {
+    const at = referenceAt(ctx, reference)
+    if (at) removeReferenceIn(ctx, a, at)
+  },
+  performsWith: (ctx, named?: { reference: string }) => {
+    const at = referenceAt(ctx, named?.reference)
+    return at ? [{ action: LIBRARY_REFERENCE_REMOVE.id, args: at }] : []
+  },
+  when: () => true,
 })
 
 // 消す: ブックやバインダの中の物を、確かめるダイアログを開いてから消す（ダイアログが entry-remove を行う）

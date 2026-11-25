@@ -19,6 +19,7 @@ export {
   LIBRARY_PAGE_NEW,
   LIBRARY_PICK_MOVE,
   LIBRARY_REDO,
+  LIBRARY_REFERENCE_DELETE,
   LIBRARY_REFERENCE_SOURCE,
   LIBRARY_TREE_AROUND_KEY_SCOPE,
   LIBRARY_TREE_FOLD_OR_PARENT,
@@ -38,6 +39,7 @@ export { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entr
 export { ENTRY_REMOVE } from "./entry-remove"
 export { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./entry-trash"
 export { PAGE_CREATE } from "./page-create"
+export { LIBRARY_REFERENCE_ADD, LIBRARY_REFERENCE_REMOVE } from "./reference-actions"
 export { LIBRARY_REVERT } from "./revert"
 export {
   LIBRARY_OPEN,

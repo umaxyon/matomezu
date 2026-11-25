@@ -1,5 +1,5 @@
 // 書庫の画面の、ブックの中身に並ぶ参照エントリの行: 指す先の名前とタイプで並び、開くとそのブックのその参照を開く。右クリックの「参照元へ移動」は指す先を開く。
-// 選んでいても、エントリのコマンド（名前を変える・ゴミ箱へ入れる・複製・動かす）は効かない
+// 選んでいても、エントリのコマンド（名前を変える・複製・動かす）は効かない。右クリックの「削除」と Delete キーは、確かめずに消す（書庫の Ctrl+Z で戻る）
 
 import { expect, test } from "bun:test"
 import { HOME_ID } from "../../../web/src/core/folders"
@@ -66,14 +66,43 @@ test("参照元へ移動は、指す先のページをそのブックで開く",
   expect(openedEntry(stage!.opened)?.id).toBe("b1")
 })
 
-test("参照エントリの行を選んでいても、名前を変える・ゴミ箱へ入れる・複製は何もしない", () => {
+test("参照エントリの行を選んでいても、名前を変える・複製は何もしない", () => {
   const { state, ref, run, center, store, lineup } = setup()
   store.setPluginState(LIBRARY_FOLDER.id, center, "b2")
   store.setPluginState(LIBRARY_PICKED.id, center, ref)
   const before = lineup("b2")
   run("library-entry-rename")
-  run("library-entry-trash")
   run("library-entry-duplicate")
   expect(state.getState().dialog).toBeNull()
   expect(lineup("b2")).toEqual(before)
+})
+
+test("右クリックの削除と Delete キーは、確かめずに参照エントリを消し（指す先はそのまま）、書庫の Ctrl+Z で戻る", () => {
+  const { state, ref, run, center, store, lineup } = setup()
+  const before = lineup("b2")
+  run("library-reference-delete", { reference: ref })
+  expect(state.getState().dialog).toBeNull()
+  expect(lineup("b2")).not.toContain(ref)
+  expect(lineup("b1")).toContain("p1")
+  run("library-undo")
+  expect(lineup("b2")).toEqual(before)
+  // Delete キーのコマンド（選んでいる行が参照エントリなら、ゴミ箱に入れずに消す）
+  store.setPluginState(LIBRARY_FOLDER.id, center, "b2")
+  store.setPluginState(LIBRARY_PICKED.id, center, ref)
+  run("library-entry-trash")
+  expect(state.getState().dialog).toBeNull()
+  expect(lineup("b2")).not.toContain(ref)
+  expect(state.getState().folders.b2?.folderRole).toBe("book")
+})
+
+test("書庫から参照を置くアクションは、置けない物を断る", () => {
+  const { perform, lineup } = setup()
+  expect(perform("@matomezu/base:library-reference-add", { book: "b2", of: { kind: "page", id: "p1" } }).ok).toBe(false)
+  expect(perform("@matomezu/base:library-reference-add", { book: "b1", of: { kind: "page", id: "p1" } }).ok).toBe(false)
+  const added = perform("@matomezu/base:library-reference-add", {
+    book: "b1",
+    of: { kind: "page", id: lineup("b2")?.[0] as string },
+  })
+  expect(added.ok).toBe(true)
+  expect(lineup("b1")).toContain((added.result as { reference: string }).reference)
 })

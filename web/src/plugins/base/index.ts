@@ -64,6 +64,9 @@ import {
   LIBRARY_PLACE_OPEN,
   LIBRARY_QUERY,
   LIBRARY_REDO,
+  LIBRARY_REFERENCE_ADD,
+  LIBRARY_REFERENCE_DELETE,
+  LIBRARY_REFERENCE_REMOVE,
   LIBRARY_REFERENCE_SOURCE,
   LIBRARY_REMOVE_DIALOG,
   LIBRARY_RENAME_DIALOG,
@@ -541,6 +544,8 @@ export const BASE = defineBuiltin(
       ENTRY_RENAME,
       ENTRY_DUPLICATE,
       ENTRY_REMOVE,
+      LIBRARY_REFERENCE_ADD,
+      LIBRARY_REFERENCE_REMOVE,
       PAGE_CREATE,
       ENTRY_TRASH,
       ENTRY_RESTORE,
@@ -685,6 +690,7 @@ export const BASE = defineBuiltin(
       LIBRARY_ENTRY_OPEN,
       LIBRARY_ENTRY_OPEN_SPLIT,
       LIBRARY_REFERENCE_SOURCE,
+      LIBRARY_REFERENCE_DELETE,
       LIBRARY_BOOK_NEW,
       LIBRARY_OPEN,
       LIBRARY_SCREEN_CLOSE,
@@ -855,6 +861,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:entry-rename": typeof ENTRY_RENAME
     "@matomezu/base:entry-duplicate": typeof ENTRY_DUPLICATE
     "@matomezu/base:entry-remove": typeof ENTRY_REMOVE
+    "@matomezu/base:library-reference-add": typeof LIBRARY_REFERENCE_ADD
+    "@matomezu/base:library-reference-remove": typeof LIBRARY_REFERENCE_REMOVE
     "@matomezu/base:page-create": typeof PAGE_CREATE
     "@matomezu/base:entry-trash": typeof ENTRY_TRASH
     "@matomezu/base:entry-restore": typeof ENTRY_RESTORE
@@ -968,6 +976,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-entry-open": typeof LIBRARY_ENTRY_OPEN
     "@matomezu/base:library-entry-open-split": typeof LIBRARY_ENTRY_OPEN_SPLIT
     "@matomezu/base:library-reference-source": typeof LIBRARY_REFERENCE_SOURCE
+    "@matomezu/base:library-reference-delete": typeof LIBRARY_REFERENCE_DELETE
     "@matomezu/base:library-book-new": typeof LIBRARY_BOOK_NEW
     "@matomezu/base:library-open": typeof LIBRARY_OPEN
     "@matomezu/base:library-screen-close": typeof LIBRARY_SCREEN_CLOSE
