@@ -24,11 +24,24 @@ const (
 const (
 	EntrypointEnv     = "CLAUDE_CODE_ENTRYPOINT"
 	desktopEntrypoint = "claude-desktop"
+	cliEntrypoint     = "cli"
 )
 
 // ModWakes は、起動のされ方 entrypoint の会話を mod の watch で起こすか（Desktop の会話だけ。-p・SDK は起こさず、知らせは呼び出しの返事で渡る）
 func ModWakes(entrypoint string) bool {
 	return entrypoint == desktopEntrypoint
+}
+
+// AiUi は、起動のされ方 entrypoint から、利用者がその会話と話している AI の UI（join で常駐に添える値。base の参加者が値の組を持つ）を返す。
+// 端末の会話は terminal、Claude Desktop の Code タブは desktop。ほか（-p・SDK など）は分からないので空（添えない）
+func AiUi(entrypoint string) string {
+	switch entrypoint {
+	case cliEntrypoint:
+		return "terminal"
+	case desktopEntrypoint:
+		return "desktop"
+	}
+	return ""
 }
 
 // mod の watch が渡す知らせの上限。mod は watch の 1 行（JSON の文字列にした知らせ 1 つ。--escaped）を 1 つのターンにするので、行は切らず、間も空けない。

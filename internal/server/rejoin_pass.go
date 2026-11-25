@@ -66,10 +66,7 @@ func (h *Hub) joinByPass(req JoinRequest, ids *engine.JoinActions, roomID, occup
 	if req.As != "" || roomID == "" || !h.rejoin.takePass(req.Workroom, req.Link) {
 		return Joined{}, false, nil
 	}
-	asked := map[string]any{"ai": req.AI, "model": req.Model, "env": req.Env, "link": req.Link}
-	if req.SessionName != "" {
-		asked["sessionName"] = req.SessionName
-	}
+	asked := req.askedArgs()
 	into := map[string]any{"workroom": roomID}
 	if occupant != "" {
 		into["occupant"] = occupant

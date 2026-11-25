@@ -36,10 +36,11 @@ const (
 	roomsSettle    = 200 * time.Millisecond // 続いた変わりを 1 回にまとめて待つ間
 )
 
-// RoomRow は、ワークルームの一覧の 1 行: 名前と作業の様子（working・idle・unknown）
+// RoomRow は、ワークルームの一覧の 1 行: 名前と作業の様子（working・idle・unknown）と、AI の UI（このホストの行で、分かるときだけ。ほかのホストの写しは持たない）
 type RoomRow struct {
 	Name     string `json:"name"`
 	Activity string `json:"activity"`
+	AiUi     string `json:"aiUi,omitempty"`
 }
 
 // roomChange は、差分の 1 行: 足す・変わる行は名前と様子、消える行は名前と removed
@@ -164,15 +165,15 @@ func (h *Hub) followRooms(e *hostEntrance) {
 	}
 }
 
-// roomsNow は、今の自分の一覧（参加の確定した AI のいるワークルームの名前 → 様子）
-func (h *Hub) roomsNow() (map[string]string, error) {
+// roomsNow は、今の自分の一覧（参加の確定した AI のいるワークルームの名前 → 様子）と、そのうち AI の UI が分かる物の名前 → AI の UI
+func (h *Hub) roomsNow() (map[string]string, map[string]string, error) {
 	records, err := h.records()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	rooms, err := h.workrooms()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -185,20 +186,29 @@ func (h *Hub) roomsNow() (map[string]string, error) {
 	}
 	activity, err := h.engine.WorkroomActivities(ids, recordSource{h})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	out := map[string]string{}
-	for _, r := range rooms {
-		if occupant[r.ID] != "" {
-			out[r.Name] = activity[r.ID]
+	aiUiOf := map[string]string{}
+	for _, p := range records {
+		if p.AiUi != "" {
+			aiUiOf[p.ID] = p.AiUi
 		}
 	}
-	return out, nil
+	out, uis := map[string]string{}, map[string]string{}
+	for _, r := range rooms {
+		if p := occupant[r.ID]; p != "" {
+			out[r.Name] = activity[r.ID]
+			if ui := aiUiOf[p]; ui != "" {
+				uis[r.Name] = ui
+			}
+		}
+	}
+	return out, uis, nil
 }
 
 // refreshRooms は、自分の一覧を作り直し、変わっていれば番号を上げて、つながっているペアリングしたホストに差分を送る（届かなければ捨てる）
 func (h *Hub) refreshRooms(e *hostEntrance) {
-	now, err := h.roomsNow()
+	now, _, err := h.roomsNow() // ほかのホストへの写しは、名前と様子だけ（AI の UI は送らない）
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "hosts: could not list the workrooms:", err)
 		return
@@ -488,6 +498,7 @@ type foundRoom struct {
 	Host     string `json:"host,omitempty"`
 	Name     string `json:"name"`
 	Activity string `json:"activity"`
+	AiUi     string `json:"aiUi,omitempty"` // このホストの行で、分かるときだけ
 }
 
 // workroomsPage は、1 つのホストを名前の順に読んだ答え（このホストなら host と connected を書かない）と、そのあとに残る数と続きの offset
@@ -571,16 +582,16 @@ func seqOf(known map[string]roomEntry, name, activity string, sameActivity bool)
 	return math.MaxUint64
 }
 
-// ownRooms は、このホストの今の一覧（参加の確定した AI のいるワークルーム）を、様子が変わった順の番号つきで
+// ownRooms は、このホストの今の一覧（参加の確定した AI のいるワークルーム。AI の UI が分かれば添える）を、様子が変わった順の番号つきで
 func (h *Hub) ownRooms() ([]orderedRoom, error) {
-	now, err := h.roomsNow()
+	now, uis, err := h.roomsNow()
 	if err != nil {
 		return nil, err
 	}
 	known := h.ownSeqs()
 	out := make([]orderedRoom, 0, len(now))
 	for name, a := range now {
-		out = append(out, orderedRoom{RoomRow{Name: name, Activity: a}, seqOf(known, name, a, true)})
+		out = append(out, orderedRoom{RoomRow{Name: name, Activity: a, AiUi: uis[name]}, seqOf(known, name, a, true)})
 	}
 	return out, nil
 }
@@ -678,7 +689,7 @@ func (h *Hub) workroomsNamed(name string) (any, error) {
 	out := workroomsNamed{OK: true, Found: []foundRoom{}}
 	for _, r := range own {
 		if r.Name == name {
-			out.Found = append(out.Found, foundRoom{Name: r.Name, Activity: r.Activity})
+			out.Found = append(out.Found, foundRoom{Name: r.Name, Activity: r.Activity, AiUi: r.AiUi})
 		}
 	}
 	for _, p := range h.pairedRoomsNow() {

@@ -1,8 +1,19 @@
-// 右の下のワークルームの枠: 選んでいる参加者の鳥・名前・管理者の王冠（管理者なら金、ほかは薄い灰色。押すと管理者にする）・情報（最終アクセス・ブランチ（あれば）・model・os）・カレントチケット・チケット履歴。
+// 右の下のワークルームの枠: 選んでいる参加者の鳥・名前・管理者の王冠（管理者なら金、ほかは薄い灰色。押すと管理者にする）・情報（最終アクセス・ブランチ（あれば）・model・os・インターフェース（あれば））・カレントチケット・チケット履歴。
 // 情報の列の右下に退室のアイコン。情報の列の右には、スロット workroom-columnsに置かれたウィジェットの列（カレントチケット・チケット履歴など）が並ぶ。
 // ワークルームとビジターのほかの種類を選んでいれば、スロット picked-detail のその種類の物が枠の中を描く。ビジターを選んでいれば、ビジターの印・呼び名・（ビジター（読むだけ））・情報と、右下に外すアイコン（確かめのダイアログを開く）
-import { KindSlot, Slot, useActions, useAllowedOn, useMessages } from "../../plugin-api/ui"
-import { NO_BRANCH, NO_MODEL, NO_OCCUPANT, NOT_CALLED, type VisitorRow, visitorName, type WorkroomRow } from "../base"
+import { KindSlot, Slot, useActions, useAllowedOn, useMessages, useT } from "../../plugin-api/ui"
+import {
+  AI_UI_LABELS,
+  type AiUi,
+  NO_AI_UI,
+  NO_BRANCH,
+  NO_MODEL,
+  NO_OCCUPANT,
+  NOT_CALLED,
+  type VisitorRow,
+  visitorName,
+  type WorkroomRow,
+} from "../base"
 import { CrownIcon, Elapsed, IconButton, Panel, Tip, useWorkroomActions, VisitorIcon } from "../base/ui"
 import { BIRD_SIZE, Bird } from "./Bird"
 import { type Picked, VISITOR_LEAVE_DIALOG, WORKROOM_LEAVE_DIALOG } from "./control-center"
@@ -119,6 +130,7 @@ function Occupied({ row }: { row: WorkroomRow }) {
           <dd>{row.model !== NO_MODEL ? row.model : ""}</dd>
           <dt>{t("Environment:")}</dt>
           <dd>{participant !== NO_OCCUPANT ? participant.env : ""}</dd>
+          <AiUiFact aiUi={row.aiUi} />
         </dl>
         {participant !== NO_OCCUPANT ? (
           <LeaveButton workroom={row.room.id} participant={participant.id} />
@@ -157,7 +169,20 @@ function LeaveIconButton({ workroom, enabled }: { workroom: string; enabled: boo
   )
 }
 
-// ビジター: 印・呼び名・（ビジター（読むだけ））・情報（最終アクセス・ブランチ（あれば）・model・os）、右下に外すアイコン
+// AI の UI の行（分からなければ、ブランチと同じに行ごと出さない）
+function AiUiFact({ aiUi }: { aiUi: AiUi | typeof NO_AI_UI }) {
+  const t = useMessages(kit)
+  const tt = useT()
+  if (aiUi === NO_AI_UI) return null
+  return (
+    <>
+      <dt>{t("Interface:")}</dt>
+      <dd>{tt(AI_UI_LABELS[aiUi])}</dd>
+    </>
+  )
+}
+
+// ビジター: 印・呼び名・（ビジター（読むだけ））・情報（最終アクセス・ブランチ（あれば）・model・os・インターフェース（あれば））、右下に外すアイコン
 function Visitor({ row }: { row: VisitorRow }) {
   const t = useMessages(kit)
   const { openDialog } = useActions()
@@ -193,6 +218,7 @@ function Visitor({ row }: { row: VisitorRow }) {
           <dd>{row.model}</dd>
           <dt>{t("Environment:")}</dt>
           <dd>{participant.env}</dd>
+          <AiUiFact aiUi={row.aiUi} />
         </dl>
         <span className={styles.leave}>
           <Tip text={t("Remove the visitor")} side="above">

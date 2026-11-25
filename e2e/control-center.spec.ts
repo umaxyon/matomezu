@@ -4,8 +4,8 @@ import { aiAuth, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 
 const NOW = "2026-11-12T00:00:00.000Z"
 
-// AI を 1 人参加させ、名前・鳥のワークルームに受け入れる（セッション id を運ぶ AI なので、受け入れた直後から準備中でない）
-async function member(page: Page, name: string, bird: string) {
+// AI を 1 人参加させ、名前・鳥のワークルームに受け入れる（セッション id を運ぶ AI なので、受け入れた直後から準備中でない）。aiUi は MCP が添える AI の UI
+async function member(page: Page, name: string, bird: string, aiUi?: string) {
   const joined = (await (
     await page.request.post("/api/ai/join", {
       headers: aiAuth(),
@@ -16,6 +16,7 @@ async function member(page: Page, name: string, bird: string) {
         sessionName: name,
         link: `link-${name}`,
         sessionId: `s-${name}`,
+        ...(aiUi ? { aiUi } : {}),
       },
     })
   ).json()) as { participant: string }
@@ -120,7 +121,7 @@ test("ワークルームの一覧は管理者が先頭で、選ぶと枠に情�
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
   const a = await member(page, "sub_a", "inko")
-  await member(page, "sub_b", "buncho")
+  await member(page, "sub_b", "buncho", "desktop")
   await page.request.get("/api/ai/books?projects=default", {
     headers: { ...aiAuth(), "X-Matomezu-Participant": a.participant },
   })
@@ -133,10 +134,15 @@ test("ワークルームの一覧は管理者が先頭で、選ぶと枠に情�
   await expect(panel).toContainText("opus-5")
   await expect(panel).toContainText("wsl-linux")
   await expect(panel).toContainText("最終アクセス:なし")
+  // AI の UI を添えた sub_b だけ、インターフェースの行が出る
+  await expect(panel).toContainText("インターフェース:Desktop")
   // 1 人目に受け入れた sub_a が管理者。sub_b の王冠を押すと管理者が替わり、先頭へ動く
   await panel.getByRole("button", { name: "管理者" }).click()
   await expect(rows(page).first()).toContainText("sub_b")
   await expect(panel.getByRole("button", { name: "管理者" })).toHaveAttribute("aria-pressed", "true")
+  await row(page, "sub_a").getByRole("button", { name: "sub_a", exact: true }).click()
+  await expect(panel).toContainText("model:opus-5")
+  await expect(panel).not.toContainText("インターフェース")
 })
 
 test("退室は、「部屋を出る」を押すと空室が一覧に残り、「部屋を削除する」を押すと一覧から消える。キャンセルは何も変えない", async ({

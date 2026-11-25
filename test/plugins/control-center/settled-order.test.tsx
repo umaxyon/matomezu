@@ -2,6 +2,7 @@
 import { afterEach, expect, setSystemTime, test } from "bun:test"
 import { cleanup, renderHook } from "@testing-library/react"
 import {
+  NO_AI_UI,
   NO_BRANCH,
   NO_MODEL,
   NO_OCCUPANT,
@@ -24,6 +25,7 @@ const row = (id: string, state: WorkroomRow["state"], requestedAt?: string): Wor
   participant: NO_OCCUPANT,
   model: NO_MODEL,
   branch: NO_BRANCH,
+  aiUi: NO_AI_UI,
   calledAt: NOT_CALLED,
   requestedAt: requestedAt ?? NOT_REQUESTED,
   activity: "unknown",

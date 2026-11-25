@@ -48,9 +48,8 @@ type conn struct {
 	api          API
 	version      string
 	ai           string            // initialize で届いた clientInfo の名前と版
-	env          string            // 環境名
+	joining      Joining           // join で常駐に添える事柄（環境名・ADE のワークスペース・AI の UI）
 	branch       func() string     // 呼び出しのたびに git のブランチを読む（読めなければ空）
-	adeWorkspace func() string     // join のときに、AI が動いている ADE のワークスペースの名前を読む（clients/ade の部品が答える。nil なら読まない）
 	host         string            // AI のプログラムのプロセス id
 	hostSession  string            // AI のプログラムが MCP を立てたときのセッション id（分からなければ空）
 	sessionPid   string            // セッションと同じだけ生きるプロセスの id（空は名乗らない）
@@ -149,13 +148,20 @@ type response struct {
 	Error   *rpcError       `json:"error,omitempty"`
 }
 
+// Joining は、join で常駐に添える、AI がどこで動いているかの事柄（参加の頼みの引数になる）
+type Joining struct {
+	Env          string        // 環境名
+	AdeWorkspace func() string // join のときに、AI が動いている ADE のワークスペースの名前を読む（nil なら添えない）
+	AiUi         string        // 利用者がその会話と話している AI の UI（空なら添えない）
+}
+
 // Serve は in から頼みを読み、out に答えを書く。in が終わると戻る
-// env は環境名（join で常駐に渡す）。branch は git のブランチを読む関数（参加の id と一緒に常駐に添える）、host は AI のプログラムのプロセス id、
+// joining は join で常駐に添える事柄。branch は git のブランチを読む関数（参加の id と一緒に常駐に添える）、host は AI のプログラムのプロセス id、
 // hostSession は AI のプログラムが MCP を立てたときのセッション id（どちらもいつも添える。起こす知らせの宛て先）。
 // sessionPid が空でなければ、それがセッションと同じだけ生きるプロセスだと名乗り（pidSpace はその印）、居なくなったら、常駐が退室させる。
-// meta は、呼び出しの _meta のどこにセッション id とモデルがあるか。adeWorkspace は、join のときに AI が動いている ADE のワークスペースの名前を読む（nil なら添えない）。note は、AI に渡す説明（instructions）の後ろに足す文（空なら足さない）
-func Serve(in io.Reader, out io.Writer, api API, version, env string, branch, adeWorkspace func() string, host, hostSession, sessionPid, pidSpace string, meta Meta, note string) error {
-	c := &conn{api: api, version: version, ai: "unknown", env: env, branch: branch, adeWorkspace: adeWorkspace, host: host, hostSession: hostSession, sessionPid: sessionPid, pidSpace: pidSpace, meta: meta, note: note, participants: map[string]string{}}
+// meta は、呼び出しの _meta のどこにセッション id とモデルがあるか。note は、AI に渡す説明（instructions）の後ろに足す文（空なら足さない）
+func Serve(in io.Reader, out io.Writer, api API, version string, joining Joining, branch func() string, host, hostSession, sessionPid, pidSpace string, meta Meta, note string) error {
+	c := &conn{api: api, version: version, ai: "unknown", joining: joining, branch: branch, host: host, hostSession: hostSession, sessionPid: sessionPid, pidSpace: pidSpace, meta: meta, note: note, participants: map[string]string{}}
 	var mu sync.Mutex
 	enc := json.NewEncoder(out)
 	write := func(r response) {

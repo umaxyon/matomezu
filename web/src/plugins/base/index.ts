@@ -359,11 +359,14 @@ export { itemMinimapMarks, type MinimapMark, NOT_DRAWN } from "./minimap"
 export type { PageProblem } from "./pages"
 export { addPageIn, type PageFieldsWay, pageFieldsWay } from "./pages"
 export {
+  AI_UI_LABELS,
+  type AiUi,
   adminWorkroom,
   type FoundWorkerBook,
   isAdminActor,
   JOINED_MESSAGE,
   myWorkdeskIn,
+  NO_AI_UI,
   NO_BRANCH,
   NO_CATEGORY,
   NO_MODEL,

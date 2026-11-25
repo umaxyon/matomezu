@@ -47,3 +47,12 @@ func TestModWakesOnlyDesktop(t *testing.T) {
 		t.Error("only claude-desktop")
 	}
 }
+
+// AI の UI は、端末（cli）と Desktop の Code タブ（claude-desktop）だけを名乗り、ほかは空
+func TestAiUi(t *testing.T) {
+	for entrypoint, want := range map[string]string{"cli": "terminal", "claude-desktop": "desktop", "sdk-ts": "", "": ""} {
+		if got := AiUi(entrypoint); got != want {
+			t.Errorf("AiUi(%q) = %q, want %q", entrypoint, got, want)
+		}
+	}
+}

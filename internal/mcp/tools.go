@@ -272,7 +272,7 @@ var tools = []tool{
 	{"send_message", sendMessageDescription, sendMessageSchema, sendMessage, false},
 	{
 		"list_workrooms",
-		"List the workrooms you can send messages to (with send_message), each with its name and activity (working, idle, or unknown when no plugin tells). " +
+		"List the workrooms you can send messages to (with send_message), each with its name and activity (working, idle, or unknown when no plugin tells), and for a workroom of this host, aiUi when its AI's program told it at joining (where the user talks with that AI: terminal or desktop). " +
 			"Workroom names do not repeat within a host, but the same name can be on another host; send_message without host goes to this host. " +
 			"Without arguments, it answers the host list for AIs: workrooms, the workrooms of this host that have an AI in them now (your own too; all of them, or only the 5 whose activity changed last when the user chose so), " +
 			"and more, how many of them it left out; and hosts: the paired hosts the user puts on the host list for AIs (the matomezu of other machines; only while this host connects to other hosts), " +
@@ -642,11 +642,14 @@ func join(c *conn, args map[string]any) (string, bool) {
 	}
 	link, _ := args["link"].(string)
 	sessionName, _ := args["sessionName"].(string)
-	body := map[string]any{"ai": c.ai, "model": model, "env": c.env, "sessionName": sessionName, "link": link}
-	if c.adeWorkspace != nil {
-		if workspace := c.adeWorkspace(); workspace != "" {
+	body := map[string]any{"ai": c.ai, "model": model, "env": c.joining.Env, "sessionName": sessionName, "link": link}
+	if c.joining.AdeWorkspace != nil {
+		if workspace := c.joining.AdeWorkspace(); workspace != "" {
 			body["adeWorkspace"] = workspace
 		}
+	}
+	if c.joining.AiUi != "" {
+		body["aiUi"] = c.joining.AiUi
 	}
 	if workroom, _ := args["workroom"].(string); workroom != "" {
 		body["workroom"] = workroom

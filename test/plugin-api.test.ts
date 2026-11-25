@@ -53,6 +53,7 @@ const names = (m: object) => Object.keys(m).sort()
 
 test("matomezu が出す名前", () => {
   expect(names(api)).toEqual([
+    "AI_UI_LABELS",
     "AlignSchema",
     "AnchorsArg",
     "BACKGROUND_PRINT",
@@ -82,6 +83,7 @@ test("matomezu が出す名前", () => {
     "NOT_REQUESTED",
     "NOT_SET",
     "NO_AI_PLACED",
+    "NO_AI_UI",
     "NO_ANCHORS",
     "NO_AREA",
     "NO_BINDER",

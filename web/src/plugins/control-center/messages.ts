@@ -32,6 +32,7 @@ export const CONTROL_CENTER_MESSAGES = defineMessages({
   "Branch:": { en: "Branch:", ja: "ブランチ:" },
   "Model:": { en: "Model:", ja: "model:" },
   "Environment:": { en: "Environment:", ja: "os:" },
+  "Interface:": { en: "Interface:", ja: "インターフェース:" },
   None: { en: "None", ja: "なし" },
   Preparing: { en: "Preparing", ja: "準備中" },
   Leave: { en: "Leave", ja: "退室" },

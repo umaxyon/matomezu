@@ -12,6 +12,7 @@ import { z } from "zod"
 import { type Actor, NO_WORKROOM, workroomOfActor } from "../../../core/actor"
 import type { ActionContext, RecordRead } from "../../../core/def/action"
 import { PARTICIPANT_STATES } from "../../../core/def/subject"
+import type { MessageKey } from "../../../core/i18n/i18n"
 import { BIRD_IDS } from "../birds"
 import { BIRD_PALETTE_IDS } from "../birds/colors"
 import { kit } from "../kit"
@@ -31,6 +32,16 @@ const ADE_WORKSPACE = z
   .min(1)
   .refine(name => [...name].length <= 120)
 
+// AI の UI（利用者がその会話と話している所。MCP が AI のプログラムの部品に訊いて添える）の値の組: 端末と、Claude Desktop などのデスクトップのアプリ
+export const AI_UIS = ["terminal", "desktop"] as const
+export type AiUi = (typeof AI_UIS)[number]
+const AI_UI = z.enum(AI_UIS)
+// AI の UI を画面に出す文の鍵（参加の頼みの郵便と、コントロールセンターのワークルームの枠が使う）
+export const AI_UI_LABELS: Readonly<Record<AiUi, MessageKey>> = {
+  terminal: kit.message("Terminal"),
+  desktop: kit.message("Desktop"),
+}
+
 export const PARTICIPANT = kit.defineSubject({
   id: "participant",
   title: "participant",
@@ -49,6 +60,7 @@ export const PARTICIPANT = kit.defineSubject({
       wantedName: z.string().trim().min(1).max(WORKROOM_NAME_MAX).optional(), // 要求中が入りたいワークルームの名前
       as: z.enum(["visitor"]).optional(), // 要求中が頼んだ参加者区分（visitor はビジターとしての参加。省けば受け入れるときに選ぶ）
       adeWorkspace: ADE_WORKSPACE.optional(), // 要求中が添えた、ADE のワークスペースの名前（受け入れるときに見せる）
+      aiUi: AI_UI.optional(), // AI の UI（分からなければ無い。受け入れても残す）
       workroom: z.string().min(1).optional(), // 入っているワークルームの id（joined だけ）
       requestedAt: z.string(),
       joinedAt: z.string().optional(), // 受け入れた時点（joined と visitor だけ）
@@ -97,7 +109,7 @@ const NAME = z.string().trim().min(1).max(WORKROOM_NAME_MAX)
 export const PARTICIPANT_REQUEST = kit.defineAction({
   id: "participant-request",
   aiDescription:
-    "Ask to join the user's workroom as a participant. ai (your AI name, such as claude or codex), model, env (the environment name) and link (a one-time passphrase uuid you made for this session) are required; sessionName (the name of the original session) is optional; adeWorkspace (the name of the ADE workspace the session runs in, up to 120 characters; the host fills it, so leave it out) is optional; wantedName (a workroom name to start with, up to 20 characters) is optional; as: visitor asks to join only to read (a visitor has no workroom, so it is refused together with wantedName). The participant waits as requested until the user accepts it on the screen. Refused when a participant has the link already, or when too many requests wait. Returns the participant's id.",
+    "Ask to join the user's workroom as a participant. ai (your AI name, such as claude or codex), model, env (the environment name) and link (a one-time passphrase uuid you made for this session) are required; sessionName (the name of the original session) is optional; adeWorkspace (the name of the ADE workspace the session runs in, up to 120 characters; the host fills it, so leave it out) is optional; aiUi (where the user talks with the session: terminal or desktop; the host fills it, so leave it out) is optional; wantedName (a workroom name to start with, up to 20 characters) is optional; as: visitor asks to join only to read (a visitor has no workroom, so it is refused together with wantedName). The participant waits as requested until the user accepts it on the screen. Refused when a participant has the link already, or when too many requests wait. Returns the participant's id.",
   title: "Request to participate",
   target: PARTICIPANT.id,
   // 同じ合言葉の参加者と、要求中の参加者の、索引キーだけ
@@ -113,6 +125,7 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
     sessionName: z.string().trim().max(120).optional(),
     link: z.string().trim().min(1).max(80),
     adeWorkspace: ADE_WORKSPACE.optional(),
+    aiUi: AI_UI.optional(),
     wantedName: NAME.optional(),
     as: z.enum(["visitor"]).optional(),
   }),
@@ -135,6 +148,7 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
       ...(args.wantedName ? { wantedName: args.wantedName } : {}),
       ...(args.as ? { as: args.as } : {}),
       ...(args.adeWorkspace ? { adeWorkspace: args.adeWorkspace } : {}),
+      ...(args.aiUi ? { aiUi: args.aiUi } : {}),
       requestedAt: ctx.now,
     }
     return { next: requested, result: { participant: requested.id } }
@@ -404,6 +418,7 @@ export function isAdminActor(actor: Actor, ctx: Pick<ActionContext, "records" | 
 export { PARTICIPANT_ALIVE } from "./alive"
 export { JOIN_REQUEST_DIALOG, PARTICIPANT_JOIN_DIALOG, PARTICIPANT_WELCOME_DIALOG } from "./dialogs"
 export {
+  NO_AI_UI,
   NO_BRANCH,
   NO_CATEGORY,
   NO_MODEL,

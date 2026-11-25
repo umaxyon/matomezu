@@ -10,6 +10,7 @@ import type {} from "../plugins"
 
 // base の入口の名前（置く計算・文字・Markdown を読む・ブックの設定の項目・紙と、base が拡張ポイントに書き足した物の型。ビルトインプラグインは plugins/base から読む）
 export type {
+  AiUi,
   Axis,
   BlockProps,
   BodyColumn,
@@ -57,6 +58,7 @@ export type {
   WorkroomState,
 } from "../plugins/base"
 export {
+  AI_UI_LABELS,
   AlignSchema,
   adaptPage,
   addPageIn,
@@ -113,6 +115,7 @@ export {
   minSize,
   NEST_PADDING,
   NO_AI_PLACED,
+  NO_AI_UI,
   NO_BRANCH,
   NO_CATEGORY,
   NO_EXTENT,
