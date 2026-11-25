@@ -7,13 +7,14 @@ import type { UnreadableItem } from "../../../web/src/core/folders-unreadable"
 import { restorePlanOf, SAME_TITLE } from "../../../web/src/plugins/base/library/entries"
 import { FOLDER_CREATE } from "../../../web/src/plugins/base/library/entry-move"
 import {
+  entryPlaceOf,
   movedPlacesOf,
+  NO_LIBRARY_PLACE,
   NO_TYPE,
   NOT_OPENED,
   NOT_UNFOLDABLE,
   openedFolderOf,
   openTargetOf,
-  outsidePagePlaceOf,
   pathTo,
   placeIdOf,
   rowsIn,
@@ -87,7 +88,11 @@ test("ブックの外のページの行を開くと、そのページを窓に�
   expect(target("o1", "page")).toEqual({ to: "page", page: "o1" })
   expect(target("n1", "binder")).toEqual({ to: "binder", binder: "n1" })
   expect(target("n1p", "page")).toEqual({ to: "binder", binder: "n1", page: "n1p" })
-  expect(outsidePagePlaceOf(folders, "n1p")).toEqual([HOME_ID])
+  // 書庫の上の置き場所: ブックの外のバインダの中のページは、そのバインダの行
+  expect(entryPlaceOf(folders, "n1p", NO_DESKS)).toEqual({ folder: HOME_ID, picked: "n1", path: [HOME_ID] })
+  expect(entryPlaceOf(folders, "n1", NO_DESKS)).toEqual({ folder: HOME_ID, picked: "n1", path: [HOME_ID] })
+  expect(entryPlaceOf(folders, "o1", NO_DESKS)).toEqual({ folder: HOME_ID, picked: "o1", path: [HOME_ID] })
+  expect(entryPlaceOf(folders, "nothing", NO_DESKS)).toBe(NO_LIBRARY_PLACE)
   const store = newStore()
   store.receive({ ...worldRows([], [drawingPage("o1")]), settings: {} }, [])
   expect(store.actions.perform("@matomezu/base:entry-trash", { entry: "o1" }).ok).toBe(true)

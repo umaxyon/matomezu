@@ -91,6 +91,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:sheet-layers": ["@matomezu/slide:slide-sheet", "@matomezu/base:sheet-content"],
     "@matomezu/base:stage-bottom": [
       "@matomezu/base:footer-close-button",
+      "@matomezu/base:worker-birds",
       "@matomezu/base:book-name",
       "@matomezu/base:page-place",
       "@matomezu/base:page-tabs",

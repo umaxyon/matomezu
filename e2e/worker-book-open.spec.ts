@@ -211,3 +211,24 @@ test("書庫の検索は、チケットの番号と名前・ページの名前�
   await expect(field).toBeHidden()
   await expect(page.getByText("見つける絵").first()).toBeVisible()
 })
+
+test("ワーカーブックの下の行は、名前の左に作業しているワークルームの鳥を出し、フォルダの絵を押すと書庫でその作業机を開いてワーカーブックを選ぶ", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  const ai = await member(page, "とり")
+  const added = await aiPerform(
+    page,
+    { action: "@matomezu/base:worker-page-add", args: { type: "@matomezu/drawing:drawing", title: "鳥のメモ" } },
+    ai,
+  )
+  expect(added, JSON.stringify(added)).toMatchObject({ ok: true })
+  await page.locator("[data-workroom]").filter({ hasText: "とり" }).locator("[data-current-line]").dblclick()
+  await expect(page.getByText("鳥のメモ").first()).toBeVisible()
+  await expect(page.locator("[data-worker-birds]")).toHaveAttribute("title", "とり")
+  const place = page.getByRole("button", { name: "置き場所: ワークルーム › とり" })
+  await expect(place).toHaveText("")
+  await place.click()
+  const desk = page.getByRole("list", { name: "とり の中身" })
+  await expect(desk.getByRole("button")).toHaveAttribute("aria-pressed", "true")
+})
