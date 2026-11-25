@@ -1,4 +1,5 @@
 .wrap {
+  position: relative;
   display: inline-flex;
   flex: none;
 }
@@ -12,4 +13,27 @@
 /* 準備中の参加者の鳥は薄くする */
 .wrap[data-preparing="true"] {
   opacity: 0.45;
+}
+
+/* 参加済みで生きていない参加者の鳥は、目を閉じて薄くし、右上に眠っている吹き出しを添える */
+.wrap[data-asleep="true"] > :first-child {
+  opacity: 0.55;
+}
+.zzz {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  padding: 0 3px;
+  border-radius: 6px;
+  background: var(--skin-surface-raised);
+  border: 1px solid var(--skin-border-strong);
+  color: var(--skin-text-muted);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 10px;
+  pointer-events: none;
+}
+.zzz > span {
+  font-size: 6px;
+  vertical-align: 1px;
 }

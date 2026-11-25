@@ -123,7 +123,7 @@ export {
 // レコードが無いときの値（useRecord・アクションの文脈の record）
 export { NO_RECORD } from "../core/records"
 export type { Book, StageLineup } from "../core/schema/book"
-export { LISTED_WORKROOMS } from "../core/settings"
+export { LISTED_WORKROOMS, type WakeReach } from "../core/settings"
 export {
   areaOf,
   binderOf,

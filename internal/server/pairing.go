@@ -150,11 +150,12 @@ type peerState struct {
 	reverseOut map[string]*reverseDial // ペアリングしたホスト id → こちらが相手へ張り続ける物
 	reverseGen int                     // 入口を閉じるたびに 1 つ進める（閉じる前に受け始めたリバース接続を、閉じたあとで預からない）
 	// ワークルームの一覧（peer_rooms.go）
-	rooms     localRooms           // 自分の一覧
-	copies    map[string]*roomCopy // ペアリングしたホスト id → 相手の一覧の写し
-	fetching  map[string]int       // ペアリングしたホスト id → 取り直しの様子
-	roomsKick chan struct{}
-	roomSeq   uint64 // 一覧の行の様子が変わった順の通し番号（自分の一覧と写しで共に使う。このホストの中だけの物）
+	rooms      localRooms           // 自分の一覧
+	copies     map[string]*roomCopy // ペアリングしたホスト id → 相手の一覧の写し
+	fetching   map[string]int       // ペアリングしたホスト id → 取り直しの様子
+	roomsKick  chan struct{}
+	lapseTimer *time.Timer // 自分の一覧の作り直しの予約（参加の有効時間が過ぎる時点。peer_rooms.go の scheduleLapseLocked）
+	roomSeq    uint64      // 一覧の行の様子が変わった順の通し番号（自分の一覧と写しで共に使う。このホストの中だけの物）
 }
 
 func newPeerState() *peerState {

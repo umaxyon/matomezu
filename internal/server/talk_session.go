@@ -166,6 +166,7 @@ func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk
 	}
 	if len(told) > 0 {
 		h.kickRooms()
+		h.noteWakesLocked()
 	}
 	h.mu.Unlock()
 	if perr != nil {

@@ -466,3 +466,4 @@ export {
   type WorkroomRow,
   type WorkroomState,
 } from "./rows"
+export type { Presence } from "./workroom"

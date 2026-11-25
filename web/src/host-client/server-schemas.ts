@@ -77,7 +77,15 @@ export const HostPeersSchema = z.object({
       hostId: z.string(),
       label: z.string(),
       state: z.enum(["connected", "unreachable", "key-mismatch", "update-this", "update-that"]),
-      workrooms: z.array(z.object({ name: z.string(), activity: z.enum(["working", "idle", "unknown"]) })).optional(),
+      workrooms: z
+        .array(
+          z.object({
+            name: z.string(),
+            activity: z.enum(["working", "idle", "unknown"]),
+            alive: z.enum(["alive", "lapsed", "unknown"]).catch("unknown"), // 古い版の相手は送らない
+          }),
+        )
+        .optional(),
       lastSeen: z.string().optional(),
       addr: z.string().optional(),
       reverseOnly: z.boolean().optional(),
@@ -124,7 +132,10 @@ export const DataSchema = z.object({
   host: HostStatusSchema.optional(),
   hostPeers: HostPeersSchema.optional(),
   participantLive: z
-    .record(z.string(), z.object({ model: z.string().optional(), branch: z.string().optional() }))
+    .record(
+      z.string(),
+      z.object({ model: z.string().optional(), branch: z.string().optional(), wake: z.literal("reaches").optional() }),
+    )
     .optional(),
 })
 // build は常駐の版とデータの形の番号（移し替えの数）。build の無い hello もある
@@ -162,6 +173,7 @@ export const ParticipantLiveSchema = z.object({
   participant: z.string(),
   model: z.string().optional(),
   branch: z.string().optional(),
+  wake: z.literal("reaches").optional(),
 })
 export const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 export const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown() })

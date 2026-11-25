@@ -23,6 +23,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/peer"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
@@ -149,7 +150,11 @@ func (h *Hub) postEnvelope(e *hostEntrance, c *http.Client, hostID, base string,
 	if err := json.Unmarshal(b, &sent); err != nil {
 		return MessageSent{}, fmt.Errorf("the answer could not be read: %w", err)
 	}
-	return MessageSent{OK: sent.OK, Queued: sent.Queued, Reason: sent.Reason, Detail: sent.Detail}, nil
+	out := MessageSent{OK: sent.OK, Queued: sent.Queued, Reason: sent.Reason, Detail: sent.Detail}
+	if out.OK {
+		out.Delivers = aiwire.KnownDelivers(sent.Delivers) // 古い版の相手は、いつ渡るかを答えない
+	}
+	return out, nil
 }
 
 // peerMessage は、ペアリングしたホストから封筒 1 通を受ける口
@@ -186,21 +191,21 @@ func (h *Hub) receiveEnvelope(env Envelope) MessageSent {
 	if err != nil {
 		return MessageSent{Reason: "unknown-recipient", Detail: err.Error()}
 	}
-	open, found, delivered := h.receiveHeld(records, rooms, delivery{envelope: env, host: label, peer: env.From.Host, asUser: asUser, limit: limit})
+	open, found, queued := h.receiveHeld(records, rooms, delivery{envelope: env, host: label, peer: env.From.Host, asUser: asUser, limit: limit})
 	if found {
-		if !delivered {
+		if !queued.OK {
 			return rallyRefusal(env.To.Workroom, limit)
 		}
-		return MessageSent{OK: true, Queued: true}
+		return queued
 	}
 	// 断りの句は、常駐の鍵を放してから自分の一覧を読んで作る（一覧は ps.mu の下）
 	return MessageSent{Reason: "unknown-recipient", Detail: "no AI is in a workroom named " + env.To.Workroom + "; " +
 		h.sendableClause(open, "list_workrooms with host and offset", "no AI is in a workroom now")}
 }
 
-// receiveHeld は、h.mu を持って、封筒 d.envelope を宛て先のワークルームの AI に届ける（found。AI ラリーの上限を超えて届けなければ delivered が偽）。
+// receiveHeld は、h.mu を持って、封筒 d.envelope を宛て先のワークルームの AI に届ける（found。受けた答えが queued。AI ラリーの上限を超えて届けなければ queued.OK が偽）。
 // いなければ、AI のいるワークルームの名前 open
-func (h *Hub) receiveHeld(records []participantRecord, rooms []workroomRecord, d delivery) (open []string, found, delivered bool) {
+func (h *Hub) receiveHeld(records []participantRecord, rooms []workroomRecord, d delivery) (open []string, found bool, queued MessageSent) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	occupant := h.occupants(records)
@@ -211,10 +216,13 @@ func (h *Hub) receiveHeld(records []participantRecord, rooms []workroomRecord, d
 		open = append(open, room.Name)
 		if room.Name == d.envelope.To.Workroom {
 			d.to = occupant[room.ID]
-			return nil, true, h.deliver(d)
+			if !h.deliver(d) {
+				return nil, true, MessageSent{}
+			}
+			return nil, true, h.queuedFor(d.to)
 		}
 	}
-	return open, false, false
+	return open, false, MessageSent{}
 }
 
 // followPeerLines は、行列に残っている、ほかのホストから届いた行を、ペアリングしたホストの今の様子に合わせる: ペアリングを解いたホスト（known に無い）から届いた物は

@@ -27,6 +27,7 @@ const row = (id: string, state: WorkroomRow["state"], requestedAt?: string): Wor
   branch: NO_BRANCH,
   aiUi: NO_AI_UI,
   calledAt: NOT_CALLED,
+  wake: "none",
   requestedAt: requestedAt ?? NOT_REQUESTED,
   activity: "unknown",
 })

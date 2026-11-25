@@ -154,6 +154,7 @@ func (h *Hub) OpenWakesWith(host, session string, limits WakeLimits) *wakeLine {
 	h.wakeLines[w] = struct{}{}
 	w.ready <- struct{}{}
 	logWake("line %d opened: host %q, session %q", w.id, host, session)
+	h.noteWakesLocked()
 	return w
 }
 
@@ -171,12 +172,35 @@ func (h *Hub) closeWakesLocked(w *wakeLine) {
 	delete(h.wakeLines, w)
 	close(w.closed)
 	logWake("line %d closed", w.id)
+	for _, lines := range h.wakeAbsent {
+		delete(lines, w.id)
+	}
+	defer h.noteWakesLocked()
 	for id, q := range h.wakeQueue {
 		for i := range q {
 			if q[i].lentTo == w.id {
 				q[i].lentTo = 0
 				h.signalWakes(id)
 			}
+		}
+	}
+}
+
+// dropStaleAbsentLocked は、absent の印のうち、参加者が消えた物と、通り道がその参加者に届かなくなった物を消す（h.mu を持って呼ぶ）
+func (h *Hub) dropStaleAbsentLocked() {
+	reaching := map[int64]*wakeLine{}
+	for l := range h.wakeLines {
+		reaching[l.id] = l
+	}
+	for id, lines := range h.wakeAbsent {
+		n, ok := h.participantNotes[id]
+		for line := range lines {
+			if l := reaching[line]; !ok || l == nil || !l.reaches(n) {
+				delete(lines, line)
+			}
+		}
+		if len(lines) == 0 {
+			delete(h.wakeAbsent, id)
 		}
 	}
 }
@@ -189,6 +213,52 @@ func (l *wakeLine) reaches(n participantNote) bool {
 	hostOK := l.host == "" || n.WakeHost == "" || host
 	sessionOK := l.session == "" || n.WakeSession == "" || session
 	return (host || session) && hostOK && sessionOK
+}
+
+// wakeReachLocked は、参加者 id に、起こす知らせを渡せる通り道がつながっているか（engine.WakeReaches・engine.WakeNone）。
+// 準備中の参加者と、その会話が無い（absent）と答えた通り道は数えない（h.mu を持って呼ぶ）
+func (h *Hub) wakeReachLocked(id string) string {
+	n := h.participantNotes[id]
+	if !n.ready() {
+		return engine.WakeNone
+	}
+	for l := range h.wakeLines {
+		if l.reaches(n) && !h.wakeAbsent[id][l.id] {
+			return engine.WakeReaches
+		}
+	}
+	return engine.WakeNone
+}
+
+// noteWakesLocked は、起こす知らせを渡せる通り道がつながっているかの変わった参加者を窓に知らせ（participant-live）、自分のワークルームの一覧を作り直させる。
+// 消えた参加者と、届かなくなった（起こす先を結び直した）通り道の absent の印は消す（h.mu を持って呼ぶ）
+func (h *Hub) noteWakesLocked() {
+	h.dropStaleAbsentLocked()
+	changed := false
+	for id := range h.participantNotes {
+		reaches := h.wakeReachLocked(id) == engine.WakeReaches
+		if reaches == h.wakeShown[id] {
+			continue
+		}
+		if h.wakeShown == nil {
+			h.wakeShown = map[string]bool{}
+		}
+		if reaches {
+			h.wakeShown[id] = true
+		} else {
+			delete(h.wakeShown, id)
+		}
+		h.announceLive(id)
+		changed = true
+	}
+	for id := range h.wakeShown {
+		if _, ok := h.participantNotes[id]; !ok {
+			delete(h.wakeShown, id)
+		}
+	}
+	if changed {
+		h.kickRooms()
+	}
 }
 
 // signalWakes は、参加者 participant に届く通り道に、流せる知らせがあるかもしれないと合図する（h.mu を持って呼ぶ）
@@ -335,6 +405,10 @@ func (h *Hub) AckWake(line int64, id, result string, now time.Time) {
 			it.lentTo = 0
 			switch result {
 			case WakeDelivered:
+				if h.wakeAbsent[participant][line] {
+					delete(h.wakeAbsent[participant], line)
+					defer h.noteWakesLocked()
+				}
 				if it.lentPointer {
 					it.pointed = true
 				} else {
@@ -342,6 +416,14 @@ func (h *Hub) AckWake(line int64, id, result string, now time.Time) {
 				}
 			case WakeAbsent:
 				it.replyOnly = true
+				if h.wakeAbsent == nil {
+					h.wakeAbsent = map[string]map[int64]bool{}
+				}
+				if h.wakeAbsent[participant] == nil {
+					h.wakeAbsent[participant] = map[int64]bool{}
+				}
+				h.wakeAbsent[participant][line] = true
+				defer h.noteWakesLocked()
 			default:
 				it.notBefore = now.Add(wakeRetry)
 				time.AfterFunc(wakeRetry, func() {

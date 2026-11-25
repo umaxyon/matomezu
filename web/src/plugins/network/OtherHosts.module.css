@@ -81,6 +81,10 @@
   flex: none;
   margin-left: auto;
 }
+/* そこにいる AI が生きていないワークルームの行は薄くする */
+.room[data-lapsed="true"] {
+  opacity: 0.5;
+}
 .pick {
   display: flex;
   align-items: center;

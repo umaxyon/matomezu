@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/peer"
 )
 
@@ -36,19 +37,46 @@ const (
 	roomsSettle    = 200 * time.Millisecond // 続いた変わりを 1 回にまとめて待つ間
 )
 
-// RoomRow は、ワークルームの一覧の 1 行: 名前と作業の様子（working・idle・unknown）と、AI の UI（このホストの行で、分かるときだけ。ほかのホストの写しは持たない）
+// RoomRow は、ワークルームの一覧の 1 行: 名前と作業の様子（working・idle・unknown）と、そこにいる AI が生きているか（alive・lapsed・unknown）と、
+// AI の UI（このホストの行で、分かるときだけ。ほかのホストの写しは持たない）
 type RoomRow struct {
 	Name     string `json:"name"`
 	Activity string `json:"activity"`
+	Alive    string `json:"alive"`
 	AiUi     string `json:"aiUi,omitempty"`
+}
+
+// 一覧の行の、そこにいる AI が生きているか
+const (
+	roomAlive   = "alive"   // 生きている
+	roomLapsed  = "lapsed"  // 生きていない（参加はしている）
+	roomUnknown = "unknown" // 分からない（古い版の相手の写し）
+)
+
+// aliveOf は、受けた生きているかの値（無い・知らない値は roomUnknown）
+func aliveOf(v string) string {
+	if v == roomAlive || v == roomLapsed {
+		return v
+	}
+	return roomUnknown
+}
+
+// roomState は、一覧の 1 行の様子: 作業の様子と、そこにいる AI が生きているか
+type roomState struct {
+	activity string
+	alive    string
 }
 
 // roomChange は、差分の 1 行: 足す・変わる行は名前と様子、消える行は名前と removed
 type roomChange struct {
 	Name     string `json:"name"`
 	Activity string `json:"activity,omitempty"`
+	Alive    string `json:"alive,omitempty"`
 	Removed  bool   `json:"removed,omitempty"`
 }
+
+// state は、差分の行の様子
+func (c roomChange) state() roomState { return roomState{c.Activity, aliveOf(c.Alive)} }
 
 // roomDiff は、一覧の番号 From から To への差分（Epoch は送り手の起動の印）
 type roomDiff struct {
@@ -69,8 +97,8 @@ type roomsAnswer struct {
 
 // roomEntry は、一覧の 1 行の様子と、その様子になった順の通し番号（peerState.roomSeq から振る）
 type roomEntry struct {
-	activity string
-	seq      uint64
+	state roomState
+	seq   uint64
 }
 
 // roomCopy は、相手の一覧の写し
@@ -89,7 +117,7 @@ type localRooms struct {
 }
 
 // noteRowsLocked は、一覧 was を、今の様子 now（名前 → 様子）にした物: 様子の同じ行は通し番号を保ち、足された・様子の変わった行に名前の順で新しい番号を振る（ps.mu を持って呼ぶ）
-func (ps *peerState) noteRowsLocked(was map[string]roomEntry, now map[string]string) map[string]roomEntry {
+func (ps *peerState) noteRowsLocked(was map[string]roomEntry, now map[string]roomState) map[string]roomEntry {
 	out := make(map[string]roomEntry, len(now))
 	names := make([]string, 0, len(now))
 	for name := range now {
@@ -97,12 +125,12 @@ func (ps *peerState) noteRowsLocked(was map[string]roomEntry, now map[string]str
 	}
 	slices.Sort(names)
 	for _, name := range names {
-		if old, ok := was[name]; ok && old.activity == now[name] {
+		if old, ok := was[name]; ok && old.state == now[name] {
 			out[name] = old
 			continue
 		}
 		ps.roomSeq++
-		out[name] = roomEntry{activity: now[name], seq: ps.roomSeq}
+		out[name] = roomEntry{state: now[name], seq: ps.roomSeq}
 	}
 	return out
 }
@@ -113,19 +141,19 @@ func (ps *peerState) applyChangesLocked(rows map[string]roomEntry, changes []roo
 		switch old, ok := rows[c.Name]; {
 		case c.Removed:
 			delete(rows, c.Name)
-		case ok && old.activity == c.Activity:
+		case ok && old.state == c.state():
 		default:
 			ps.roomSeq++
-			rows[c.Name] = roomEntry{activity: c.Activity, seq: ps.roomSeq}
+			rows[c.Name] = roomEntry{state: c.state(), seq: ps.roomSeq}
 		}
 	}
 }
 
-// activities は、一覧の名前 → 様子
-func activities(rows map[string]roomEntry) map[string]string {
-	out := make(map[string]string, len(rows))
+// statesOf は、一覧の名前 → 様子
+func statesOf(rows map[string]roomEntry) map[string]roomState {
+	out := make(map[string]roomState, len(rows))
 	for name, r := range rows {
-		out[name] = r.activity
+		out[name] = r.state
 	}
 	return out
 }
@@ -165,16 +193,25 @@ func (h *Hub) followRooms(e *hostEntrance) {
 	}
 }
 
-// roomsNow は、今の自分の一覧（参加の確定した AI のいるワークルームの名前 → 様子）と、そのうち AI の UI が分かる物の名前 → AI の UI
-func (h *Hub) roomsNow() (map[string]string, map[string]string, error) {
+// roomList は、時点 at の自分の一覧: 参加の確定した AI のいるワークルームの名前 → 様子と、そのうち AI の UI が分かる物の名前 → AI の UI と、
+// 起こす知らせを渡せる通り道がつながっていない生きている AI のうち、いちばん早く参加の有効時間が過ぎる時点（無ければ零の時刻）
+type roomList struct {
+	states    map[string]roomState
+	uis       map[string]string
+	nextLapse time.Time
+}
+
+// roomsNow は、時点 at の自分の一覧
+func (h *Hub) roomsNow(at time.Time) (roomList, error) {
 	records, err := h.records()
 	if err != nil {
-		return nil, nil, err
+		return roomList{}, err
 	}
 	rooms, err := h.workrooms()
 	if err != nil {
-		return nil, nil, err
+		return roomList{}, err
 	}
+	settings, _ := h.Data()
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	occupant := h.occupants(records)
@@ -186,7 +223,7 @@ func (h *Hub) roomsNow() (map[string]string, map[string]string, error) {
 	}
 	activity, err := h.engine.WorkroomActivities(ids, recordSource{h})
 	if err != nil {
-		return nil, nil, err
+		return roomList{}, err
 	}
 	aiUiOf := map[string]string{}
 	for _, p := range records {
@@ -194,29 +231,52 @@ func (h *Hub) roomsNow() (map[string]string, map[string]string, error) {
 			aiUiOf[p.ID] = p.AiUi
 		}
 	}
-	out, uis := map[string]string{}, map[string]string{}
+	out := roomList{states: map[string]roomState{}, uis: map[string]string{}}
 	for _, r := range rooms {
-		if p := occupant[r.ID]; p != "" {
-			out[r.Name] = activity[r.ID]
-			if ui := aiUiOf[p]; ui != "" {
-				uis[r.Name] = ui
+		p := occupant[r.ID]
+		if p == "" {
+			continue
+		}
+		called, wake := h.participantNotes[p].Called, h.wakeReachLocked(p)
+		alive, err := h.engine.ParticipantAlive(settings, called, wake, at)
+		if err != nil {
+			return roomList{}, err
+		}
+		st := roomState{activity[r.ID], roomLapsed}
+		if alive {
+			st.alive = roomAlive
+			if wake != engine.WakeReaches {
+				lapses, ok, err := h.engine.ParticipantLapsesAt(settings, called)
+				if err != nil {
+					return roomList{}, err
+				}
+				if ok && (out.nextLapse.IsZero() || lapses.Before(out.nextLapse)) {
+					out.nextLapse = lapses
+				}
 			}
 		}
+		out.states[r.Name] = st
+		if ui := aiUiOf[p]; ui != "" {
+			out.uis[r.Name] = ui
+		}
 	}
-	return out, uis, nil
+	return out, nil
 }
 
-// refreshRooms は、自分の一覧を作り直し、変わっていれば番号を上げて、つながっているペアリングしたホストに差分を送る（届かなければ捨てる）
+// refreshRooms は、自分の一覧を作り直し、変わっていれば番号を上げて、つながっているペアリングしたホストに差分を送る（届かなければ捨てる）。
+// いちばん早く参加の有効時間が過ぎる時点に、作り直しを予約し直す
 func (h *Hub) refreshRooms(e *hostEntrance) {
-	now, _, err := h.roomsNow() // ほかのホストへの写しは、名前と様子だけ（AI の UI は送らない）
+	list, err := h.roomsNow(time.Now()) // ほかのホストへの写しは、名前と様子だけ（AI の UI は送らない）
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "hosts: could not list the workrooms:", err)
 		return
 	}
+	now := list.states
 	ps := e.peers
 	ps.mu.Lock()
+	ps.scheduleLapseLocked(h, list.nextLapse)
 	l := &ps.rooms
-	changes := roomChanges(activities(l.rows), now)
+	changes := roomChanges(statesOf(l.rows), now)
 	if len(changes) == 0 {
 		ps.mu.Unlock()
 		return
@@ -248,12 +308,27 @@ func (h *Hub) refreshRooms(e *hostEntrance) {
 	}
 }
 
+// lapseMargin は、参加の有効時間が過ぎる時点から、一覧を作り直すまでの余り（過ぎる前に作り直さないため）
+const lapseMargin = 50 * time.Millisecond
+
+// scheduleLapseLocked は、自分の一覧の作り直しを、時点 at（零の時刻なら予約しない）に 1 回だけ予約し直す（ps.mu を持って呼ぶ）
+func (ps *peerState) scheduleLapseLocked(h *Hub, at time.Time) {
+	if ps.lapseTimer != nil {
+		ps.lapseTimer.Stop()
+		ps.lapseTimer = nil
+	}
+	if at.IsZero() {
+		return
+	}
+	ps.lapseTimer = time.AfterFunc(time.Until(at)+lapseMargin, h.kickRooms)
+}
+
 // roomChanges は、一覧 was から now への変わった行（名前の順）
-func roomChanges(was, now map[string]string) []roomChange {
+func roomChanges(was, now map[string]roomState) []roomChange {
 	var out []roomChange
-	for name, a := range now {
-		if old, ok := was[name]; !ok || old != a {
-			out = append(out, roomChange{Name: name, Activity: a})
+	for name, st := range now {
+		if old, ok := was[name]; !ok || old != st {
+			out = append(out, roomChange{Name: name, Activity: st.activity, Alive: st.alive})
 		}
 	}
 	for name := range was {
@@ -283,7 +358,7 @@ func (h *Hub) peerRoomsGet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if answer.Full {
-		answer.Rows = rowsOf(activities(l.rows))
+		answer.Rows = rowsOf(statesOf(l.rows))
 	}
 	ps.mu.Unlock()
 	writeJSON(w, answer)
@@ -419,10 +494,10 @@ func (h *Hub) fetchRooms(e *hostEntrance, hostID, epoch string, since int) {
 	cp := ps.copies[hostID]
 	switch {
 	case a.Full:
-		now := map[string]string{}
+		now := map[string]roomState{}
 		for _, row := range a.Rows {
 			if fitsName(row.Name) {
-				now[row.Name] = row.Activity
+				now[row.Name] = roomState{row.Activity, aliveOf(row.Alive)}
 			}
 		}
 		var was map[string]roomEntry
@@ -445,7 +520,7 @@ func (ps *peerState) roomsOfLocked(hostID string) []RoomRow {
 	if c == nil {
 		return nil
 	}
-	return rowsOf(activities(c.rows))
+	return rowsOf(statesOf(c.rows))
 }
 
 // peerClient は、ペアリングしたホスト hostID に、固定した鍵で頼む口
@@ -498,6 +573,7 @@ type foundRoom struct {
 	Host     string `json:"host,omitempty"`
 	Name     string `json:"name"`
 	Activity string `json:"activity"`
+	Alive    string `json:"alive"`
 	AiUi     string `json:"aiUi,omitempty"` // このホストの行で、分かるときだけ
 }
 
@@ -558,7 +634,7 @@ func pageOf(rows []RoomRow, offset int) workroomsPage {
 func entriesOf(rows map[string]roomEntry) []orderedRoom {
 	out := make([]orderedRoom, 0, len(rows))
 	for name, r := range rows {
-		out = append(out, orderedRoom{RoomRow{Name: name, Activity: r.activity}, r.seq})
+		out = append(out, orderedRoom{RoomRow{Name: name, Activity: r.state.activity, Alive: r.state.alive}, r.seq})
 	}
 	return out
 }
@@ -574,9 +650,9 @@ func (h *Hub) ownSeqs() map[string]roomEntry {
 	return maps.Clone(e.peers.rooms.rows)
 }
 
-// seqOf は、自分の一覧 known での行 name の番号。まだ載っていない行は、いちばん新しい物とする。sameActivity なら、様子 activity の違う行も新しい物とする
-func seqOf(known map[string]roomEntry, name, activity string, sameActivity bool) uint64 {
-	if r, ok := known[name]; ok && (!sameActivity || r.activity == activity) {
+// seqOf は、自分の一覧 known での行 name の番号。まだ載っていない行は、いちばん新しい物とする。sameState なら、様子 state の違う行も新しい物とする
+func seqOf(known map[string]roomEntry, name string, state roomState, sameState bool) uint64 {
+	if r, ok := known[name]; ok && (!sameState || r.state == state) {
 		return r.seq
 	}
 	return math.MaxUint64
@@ -584,14 +660,14 @@ func seqOf(known map[string]roomEntry, name, activity string, sameActivity bool)
 
 // ownRooms は、このホストの今の一覧（参加の確定した AI のいるワークルーム。AI の UI が分かれば添える）を、様子が変わった順の番号つきで
 func (h *Hub) ownRooms() ([]orderedRoom, error) {
-	now, uis, err := h.roomsNow()
+	list, err := h.roomsNow(time.Now())
 	if err != nil {
 		return nil, err
 	}
 	known := h.ownSeqs()
-	out := make([]orderedRoom, 0, len(now))
-	for name, a := range now {
-		out = append(out, orderedRoom{RoomRow{Name: name, Activity: a, AiUi: uis[name]}, seqOf(known, name, a, true)})
+	out := make([]orderedRoom, 0, len(list.states))
+	for name, st := range list.states {
+		out = append(out, orderedRoom{RoomRow{Name: name, Activity: st.activity, Alive: st.alive, AiUi: list.uis[name]}, seqOf(known, name, st, true)})
 	}
 	return out, nil
 }
@@ -689,13 +765,13 @@ func (h *Hub) workroomsNamed(name string) (any, error) {
 	out := workroomsNamed{OK: true, Found: []foundRoom{}}
 	for _, r := range own {
 		if r.Name == name {
-			out.Found = append(out.Found, foundRoom{Name: r.Name, Activity: r.Activity, AiUi: r.AiUi})
+			out.Found = append(out.Found, foundRoom{Name: r.Name, Activity: r.Activity, Alive: r.Alive, AiUi: r.AiUi})
 		}
 	}
 	for _, p := range h.pairedRoomsNow() {
 		for _, r := range p.rows {
 			if r.Name == name {
-				out.Found = append(out.Found, foundRoom{Host: p.label, Name: r.Name, Activity: r.Activity})
+				out.Found = append(out.Found, foundRoom{Host: p.label, Name: r.Name, Activity: r.Activity, Alive: r.Alive})
 			}
 		}
 	}
@@ -738,7 +814,7 @@ func (h *Hub) sendableClause(names []string, readAll, none string) string {
 	known := h.ownSeqs()
 	rows := make([]orderedRoom, 0, len(names))
 	for _, n := range names {
-		rows = append(rows, orderedRoom{RoomRow{Name: n}, seqOf(known, n, "", false)})
+		rows = append(rows, orderedRoom{RoomRow{Name: n}, seqOf(known, n, roomState{}, false)})
 	}
 	head, more := headOf(byRecent(rows), hostListRows)
 	shown := make([]string, 0, len(head))
@@ -771,10 +847,10 @@ func (h *Hub) pairedByLabel(label string) (*hostEntrance, *pairedHostRecord, Mes
 	return e, target, MessageSent{}
 }
 
-func rowsOf(rows map[string]string) []RoomRow {
+func rowsOf(rows map[string]roomState) []RoomRow {
 	out := make([]RoomRow, 0, len(rows))
-	for name, a := range rows {
-		out = append(out, RoomRow{Name: name, Activity: a})
+	for name, st := range rows {
+		out = append(out, RoomRow{Name: name, Activity: st.activity, Alive: st.alive})
 	}
 	slices.SortFunc(out, func(a, b RoomRow) int { return cmpString(a.Name, b.Name) })
 	return out

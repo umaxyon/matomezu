@@ -142,6 +142,7 @@ export {
   tabEntry,
   UserSettings,
   useAligns,
+  useAliveNow,
   useAnchorRef,
   useAnchorShapeRef,
   useAskHosts,

@@ -38,6 +38,7 @@ export type {
   ParticipantCategory,
   PortArea,
   Ports,
+  Presence,
   PrintSheets,
   RichLine,
   Run,

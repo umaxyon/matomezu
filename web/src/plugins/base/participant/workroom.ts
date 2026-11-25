@@ -1,5 +1,7 @@
-// ワークルームの定義と見方。生きているかは、最後に呼ばれた時刻と今の時刻で決まる（アクションの入力に無いので、受け入れのダイアログが見て、行うアクションの選び方を決める）
+// ワークルームの定義と見方。生きているかは、最後に呼ばれた時刻と今の時刻と、起こす知らせを渡せる matomezu watch がつながっているかで決まる
+// （アクションの入力に無いので、受け入れのダイアログが見て、行うアクションの選び方を決める）
 import { z } from "zod"
+import type { WakeReach } from "../../../core/settings"
 import { BIRD_IDS } from "../birds"
 import { BIRD_PALETTE_IDS } from "../birds/colors"
 import { kit } from "../kit"
@@ -29,7 +31,13 @@ export const WORKROOM = kit.defineSubject({
 // 参加者が呼ばれていないときの、最後に呼ばれた時刻の値
 export const NOT_CALLED = "none"
 
-type IsAlive = (calledAt: string | typeof NOT_CALLED, nowMs: number) => boolean
+// 参加者の、生きているかを決める様子: 最後に呼ばれた時刻（呼ばれていなければ NOT_CALLED）と、起こす知らせを渡せる matomezu watch がつながっているか
+export interface Presence {
+  calledAt: string | typeof NOT_CALLED
+  wake: WakeReach
+}
+
+type IsAlive = (presence: Presence, nowMs: number) => boolean
 
 // ワークルームにいる受け入れ済みの参加者（いなければ空室）
 export const occupantOf = (participants: readonly Participant[], room: Workroom): Participant | undefined =>
@@ -39,13 +47,13 @@ export const occupantOf = (participants: readonly Participant[], room: Workroom)
 export function takeable(
   rooms: readonly Workroom[],
   participants: readonly Participant[],
-  calls: Readonly<Record<string, string>>,
+  presenceOf: (participant: string) => Presence,
   isAlive: IsAlive,
   nowMs: number,
 ): Workroom[] {
   return rooms.filter(r => {
     const who = occupantOf(participants, r)
-    return who === undefined || !isAlive(calls[who.id] ?? NOT_CALLED, nowMs)
+    return who === undefined || !isAlive(presenceOf(who.id), nowMs)
   })
 }
 

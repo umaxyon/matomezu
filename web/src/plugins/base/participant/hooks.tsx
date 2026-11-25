@@ -10,6 +10,7 @@ import { useMatomezuState } from "../../../ui/store-context"
 import { useActions, useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
+import { useNow } from "../utils/useNow"
 import {
   ADMIN_MARK,
   ADMIN_SET,
@@ -24,7 +25,7 @@ import { workroomActivityOf } from "./activity"
 import { adminRoomOf, type VisitorRow, visitorRows, type WorkroomRow, workroomRows } from "./rows"
 import { ownBookPagesOf } from "./workdesks"
 import { type FoundWorkerBook, foundWorkerBookOf, NO_WORKER_BOOK, workerBookOf, workerBookReadsOf } from "./worker-book"
-import { NOT_CALLED } from "./workroom"
+import { NOT_CALLED, type Presence } from "./workroom"
 
 // 参加者のレコード（種類 PARTICIPANT。要求が届いた順）と、ワークルームのレコード（作った順）
 const sorted = <T extends { id: string }>(records: Readonly<Record<string, unknown>> | undefined, key: keyof T) =>
@@ -46,14 +47,36 @@ export const useParticipantLive = (): Readonly<Record<string, ParticipantLive>> 
 // 準備中でない参加者の id
 export const useParticipantReady = (): readonly string[] => useMatomezuState(s => s.participantReady)
 
-// 参加者が生きているかを決める関数（最後に呼ばれた時刻と今の時刻から。参加の有効時間の設定で決まる）
-// （呼ばれていなければ NOT_CALLED）
-export function useIsAlive(): (calledAt: string | typeof NOT_CALLED, nowMs: number) => boolean {
+// 参加者が生きているかを決める関数（最後に呼ばれた時刻と、起こす知らせを渡せる matomezu watch がつながっているかと、今の時刻から。参加の有効時間の設定で決まる）
+export function useIsAlive(): (presence: Presence, nowMs: number) => boolean {
   const catalog = useCoreCatalog()
   const settings = useMatomezuState(s => s.settings)
   return useCallback(
-    (calledAt, nowMs) => isParticipantAlive(catalog, settings, calledAt === NOT_CALLED ? undefined : calledAt, nowMs),
+    (presence, nowMs) =>
+      isParticipantAlive(
+        catalog,
+        settings,
+        { calledAt: presence.calledAt === NOT_CALLED ? undefined : presence.calledAt, wake: presence.wake },
+        nowMs,
+      ),
     [catalog, settings],
+  )
+}
+
+// 様子 presence の参加者が今生きているか（時が経つと変わるので、30 秒ごとに見直す）
+export function useAliveNow(presence: Presence): boolean {
+  const isAlive = useIsAlive()
+  const nowMs = useNow(30_000)
+  return isAlive(presence, nowMs)
+}
+
+// 参加者の id → 生きているかを決める様子
+export function usePresenceOf(): (participant: string) => Presence {
+  const calls = useParticipantCalls()
+  const live = useParticipantLive()
+  return useCallback(
+    (participant: string) => ({ calledAt: calls[participant] ?? NOT_CALLED, wake: live[participant]?.wake ?? "none" }),
+    [calls, live],
   )
 }
 
@@ -63,7 +86,7 @@ export function useAdminRoom(): string | undefined {
   return adminRoomOf(mark, useWorkrooms())
 }
 
-// ワークルームごとの行（管理者のワークルームが先頭）。生きているかは、行の calledAt から決める
+// ワークルームごとの行（管理者のワークルームが先頭）。生きているかは、行の calledAt と wake から決める
 export function useWorkroomRows(): readonly WorkroomRow[] {
   const catalog = useCoreCatalog()
   const rooms = useWorkrooms()

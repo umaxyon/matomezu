@@ -177,7 +177,7 @@ test("受け入れられても、ペアリングしたホストが届くまで�
   expect(within(panel).getByRole("button", { name: "ペアリングを解く" })).toBeTruthy()
 })
 
-test("ホストの行の ▸ で開くと、相手のワークルームの写しを名前と作業中・空きで出し、つながっていなければ「つながっていません」だけ", () => {
+test("ホストの行の ▸ で開くと、相手のワークルームの写しを名前と作業中・空きで出し、AI が生きていない行は薄くして「応答なし」を添え、つながっていなければ「つながっていません」だけ", () => {
   const { store, connect, peers } = open()
   connect()
   act(() => {
@@ -198,17 +198,22 @@ test("ホストの行の ▸ で開くと、相手のワークルームの写し
       label: "win-lan",
       state: "connected",
       workrooms: [
-        { name: "win_claude_cli", activity: "idle" },
-        { name: "win_haiku", activity: "working" },
+        { name: "win_claude_cli", activity: "idle", alive: "alive" },
+        { name: "win_haiku", activity: "working", alive: "alive" },
+        { name: "win_sleepy", activity: "idle", alive: "lapsed" },
+        { name: "win_old", activity: "unknown", alive: "unknown" },
       ],
     },
   ])
   const list = screen.getByRole("list", { name: "win-lan のワークルーム" })
-  expect(
-    within(list)
-      .getAllByRole("listitem")
-      .map(li => li.textContent),
-  ).toEqual(["win_claude_cli空き", "win_haiku作業中"])
+  const items = within(list).getAllByRole("listitem")
+  expect(items.map(li => li.textContent)).toEqual([
+    "win_claude_cli空き",
+    "win_haiku作業中",
+    "win_sleepy空き · 応答なし",
+    "win_old",
+  ])
+  expect(items.map(li => li.getAttribute("data-lapsed"))).toEqual(["false", "false", "true", "false"])
   fireEvent.click(caret())
   expect(screen.queryByRole("list", { name: "win-lan のワークルーム" })).toBeNull()
 })

@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/umaxyon/matomezu/internal/peer"
 )
@@ -132,6 +133,7 @@ func (h *Hub) CloseHostEntrance() {
 	if e.peers.cancel != nil {
 		e.peers.cancel()
 	}
+	e.peers.scheduleLapseLocked(h, time.Time{}) // 止まる常駐の一覧は作り直さない
 	e.peers.mu.Unlock()
 	e.mu.Lock()
 	defer e.mu.Unlock()

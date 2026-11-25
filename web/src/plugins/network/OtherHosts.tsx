@@ -109,7 +109,7 @@ function Section({ picked }: { picked: { kind: string; id: string } | typeof NO_
   )
 }
 
-// 開いたホストの行の下: 相手のワークルームの行（見るだけ）。つながっていなければ「つながっていません」だけ
+// 開いたホストの行の下: 相手のワークルームの行（見るだけ）。そこにいる AI が生きていなければ、行を薄くして「応答なし」を添える。つながっていなければ「つながっていません」だけ
 function Workrooms({ live }: { live: PeerLive | undefined }) {
   const t = useMessages(kit)
   if (live?.state !== "connected") return <p className={styles.rooms}>{t("Not connected now")}</p>
@@ -117,10 +117,15 @@ function Workrooms({ live }: { live: PeerLive | undefined }) {
   return (
     <ul className={styles.rooms} aria-label={t("Workrooms of {name}", { name: live.label })}>
       {live.workrooms.map(w => (
-        <li key={w.name} className={styles.room}>
+        <li key={w.name} className={styles.room} data-lapsed={w.alive === "lapsed"}>
           <span className={styles.roomName}>{w.name}</span>
-          {w.activity === "unknown" ? null : (
-            <span className={styles.activity}>{w.activity === "working" ? t("Working") : t("Idle")}</span>
+          {w.activity === "unknown" && w.alive !== "lapsed" ? null : (
+            <span className={styles.activity}>
+              {[
+                ...(w.activity === "unknown" ? [] : [w.activity === "working" ? t("Working") : t("Idle")]),
+                ...(w.alive === "lapsed" ? [t("Not responding")] : []),
+              ].join(" · ")}
+            </span>
           )}
         </li>
       ))}
