@@ -1,6 +1,7 @@
 // ワークルームごとの行（参加者リストの 1 行）: ワークルーム・いる参加者・様子・管理者か・作業の様子。画面（コントロールセンターなど）は、判定を自分で持たずにこの行を読む。
 // 管理者のワークルームは先頭に出し、ほかは受け取った順（作った順）。管理者の印が指すワークルームが無ければ、管理者は無い。
-// 様子は 3 つ: 空室（いる参加者が無い）・準備中（受け入れたあと、AI のフックが参加を伝えるまで）・参加済み（準備中でない）。生きているかは行の様子でなく、最後に呼ばれた時刻（calledAt）で見る
+// 様子は 3 つ: 空室（いる参加者が無い）・準備中（受け入れたあと、AI のフックが参加を伝えるまで）・参加済み（準備中でない）。生きているかは行の様子でなく、最後に呼ばれた時刻（calledAt）と、起こす知らせを渡せる matomezu watch がつながっているか（wake）で見る
+import type { WakeReach } from "../../../core/settings"
 import type { ParticipantLive } from "../../../store/state"
 import type { Participant, Workroom } from "."
 import type { WorkroomActivity } from "./activity"
@@ -31,6 +32,7 @@ export interface WorkroomRow {
   branch: string | typeof NO_BRANCH // git のブランチ（知らされた参加者だけ。ほかは NO_BRANCH）
   aiUi: string | typeof NO_AI_UI // AI の UI（参加を頼んだ AI が添えた物。頼み直しで書き換わる。空室か、添えなければ NO_AI_UI）
   calledAt: string | typeof NOT_CALLED // 参加者が最後に呼ばれた時刻（呼ばれていなければ NOT_CALLED）
+  wake: WakeReach // 参加者に、起こす知らせを渡せる matomezu watch がつながっているか（空室なら none）
   requestedAt: string | typeof NOT_REQUESTED // このワークルームの名前で入りたいと頼んでいる要求中の参加者の、頼んだ時刻（いちばん新しいもの。無ければ NOT_REQUESTED）
   activity: WorkroomActivity | "unknown" // 作業の様子（activity.ts。見せるためだけ。答える種類が無ければ unknown）
 }
@@ -70,6 +72,7 @@ export function workroomRows(input: {
       branch: live?.branch ? live.branch : NO_BRANCH,
       aiUi: participant?.aiUi ?? NO_AI_UI,
       calledAt: calledAt ? calledAt : NOT_CALLED,
+      wake: live?.wake ?? "none",
       requestedAt: requestedAt ? requestedAt : NOT_REQUESTED,
       activity: input.activities[room.id] ?? "unknown",
     }
@@ -85,6 +88,7 @@ export interface VisitorRow {
   branch: string | typeof NO_BRANCH
   aiUi: string | typeof NO_AI_UI
   calledAt: string | typeof NOT_CALLED
+  wake: WakeReach
 }
 
 export function visitorRows(input: {
@@ -106,6 +110,7 @@ export function visitorRows(input: {
         branch: live?.branch ? live.branch : NO_BRANCH,
         aiUi: participant.aiUi ?? NO_AI_UI,
         calledAt: calledAt ? calledAt : NOT_CALLED,
+        wake: live?.wake ?? "none",
       }
     })
 }

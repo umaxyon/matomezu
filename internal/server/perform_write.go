@@ -262,6 +262,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 	if len(out.Settings) > 0 {
 		h.reusePluginsForSettings(p.Client)
 		h.kickHostEntrance()
+		h.kickRooms() // 参加の有効時間が変わると、生きているかが変わる
 	}
 	if len(records) > 0 {
 		h.kickRooms() // 参加・退室・ワークルームの名前・作業中と空きは、どれもレコードが変わって起きる

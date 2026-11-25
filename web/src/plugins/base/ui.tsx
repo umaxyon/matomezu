@@ -187,6 +187,8 @@ export {
   AdminCrown,
   BirdFaceView,
   CrownIcon,
+  PendingBalloon,
+  useAliveNow,
   useOwnBookPages,
   useVisitorRows,
   useWorkerBook,

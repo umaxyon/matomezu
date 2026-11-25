@@ -170,7 +170,14 @@ func TestTheMessageEntranceChecksTheEnvelope(t *testing.T) {
 	forged.From.Host = strings.Repeat("c", 64)
 	elsewhere := good
 	elsewhere.To.Host = strings.Repeat("d", 64)
-	for name, env := range map[string]Envelope{"forged": forged, "elsewhere": elsewhere} {
+	// キャンセルの知らせの封筒が運ぶ本文は、取り消した本文の頭まで。AI 間メッセージは本文を持つ
+	cancelWithText := good
+	cancelWithText.ID, cancelWithText.Cancel, cancelWithText.Text = "e2", "m1", strings.Repeat("あ", gistMax+2)
+	empty := good
+	empty.ID, empty.Text = "e3", ""
+	longCancel := good
+	longCancel.ID, longCancel.Text, longCancel.Cancel = "e4", "", strings.Repeat("x", envelopeIDMax+1)
+	for name, env := range map[string]Envelope{"forged": forged, "elsewhere": elsewhere, "cancel with a long text": cancelWithText, "empty": empty, "long cancel": longCancel} {
 		if got := post(env); got != http.StatusBadRequest {
 			t.Fatalf("%s = %d", name, got)
 		}
@@ -247,7 +254,8 @@ func TestAIListsTheWorkroomsOfPairedHosts(t *testing.T) {
 		!strings.Contains(got, `"hosts":[{"name":"b","connected":true,"workrooms":[{"name":"s2","activity":`) {
 		t.Fatalf("own = %s", got)
 	}
-	if got := read("?host=b"); !strings.Contains(got, `"host":"b","connected":true,"workrooms":[{"name":"s2","activity":`) || !strings.Contains(got, `"more":0`) {
+	// s2 は呼ばれていないので、生きていない
+	if got := read("?host=b"); !strings.Contains(got, `"host":"b","connected":true,"workrooms":[{"name":"s2","activity":"idle","alive":"lapsed"`) || !strings.Contains(got, `"more":0`) {
 		t.Fatalf("b = %s", got)
 	}
 	if got := read("?host=c"); !strings.Contains(got, `"reason":"unknown-host"`) || !strings.Contains(got, "the paired hosts are: b") {
@@ -342,11 +350,22 @@ func TestOwnWorkroomsFollowTheListedSetting(t *testing.T) {
 	if got := read("?offset=5"); len(got.Workrooms) != 2 || got.Workrooms[0].Name != "r5" || got.More != 0 {
 		t.Fatalf("offset = %+v", got)
 	}
-	// 自分の一覧に番号が付いたあとに足した行が先頭に来て、名前の順で前の行より前に並ぶ
-	waitFor(t, "own rows are noted", func() bool { return len(a.ownSeqs()) == 7 })
+	// 自分の一覧に番号が付いたあとに足した行が先頭に来て、名前の順で前の行より前に並ぶ。
+	// 読む r0 は呼ぶと生きている様子に変わり、その変わりも番号を進めるので、それが付くのを待ってから足す
+	waitFor(t, "own rows are noted", func() bool {
+		seqs := a.ownSeqs()
+		return len(seqs) == 7 && seqs["r0"].state.alive == roomAlive
+	})
 	joinedIn(t, as.URL, "L7", "107", "S7", "a7")
 	waitFor(t, "a7 is noted", func() bool { _, ok := a.ownSeqs()["a7"]; return ok })
-	if got := read(""); got.Workrooms[0].Name != "a7" || got.Workrooms[1].Name != "r6" {
+	got := read("")
+	at := map[string]int{}
+	for i, w := range got.Workrooms {
+		at[w.Name] = i
+	}
+	r6, has6 := at["r6"]
+	r5, has5 := at["r5"]
+	if got.Workrooms[0].Name != "a7" || !has6 || has5 && r5 < r6 {
 		t.Fatalf("recent order = %+v", got.Workrooms)
 	}
 	// 断りの送れる先も最近の 5 件と残りの数
@@ -372,11 +391,12 @@ func TestWorkroomPagesTellTheNextOffset(t *testing.T) {
 // 一覧の行の通し番号: 様子の同じ行は番号を保ち、足された・様子の変わった行に名前の順で新しい番号。差分も同じ
 func TestRoomRowsKeepTheOrderOfChanges(t *testing.T) {
 	ps := &peerState{}
-	rows := ps.noteRowsLocked(nil, map[string]string{"b": "idle", "a": "idle"})
+	idle, working := roomState{"idle", roomUnknown}, roomState{"working", roomUnknown}
+	rows := ps.noteRowsLocked(nil, map[string]roomState{"b": idle, "a": idle})
 	if rows["a"].seq != 1 || rows["b"].seq != 2 {
 		t.Fatalf("first = %+v", rows)
 	}
-	rows = ps.noteRowsLocked(rows, map[string]string{"a": "working", "b": "idle", "c": "idle"})
+	rows = ps.noteRowsLocked(rows, map[string]roomState{"a": working, "b": idle, "c": idle})
 	if rows["b"].seq != 2 || rows["a"].seq != 3 || rows["c"].seq != 4 {
 		t.Fatalf("second = %+v", rows)
 	}

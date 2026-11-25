@@ -40,6 +40,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/umaxyon/matomezu/internal/aiwire"
+	"github.com/umaxyon/matomezu/internal/engine"
 )
 
 // participantNote は参加者 1 人の、常駐だけが持つ記録
@@ -62,15 +63,25 @@ func (n participantNote) live() participantLive {
 	return participantLive{Model: n.Model, Branch: n.Branch}
 }
 
-// participantLive は、窓に知らせる参加者 1 人の様子
+// participantLive は、窓に知らせる参加者 1 人の様子（Wake は、起こす知らせを渡せる通り道がつながっていれば engine.WakeReaches。ほかは省く）
 type participantLive struct {
 	Model  string `json:"model,omitempty"`
 	Branch string `json:"branch,omitempty"`
+	Wake   string `json:"wake,omitempty"`
+}
+
+// liveLocked は、参加者 id の窓に知らせる様子（h.mu を持って呼ぶ）
+func (h *Hub) liveLocked(id string) participantLive {
+	l := h.participantNotes[id].live()
+	if h.wakeReachLocked(id) == engine.WakeReaches {
+		l.Wake = engine.WakeReaches
+	}
+	return l
 }
 
 // announceLive は、参加者 id の様子の全部を窓に知らせる（h.mu を持って呼ぶ）
 func (h *Hub) announceLive(id string) {
-	l := h.participantNotes[id].live()
+	l := h.liveLocked(id)
 	h.broadcast("participant-live", struct {
 		Participant string `json:"participant"`
 		participantLive
@@ -348,13 +359,13 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	return Joined{OK: true, Participant: result.Participant}, h.settleNotes()
 }
 
-// alive は、受け入れ済みの参加者 id が、時点 now で生きているか（最後に呼ばれてから、利用者の設定の参加の有効時間以内）
+// alive は、受け入れ済みの参加者 id が、時点 now で生きているか（起こす知らせを渡せる通り道がつながっているか、最後に呼ばれてから、利用者の設定の参加の有効時間以内）
 func (h *Hub) alive(id string, now time.Time) (bool, error) {
 	settings, _ := h.Data()
 	h.mu.Lock()
-	called := h.participantNotes[id].Called
+	called, wake := h.participantNotes[id].Called, h.wakeReachLocked(id)
 	h.mu.Unlock()
-	return h.engine.ParticipantAlive(settings, called, now)
+	return h.engine.ParticipantAlive(settings, called, wake, now)
 }
 
 // dropIfEnded は、要求中の参加者 s のセッションが終わっていれば、知らせずに消す（セッションが終わったときに行うアクションで）。waiting は、消さずに答えを待っているか
