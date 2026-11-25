@@ -37,6 +37,13 @@ func TestJoinWithARejoinPassIsAcceptedWithoutTheScreen(t *testing.T) {
 	if len(rows) != 1 || rows[0].ID != second.Participant || rows[0].State != "joined" || rows[0].Workroom != before[0].Workroom {
 		t.Fatalf("participants = %+v", rows)
 	}
+	// 窓の受け入れと同じく、起こす知らせ（参加しました）も行列に入る
+	hub.mu.Lock()
+	q := hub.wakeQueue[second.Participant]
+	hub.mu.Unlock()
+	if len(q) != 1 || q[0].kind != wakeAccepted || !strings.Contains(q[0].line, "joined as ひよこ") {
+		t.Fatalf("wake queue = %+v", q)
+	}
 	// 受け入れたので、次の呼び出しで「参加しました」が伝わる
 	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: second.Participant}); h.Get(aiwire.NoticeHeader) == "" {
 		t.Fatal("the rejoined AI was not welcomed")
@@ -91,5 +98,26 @@ func TestJoinWithARejoinPassKeepsTheAiUi(t *testing.T) {
 	}
 	if data, _ := call(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"aiUi":"terminal"`) {
 		t.Fatalf("the rejoined participant = %s", data)
+	}
+}
+
+// 合言葉で受け入れても、窓の受け入れと同じく、その参加者が join したプロセス id の通り道に、ワークルーム名つきの 1 行が届く
+func TestJoinWithARejoinPassWakesTheJoinedProcess(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "work", ""), map[string]string{aiwire.HostHeader: "100"})
+	var first Joined
+	_ = json.Unmarshal([]byte(got), &first)
+	acceptRoom(t, s.URL, first.Participant, "ひよこ")
+	line := hub.OpenWakesWith("100", "", WakeLimits{})
+	_ = wakes(hub, line)
+
+	passFor(t, s.URL, "ひよこ", "L2")
+	asked, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L2", "work", `,"workroom":"ひよこ"`), map[string]string{aiwire.HostHeader: "100"})
+	var second Joined
+	if json.Unmarshal([]byte(asked), &second) != nil || !second.OK {
+		t.Fatalf("join = %s", asked)
+	}
+	if got := wakes(hub, line); len(got) != 1 || !strings.Contains(got[0], "joined as") || !strings.Contains(got[0], "ひよこ") {
+		t.Fatalf("wakes = %q", got)
 	}
 }

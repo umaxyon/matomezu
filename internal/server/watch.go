@@ -78,7 +78,7 @@ func (lim WakeLimits) fits(line string) bool {
 type wakeItem struct {
 	seq         int64     // 行列の中で見分ける番号
 	participant string    // 宛て先の参加者の id
-	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage・wakeUpdate・wakeHost・wakeRally
+	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage・wakeUpdate・wakeHost・wakeRally・wakeMessageApproved・wakeMessageCancelled
 	line        string    // 流す 1 行
 	head        string    // AI 間メッセージの、送り手を名乗る頭（messageHead・remoteMessageHead）
 	peer        string    // ほかのホストから届いた AI 間メッセージの、送り手のホスト id
@@ -107,6 +107,9 @@ const (
 	wakeUpdate    = "update"    // 利用者が、matomezu の版を上げるよう頼んだ（update.go）
 	wakeHost      = "host"      // 常駐メッセージ（フォローステップが返した、常駐からの知らせ。message.go）
 	wakeRally     = "rally"     // AI ラリーを上限で止め、宛て先に届けなかったという知らせ（rally.go）
+
+	wakeMessageApproved  = "message-approved"  // 承認待ちの AI 間メッセージを利用者が承認した（受け手に、利用者の頼みとして。pending_message.go）
+	wakeMessageCancelled = "message-cancelled" // 承認待ちの AI 間メッセージを利用者がキャンセルした（送り手と受け手に。pending_message.go）
 )
 
 // asUserMark は、利用者の頼みと扱ってよい知らせの行の、頭に付ける印（requests が as-user のホストから届いた行と、利用者が画面で押した頼みの行）
@@ -506,7 +509,8 @@ func lentCover(prompt string, lent []string, used map[int]bool) map[int]bool {
 	return nil
 }
 
-// takeCallLines は、参加者 id の行列から、呼び出しの返事で渡す行（AI 間メッセージと常駐メッセージと更新の頼みと AI ラリーを止めた知らせ）を取り出す。通り道に貸している物は残す（結果を待つ）。
+// takeCallLines は、参加者 id の行列から、呼び出しの返事で渡す行（参加の知らせのほか全部: AI 間メッセージ・常駐メッセージ・更新の頼み・AI ラリーの知らせ・
+// 承認待ちの承認とキャンセルの知らせ）を取り出す。通り道に貸している物は残す（結果を待つ）。
 // 参加の知らせは、呼び出しの返事の「参加しました」が兼ねるので捨てる（h.mu を持って呼ぶ）
 func (h *Hub) takeCallLines(id string) []string {
 	var lines []string
@@ -515,7 +519,7 @@ func (h *Hub) takeCallLines(id string) []string {
 		switch {
 		case it.lentTo != 0:
 			kept = append(kept, it)
-		case it.kind == wakeMessage || it.kind == wakeUpdate || it.kind == wakeHost || it.kind == wakeRally:
+		case it.kind != wakeAccepted && it.kind != wakeDeclined && it.kind != wakeCancelled:
 			lines = append(lines, it.line)
 		}
 	}
@@ -566,7 +570,7 @@ func (h *Hub) cancelledIn(actions []engine.BulkAction) map[string]bool {
 	return out
 }
 
-// wakeOnParticipants は、窓のアクションの前に要求中だった参加者 before のうち、受け入れられた・断られた・キャンセルされた（cancelled）参加者に知らせる（h.mu を持って呼ぶ）
+// wakeOnParticipants は、窓のアクションの前に要求中だった参加者か、合言葉の join で受け入れた参加者（joinByPass） before のうち、受け入れられた・断られた・キャンセルされた（cancelled）参加者に知らせる（h.mu を持って呼ぶ）
 func (h *Hub) wakeOnParticipants(before, cancelled map[string]bool) {
 	if len(before) == 0 {
 		return

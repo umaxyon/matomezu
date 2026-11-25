@@ -146,6 +146,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	}
 	h.acts++
 	h.applyWrites(plan, out, p, by, act)
+	h.dropGonePendingHeld() // 受け手が退室した承認待ちは、知らせずに消す（pending_message.go）
 	for _, e := range envelopes {
 		h.deliver(e)
 	}

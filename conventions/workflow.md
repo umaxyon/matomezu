@@ -38,7 +38,7 @@
 - フォントの版を変えたら `bun scripts/fonts.ts widths` で字の幅の表を作り直す（テストが見張る）
 - アクションを足したら、常駐の実行ファイルを作り直して起動し直すまで、画面からも AI からも使えない
 - 常駐を止めるコマンドと立て直すコマンドは、別々に動かす
-- 開発でも `clients/claude-code` を Claude Code のプラグインとして入れ、PATH から `.dev-home/matomezu` を呼べるようにする（リンクを置くなど。プラグインは PATH の matomezu を呼ぶ。入れないか PATH に無いと、AI は参加を受け入れられても準備中のままになる）
+- 開発でも `clients/claude-code` を Claude Code のプラグインとして入れ、PATH から `.dev-home/matomezu`（Windows は `.dev-home/matomezu.exe`）を呼べるようにする（リンクを置くなど。プラグインは PATH の matomezu を呼ぶ。入れないか PATH に無いと、AI は参加を受け入れられても準備中のままになる）
 
 ## コミット
 

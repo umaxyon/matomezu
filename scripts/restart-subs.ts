@@ -4,7 +4,7 @@
 // サブごとに並行して、次の順に進める。どこかで止まったサブは、そこで止めて理由を出す
 //   1. 再起動の準備（引き継ぎを書き、未コミットを残さない）を頼み、手が空くのを待つ
 //   2. 最後の返事が READY_MARK で終わり、追跡するファイルに変更が無ければ /exit を送り、claude が終わるのを待つ
-//   3. scripts/claude-relay.sh --model <モデル> を送り、/reload-plugins と /mcp reconnect を送り、引き継ぎを読んで join するよう頼む。
+//   3. scripts/claude-relay.sh --model <モデル> を送り、起動した claude の引数がそのとおりかを確かめ（違えば止める）、/reload-plugins と /mcp reconnect を送り、引き継ぎを読んで join するよう頼む。
 //      join の合言葉（link）はここで作り、開発の常駐に前もって承認させておく（画面で受け入れずに入る。開発用の口 /api/dev/rejoin-pass）
 //   4. join が参加者 id を返したら、手が空くのを待って、もう一言送る。セッションと参加者を結ぶのは利用者が話しかけたときのフックなので、
 //      join の頼みが最後の発話のままだと結ばれず、画面で準備中のまま残る
@@ -161,6 +161,23 @@ export function rejoinPrompt(workroom: string, link: string): string {
   return `${workroom.replace(/_work$/, "")} の handoff よんで join（ワークルーム ${workroom}、link は ${link} をそのまま使う）`
 }
 
+// claude-relay.sh に渡し、起動した claude がそのまま受けるはずの引数
+export function launchArgs(model: string): string[] {
+  return ["--model", model]
+}
+
+// /proc/<pid>/cmdline の中身を、引数の並びにする
+function argvOf(cmdline: string): string[] {
+  const argv = cmdline.split("\0")
+  return argv.at(-1) === "" ? argv.slice(0, -1) : argv
+}
+
+// 起動した claude の cmdline が、プログラムの名前のあとに引数 args だけを受けたか
+export function launchedWith(cmdline: string, args: string[]): boolean {
+  const got = argvOf(cmdline).slice(1)
+  return got.length === args.length && got.every((a, i) => a === args[i])
+}
+
 // 開発の常駐の保管庫フォルダ（MATOMEZU_HOME か、作業フォルダ cwd のリポジトリの git の共通のフォルダの隣の .dev-home）
 function devHome(cwd: string): string {
   if (process.env.MATOMEZU_HOME) return process.env.MATOMEZU_HOME
@@ -285,6 +302,18 @@ async function send(handle: string, text: string): Promise<void> {
   await orca(["terminal", "send", "--terminal", handle, "--text", text, "--enter"])
 }
 
+// 端末の最近の出力（止めたときに、何が打ち込まれたかを残す）
+async function terminalTail(handle: string): Promise<string> {
+  try {
+    const out = (await orca(["terminal", "read", "--terminal", handle, "--limit", "40"])) as {
+      terminal?: { tail?: string[] }
+    }
+    return out.terminal?.tail?.join("\n") ?? ""
+  } catch (e) {
+    return `（端末を読めない: ${(e as Error).message}）`
+  }
+}
+
 async function waitIdle(handle: string, timeoutMs: number): Promise<void> {
   await orca(
     ["terminal", "wait", "--terminal", handle, "--for", "tui-idle", "--timeout-ms", String(timeoutMs)],
@@ -331,8 +360,21 @@ async function restart(target: Target, opts: { dryRun: boolean; timeoutMs: numbe
   await until("claude の終わり", 60_000, () => claudePids(cwd).length === 0)
   log("終えた")
 
-  await send(term.handle, `scripts/claude-relay.sh --model ${model}`)
+  // 終えた claude への端末の答えが、打ち込む文の途中に混ざらないよう、届き終わるまで待つ。
+  // Ctrl+U は、文より前に残った文字だけを消す。文の後ろに混ざった物は、起動の引数を確かめて止める
+  await sleep(3000)
+  await orca(["terminal", "send", "--terminal", term.handle, "--text", "\x15"])
+  const args = launchArgs(model)
+  await send(term.handle, ["scripts/claude-relay.sh", ...args].join(" "))
   await until("claude の起動", 120_000, () => claudePids(cwd).length === 1)
+  const [launched] = claudePids(cwd)
+  const cmdline = readFileSync(`/proc/${launched}/cmdline`, "utf8")
+  if (!launchedWith(cmdline, args)) {
+    throw new Error(
+      `起動した claude の引数が違う: ${JSON.stringify(argvOf(cmdline))}。端末を見る\n${await terminalTail(term.handle)}`,
+    )
+  }
+  log("claude の起動の引数を確かめた")
   await sleep(5000)
   await waitIdle(term.handle, 120_000)
   for (const cmd of ["/reload-plugins", `/mcp reconnect ${MCP_SERVER}`]) {

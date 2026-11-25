@@ -91,5 +91,9 @@ func (h *Hub) joinByPass(req JoinRequest, ids *engine.JoinActions, roomID, occup
 	if err != nil || !done.OK {
 		return refused(done), true, err
 	}
+	// 窓の受け入れと同じく、受け入れたと AI に起こす知らせで伝える（watch.go）
+	h.mu.Lock()
+	h.wakeOnParticipants(map[string]bool{id: true}, nil)
+	h.mu.Unlock()
 	return Joined{OK: true, Participant: id}, true, h.settleNotes()
 }
