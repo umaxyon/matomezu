@@ -75,7 +75,6 @@ test("AI に見せるページの settings の形は、項目を選んだタイ�
     "settings of @matomezu/dir:dir pages": [
       "@matomezu/base:page-theme",
       "@matomezu/base:page-paper-color",
-      "@matomezu/base:page-text-colors",
       "@matomezu/dir:notes",
       "@matomezu/base:background-print",
     ],
@@ -83,7 +82,6 @@ test("AI に見せるページの settings の形は、項目を選んだタイ�
       "@matomezu/base:page-theme",
       "@matomezu/base:page-paper-color",
       "@matomezu/line:line-route",
-      "@matomezu/base:page-text-colors",
       "@matomezu/base:background-print",
     ],
     "settings of @matomezu/flowchart:flowchart pages": [
@@ -91,7 +89,6 @@ test("AI に見せるページの settings の形は、項目を選んだタイ�
       "@matomezu/base:page-paper-color",
       "@matomezu/line:line-route",
       "@matomezu/flowchart:flow-direction",
-      "@matomezu/base:page-text-colors",
       "@matomezu/base:background-print",
     ],
     "settings of @matomezu/markdown:markdown pages": ["@matomezu/base:page-theme", "@matomezu/base:page-paper-color"],
@@ -107,7 +104,6 @@ test("AI に見せるページの settings の形は、項目を選んだタイ�
       "@matomezu/tree:node-size",
       "@matomezu/tree:node-shape",
       "@matomezu/tree:line-shape",
-      "@matomezu/base:page-text-colors",
       "@matomezu/base:background-print",
     ],
   })

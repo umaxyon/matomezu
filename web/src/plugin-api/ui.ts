@@ -21,7 +21,7 @@ export type {
   SettingControlProps,
   UserSettingControlProps,
 } from "../ui/plugin"
-export { definePluginUi } from "../ui/plugin"
+export { definePluginUi, NO_HELP } from "../ui/plugin"
 export {
   usePluginState,
   useReadPluginState,

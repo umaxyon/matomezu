@@ -1,6 +1,8 @@
 // 入力のダイアログのコンポーネント: 名前の付いた入力Formと、決めるボタンの行・見出しの行に置くボタン、区分・横に並べる行・名前と入力の組。
 // 見た目の決まり（文字・余白・区分・ボタン）は Dialog.module.css の冒頭
 import { type ReactNode, useId } from "react"
+import { NO_HELP } from "../../../ui/plugin"
+import { HelpButton } from "../utils/HelpButton"
 import styles from "./Dialog.module.css"
 
 export const controlClass = styles.control
@@ -9,11 +11,22 @@ export const inlineClass = styles.inline // 横に並べる行（入らなけれ
 export const pairClass = styles.pair // 名前と入力の組
 export const dividerClass = styles.divider // 横に並べた物の間の縦の線
 
-// 区分: 見出しと右へ伸びる線、その下に入力Form（Dialog.module.css の冒頭の決まり）
-export function Section({ title, children }: { title: string; children: ReactNode }) {
+// 区分: 見出しと右へ伸びる線、その下に入力Form（Dialog.module.css の冒頭の決まり）。help があれば見出しの右に「？」を置く
+export function Section({
+  title,
+  help,
+  children,
+}: {
+  title: string
+  help?: string | typeof NO_HELP
+  children: ReactNode
+}) {
   return (
     <fieldset className={styles.section}>
-      <legend className={styles.sectionTitle}>{title}</legend>
+      <legend className={styles.sectionTitle}>
+        {title}
+        {help !== undefined && help !== NO_HELP && <HelpButton text={help} label={title} />}
+      </legend>
       {children}
     </fieldset>
   )
