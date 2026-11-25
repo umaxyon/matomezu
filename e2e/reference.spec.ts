@@ -1,7 +1,7 @@
 // 参照エントリ: ほかのブックのページを指すタブを押すと、指す先のページが見るだけで描かれる（道具も選択も始まらない）。
 // タブの右クリックの「参照元へ移動」で指す先のブックのページが開き、「削除」でタブが消える（指す先はそのまま）
 import { drawingPage, SLIDE, testBinder, testBook, testPage, withSlide } from "../test/lineup"
-import { bookScreenUrl, expect, test } from "./fixtures"
+import { bookScreenUrl, expect, type Page, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
 import { addBox } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
@@ -111,6 +111,19 @@ test.describe("バインダを指す参照", () => {
   })
 })
 
+// 書庫を開き、ツリーで置いたブックを押して、右の枠にその中身を出す（ツリーの行の「開く／分割で開く」の吹き出しは閉じる）
+async function showPlacedBook(page: Page) {
+  await page.goto("/")
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  await page
+    .getByRole("navigation", { name: "フォルダ" })
+    .getByRole("button", { name: "置いたブック", exact: true })
+    .click()
+  await expect(page.getByRole("menuitem", { name: "分割で開く" })).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(page.getByRole("menuitem", { name: "分割で開く" })).toHaveCount(0)
+}
+
 // 書庫で B の中身を見ると、参照の行が参照のアイコンで並ぶ。右クリックの「参照元へ移動」は指す先を開く
 test.describe("書庫の参照の行", () => {
   test.use({
@@ -127,13 +140,7 @@ test.describe("書庫の参照の行", () => {
   })
 
   test("参照の行が参照のアイコンで並び、右クリックで参照元へ移動できる", async ({ page }) => {
-    await page.goto("/")
-    await page.getByRole("button", { name: "書庫", exact: true }).first().click()
-    // ツリーでブックを押すと、右の枠にその中身が出る
-    await page
-      .getByRole("navigation", { name: "フォルダ" })
-      .getByRole("button", { name: "置いたブック", exact: true })
-      .click()
+    await showPlacedBook(page)
     const inside = page.getByRole("list", { name: "置いたブック の中身" })
     await expect(inside.getByRole("button")).toHaveText(["設計", "全体図"])
     const row = inside.getByRole("button", { name: "全体図" })
@@ -144,13 +151,18 @@ test.describe("書庫の参照の行", () => {
     await expect(page.getByRole("tablist", { name: "元のブック" })).toBeVisible()
   })
 
+  test("参照の行を押すと「開く／分割で開く」の吹き出しが出て、開くとそのブックのその参照が開く", async ({ page }) => {
+    await showPlacedBook(page)
+    await page.getByRole("list", { name: "置いたブック の中身" }).getByRole("button", { name: "全体図" }).click()
+    await expect(page.getByRole("menuitem", { name: "分割で開く" })).toBeVisible()
+    await page.getByRole("menuitem", { name: "開く", exact: true }).click()
+    await expect(page.getByRole("tablist", { name: "置いたブック" })).toBeVisible()
+    await expect(page.getByRole("tab", { name: "全体図" })).toHaveAttribute("aria-selected", "true")
+    await expect(page.locator('[data-reference="shown"]')).toBeVisible()
+  })
+
   test("右クリックの削除で確かめずに消え、Ctrl+Z で戻り、Delete キーでも消える", async ({ page }) => {
-    await page.goto("/")
-    await page.getByRole("button", { name: "書庫", exact: true }).first().click()
-    await page
-      .getByRole("navigation", { name: "フォルダ" })
-      .getByRole("button", { name: "置いたブック", exact: true })
-      .click()
+    await showPlacedBook(page)
     const inside = page.getByRole("list", { name: "置いたブック の中身" })
     await inside.getByRole("button", { name: "全体図" }).click({ button: "right" })
     await page.getByRole("menuitem", { name: "削除" }).click()
@@ -159,6 +171,7 @@ test.describe("書庫の参照の行", () => {
     await page.keyboard.press("ControlOrMeta+z")
     await expect(inside.getByRole("button")).toHaveText(["設計", "全体図"])
     await inside.getByRole("button", { name: "全体図" }).click()
+    await page.keyboard.press("Escape")
     await page.keyboard.press("Delete")
     await expect(page.getByRole("dialog")).toHaveCount(0)
     await expect(inside.getByRole("button")).toHaveText(["設計"])

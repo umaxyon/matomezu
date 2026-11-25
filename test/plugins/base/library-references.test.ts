@@ -5,7 +5,13 @@ import { expect, test } from "bun:test"
 import { HOME_ID } from "../../../web/src/core/folders"
 import { openedEntry, openedReference } from "../../../web/src/core/stage"
 import { recentBookScreen, screenOf } from "../../../web/src/core/window"
-import { NOT_OPENED, openTargetOf, paneIdsOf, rowsIn } from "../../../web/src/plugins/base/library/outline"
+import {
+  bookOpenedFrom,
+  NOT_OPENED,
+  openTargetOf,
+  paneIdsOf,
+  rowsIn,
+} from "../../../web/src/plugins/base/library/outline"
 import { LIBRARY_FOLDER, LIBRARY_PICKED } from "../../../web/src/plugins/base/library/state"
 import { NO_DESKS } from "../../../web/src/plugins/base/library/workdesk-rows"
 import { NAMING, newStore } from "../../support"
@@ -105,4 +111,14 @@ test("書庫から参照を置くアクションは、置けない物を断る",
   })
   expect(added.ok).toBe(true)
   expect(lineup("b1")).toContain((added.result as { reference: string }).reference)
+})
+
+test("参照エントリの行は、ページの行と同じくブックスクリーンに開く行で（吹き出し・分割で開く）、ブックを窓に出すと、その参照エントリを開く", () => {
+  const { state, ref, store } = setup()
+  const row = { id: ref, kind: "reference" as const, readable: true }
+  expect(bookOpenedFrom(state.getState().folders, row, NO_DESKS)).toEqual({ book: "b2", page: ref })
+  expect(store.actions.showBook("b2", ref)).toBe(true)
+  const book = recentBookScreen(state.getState().window)
+  const stage = book?.stages.stages.find(s => s.id === book.stages.current)
+  expect(stage && openedReference(stage.opened)).toMatchObject({ reference: ref })
 })

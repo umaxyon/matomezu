@@ -431,10 +431,10 @@ export function openTargetOf(
 // 行を開くと出すブックと、そのページ
 export interface BookOpened {
   book: string
-  page?: string
+  page?: string // 開くページ（参照エントリの行なら、その参照エントリ。showBook）
 }
 
-// 書庫の行 row を、ブックスクリーンに開くなら、開くブックとページ（ページの無いブック・バインダ・ブックの外の物・フォルダは undefined）。
+// 書庫の行 row を、ブックスクリーンに開くなら、開くブックとページか参照エントリ（ページの無いブック・バインダ・ブックの外の物・フォルダは undefined）。
 // ワーカーブックの行は、実のブックで開く（ページが在るときだけ）
 export function bookOpenedFrom(
   folders: Folders,
@@ -448,8 +448,8 @@ export function bookOpenedFrom(
     return pagesIn(place.real) > 0 ? { book: place.real } : undefined
   }
   const target = openTargetOf(folders, row, desks)
-  if (target === NOT_OPENED || target.to !== "book" || target.binder !== undefined || target.reference !== undefined)
-    return undefined
+  if (target === NOT_OPENED || target.to !== "book" || target.binder !== undefined) return undefined
+  if (target.reference !== undefined) return { book: target.book, page: target.reference }
   if (target.page !== undefined) return { book: target.book, page: target.page }
   return pagesIn(target.book) > 0 ? { book: target.book } : undefined
 }

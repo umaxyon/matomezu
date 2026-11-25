@@ -5,7 +5,7 @@ import { createStore } from "zustand/vanilla"
 import { USER } from "../core/actor"
 import { addressOf, keepPlace, placeAt } from "../core/address"
 import { restoreAllAnnotations, withAnnotations } from "../core/annotation"
-import { readLibrary } from "../core/book"
+import { findReference, readLibrary } from "../core/book"
 import { bulkActionOf, entersLibraryHistory, laterThan, localDateOf, performBulk } from "../core/bulk"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionContext, type ActionOn, NO_CONTROL_CENTER } from "../core/def/action"
@@ -789,7 +789,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (!book) return NO_STAGE
       const { win, stage } = shownBook(getState().window, catalog, book)
       if (win !== getState().window) commit({ window: win })
-      if (page !== undefined) actions.openPage(stage, page)
+      if (page !== undefined && findReference(book, page)) actions.openReference(stage, page)
+      else if (page !== undefined) actions.openPage(stage, page)
       return stage
     },
     showOutsidePageStage: id => {

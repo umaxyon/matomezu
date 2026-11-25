@@ -62,7 +62,7 @@ export interface WindowActions {
   // 機能台帳に無い定義・形に合わない値なら開かず、false を返す
   openScreen(def: string, props: unknown): boolean
   // ブックを窓に出す: もう開いているブックスクリーンが在れば、それをカレントスクリーンにする。無ければ、新しいブックスクリーンで開く
-  // （開いたままにする枚数を超えた分は、土台がカレントにしたのが古い物から閉じる）。page を言えば、そのページを開く。無いブックなら何もせず false
+  // （開いたままにする枚数を超えた分は、土台がカレントにしたのが古い物から閉じる）。page を言えば、そのページを開く（ブックの参照エントリの id なら、その参照エントリを開く）。無いブックなら何もせず false
   showBook(book: string, page?: string): boolean
   // スクリーンアレンジメントを定義 def と値 value に替える（値を渡さなければ、定義の初めの値。機能台帳に無い定義・値が定義の形に合わなければ替えない）
   setScreenArrangement(def: string, value?: unknown): void
