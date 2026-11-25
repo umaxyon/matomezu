@@ -3,11 +3,13 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { pagesOf } from "../../web/src/core/book"
+import { entriesIn } from "../../web/src/core/entries"
 import { HOME_ID } from "../../web/src/core/folders"
 import { openedEntry } from "../../web/src/core/stage"
-import { screenOf } from "../../web/src/core/window"
+import { currentScreen, screenOf } from "../../web/src/core/window"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
+import { LIBRARY_PICKED } from "../../web/src/plugins/base/library/state"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { KeyListener } from "../../web/src/ui/keys"
@@ -54,7 +56,7 @@ test("親の要素だけが範囲を名乗るテキストFormでは Mod+Z をテ
   expect(pages()).toBe(0)
 })
 
-test("焦点のあるボタンの Enter は、ボタンが自分で名乗った範囲だけで引き、引けたら押す動きを止める。親だけが名乗るボタン・キーバインドの無い範囲・Space は押す動きに任せる", () => {
+test("焦点のあるボタンの Enter は、ボタンが自分で名乗った範囲だけで引き、引けたら押す動きを止める。親だけが名乗るボタン・キーバインドの無い範囲・Space・引いたコマンドが断る Enter は押す動きに任せる", () => {
   const store = createMatomezu({
     controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
@@ -62,6 +64,7 @@ test("焦点のあるボタンの Enter は、ボタンが自分で名乗った�
     partial: true,
   })
   showFirstBook(store)
+  const here = currentScreen(store.state.getState().window).id
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <KeyListener />
@@ -74,6 +77,13 @@ test("焦点のあるボタンの Enter は、ボタンが自分で名乗った�
   )
   // fireEvent は、止めたら false を返す
   const press = (label: string, key: string) => fireEvent.keyDown(screen.getByLabelText(label), { key })
+  // 書庫の画面で選んでいる行が無ければ、Enter の開くは断る
+  expect(press("自分で名乗る", "Enter")).toBe(true)
+  act(() => {
+    createBookIn(store, "s1", { into: HOME_ID, title: "メモ" })
+    const book = entriesIn(store.state.getState().folders, HOME_ID)[0]?.id as string
+    store.setPluginState(LIBRARY_PICKED.id, here, book)
+  })
   expect(press("自分で名乗る", "Enter")).toBe(false)
   expect(press("親が名乗る", "Enter")).toBe(true)
   expect(press("Enter の無い範囲", "Enter")).toBe(true)

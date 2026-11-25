@@ -97,7 +97,7 @@ test("ステージを持たないスクリーンで開いたメニューには�
   const center = state.getState().window.screens.find(s => s.stages === undefined)?.id as string
   actions.makeScreenCurrent(center)
   actions.openContextMenu(center, "@matomezu/base:library-entry-context", { entry: "b1" }, { x: 0, y: 0 })
-  const shown = (id: string) => isShown(store, state.getState(), center, id as CommandId)
+  const shown = (id: string) => isShown(store, state.getState(), center, id as CommandId, { entry: "b1" })
   expect(shown("@matomezu/base:library-entry-rename")).toBe(true)
   expect(shown("@matomezu/base:library-entry-open")).toBe(true)
   expect(shown("@matomezu/base:library-book-new")).toBe(false) // ブックの中には作らない

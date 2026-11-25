@@ -3,7 +3,7 @@ import { NO_STATE } from "../../web/src/core/def/plugin-state"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
-import { isActive, isShown, screenCommandContext } from "../../web/src/store/commands"
+import { isActive, isEnabled, isShown, screenCommandContext } from "../../web/src/store/commands"
 import { screensOf, updatePluginStateAtOf } from "../../web/src/store/commands/def"
 import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin } from "../../web/src/store/plugin"
@@ -264,5 +264,52 @@ describe("コマンドは、自分のプラグインのプラグイン状態を�
     expect(() => (store.actions.command as (stage: string, id: string) => boolean)("s1", "@x/other:steal")).toThrow(
       "E125",
     )
+  })
+})
+
+describe("accepts は、呼ぶ引数が分かっているときだけ呼ばれ、when と両方が真なら出す", () => {
+  const kit = pluginKit("@x/pick", defineMessages({ pick: { en: "Pick", ja: "選ぶ" } }))
+  const seen: unknown[] = []
+  const PICK = kit.defineCommand({
+    id: "pick",
+    title: "pick",
+    run: (_ctx, _a, _args: { item: string }) => {
+      seen.push("run")
+    },
+    when: () => true,
+    accepts: (_ctx, { item }) => {
+      seen.push(item)
+      return item === "ok"
+    },
+  })
+  const make = () =>
+    shown(
+      createMatomezuInstance({
+        plugins: [...BUILTIN, definePlugin(kit.plugin({ commands: [PICK] }))],
+        controlCenter: BUILTIN_CONTROL_CENTER,
+        books: SAMPLE_BOOKS,
+        lang: "ja",
+        newId: sequence(),
+      }),
+    )
+  const id = "@x/pick:pick" as never
+
+  test("引数が分からなければ呼ばずに出し、分かっていればその引数で問う（出すか・押せるか・押したとき）", () => {
+    const store = make()
+    const state = store.state.getState()
+    seen.length = 0
+    expect(isShown(store, state, "s1", id)).toBe(true)
+    expect(seen).toEqual([])
+    expect([isShown(store, state, "s1", id, { item: "ok" }), isShown(store, state, "s1", id, { item: "no" })]).toEqual([
+      true,
+      false,
+    ])
+    expect(isEnabled(store, state, "s1", id, { item: "no" })).toBe(false)
+    seen.length = 0
+    const command = store.actions.command as (stage: string, id: string, args: unknown) => boolean
+    expect(command("s1", "@x/pick:pick", { item: "no" })).toBe(false)
+    expect(seen).toEqual(["no"])
+    expect(command("s1", "@x/pick:pick", { item: "ok" })).toBe(true)
+    expect(seen).toEqual(["no", "ok", "run"])
   })
 })
