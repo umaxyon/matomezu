@@ -226,7 +226,7 @@ test("ワーカーブックの下の行は、名前の枠の中の名前の前�
   await page.locator("[data-workroom]").filter({ hasText: "とり" }).locator("[data-current-line]").dblclick()
   await expect(page.getByText("鳥のメモ").first()).toBeVisible()
   await expect(page.locator("[data-worker-birds]")).toHaveAttribute("title", "とり")
-  await expect(page.locator('button[aria-haspopup="menu"] [data-worker-birds]')).toHaveCount(1)
+  await expect(page.locator("[data-book-name] [data-worker-birds]")).toHaveCount(1)
   const place = page.getByRole("button", { name: "置き場所: ワークルーム › とり" })
   await expect(place).toHaveText("")
   await place.click()

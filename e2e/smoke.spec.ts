@@ -164,7 +164,7 @@ test("分割して右で同じブックを開くと右にもタブがあり、�
     .click()
   await expect(lists.nth(0).getByRole("tab", { selected: true })).toHaveText("ページ 1")
   await expect(lists.nth(1).getByRole("tab", { selected: true })).toHaveText("ページ 2")
-  // 右のタブは、右のステージの真下で、閉じるとブックの名前のボタン（156px）と置き場所のフォルダの絵の右にある。フォルダの絵は名前のボタンのすぐ右に詰めて置く
+  // 右のタブは、右のステージの真下で、閉じるとブックの名前の枠（156px）と置き場所のフォルダの絵の右にある。フォルダの絵は名前の枠のすぐ右に詰めて置く
   const bar = (await lists.nth(1).boundingBox())!
   const stage = (await right.boundingBox())!
   const close = (await page.locator("[data-footer-close]").nth(1).boundingBox())!
@@ -242,7 +242,8 @@ test("ブックの名前のボタンにマウスを乗せるとメニューが�
   await trigger.dispatchEvent("click")
   await expect(menu).toBeVisible()
   // 下の行はステージの下にある
-  const footer = (await trigger.boundingBox())!
+  // 名前の枠（鍵・鳥と名前のボタンを入れる）は 156px
+  const footer = (await page.locator("[data-book-name]").first().boundingBox())!
   const stage = (await page.getByRole("region", { name: "ステージ" }).boundingBox())!
   expect(footer.y).toBeGreaterThanOrEqual(stage.y + stage.height)
   expect(footer.width).toBe(156)
@@ -358,7 +359,7 @@ test("分割すると、カレントのステージの下の行だけ色が少�
   const accent = (i: number) =>
     bottoms
       .nth(i)
-      .locator('button[aria-haspopup="menu"]')
+      .locator("[data-book-name]")
       .first()
       .evaluate(el => getComputedStyle(el).boxShadow)
   expect(await accent(0)).not.toBe("none")

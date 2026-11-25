@@ -69,24 +69,23 @@ export function BookName() {
   const locked = !binder && (book ?? page)?.locked === true
   return (
     <>
-      <div className={styles.name} {...own}>
+      <div className={styles.name} data-current={current} data-open={open} data-book-name {...own}>
+        {locked && (
+          <span className={styles.lock} role="img" aria-label={t("Locked")}>
+            <LockIcon />
+          </span>
+        )}
+        <Slot name={BOOK_NAME_HEAD} props={{}} />
         <button
           type="button"
           className={styles.trigger}
-          data-current={current}
           aria-label={title || t("Book menu")}
           aria-haspopup="menu"
           aria-expanded={open}
           title={title || undefined}
           onClick={show}
         >
-          {locked && (
-            <span className={styles.lock} role="img" aria-label={t("Locked")}>
-              <LockIcon />
-            </span>
-          )}
-          <Slot name={BOOK_NAME_HEAD} props={{}} />
-          <span className={styles.title}>{title}</span>
+          {title}
         </button>
       </div>
       <FooterMenu
