@@ -42,6 +42,7 @@ const store = createMatomezu({
   unreadableHost: { purge: id => client.purgeUnreadable(id), movedIfOff: ids => client.movedIfOff(ids) },
   updateHost: { check: () => client.checkUpdate(), ask: workroom => client.askUpdate(workroom) },
   hostsHost: { ask: request => client.askHosts(request) },
+  messageHost: { answer: (id, answer) => client.answerMessage(id, answer) },
   ...browserWindowIo(),
 })
 // 取り込んだ追加プラグインは、matomezu 本体の core/catalog.ts の型に入らないので、型では確かめず、台帳アセンブルで確かめる（見た目と、置いた UI マッピングも）。

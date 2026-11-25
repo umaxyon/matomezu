@@ -25,6 +25,7 @@ package server
 //	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
 //	update-status {"state", "version", "latest"?, "checkedAt"?, "askedAt"?} 新しい版の確かめの結果が変わった（update.go）
 //	host-status {"hostId", "name", "osHostName", "open", "port"?, "addrs"?, "wsl"?, "failed"?} ホストどうしの入口の様子が変わった（hosts.go）
+//	pending-messages [PendingMessage...] 承認待ちの並びが変わった（届いた・承認・キャンセル・消えた。pending_message.go）。窓がつながったときに、あれば 1 度送る（窓は hello で空にする）
 //	keep      {} keepAlive ごとに送る。窓は、これも含めて知らせが QUIET_MS（host-client/server.ts）届かなければ、黙って切れたとみてつなぎ直す
 
 import (
@@ -122,6 +123,7 @@ type Hub struct {
 	rallies          map[rallyKey]int          // AI ラリーの向き → 利用者トリガートークの後に起こした数（rally.go）
 	ralliesStopped   map[rallyKey]bool         // 上限で止め、宛て先に知らせた AI ラリーの向き（rally.go）
 	ralliesSent      map[rallySentKey]int      // ほかのホストへ送った向き → 送り手の利用者トリガートークの後に送った数（rally.go）
+	pending          []pendingMessage          // 承認待ちの AI 間メッセージ（届いた順。メモリだけ。pending_message.go）
 	next             int
 	actionNow        time.Time        // 前に、時点の無いアクションに入れた時点（Perform。時計が後ろへ戻っても、これより後にする）
 	ticks            int64            // フォーカスの順を振る数

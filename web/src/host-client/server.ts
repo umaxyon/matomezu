@@ -28,6 +28,7 @@ import type {
   HostStatus,
   MatomezuInstance,
   ParticipantLive,
+  PendingMessage,
   UpdateStatus,
 } from "../store/state"
 import type { HostClient, Loaded } from "./client"
@@ -43,11 +44,13 @@ import {
   HelloSchema,
   HostPeersSchema,
   HostStatusSchema,
+  MESSAGE_ANSWER,
   MOVED_IF_OFF_ANSWER,
   NoticeSchema,
   ParticipantCallSchema,
   ParticipantLiveSchema,
   ParticipantReadySchema,
+  PENDING_MESSAGES,
   PluginsSchema,
   PURGE_ANSWER,
   SCREEN_PLUGINS_REMOVED,
@@ -177,6 +180,7 @@ export function serverClient(net: Net = browserNet): HostClient {
   let counters: unknown = {} // 番号を振る種類の、区切りごとの次の番号
   let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
   let participantCalls: Record<string, string> = {} // 参加者の id → 最後に呼ばれた時刻
+  let pendingMessages: readonly PendingMessage[] | undefined // 承認待ちの AI 間メッセージ（知らされた物。つなぐときに入れる）
   let updateStatus: UpdateStatus | undefined // 新しい版の確かめの結果（読んだか知らされた物）
   let hostStatus: HostStatus | undefined // ホストどうしの入口の様子（読んだか知らされた物）
   let hostPeers: HostPeers | undefined // ほかのホストの様子（読んだか知らされた物）
@@ -385,6 +389,11 @@ export function serverClient(net: Net = browserNet): HostClient {
       const hello = HelloSchema.parse(JSON.parse(data))
       client = hello.client
       watch.opened()
+      // 承認待ちは常駐がつないだ直後に、あるときだけ送り直す。持っている物は捨てる（常駐を起動し直したら、前の承認待ちは消えている）
+      if (pendingMessages?.length) {
+        pendingMessages = []
+        instance?.setPendingMessages(pendingMessages)
+      }
       if (first) {
         build = hello.build
         first.resolve()
@@ -465,6 +474,10 @@ export function serverClient(net: Net = browserNet): HostClient {
     on("host-status", data => {
       hostStatus = HostStatusSchema.parse(JSON.parse(data))
       instance?.setHostStatus(hostStatus)
+    })
+    on("pending-messages", data => {
+      pendingMessages = PENDING_MESSAGES.parse(JSON.parse(data))
+      instance?.setPendingMessages(pendingMessages)
     })
     on("host-peers", data => {
       hostPeers = HostPeersSchema.parse(JSON.parse(data))
@@ -619,6 +632,17 @@ export function serverClient(net: Net = browserNet): HostClient {
         .catch(() => null)
       if (!res?.ok) fail("E413", { request: kind, status: res ? `${res.status}` : "no answer" })
     },
+    answerMessage: async (id, answer) => {
+      const res = await net
+        .fetch(`api/message/${answer}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        })
+        .catch(() => null)
+      if (!res?.ok) fail("E415", { id, answer, status: res ? `${res.status}` : "no answer" })
+      MESSAGE_ANSWER.parse(await res.json())
+    },
     purgeUnreadable: async id => {
       const res = await sendWrite("api/unreadable/purge", { id })
       if (!res?.ok) fail("E407", { id, status: res ? `${res.status}` : "no answer" })
@@ -649,6 +673,7 @@ export function serverClient(net: Net = browserNet): HostClient {
       if (updateStatus) next.setUpdateStatus(updateStatus)
       if (hostStatus) next.setHostStatus(hostStatus)
       if (hostPeers) next.setHostPeers(hostPeers)
+      if (pendingMessages) next.setPendingMessages(pendingMessages)
       let told = ""
       let viewSeq = 0 // 知らせの番号（届く順が入れ替わっても、常駐が古い方を捨てられるように増やす）
       // 見ているものと、利用者が直している物（どちらかが変わったときと、フォーカスされたときに知らせる）

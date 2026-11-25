@@ -8,7 +8,6 @@ import { problem } from "../../../core/errors"
 import { findShape, NO_ITEM } from "../../../core/placed"
 import { sameData } from "../../../core/same"
 import type { CommandContext } from "../../../store/commands/def"
-import { NO_CONTEXT_MENU } from "../../../store/context-menus"
 import { kit } from "../kit"
 import { placeableIn } from "../toolbox/toolbox"
 import { hasOpenedPage } from "../utils/opened-page"
@@ -78,11 +77,8 @@ export const SCRAP_OPEN_ORIGINAL = kit.defineCommand({
     const scrap = scrapOf(ctx, item)
     if (scrap) a.openPageById(scrap.page)
   },
-  // 右クリックのメニューでは、スクラップフレームの形のときだけ出す（行うときはメニューが閉じているので、形は run が確かめる）
-  when: ctx => {
-    const menu = ctx.contextMenu
-    const item = menu === NO_CONTEXT_MENU ? undefined : (menu.target as { item?: string } | undefined)?.item
-    return item === undefined || scrapOf(ctx, item) !== null
-  },
+  when: () => true,
+  // スクラップフレームの形のときだけ出す
+  accepts: (ctx, { item }) => scrapOf(ctx, item) !== null,
 })
 export { SCRAP, SCRAP_CUT, SCRAP_REMOVE, type Scrap, ScrapSchema, scrapSize } from "./scrap"

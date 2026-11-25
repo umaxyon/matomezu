@@ -25,7 +25,6 @@ import { NO_PAGE, NO_PAPER, NOTHING_OPENED, type Stage, shownPageId, toPaper } f
 import type { StageListed, WindowState } from "../../core/window"
 import type { StageView, Workspace } from "../../core/workspace"
 import type { Actions, BoundPlaceActions, ProbeActions, WindowActions } from "../actions"
-import type { NO_CONTEXT_MENU, OpenedContextMenu } from "../context-menus"
 import type { NO_DIALOG, OpenedDialog } from "../dialogs"
 
 // コマンドの許可スコープ: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
@@ -92,7 +91,7 @@ export interface ScreenCommandContext {
   arrangement: { id: string } // 窓のスクリーンアレンジメントの定義の id（値は並べるスクリーンを名指すので持たない）
   settings: Settings
   dialog: OpenedDialog | typeof NO_DIALOG // 開いているダイアログ（無ければ NO_DIALOG）
-  contextMenu: OpenedContextMenu | typeof NO_CONTEXT_MENU // 開いている右クリックのメニュー（無ければ NO_CONTEXT_MENU）
+  contextMenuOpen: boolean // 右クリックのメニューを開いているか（右クリックされた物は、メニューの行が呼ぶ引数で受け取る: accepts と run）
   libraryHistory: History // 書庫の履歴
   folders: Folders // 書庫のフォルダの表（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダの行と並び。読むだけ。ページの中身は持たない）
   pageTitle(page: string): string | typeof NO_NAME // ページ page の名前（名前の無いページ・表に無い物は NO_NAME。ページの中身は渡さない）
@@ -282,6 +281,9 @@ export interface StageCommandDef<A = undefined, Tt extends string = MessageKey> 
   enabled?(ctx: CommandContext): boolean // 押せるか。無ければ、出ていれば押せる
   active?(ctx: CommandContext): boolean // 押されている状態か（メニューのボタンの見た目・OS のメニューの印）。無ければ押されていない
   run(ctx: CommandContext, actions: CommandActions, args: A): void
+  // 呼ぶ引数 args で出すか。押す前に呼ぶ引数が分かっている所（右クリックのメニューの行・キーなど）と押したときだけ土台が呼び、
+  // when と両方が真なら出す（押したときに偽なら、押しても行わない）。押す前に引数が分からなければ呼ばない。無ければ、どの引数も受け付ける
+  accepts?(ctx: CommandContext, args: A): boolean
 }
 
 // スクリーンから呼ぶコマンド（defineScreenCommand）。ステージを持たないスクリーンからも呼べる（ステージ・ブックは受け取らない。ブック・ページ・アノテーションが対象のアクションは行わない）
@@ -293,9 +295,10 @@ export interface ScreenCommandDef<A = undefined, Tt extends string = MessageKey>
   enabled?(ctx: ScreenCommandContext): boolean
   active?(ctx: ScreenCommandContext): boolean
   run(ctx: ScreenCommandContext, actions: CommandActions, args: A): void
+  accepts?(ctx: ScreenCommandContext, args: A): boolean // 呼ぶ引数で出すか（StageCommandDef の accepts と同じ）
   // 引数 args で押したら行うアクションと、その引数（performs の中の、書庫か利用者の設定が対象の物。何も行わないなら空）。引数がまだ分からないなら "unknown"。
   // 名乗れば、土台は押す前にその引数で問う（書庫が対象のアクションなら、許可スコープが引数から出すブックの認可ステップにも）。名乗ったアクションのどれかが止められれば押せない。
-  // 名乗らないか "unknown" なら、コントロールセンターにだけ問う
+  // 名乗らないか "unknown" なら、コントロールセンターにだけ問う。押す前に引数が分からなければ、土台は呼ばない（コントロールセンターにだけ問う）
   performsWith?(ctx: ScreenCommandContext, args: A): readonly PerformedWith[] | typeof UNKNOWN_PERFORMED
 }
 
