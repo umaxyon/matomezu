@@ -761,6 +761,7 @@ func TestCreatingABookSkipsAPageIdAnotherBookHas(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { store.Close() })
 	s, hub := newServerOn(t, Options{}, store)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
 	before := hub.PageVersion("p1")

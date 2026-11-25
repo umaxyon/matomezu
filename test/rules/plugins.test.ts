@@ -1,7 +1,7 @@
 // 「プラグイン」の決まりを見張る: プラグインの中のファイルの役割、base の utils、core/catalog.ts への書き足し、見本、ステージ・スクリーンを id で名指すファイル
 import { expect, test } from "bun:test"
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
-import { basename, dirname, join, normalize, relative, resolve } from "node:path"
+import { basename, dirname, join, posix, resolve } from "node:path"
 import { WEB_ENTRIES } from "../../scripts/web-build"
 import {
   ADDED,
@@ -14,6 +14,7 @@ import {
   plugins,
   ROOT,
   readsOf,
+  relative,
   SRC,
   sources,
   specOwner,
@@ -76,14 +77,14 @@ test("見た目を結ぶ（definePluginUi）のは、プラグインの ui.tsx �
 
 // base の utils は、どの機能にも属さない共通の処理の置き場なので、base の utils の外のファイルを読まない。base の機能のフォルダも、直下のファイルも、kit も（kit は base の全部の文言を読むので、機能のフォルダにつながる）（plugins の「プラグインどうしの関係」）
 test("base の utils は、base の utils の外のファイルを読まない", () => {
-  const offenders = sources
-    .filter(f => f.rel.startsWith("plugins/base/utils/"))
-    .flatMap(f =>
-      [...f.text.matchAll(/from\s*["'](\.\.\/[^"']+)["']/g)]
-        .map(m => normalize(join(dirname(f.rel), m[1]!)))
-        .filter(t => t.startsWith("plugins/base/") && !t.startsWith("plugins/base/utils/"))
-        .map(t => `${f.rel} → ${t}`),
-    )
+  const utils = sources.filter(f => f.rel.startsWith("plugins/base/utils/"))
+  expect(utils.length).toBeGreaterThan(0)
+  const offenders = utils.flatMap(f =>
+    [...f.text.matchAll(/from\s*["'](\.\.\/[^"']+)["']/g)]
+      .map(m => posix.normalize(posix.join(posix.dirname(f.rel), m[1]!)))
+      .filter(t => t.startsWith("plugins/base/") && !t.startsWith("plugins/base/utils/"))
+      .map(t => `${f.rel} → ${t}`),
+  )
   expect(offenders).toEqual([])
 })
 

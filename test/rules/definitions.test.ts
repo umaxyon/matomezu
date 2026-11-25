@@ -1,7 +1,7 @@
 // 「定義と機能台帳」の決まりを見張る: 参照の向き、テーマ、ページのタイプ、アクション、拡張ポイント、id
 import { expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
-import { basename, join, relative } from "node:path"
+import { basename, join } from "node:path"
 import {
   ADDED,
   added,
@@ -10,6 +10,7 @@ import {
   pluginRoot,
   plugins,
   ROOT,
+  relative,
   SRC,
   sources,
   specOwner,
@@ -49,8 +50,8 @@ test("アクションは同じ入力なら同じ結果: アクションと、ア
   const defining = [...sources, ...added].filter(
     f =>
       /\bdefineAction\s*\(|\bpageFieldsInput\b|\bpageFieldsWay\b|\bFollowStepDef\b/.test(f.text) &&
-      !f.path.endsWith("def/action.ts") &&
-      !f.path.endsWith("def/follow-step.ts"),
+      !f.rel.endsWith("def/action.ts") &&
+      !f.rel.endsWith("def/follow-step.ts"),
   )
   expect(defining.length).toBeGreaterThan(0)
   const bad = defining

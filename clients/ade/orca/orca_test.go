@@ -3,13 +3,18 @@ package orca
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
-// fakeCLI は、呼ばれるたびに引数を log に 1 行足し、答えの前にほかの行を書いてから、渡された表示名を答える偽の CLI を置く
+// fakeCLI は、呼ばれるたびに引数を log に 1 行足し、答えの前にほかの行を書いてから、渡された表示名を答える偽の CLI を置く。
+// 偽の CLI は sh のスクリプトなので、Windows ではテストを飛ばす（Orca とのやり取りは OS によらないので、ほかの OS で確かめる）
 func fakeCLI(t *testing.T) (log string) {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake CLI is a sh script")
+	}
 	dir := t.TempDir()
 	log = filepath.Join(dir, "calls")
 	script := `#!/bin/sh

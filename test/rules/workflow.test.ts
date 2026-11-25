@@ -1,14 +1,19 @@
 // 「作業の進め方」の決まりを見張る: 単体のテストの置き場、e2e、テストの用意の手段
 import { describe, expect, test } from "bun:test"
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
-import { dirname, join, normalize, relative, resolve } from "node:path"
-import { ADDED, CRATES, filesUnder, ROOT, SRC, sources } from "./sources"
+import { dirname, join, posix, resolve } from "node:path"
+import { ADDED, CRATES, filesUnder, ROOT, relative, SRC, slashed, sources } from "./sources"
 
 // 単体のテストの置き場: test の直下は全体を見張るテストだけ。test/<クレート> はそのクレート（かその置き場の手伝い）を、test/plugins/<置き場> はそのプラグインを、test/scripts は scripts のスクリプトを、test/clients/<AI の名前> はその AI ごとの部品を読む
 test("単体のテストは、確かめる物の置き場（クレート・test/plugins/<プラグイン>・test/scripts・test/clients/<AI の名前>）に置く", () => {
   const TEST = join(ROOT, "test")
   const tests = filesUnder(TEST)
-    .filter(path => /\.test\.tsx?$/.test(path) && !path.includes("/added-plugins/") && !path.includes("/type-checks/"))
+    .filter(
+      path =>
+        /\.test\.tsx?$/.test(path) &&
+        !slashed(path).includes("/added-plugins/") &&
+        !slashed(path).includes("/type-checks/"),
+    )
     .map(path => ({ rel: relative(TEST, path), text: readFileSync(path, "utf8") }))
   // 値で読む先（import type と、型だけを並べた import { type A, type B } は数えない）
   const typeOnly = (kw: string | undefined, names: string) =>
@@ -23,7 +28,7 @@ test("単体のテストは、確かめる物の置き場（クレート・test/
   const targetsOf = (rel: string, text: string) =>
     [...text.matchAll(/^import\s+(type\s+)?([^"']*?)\s*from\s*["'](\.{1,2}\/[^"']+)["']/gm)]
       .filter(m => !typeOnly(m[1], m[2]!.trim()))
-      .map(m => normalize(join(dirname(rel), m[3]!)))
+      .map(m => posix.normalize(posix.join(posix.dirname(rel), m[3]!)))
   const CRATE_DIRS = [...CRATES, "plugins"]
   const ROOT_TESTS = ["engine.test.ts", "fonts.test.ts", "plugin-api.test.ts"]
   const bad = tests.flatMap(({ rel, text }) => {
@@ -85,10 +90,10 @@ test("e2e は web/src の値を読まない（型は読んでよい。e2e が読
     for (const i of importsOf(path, readFileSync(path, "utf8"))) {
       if (!i.to.startsWith(".")) continue
       const target = resolve(dirname(path), i.to)
-      if (target.startsWith(`${SRC}/`)) {
+      if (slashed(target).startsWith(`${slashed(SRC)}/`)) {
         if (i.typeOnly) typeReads++
         else offenders.push(`${relative(ROOT, path)}: ${i.to}`)
-      } else if (target.startsWith(`${TEST}/`)) queue.push(withTs(target))
+      } else if (slashed(target).startsWith(`${slashed(TEST)}/`)) queue.push(withTs(target))
     }
   }
   // 見張りが空振りしていない（test/lineup.ts を通した型の読み込みを見ている）
@@ -200,7 +205,7 @@ test("根の tsconfig が外すフォルダ（見本のほか）の tsconfig は
       .flatMap(name =>
         readdirSync(join(ROOT, dir, name))
           .filter(f => /^tsconfig.*\.json$/.test(f))
-          .map(f => join(dir, name, f).replace(/\/tsconfig\.json$/, "")),
+          .map(f => posix.join(dir, name, f).replace(/\/tsconfig\.json$/, "")),
       ),
   )
   expect(configs.length).toBeGreaterThan(0)
