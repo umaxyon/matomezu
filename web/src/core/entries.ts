@@ -15,7 +15,7 @@ import {
   isOpenRole,
   isUnreadableRole,
   type Library,
-  libraryRefsOf,
+  libraryReferencesOf,
   type PageRow,
   sameWorkKey,
   TRASH_ID,
@@ -34,7 +34,7 @@ export type EntryKind = AnyEntryRef["kind"]
 // エントリ entry を入れているフォルダと、その並びの中のエントリ（どこにも入っていなければ undefined。書庫ホームも）
 export function placeOf(folders: Folders, entry: string): { holder: Folder; ref: AnyEntryRef } | undefined {
   const holder = foldersOver(folders, entry)[0]
-  const ref = holder && libraryRefsOf(holder).find(r => r.id === entry)
+  const ref = holder && libraryReferencesOf(holder).find(r => r.id === entry)
   return holder && ref ? { holder, ref } : undefined
 }
 
@@ -439,7 +439,7 @@ const NO_ENTRIES: readonly AnyEntryRef[] = []
 // フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下のエントリ（並びの順。フォルダが無ければ空）
 export const entriesIn = (folders: Folders, folder: string): readonly AnyEntryRef[] => {
   const f = folders[folder]
-  return f ? libraryRefsOf(f) : NO_ENTRIES
+  return f ? libraryReferencesOf(f) : NO_ENTRIES
 }
 
 // 名前 title を、同じ所の名前 taken と重ならない名前にする（重ならなければそのまま。重なれば「名前 2」から番号を付ける）
@@ -453,7 +453,7 @@ export function freeTitle(title: string, taken: readonly string[]): string {
 
 // フォルダ folder の直下のエントリの名前（並びの順。名前の無い物は入らない。except のエントリは除く）
 export function titlesIn(library: Library, folder: Folder, naming: Naming, except?: string): string[] {
-  return libraryRefsOf(folder).flatMap(r => {
+  return libraryReferencesOf(folder).flatMap(r => {
     const title = r.id === except ? undefined : titleOf(library, r.kind, r.id, naming)
     return title === undefined ? [] : [title]
   })
@@ -467,14 +467,14 @@ export const titledIn = (
   naming: Naming,
   except?: string,
 ): AnyEntryRef | undefined =>
-  libraryRefsOf(folder).find(r => r.id !== except && titleOf(library, r.kind, r.id, naming) === title)
+  libraryReferencesOf(folder).find(r => r.id !== except && titleOf(library, r.kind, r.id, naming) === title)
 
 // 名前が重なったフォルダ clashes（titleClashes が挙げた物）の直下で、ほかの物と名前が重なるシステムフォルダの印（定義の id。無ければ undefined）
 export function clashedSystemFolder(library: Library, clashes: readonly string[], naming: Naming): string | undefined {
   for (const id of clashes) {
     const folder = library.folders[id]
     if (!folder) continue
-    const refs = libraryRefsOf(folder)
+    const refs = libraryReferencesOf(folder)
     const titles = refs.map(r => titleOf(library, r.kind, r.id, naming))
     for (const [i, r] of refs.entries()) {
       const mark = r.kind === "page" ? undefined : systemFolderOf(library.folders[r.id])
@@ -545,7 +545,7 @@ export function withFreeTitles(library: Library, naming: Naming): { next: Librar
     if (!folder || !keepsTitlesApart(folder)) continue
     const isSystem = (r: AnyEntryRef) => r.kind !== "page" && systemFolderOf(library.folders[r.id]) !== undefined
     const named = (r: AnyEntryRef) => titleOf(next, r.kind, r.id, naming)
-    const refs = libraryRefsOf(folder)
+    const refs = libraryReferencesOf(folder)
     const kept = new Set(refs.filter(isSystem).flatMap(r => named(r) ?? []))
     for (const r of refs) {
       if (isSystem(r)) continue

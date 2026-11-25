@@ -756,3 +756,24 @@ test("読んだ書庫で指す先の無い参照エントリは、整えると�
   }
   expect(folderOf(settled(CORE_CATALOG, withRefs), "B").lineup.map(e => e.id)).toEqual(["b1", "r1"])
 })
+
+test("読めない物のフォルダの物を完全に消すと、それを指す参照エントリも同じ書き込みで外す（移る間は残す）", () => {
+  const shared = drawingPage("p1")
+  const rows = worldRows([
+    testBook("b1", "B", [shared]),
+    testBook("b2", "C", [shared, drawingPage("p2", { title: "二" })]),
+  ])
+  const ref = { kind: "reference", id: "r1", of: { kind: "page", id: "p2" } }
+  const withRef: Rows = {
+    pages: rows.pages,
+    folders: rows.folders.map(f =>
+      (f as { id: string }).id === "b1"
+        ? { ...(f as object), lineup: [...(f as { lineup: object[] }).lineup, ref] }
+        : f,
+    ),
+  }
+  const moved = settled(CORE_CATALOG, withRef)
+  expect(folderOf(moved, "b1").lineup.map(e => e.id)).toEqual(["p1", "r1"])
+  const purge = purgedRows(moved.pages, moved.folders, "b2")
+  expect((purge?.folders.b1 as { lineup: { id: string }[] } | undefined)?.lineup.map(e => e.id)).toEqual(["p1"])
+})

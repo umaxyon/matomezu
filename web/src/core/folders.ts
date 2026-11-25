@@ -42,7 +42,7 @@ export type BookLineupRef = EntryRef | ReferenceEntry
 export type BookFolder = Omit<Book, "lineup"> & { folderRole: "book"; lineup: readonly BookLineupRef[] }
 
 // フォルダ folder の並びのうち、書庫のエントリ（ページ・バインダ・ブック・フォルダ）だけ（参照エントリは書庫の物でないので除く）
-export const libraryRefsOf = (folder: {
+export const libraryReferencesOf = (folder: {
   lineup: readonly (AnyEntryRef | ReferenceEntry | TrashRef)[]
 }): readonly AnyEntryRef[] =>
   folder.lineup.some(r => r.kind === "reference")

@@ -180,11 +180,20 @@ export function purgedRows(
     Object.values(library.folders).flatMap(f => (inside.has(f.id) ? [] : f.lineup.map(r => r.id))),
   )
   const keep = (rows: readonly string[]) => rows.filter(r => !elsewhere.has(r))
+  const removedPages = keep(under.pages)
+  const removedFolders = keep(under.folders)
+  // 消す物を指していた参照エントリも、同じ書き込みで並びから外す
+  const without = (rows: Readonly<Record<string, unknown>>, gone: readonly string[]) =>
+    Object.fromEntries(Object.entries(rows).filter(([id]) => !gone.includes(id)))
+  const dead = deadReferences({
+    pages: without(library.pages, removedPages),
+    folders: without(library.folders, removedFolders),
+  } as Library)
   return {
     pages: {},
-    folders: { [UNREADABLE_ID]: { ...found, lineup: found.lineup.filter(r => r !== ref) } },
-    removedPages: keep(under.pages),
-    removedFolders: keep(under.folders),
+    folders: { ...dead, [UNREADABLE_ID]: { ...found, lineup: found.lineup.filter(r => r !== ref) } },
+    removedPages,
+    removedFolders,
   }
 }
 

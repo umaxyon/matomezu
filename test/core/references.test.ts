@@ -6,7 +6,7 @@ import { type Library, TRASH_ID } from "../../web/src/core/folders"
 import { bookOf } from "../../web/src/core/folders-books"
 import { withChanges } from "../../web/src/core/folders-changes"
 import { performIn, type World } from "../../web/src/core/perform-world"
-import { GONE, referredOf } from "../../web/src/core/references"
+import { referredOf, UNSEEN } from "../../web/src/core/references"
 import type { AnyPage } from "../../web/src/core/schema/book"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, libraryWith, sequence } from "../support"
@@ -87,7 +87,7 @@ test("指す先がゴミ箱に入っても、ブックの外へ動いても残�
   const trashed = after(moved, "entry-trash", { entry: "a1" }) as World
   expect(refsIn(trashed, "B")).toEqual(["a1"])
   const ref = referencesOf(bookOf(trashed, "B")!)[0]!
-  expect(referredOf(trashed, ref)).toBe(GONE)
+  expect(referredOf(trashed, ref)).toBe(UNSEEN)
   expect(referredOf(moved, ref)).toEqual({ kind: "page", page: moved.pages.a1! })
 })
 
@@ -117,4 +117,19 @@ test("参照を消しても、指す先は変わらない。参照は名前の�
   const removed = after(world, "reference-remove", { reference: id }, { book: "B" }) as World
   expect(refsIn(removed, "B")).toEqual([])
   expect(removed.pages.a1).toBe(world.pages.a1)
+})
+
+test("バックヤードの中のブックには置けず、バックヤードの中の物は指せない", () => {
+  const world = start()
+  const yard = {
+    ...world,
+    pages: { ...world.pages, w1: drawingPage("w1", { title: "w" }) },
+    folders: {
+      ...world.folders,
+      yard: { folderRole: "backyard", id: "yard", lineup: [{ kind: "book", id: "W" }] },
+      W: { folderRole: "book", id: "W", title: "W", lineup: [{ kind: "page", id: "w1" }] },
+    },
+  } as unknown as World
+  expect("result" in after(yard, "reference-add", { of: { kind: "page", id: "w1" } }, { book: "B" })).toBe(false)
+  expect("result" in after(yard, "reference-add", { of: { kind: "page", id: "a1" } }, { book: "W" })).toBe(false)
 })
