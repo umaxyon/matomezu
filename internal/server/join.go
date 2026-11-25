@@ -24,7 +24,7 @@ package server
 // 参加の id かセッション id を添えるときは、ブランチ（X-Matomezu-Branch。値は URL エンコードで、git が無い・リポジトリでない・ブランチに居ないなら空）も添える。
 // 呼び出しがモデルを運ぶ AI なら、モデル（X-Matomezu-Model。値は URL エンコード）も添える。AI のプログラムのプロセス id（X-Matomezu-Host）は join も含めていつも添える。
 //
-//	POST /api/ai/join  {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom", "as", "adeWorkspace"} 参加を頼む。{"ok", "participant"}、または弾いた理由 {"ok": false, "reason", "detail"}
+//	POST /api/ai/join  {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom", "as", "adeWorkspace", "aiUi"} 参加を頼む。{"ok", "participant"}、または弾いた理由 {"ok": false, "reason", "detail"}
 //
 // workroom は、AI が続けたい（またはその名前で始めたい）ワークルームの名前。その名前の受け入れ済みの参加者がいて、生きていれば断る（workroom-in-use）。
 // そうでなければ、名前を添えた参加の要求を出す。引き継ぐか新しく始めるかは、利用者が受け入れのダイアログで選ぶ。
@@ -97,6 +97,7 @@ type participantRecord struct {
 	Workroom    string `json:"workroom"`
 	RequestedAt string `json:"requestedAt"`
 	JoinedAt    string `json:"joinedAt"` // 受け入れた時点（受け入れ済みだけ）
+	AiUi        string `json:"aiUi"`     // AI の UI（分からなければ空。list_workrooms の行に添える）
 }
 
 // 参加者の state の値（core/def/subject.ts の PARTICIPANT_STATES）
@@ -129,6 +130,7 @@ type JoinRequest struct {
 	Workroom        string `json:"workroom"`
 	As              string `json:"as"`           // visitor なら、ビジターとしての参加（ワークルームと一緒には頼めない）
 	AdeWorkspace    string `json:"adeWorkspace"` // AI が動いている ADE のワークスペースの名前（MCP が clients/ade の部品に訊いて添える。分からなければ空）
+	AiUi            string `json:"aiUi"`         // 利用者がその会話と話している AI の UI（MCP が clients の部品で決めて添える。分からなければ空。値の組は参加の要求のアクションが確かめる）
 	Participant     string `json:"-"`
 	Host            string `json:"-"` // AI のプログラムのプロセス id（MCP が X-Matomezu-Host で添える。起こす知らせの宛て先。watch.go）
 	HostSession     string `json:"-"` // AI のプログラムが MCP を立てたときのセッション id（MCP が X-Matomezu-Host-Session で添える。起こす知らせの宛て先。watch.go）
@@ -203,6 +205,19 @@ func (h *Hub) putParticipantNotes() error {
 		return err
 	}
 	return h.store.PutParticipantNotes(user, body)
+}
+
+// askedArgs は、参加の要求のアクションに渡す、頼んだ AI についての引数（画面で受け入れる道と、合言葉で入り直す道で同じにする）。
+// ADE のワークスペース・望むワークルームの名前・ビジターかは、画面で受け入れる道だけが足す
+func (req JoinRequest) askedArgs() map[string]any {
+	args := map[string]any{"ai": req.AI, "model": req.Model, "env": req.Env, "link": req.Link}
+	if req.SessionName != "" {
+		args["sessionName"] = req.SessionName
+	}
+	if req.AiUi != "" {
+		args["aiUi"] = req.AiUi
+	}
+	return args
 }
 
 // AIJoin は AI の参加の頼みを受ける。同じ link か参加の id の受け入れ済みの参加者が既にあれば、その参加者のまま答える。要求中なら断る（セッションが終わっていれば消して受ける）
@@ -302,10 +317,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 			}
 		}
 	}
-	args := map[string]any{"ai": req.AI, "model": req.Model, "env": req.Env, "link": req.Link}
-	if req.SessionName != "" {
-		args["sessionName"] = req.SessionName
-	}
+	args := req.askedArgs()
 	if workspace != "" {
 		args["adeWorkspace"] = workspace
 	}

@@ -2,6 +2,7 @@
 import { expect, test } from "bun:test"
 import { NO_STATE } from "../../../web/src/core/def/plugin-state"
 import {
+  NO_AI_UI,
   NO_BRANCH,
   NO_MODEL,
   NO_OCCUPANT,
@@ -26,6 +27,7 @@ const row = (state: WorkroomRow["state"], admin = false, id = "a"): WorkroomRow 
   participant: NO_OCCUPANT,
   model: NO_MODEL,
   branch: NO_BRANCH,
+  aiUi: NO_AI_UI,
   calledAt: NOT_CALLED,
   requestedAt: NOT_REQUESTED,
   activity: "unknown",

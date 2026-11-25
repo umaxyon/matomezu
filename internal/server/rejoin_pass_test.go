@@ -76,3 +76,20 @@ func TestRejoinPassNeedsTheToken(t *testing.T) {
 		t.Fatalf("rejoin-pass = %s", got)
 	}
 }
+
+// 合言葉で入り直すときも、AI の UI は画面で受け入れる道と同じに参加者に残る
+func TestJoinWithARejoinPassKeepsTheAiUi(t *testing.T) {
+	s, _ := joinWorld(t, joinStore(t))
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "work", `,"sessionId":"S1"`), nil)
+	var first Joined
+	_ = json.Unmarshal([]byte(got), &first)
+	acceptRoom(t, s.URL, first.Participant, "ひよこ")
+	passFor(t, s.URL, "ひよこ", "L2")
+	asked, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L2", "work", `,"workroom":"ひよこ","sessionId":"S2","aiUi":"terminal"`), nil)
+	if !strings.Contains(asked, `"ok":true`) {
+		t.Fatalf("join = %s", asked)
+	}
+	if data, _ := call(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"aiUi":"terminal"`) {
+		t.Fatalf("the rejoined participant = %s", data)
+	}
+}

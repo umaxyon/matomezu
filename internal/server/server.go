@@ -54,7 +54,7 @@
 //	GET  /api/ai/catalog?ids=a&ids=b  MCP 公開ツールの actions が返す物。ids が無ければ {"version", "index", "warnings"}（一覧の版と目次。warnings は今あるときだけ）、あれば ids の物の全文 {"version", 表の名前: [全文]..., "unknown"}
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
 //	GET  /api/ai/join-rules  参加を頼む AI が読む手順。
-//	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom", "as", "adeWorkspace"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る）。{"ok", "participant"} か弾いた理由（join.go）
+//	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom", "as", "adeWorkspace", "aiUi"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る）。{"ok", "participant"} か弾いた理由（join.go）
 //	POST /api/ai/message     {"to", "host", "text"} AI 間メッセージを、ワークルーム to の参加者に送る（host はペアリングしたホストのホストエイリアス。受け取られるまで宛て先の常駐が持つ）。{"ok", "queued"} か断った理由（message.go）
 //	GET  /api/ai/workrooms?host=  送れるワークルームの一覧。host が無ければ、このホストの一覧とペアリングしたホストのホストエイリアス、あればそのホストの写し（peer_rooms.go の aiWorkrooms）
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた窓にブックを出す（Hub.Show）。

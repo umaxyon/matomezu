@@ -29,6 +29,9 @@ type mcpCmd struct {
 	DevDir string `kong:"-"`
 	// AdeWorkspace は、join のときに、AI が動いている ADE のワークスペースの名前を読む（clients/ade の部品を、AI のプログラムごとのコマンドが入れる。nil なら読まない）
 	AdeWorkspace func() string `kong:"-"`
+	// AiUi は、join のときに添える AI の UI（端末・Desktop など。clients の部品で決めた値を、AI のプログラムごとのコマンドが入れる。空なら添えない）。
+	// Session と同じく、その AI のプログラムのコマンドだけが入れる（ほかの AI の MCP が環境変数を読むと、受け継いだ値を取り違える）
+	AiUi string `kong:"-"`
 }
 
 func (c *mcpCmd) Run() error {
@@ -51,7 +54,7 @@ func (c *mcpCmd) Run() error {
 			}
 		}()
 	}
-	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, c.AdeWorkspace, host, session, sessionPid(c.SessionEndsWith, host), sessionPidSpace(c.SessionEndsWith), mcp.Meta{Session: c.MetaSession, Model: c.MetaModel}, strings.TrimSpace(devNotUsedNote(c.devDir())+" "+usedNote(h, s)))
+	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, mcp.Joining{Env: envName(), AdeWorkspace: c.AdeWorkspace, AiUi: c.AiUi}, gitBranch, host, session, sessionPid(c.SessionEndsWith, host), sessionPidSpace(c.SessionEndsWith), mcp.Meta{Session: c.MetaSession, Model: c.MetaModel}, strings.TrimSpace(devNotUsedNote(c.devDir())+" "+usedNote(h, s)))
 }
 
 // devDir は、配る版が開発のリポジトリの中で呼ばれたかを見るフォルダ

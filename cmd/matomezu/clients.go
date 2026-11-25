@@ -72,9 +72,9 @@ func (claudeMCPCmd) Run() error {
 	return c.Run()
 }
 
-// claudeMCP は、Claude Code の MCP の mcp コマンド（endsWith は --session-ends-with の値）。Claude Code が渡すセッション id を添える
+// claudeMCP は、Claude Code の MCP の mcp コマンド（endsWith は --session-ends-with の値）。Claude Code が渡すセッション id と、起動のされ方から決めた AI の UI を添える
 func claudeMCP(endsWith string) mcpCmd {
-	return mcpCmd{SessionEndsWith: endsWith, Session: os.Getenv(claudelaunch.SessionEnv), DevDir: claudeProjectDir(), AdeWorkspace: adeWorkspaceName}
+	return mcpCmd{SessionEndsWith: endsWith, Session: os.Getenv(claudelaunch.SessionEnv), DevDir: claudeProjectDir(), AdeWorkspace: adeWorkspaceName, AiUi: claudelaunch.AiUi(os.Getenv(claudelaunch.EntrypointEnv))}
 }
 
 // sessionEndsWith は、mcp --session-ends-with の値: たどった AI のプログラムの名前から、その AI の事情（choose）で決める（たどれなければ、空の名前で聞く）

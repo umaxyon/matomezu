@@ -760,3 +760,33 @@ func TestSweepDropsRequestsOfEndedSessions(t *testing.T) {
 		t.Fatalf("the dropped request was told: %+v", hub.wakeQueue[gone.Participant])
 	}
 }
+
+// AI の UI は MCP が join に添え、参加の要求のアクションが値の組を確かめる（組の外は断る）。受け入れても残り（ADE のワークスペースは消える）、
+// このホストの list_workrooms の行に添えて答える
+func TestJoinKeepsTheAiUiAndListWorkroomsTellsIt(t *testing.T) {
+	s, _ := joinWorld(t, joinStore(t))
+	if got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L0", "work", `,"aiUi":"phone"`), nil); strings.Contains(got, `"ok":true`) {
+		t.Fatalf("join with an unknown aiUi = %s", got)
+	}
+	if rows := table(t, s.URL); len(rows) != 0 {
+		t.Fatalf("a refused join changed participants: %+v", rows)
+	}
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "work", `,"sessionId":"S1","aiUi":"desktop","adeWorkspace":"W1"`), nil)
+	var joined Joined
+	if json.Unmarshal([]byte(got), &joined) != nil || !joined.OK {
+		t.Fatalf("join = %s", got)
+	}
+	acceptRoom(t, s.URL, joined.Participant, "ひよこ")
+	data, _ := call(t, "GET", s.URL+"/api/data", "", nil)
+	if !strings.Contains(data, `"aiUi":"desktop"`) || strings.Contains(data, `"adeWorkspace"`) {
+		t.Fatalf("the accepted participant = %s", data)
+	}
+	rooms, _ := call(t, "GET", s.URL+"/api/ai/workrooms", "", map[string]string{aiwire.ParticipantHeader: joined.Participant})
+	if !strings.Contains(rooms, `"name":"ひよこ"`) || !strings.Contains(rooms, `"aiUi":"desktop"`) {
+		t.Fatalf("workrooms = %s", rooms)
+	}
+	found, _ := call(t, "GET", s.URL+"/api/ai/workrooms?name="+url.QueryEscape("ひよこ"), "", map[string]string{aiwire.ParticipantHeader: joined.Participant})
+	if !strings.Contains(found, `"aiUi":"desktop"`) {
+		t.Fatalf("workrooms by name = %s", found)
+	}
+}
