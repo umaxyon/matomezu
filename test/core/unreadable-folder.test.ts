@@ -736,3 +736,23 @@ describe("書庫を整える: 足りないシステムフォルダを足し、�
     expect(folderOf(once, "u1")).toMatchObject({ title: "x" })
   })
 })
+
+test("読んだ書庫で指す先の無い参照エントリは、整えるときに並びから外す。在る物を指す参照は残す", () => {
+  const rows = worldRows([
+    testBook("A", "A", [drawingPage("a1")]),
+    testBook("B", "B", [drawingPage("b1", { title: "二" })]),
+  ])
+  const refs = [
+    { kind: "reference", id: "r1", of: { kind: "page", id: "a1" } },
+    { kind: "reference", id: "r2", of: { kind: "page", id: "gone" } },
+  ]
+  const withRefs: Rows = {
+    pages: rows.pages,
+    folders: rows.folders.map(f =>
+      (f as { id: string }).id === "B"
+        ? { ...(f as object), lineup: [...(f as { lineup: object[] }).lineup, ...refs] }
+        : f,
+    ),
+  }
+  expect(folderOf(settled(CORE_CATALOG, withRefs), "B").lineup.map(e => e.id)).toEqual(["b1", "r1"])
+})
