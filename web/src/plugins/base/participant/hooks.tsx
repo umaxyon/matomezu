@@ -5,8 +5,8 @@ import type { WorkKey } from "../../../core/folders"
 import { readerOf, sourceOf } from "../../../core/record-source"
 import type { Records } from "../../../core/records"
 import { isParticipantAlive } from "../../../core/settings"
-import type { ParticipantLive } from "../../../store/state"
-import { useMatomezuState } from "../../../ui/store-context"
+import type { ParticipantLive, PendingMessage } from "../../../store/state"
+import { useInstance, useMatomezuState } from "../../../ui/store-context"
 import { useActions, useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
@@ -21,7 +21,7 @@ import {
   type Workroom,
 } from "."
 import { workroomActivityOf } from "./activity"
-import { adminRoomOf, type VisitorRow, visitorRows, type WorkroomRow, workroomRows } from "./rows"
+import { adminRoomOf, NO_OCCUPANT, type VisitorRow, visitorName, visitorRows, type WorkroomRow, workroomRows } from "./rows"
 import { ownBookPagesOf } from "./workdesks"
 import { type FoundWorkerBook, foundWorkerBookOf, NO_WORKER_BOOK, workerBookOf, workerBookReadsOf } from "./worker-book"
 import { NOT_CALLED } from "./workroom"
@@ -45,6 +45,31 @@ export const useParticipantLive = (): Readonly<Record<string, ParticipantLive>> 
 
 // 準備中でない参加者の id
 export const useParticipantReady = (): readonly string[] => useMatomezuState(s => s.participantReady)
+
+// 承認待ちの AI 間メッセージ（常駐が知らせた並び）
+export const usePendingMessages = (): readonly PendingMessage[] => useMatomezuState(s => s.pendingMessages)
+
+// 受け手の参加者 receiver の承認待ちの最初の 1 通（無ければ undefined）
+export const usePendingMessageFor = (receiver: string): PendingMessage | undefined =>
+  useMatomezuState(s => s.pendingMessages.find(m => m.receiver === receiver))
+
+// 承認待ちの 1 通（id）。承認・キャンセルで消えれば undefined
+export const usePendingMessageById = (id: string): PendingMessage | undefined =>
+  useMatomezuState(s => s.pendingMessages.find(m => m.id === id))
+
+// 承認・キャンセルを常駐に頼む（答えは知らせでも入る）。頼めなければ投げる
+export const useAnswerMessage = (): ((id: string, answer: "approve" | "cancel") => Promise<void>) =>
+  useInstance().answerMessage
+
+// 参加者の id の、画面に出す名前（ワークルームの参加者はワークルームの名前、ビジターは呼び名。見つからなければ id）
+export function useParticipantLabel(id: string): string {
+  const rooms = useWorkroomRows()
+  const visitors = useVisitorRows()
+  const room = rooms.find(r => r.participant !== NO_OCCUPANT && r.participant.id === id)
+  if (room) return room.room.name
+  const visitor = visitors.find(r => r.participant.id === id)
+  return visitor ? visitorName(visitor.participant) : id
+}
 
 // 参加者が生きているかを決める関数（最後に呼ばれた時刻と今の時刻から。参加の有効時間の設定で決まる）
 // （呼ばれていなければ NOT_CALLED）

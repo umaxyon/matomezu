@@ -42,6 +42,7 @@ const store = createMatomezu({
   unreadableHost: { purge: id => client.purgeUnreadable(id), movedIfOff: ids => client.movedIfOff(ids) },
   updateHost: { check: () => client.checkUpdate(), ask: workroom => client.askUpdate(workroom) },
   hostsHost: { ask: request => client.askHosts(request) },
+  messageHost: { answer: (id, answer) => client.answerMessage(id, answer) },
   ...browserWindowIo(),
 })
 // 取り込んだ追加プラグインは、matomezu 本体の core/catalog.ts の型に入らないので、型では確かめず、台帳アセンブルで確かめる（見た目と、置いた UI マッピングも）。
@@ -67,6 +68,10 @@ const layout = placed.layout
 const screenWarnings = placed.warnings
 client.reportWarnings([...screenWarnings, ...shownLayout(layout, store.plugins, assembleUi(store.plugins)).warnings])
 client.connect(store)
+// 開発専用: ?dev-pending-fixture=<受け手の参加者 id> を付けたときだけ、承認待ちのダミーを流す（常駐の pending-messages の代わり。Go 側ができるまでの仮）
+const devPendingReceiver = new URLSearchParams(location.search).get("dev-pending-fixture")
+if (devPendingReceiver !== null)
+  void import("./host-client/dev-pending-fixture").then(m => m.applyDevPendingFixture(store, devPendingReceiver))
 // 窓を開いたときのアクション（窓の言語を、まだ選ばれていなければ設定に書くなど）を行う
 store.startWindow()
 // 画面の場所を URL と行き来させる（読み直しても同じ所が開き、ブラウザの戻る・進むで移動を戻る）

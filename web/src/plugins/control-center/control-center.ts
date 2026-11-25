@@ -92,3 +92,6 @@ export const WORKROOM_LEAVE_DIALOG = kit.defineDialogWith<{ workroom: string }>(
 
 // ビジターを外す確認のダイアログ。外すビジターの参加者の id を受け取る
 export const VISITOR_LEAVE_DIALOG = kit.defineDialogWith<{ participant: string }>()({ id: "visitor-leave" })
+
+// 承認待ちの AI 間メッセージの確認のダイアログ（承認・キャンセル）。そのメッセージの id を受け取る
+export const PENDING_MESSAGE_DIALOG = kit.defineDialogWith<{ message: string }>()({ id: "pending-message" })
