@@ -1,6 +1,7 @@
 package peer
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -55,8 +56,11 @@ func TestALongNameIsCutAtACharacter(t *testing.T) {
 	}
 }
 
-// 同じマシンの 2 つの Beacon が、マルチキャストの折り返しで互いを見つけ、閉じると「いなくなる」が届く
+// 同じマシンの 2 つの Beacon が、マルチキャストの折り返しで互いを見つけ、閉じると「いなくなる」が届く（LAN に出るので MATOMEZU_TEST_LAN=1 のときだけ）
 func TestTwoBeaconsFindEachOther(t *testing.T) {
+	if os.Getenv("MATOMEZU_TEST_LAN") != "1" {
+		t.Skip("goes out to the LAN: set MATOMEZU_TEST_LAN=1")
+	}
 	if len(multicastInterfaces()) == 0 {
 		t.Skip("no multicast interface")
 	}

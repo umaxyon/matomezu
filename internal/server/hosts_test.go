@@ -13,7 +13,7 @@ import (
 	"github.com/umaxyon/matomezu/internal/peer"
 )
 
-// testHost は、ホストどうしの入口を hub に用意する（全部の番地で待つので、テストは 127.0.0.1 からつなぐ）。覚えたポートは *saved に入る
+// testHost は、ホストどうしの入口を hub に用意する（127.0.0.1 だけで待つ）。覚えたポートは *saved に入る
 func testHost(t *testing.T, h *Hub, port int, saved *int) *peer.Identity {
 	t.Helper()
 	id, err := peer.LoadOrCreate(filepath.Join(t.TempDir(), "host.key"))
@@ -25,6 +25,7 @@ func testHost(t *testing.T, h *Hub, port int, saved *int) *peer.Identity {
 		Port:       port,
 		SavePort:   func(p int) error { *saved = p; return nil },
 		OSHostName: "desk",
+		Loopback:   true,
 	})
 	t.Cleanup(h.CloseHostEntrance)
 	return id
@@ -124,7 +125,7 @@ func TestTheHostEntranceFollowsTheSetting(t *testing.T) {
 
 // 覚えたポートがほかに使われていれば、取り直さずに開かず、そのポートと port-in-use を見せる。空けば、入れ直して同じ番号で開く
 func TestTheHostEntranceDoesNotTakeAnotherPortWhenTheKeptOneIsTaken(t *testing.T) {
-	taken, err := net.Listen("tcp", ":0")
+	taken, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +213,7 @@ func TestTheHostEntranceStaysClosedAfterCloseHostEntrance(t *testing.T) {
 
 // 覚えたポートが使われているとき、利用者が選び直すと、空いている番号で開いてその番号を覚える。使われていなければ断る
 func TestRepickingTheHostPortOpensOnAFreeOne(t *testing.T) {
-	taken, err := net.Listen("tcp", ":0")
+	taken, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
