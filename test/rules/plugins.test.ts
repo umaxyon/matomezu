@@ -1,7 +1,7 @@
 // 「プラグイン」の決まりを見張る: プラグインの中のファイルの役割、base の utils、core/catalog.ts への書き足し、見本、ステージ・スクリーンを id で名指すファイル
 import { expect, test } from "bun:test"
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
-import { basename, dirname, join, normalize, relative, resolve } from "node:path"
+import { basename, dirname, join, normalize, resolve } from "node:path"
 import { WEB_ENTRIES } from "../../scripts/web-build"
 import {
   ADDED,
@@ -14,7 +14,9 @@ import {
   plugins,
   ROOT,
   readsOf,
+  relative,
   SRC,
+  slashed,
   sources,
   specOwner,
   specs,
@@ -80,7 +82,7 @@ test("base の utils は、base の utils の外のファイルを読まない",
     .filter(f => f.rel.startsWith("plugins/base/utils/"))
     .flatMap(f =>
       [...f.text.matchAll(/from\s*["'](\.\.\/[^"']+)["']/g)]
-        .map(m => normalize(join(dirname(f.rel), m[1]!)))
+        .map(m => slashed(normalize(join(dirname(f.rel), m[1]!))))
         .filter(t => t.startsWith("plugins/base/") && !t.startsWith("plugins/base/utils/"))
         .map(t => `${f.rel} → ${t}`),
     )

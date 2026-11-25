@@ -1,7 +1,7 @@
 // 「構造とクレート」の決まりを見張る: クレートと Go のパッケージが読んでよいもの、状態を変える所、ホストとブラウザに触る所、error
 import { describe, expect, test } from "bun:test"
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
-import { basename, dirname, join, relative, resolve } from "node:path"
+import { basename, dirname, join, resolve } from "node:path"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import {
   ALLOWED,
@@ -18,6 +18,7 @@ import {
   ROOT,
   ROOT_FILES,
   readsOf,
+  relative,
   SRC,
   sources,
   topOf,

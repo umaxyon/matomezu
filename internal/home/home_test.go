@@ -61,8 +61,13 @@ func TestSecondLockFails(t *testing.T) {
 	if up, _ := h.Running(); up {
 		t.Fatal("Running() = true after unlock")
 	}
-	if _, err := h.Lock(); err != nil {
+	again, err := h.Lock()
+	if err != nil {
 		t.Fatalf("Lock() after unlock = %v", err)
+	}
+	// 鍵を放す（Windows は開いたままのファイルを消せず、TempDir の後始末が落ちる）
+	if err := again.Unlock(); err != nil {
+		t.Fatal(err)
 	}
 }
 
