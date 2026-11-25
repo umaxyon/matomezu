@@ -87,14 +87,15 @@ type HostPairing struct {
 
 // PeerLive は、ペアリングしたホストの、常駐だけが持つ様子
 type PeerLive struct {
-	HostID    string    `json:"hostId"`
-	Label     string    `json:"label"` // ホストエイリアス（labelsLocked。届く行・send_message の host・画面に同じ物を使う）
-	State     PeerState `json:"state"`
-	LastSeen  string    `json:"lastSeen,omitempty"` // 最後につながった時刻
-	Addr      string    `json:"addr,omitempty"`     // 待っている所（番地:ポート）
-	Name      string    `json:"name,omitempty"`     // 相手の今のホスト名
-	UserName  string    `json:"userName,omitempty"`
-	Workrooms []RoomRow `json:"workrooms,omitempty"` // 相手のワークルームの一覧の写し（つながっていて、写しのあるときだけ）
+	HostID      string    `json:"hostId"`
+	Label       string    `json:"label"` // ホストエイリアス（labelsLocked。届く行・send_message の host・画面に同じ物を使う）
+	State       PeerState `json:"state"`
+	LastSeen    string    `json:"lastSeen,omitempty"`    // 最後につながった時刻
+	Addr        string    `json:"addr,omitempty"`        // 待っている所（番地:ポート）
+	ReverseOnly bool      `json:"reverseOnly,omitempty"` // 相手が張ったリバース接続でだけつながっている（相手の待っている所へは届かない）
+	Name        string    `json:"name,omitempty"`        // 相手の今のホスト名
+	UserName    string    `json:"userName,omitempty"`
+	Workrooms   []RoomRow `json:"workrooms,omitempty"` // 相手のワークルームの一覧の写し（つながっていて、写しのあるときだけ）
 }
 
 // newPeerLive は、まだつながっていない、ペアリングしたホスト id の様子
@@ -144,6 +145,10 @@ type peerState struct {
 	dropping map[string]bool             // 常駐が消しているペアリングしたホスト（相手に知らせない）
 	beacon   *peer.Beacon
 	kick     chan struct{}
+	// リバース接続（peer_reverse.go）
+	reverseIn  map[string]*http.Client // ペアリングしたホスト id → 相手が張って、こちらが預かった接続の上で頼むクライアント
+	reverseOut map[string]*reverseDial // ペアリングしたホスト id → こちらが相手へ張り続ける物
+	reverseGen int                     // 入口を閉じるたびに 1 つ進める（閉じる前に受け始めたリバース接続を、閉じたあとで預からない）
 	// ワークルームの一覧（peer_rooms.go）
 	rooms     localRooms           // 自分の一覧
 	copies    map[string]*roomCopy // ペアリングしたホスト id → 相手の一覧の写し
@@ -155,6 +160,7 @@ type peerState struct {
 func newPeerState() *peerState {
 	return &peerState{
 		incoming: map[string]*incomingPairing{}, live: map[string]*PeerLive{}, known: map[string]pairedHostRecord{}, dropping: map[string]bool{}, kick: make(chan struct{}, 1),
+		reverseIn: map[string]*http.Client{}, reverseOut: map[string]*reverseDial{},
 		rooms:  localRooms{epoch: newEnvelopeID(), rows: map[string]roomEntry{}},
 		copies: map[string]*roomCopy{}, fetching: map[string]int{}, roomsKick: make(chan struct{}, 1),
 	}
@@ -292,21 +298,27 @@ func (h *Hub) followPeers(e *hostEntrance) {
 	type tell struct {
 		r    pairedHostRecord
 		addr string
+		in   *http.Client // 相手が張ったリバース接続（あれば、その上で知らせてから閉じる）
 	}
 	var told []tell
+	var dropped []*http.Client // 相手に知らせずに消すホストが張っていたリバース接続（閉じる）
 	for id, r := range ps.known {
 		if _, still := now[id]; still {
 			continue
 		}
 		if ps.dropping[id] {
 			delete(ps.dropping, id)
+			if in := ps.reverseIn[id]; in != nil {
+				dropped = append(dropped, in)
+			}
 		} else {
 			addr := r.Addr
 			if l := ps.live[id]; l != nil && l.Addr != "" {
 				addr = l.Addr
 			}
-			told = append(told, tell{r, addr})
+			told = append(told, tell{r, addr, ps.reverseIn[id]})
 		}
+		delete(ps.reverseIn, id)
 		delete(ps.live, id)
 		delete(ps.copies, id)
 	}
@@ -316,32 +328,36 @@ func (h *Hub) followPeers(e *hostEntrance) {
 	h.mu.Lock()
 	h.followPeerLines(known, asUser)
 	h.mu.Unlock()
+	h.followReverse(e)
+	for _, in := range dropped {
+		peer.CloseReverse(in)
+	}
 	for _, t := range told {
-		go h.tellUnpaired(e, t.r, t.addr)
+		go h.tellUnpaired(e, t.r, t.addr, t.in)
 	}
 	h.tellPeers()
 }
 
-// tellUnpaired は、利用者が解いたペアリングを、相手の待っている所 addr に知らせる（届かなくても、こちらは消したまま。相手は次につないできたときに not-paired で知る）
-func (h *Hub) tellUnpaired(e *hostEntrance, r pairedHostRecord, addr string) {
-	if addr == "" {
+// tellUnpaired は、利用者が解いたペアリングを相手に知らせる: 相手が張ったリバース接続 in があればその上で（知らせてから閉じる）、無ければ相手の待っている所 addr へ
+// （届かなくても、こちらは消したまま。相手は次につないできたときに not-paired で知る）
+func (h *Hub) tellUnpaired(e *hostEntrance, r pairedHostRecord, addr string, in *http.Client) {
+	c, base := peerClient(e, r.HostID), "https://"+addr
+	if in != nil {
+		defer peer.CloseReverse(in)
+		if peer.ReverseOpen(in) {
+			c, base = in, reverseBase
+		}
+	}
+	if base == "https://" {
 		fmt.Fprintln(os.Stderr, "hosts: could not tell", r.HostID[:16], "it was unpaired: where it listens is not known")
 		return
 	}
-	c := peerClient(e, r.HostID)
-	resp, err := c.Post("https://"+addr+"/peer/v1/unpair", "application/json", nil)
+	resp, err := c.Post(base+"/peer/v1/unpair", "application/json", nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "hosts: could not tell", r.HostID[:16], "it was unpaired:", err)
 		return
 	}
 	resp.Body.Close()
-}
-
-// peerAddr は、ペアリングしたホストへつなぐ所: 確かめた待っている所、無ければ利用者が入れた所
-func (h *Hub) peerAddr(e *hostEntrance, r pairedHostRecord) string {
-	e.peers.mu.Lock()
-	defer e.peers.mu.Unlock()
-	return e.peers.addrLocked(r)
 }
 
 // addrLocked は、ペアリングしたホスト r の待っている所（つながったときに聞いた物。無ければ覚えた物）（ps.mu を持って呼ぶ）
@@ -369,9 +385,9 @@ func (h *Hub) HostPeers() HostPeers {
 			l = *x
 		}
 		l.Label = labels[id]
-		l.Workrooms = nil
+		l.Workrooms, l.ReverseOnly = nil, false
 		if l.State == PeerConnected {
-			l.Workrooms = ps.roomsOfLocked(id)
+			l.Workrooms, l.ReverseOnly = ps.roomsOfLocked(id), ps.reverseOnlyLocked(id)
 		}
 		out.Paired = append(out.Paired, l)
 	}

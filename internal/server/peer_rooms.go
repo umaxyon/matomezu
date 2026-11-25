@@ -227,20 +227,20 @@ func (h *Hub) refreshRooms(e *hostEntrance) {
 	if len(l.history) > roomHistoryMax {
 		l.history = l.history[1:]
 	}
-	type target struct{ hostID, addr string }
-	var targets []target
-	for id, r := range ps.known {
+	var targets []string
+	for id := range ps.known {
 		if lv := ps.live[id]; lv != nil && lv.State == PeerConnected {
-			if addr := ps.addrLocked(r); addr != "" {
-				targets = append(targets, target{id, addr})
-			}
+			targets = append(targets, id)
 		}
 	}
 	ps.mu.Unlock()
 	body := mustJSON(d)
-	for _, t := range targets {
-		c := peerClient(e, t.hostID)
-		resp, err := c.Post("https://"+t.addr+"/peer/v1/workrooms", "application/json", bytes.NewReader(body))
+	for _, id := range targets {
+		c, base, ok := h.peerTarget(e, id)
+		if !ok {
+			continue
+		}
+		resp, err := c.Post(base+"/peer/v1/workrooms", "application/json", bytes.NewReader(body))
 		if err != nil {
 			continue
 		}
@@ -369,18 +369,14 @@ func (h *Hub) refetchRooms(e *hostEntrance, hostID string) {
 	}
 	for {
 		ps.fetching[hostID] = fetchBusy
-		r, paired := ps.known[hostID]
-		addr := r.Addr
-		if l := ps.live[hostID]; l != nil && l.Addr != "" {
-			addr = l.Addr
-		}
+		_, paired := ps.known[hostID]
 		epoch, since := "", 0
 		if c := ps.copies[hostID]; c != nil {
 			epoch, since = c.epoch, c.version
 		}
 		ps.mu.Unlock()
-		if paired && addr != "" {
-			h.fetchRooms(e, hostID, addr, epoch, since)
+		if paired {
+			h.fetchRooms(e, hostID, epoch, since)
 		}
 		ps.mu.Lock()
 		if ps.fetching[hostID] != fetchAgain {
@@ -399,9 +395,12 @@ const (
 )
 
 // fetchRooms は、相手の取り直しの口に頼み、答えで写しを直して窓に知らせる
-func (h *Hub) fetchRooms(e *hostEntrance, hostID, addr, epoch string, since int) {
-	c := peerClient(e, hostID)
-	resp, err := c.Get("https://" + addr + "/peer/v1/workrooms?epoch=" + epoch + "&since=" + strconv.Itoa(since))
+func (h *Hub) fetchRooms(e *hostEntrance, hostID, epoch string, since int) {
+	c, base, ok := h.peerTarget(e, hostID)
+	if !ok {
+		return
+	}
+	resp, err := c.Get(base + "/peer/v1/workrooms?epoch=" + epoch + "&since=" + strconv.Itoa(since))
 	if err != nil {
 		return
 	}

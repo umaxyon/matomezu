@@ -79,6 +79,32 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 参加者の行の、番号の行と照準を横に並べる */
+.numberRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+/* 番号の行の右隣の照準（押すとボードで鳥を出す。押せなければ薄くする） */
+.visitMark {
+  display: flex;
+  flex: none;
+  padding: 1px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--skin-accent);
+  cursor: pointer;
+}
+.visitMark:hover:not(:disabled) {
+  background: var(--skin-btn-hover);
+}
+.visitMark:disabled {
+  color: var(--skin-text-muted);
+  opacity: 0.45;
+  cursor: inherit;
+}
 /* 参加者の行の、本を頭に付けた番号の行（押すとワーカーブックを開く。ページが無ければ本を薄くして押せない） */
 .bookLine {
   display: flex;

@@ -124,7 +124,7 @@ test("担当の 2 人目のチケットでも、作業中のレーンへ入れ�
     ).ok,
   ).toBe(true)
   await expect(task).toContainText("立ち寄り先")
-  await page.getByRole("button", { name: "ボードで見る" }).click()
+  await task.getByRole("button", { name: "ボードで見る" }).click()
 
   // タスクボードが出て、鳥が来て、チケットカードに色が付く
   const card = page.locator(`[data-card="${ticket}"]`)
@@ -134,6 +134,57 @@ test("担当の 2 人目のチケットでも、作業中のレーンへ入れ�
   // 鳥が飛び去ると、鳥も色も消える
   await expect(page.locator("[data-card-visit]")).toHaveCount(0, { timeout: 10_000 })
   await expect(card).toHaveAttribute("data-lit", "false")
+})
+
+test("書庫の画面で、参加者の行の照準を押すと、プロジェクトの画面に替わり、鳥がそのワークルームのカレントチケットのチケットカードに立ち寄る", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  if ((await storedRecords<Row>(page.request, "@matomezu/taskboard:project")).length === 0)
+    expect((await aiPerform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
+  const first = (await storedRecords<Row>(page.request, "@matomezu/taskboard:project"))[0]!
+  const lane = first.lanes!.find(l => l.kind === "lane")!.id
+  const marked = first.lanes!.map(l => (l.kind === "lane" && l.id === lane ? { ...l, working: true } : l))
+  const updated = await page.request.post("/api/perform", {
+    data: {
+      actions: [{ action: "@matomezu/taskboard:project-update", args: { lanes: marked }, on: { record: first.id } }],
+    },
+  })
+  expect(((await updated.json()) as { ok: boolean }).ok).toBe(true)
+  const added = await aiPerform(page, {
+    action: "@matomezu/taskboard:ticket-add",
+    args: { project: first.id, name: "照準の行き先" },
+  })
+  const ticket = added.result!.ticket!
+  // 利用者が足した空のワークルームを担当にして、作業中のレーンへ入れる（そのワークルームのカレントチケットになる）
+  const roomAdded = await page.request.post("/api/perform", {
+    data: {
+      actions: [{ action: "@matomezu/base:workroom-add", args: { name: `照準${Date.now() % 1e6}`, bird: "inko" } }],
+    },
+  })
+  const room = ((await roomAdded.json()) as { result?: { workroom: string } }).result!.workroom
+  expect(
+    (
+      await aiPerform(page, {
+        action: "@matomezu/taskboard:ticket-update",
+        args: { assignees: [room], lane },
+        on: { record: ticket },
+      })
+    ).ok,
+  ).toBe(true)
+  const row = page.locator(`[data-workroom="${room}"]`)
+  await expect(row).toContainText("照準の行き先")
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  // プロジェクトの画面は、書庫の画面の間は描いたまま隠れている（inert）
+  const card = page.locator(`[data-card="${ticket}"]`)
+  const pane = card.locator("xpath=ancestor::*[@data-shown][1]")
+  await expect(pane).toHaveAttribute("data-shown", "false")
+  await row.locator("[data-visit-mark]").click()
+
+  await expect(pane).toHaveAttribute("data-shown", "true")
+  await expect(card).toBeVisible()
+  await expect(page.locator("[data-card-visit]")).toBeVisible({ timeout: 10_000 })
+  await expect(card).toHaveAttribute("data-lit", "true")
 })
 
 test("レーンのタイトル帯をドラッグすると、レーンが左右に入れ替わり、離す前は入るすき間に線が出る", async ({ page }) => {

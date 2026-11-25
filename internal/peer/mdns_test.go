@@ -89,13 +89,22 @@ func TestTwoBeaconsFindEachOther(t *testing.T) {
 			}
 		}
 	}
+	// 同じ LAN で入口を開いている本物の常駐も見えるので、テストのホストだけを見る
+	ours := func() (f []Sighting) {
+		for _, s := range b.Found() {
+			if s.HostID == strings.Repeat("a", 64) {
+				f = append(f, s)
+			}
+		}
+		return f
+	}
 	wait(func(e event) bool { return e.s.HostID == strings.Repeat("a", 64) && !e.gone && e.s.Port == 1 })
-	if f := b.Found(); len(f) != 1 || f[0].Name != "a" {
+	if f := ours(); len(f) != 1 || f[0].Name != "a" {
 		t.Fatalf("found %+v", f)
 	}
 	a.Close()
 	wait(func(e event) bool { return e.s.HostID == strings.Repeat("a", 64) && e.gone })
-	if f := b.Found(); len(f) != 0 {
+	if f := ours(); len(f) != 0 {
 		t.Fatalf("found after goodbye %+v", f)
 	}
 }

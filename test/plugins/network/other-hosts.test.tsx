@@ -278,3 +278,24 @@ test("常駐間通信プロトコルの版が合わないホストは、つな�
   peers([{ hostId: B, label: "win-lan", state: "connected" }])
   expect(screen.queryByText(/matomezu の版が合いません/)).toBeNull()
 })
+
+test("このホストの様子の「待っている所」: 相手が張ったリバース接続でだけつながっていれば「相手からつないでいる」、こちらから届けば番地", () => {
+  const { store, connect, peers } = open()
+  connect()
+  act(() => {
+    store.actions.perform("@matomezu/network:paired-host-add", {
+      hostId: B,
+      nameAtPairing: "wsl-nat",
+      userNameAtPairing: "taro",
+      addr: "",
+    })
+  })
+  peers([{ hostId: B, label: "wsl-nat", state: "connected", addr: "192.168.11.11:7240", reverseOnly: true }])
+  fireEvent.click(screen.getByRole("button", { name: /wsl-nat$/ }))
+  fireEvent.click(screen.getByRole("button", { name: "このホストの様子" }))
+  const dialog = () => screen.getByRole("dialog", { name: "このホストの様子" })
+  expect(within(dialog()).getByText("相手からつないでいる")).toBeTruthy()
+  expect(within(dialog()).queryByText("192.168.11.11:7240")).toBeNull()
+  peers([{ hostId: B, label: "wsl-nat", state: "connected", addr: "192.168.11.11:7240", reverseOnly: false }])
+  expect(within(dialog()).getByText("192.168.11.11:7240")).toBeTruthy()
+})
