@@ -77,6 +77,8 @@ test("プロジェクトのチケットプレフィクスを変えると、そ�
   expect(done.ok).toBe(true)
   expect(titleIn(done, "b1")).toBe("X-0001")
   expect(titleIn(done, "b2")).toBeUndefined()
+  // 名前を変えたブックは、常駐が編集ロックを確かめる行に入る
+  expect(done.ok && done.followedRows).toEqual(["b1"])
 })
 
 test("プレフィクスの変わらないプロジェクトの変わりでは、ワーカーブックの名前を変えない", () => {

@@ -69,7 +69,7 @@ export type PerformedIn =
       aiMessages?: readonly AIMessage[] // レコードが対象のアクションが返した、送る AI 間メッセージの並び（常駐がバルクの書き込みと一緒に送る）
       // records のうち、フォローステップが応じて変えたレコード（core/follow.ts。常駐は、行う者に関わらず、これが編集ロックに当たれば断る）
       followed?: readonly { subject: string; id: string }[]
-      // フォローステップがバックヤードの中で消したページ・フォルダと、アノテーションを消したページ（常駐は、行う者に関わらず、これが編集ロックに当たれば断る）
+      // フォローステップがバックヤードの中で消したページ・フォルダと、名前を変えたブックと、アノテーションを消したページ（常駐は、行う者に関わらず、これが編集ロックに当たれば断る）
       followedRows?: readonly string[]
       hostMessages?: readonly HostMessage[] // フォローステップが返した、送る常駐メッセージの並び（常駐がバルクの書き込みと一緒に送る）
     }
@@ -364,8 +364,15 @@ function performRecord(
   }
   const removed = (rows: Readonly<Record<string, unknown>> = {}) =>
     Object.entries(rows).flatMap(([id, r]) => (r === REMOVED ? [id] : []))
+  const retitled = (rows: TableChanges["folders"] = {}) =>
+    Object.entries(rows).flatMap(([id, r]) => (r !== REMOVED && r.folderRole === "book" ? [id] : []))
   const yardRows = [
-    ...new Set([...Object.keys(yard.annotations), ...removed(yard.changes?.pages), ...removed(yard.changes?.folders)]),
+    ...new Set([
+      ...Object.keys(yard.annotations),
+      ...removed(yard.changes?.pages),
+      ...removed(yard.changes?.folders),
+      ...retitled(yard.changes?.folders),
+    ]),
   ]
   return {
     ok: true,
