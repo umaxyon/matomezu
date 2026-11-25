@@ -56,3 +56,16 @@ test("参照エントリを消して戻すと、元の所に戻る", async () =>
   await settled()
   expect(lineup("b2")).toEqual(before)
 })
+
+test("指す先のページを消した書き込みは、参照エントリが消えたブックの履歴にも入り、そちらで戻しても両方が戻る", async () => {
+  const { perform, lineup, bookUndo } = setup()
+  perform("@matomezu/base:reference-add", { of: { kind: "page", id: "p1" } }, { book: "b2" })
+  await settled()
+  const before = lineup("b2")
+  expect(perform("@matomezu/base:page-remove", { page: "p1" }, { book: "b1" }).ok).toBe(true)
+  await settled()
+  expect(bookUndo("b2").ok).toBe(true)
+  await settled()
+  expect(lineup("b1")).toContain("p1")
+  expect(lineup("b2")).toEqual(before)
+})
