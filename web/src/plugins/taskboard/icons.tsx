@@ -70,8 +70,8 @@ export const UserIcon = () => (
 )
 
 // 照準（ボードで見る）
-export const TargetIcon = () => (
-  <LineIcon size={16} stroke={1.8}>
+export const TargetIcon = ({ size = 16 }: { size?: number }) => (
+  <LineIcon size={size} stroke={1.8}>
     <circle cx="12" cy="12" r="7" />
     <circle cx="12" cy="12" r="1.5" />
     <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
