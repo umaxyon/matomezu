@@ -32,7 +32,7 @@ func ModWakes(entrypoint string) bool {
 	return entrypoint == desktopEntrypoint
 }
 
-// AiUi は、起動のされ方 entrypoint から、利用者がその会話と話している AI の UI（join で常駐に添える値。base の参加者が値の組を持つ）を返す。
+// AiUi は、起動のされ方 entrypoint から、利用者がその会話と話している AI の UI（join で常駐に添える値）を返す。
 // 端末の会話は terminal、Claude Desktop の Code タブは desktop。ほか（-p・SDK など）は分からないので空（添えない）
 func AiUi(entrypoint string) string {
 	switch entrypoint {

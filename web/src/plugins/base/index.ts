@@ -200,6 +200,7 @@ import {
   PARTICIPANT_CANCEL,
   PARTICIPANT_DECLINE,
   PARTICIPANT_JOIN_DIALOG,
+  PARTICIPANT_REJOIN,
   PARTICIPANT_REMOVE,
   PARTICIPANT_REQUEST,
   PARTICIPANT_WELCOME_DIALOG,
@@ -359,9 +360,8 @@ export { itemMinimapMarks, type MinimapMark, NOT_DRAWN } from "./minimap"
 export type { PageProblem } from "./pages"
 export { addPageIn, type PageFieldsWay, pageFieldsWay } from "./pages"
 export {
-  AI_UI_LABELS,
-  type AiUi,
   adminWorkroom,
+  aiUiText,
   type FoundWorkerBook,
   isAdminActor,
   JOINED_MESSAGE,
@@ -558,6 +558,7 @@ export const BASE = defineBuiltin(
       MARK_REMOVE,
       PRINT_PREVIEW_UPDATE,
       PARTICIPANT_REQUEST,
+      PARTICIPANT_REJOIN,
       PARTICIPANT_ACCEPT,
       PARTICIPANT_DECLINE,
       PARTICIPANT_CANCEL,
@@ -865,6 +866,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:mark-remove": typeof MARK_REMOVE
     "@matomezu/base:print-preview-update": typeof PRINT_PREVIEW_UPDATE
     "@matomezu/base:participant-request": typeof PARTICIPANT_REQUEST
+    "@matomezu/base:participant-rejoin": typeof PARTICIPANT_REJOIN
     "@matomezu/base:participant-accept": typeof PARTICIPANT_ACCEPT
     "@matomezu/base:participant-decline": typeof PARTICIPANT_DECLINE
     "@matomezu/base:participant-cancel": typeof PARTICIPANT_CANCEL

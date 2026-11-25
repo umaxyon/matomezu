@@ -9,6 +9,7 @@ import (
 // JoinActions は、AI が参加を頼むときに行うアクションの id（参加者を作る Participant）と、要求をキャンセルとして終えるアクションの id（Cancel。無ければ空）
 type JoinActions struct {
 	Participant string `json:"participant"`
+	Rejoin      string `json:"rejoin,omitempty"` // 受け入れ済みの参加者が参加を頼み直したときに、その参加者のレコードに行う（無ければ空）
 	Cancel      string `json:"cancel,omitempty"`
 }
 

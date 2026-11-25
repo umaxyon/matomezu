@@ -33,6 +33,9 @@ export interface Subjects {
 export const BASE_TARGETS: readonly string[] = ["library", "book", "page", "settings", "annotations"]
 export type ActionTarget = keyof Subjects | SubjectId
 
+// AI が参加を頼むときに matomezu が行う役（アクションの定義の runsWhenAIJoins の値）: 参加者を作る・受け入れ済みの参加者の頼み直しを書く
+export type JoinRole = "make-participant" | "rejoin-participant"
+
 // 対象の定義の種類 T のレコード 1 件（形は定義の record）
 export type RecordOf<T extends string> = T extends keyof SubjectTable
   ? SubjectTable[T] extends { record: infer R extends z.ZodType }
@@ -418,8 +421,9 @@ export interface ActionDef<
   // 利用者トリガートークのときに、matomezu がアノテーションのある読めるページごとに、利用者として行う（引数は {}。アノテーションが対象のアクションだけが書ける）
   runsWhenUserTalks?: T extends "annotations" ? true : never
   // AI が参加を頼むとき（MCP の join）に、matomezu が行う役。"make-participant" は参加者を作る（参加者の id を result の participant で返す）。
-  // 1 つのアクションだけが名乗る。対象の定義の種類が対象のアクションだけが書ける
-  runsWhenAIJoins?: T extends SubjectId ? "make-participant" : never
+  // "rejoin-participant" は、受け入れ済みの参加者が参加を頼み直したときに、常駐が利用者として、その参加者のレコードに行う（引数は make-participant と同じ。書き換えるかは run が決める）。
+  // 値ごとに 1 つのアクションだけが名乗る。対象の定義の種類が対象のアクションだけが書ける
+  runsWhenAIJoins?: T extends SubjectId ? JoinRole : never
   // 利用者が要求中の参加者を、断りでなくキャンセルとして終える（常駐は、これで要求中の参加者が消えたら、AI に断りでなくキャンセルと知らせる。
   // 名乗らないアクションで消えたら断り）。1 つのアクションだけが名乗る。対象の定義の種類が対象のアクションだけが書ける
   cancelsJoinRequest?: T extends SubjectId ? true : never
