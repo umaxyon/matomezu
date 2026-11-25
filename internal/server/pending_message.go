@@ -21,7 +21,7 @@ import (
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
-// PendingMessage は承認待ち 1 件（画面との約束。.claude/m-0216-approval-contract.md の 1）。
+// PendingMessage は承認待ち 1 件。
 // id は封筒の id（AI 間メッセージ 1 通）、receiver と sender は参加者の id（sender はほかのホストから届いたときは空）、
 // senderHost は送り手のホスト id（ほかのホストから届いたときだけ）、body は本文、at は届いた時刻
 type PendingMessage struct {
