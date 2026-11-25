@@ -6,7 +6,7 @@ import { type Library, TRASH_ID } from "../../web/src/core/folders"
 import { bookOf } from "../../web/src/core/folders-books"
 import { withChanges } from "../../web/src/core/folders-changes"
 import { performIn, type World } from "../../web/src/core/perform-world"
-import { deadReferences, referredOf, UNSEEN } from "../../web/src/core/references"
+import { deadReferences, referable, referredOf, UNSEEN } from "../../web/src/core/references"
 import type { AnyPage } from "../../web/src/core/schema/book"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, libraryWith, sequence } from "../support"
@@ -158,3 +158,27 @@ test("参照は並びの中で動かせる。動かない所・並びの外へ�
 })
 
 const lineupOfBook = (world: Library, book: string) => (bookOf(world, book)?.lineup ?? []).map(e => e.id)
+
+test("置けるか（referable）は、置くアクションが通るかと同じ。ブックでない先・ゴミ箱の中のブックにも置けない", () => {
+  const world = start()
+  const cases: { of: { kind: "page" | "binder"; id: string }; w?: World }[] = [
+    { of: { kind: "page", id: "a1" } },
+    { of: { kind: "binder", id: "x1" } },
+    { of: { kind: "page", id: "o1" } },
+    { of: { kind: "page", id: "none" } },
+    { of: { kind: "page", id: "b1" } },
+    { of: { kind: "page", id: "s1" } },
+    { of: { kind: "binder", id: "a1" } },
+    { of: { kind: "page", id: "a1" }, w: added(world, { kind: "page", id: "a1" }) },
+  ]
+  for (const c of cases) {
+    const w = c.w ?? world
+    expect([c.of.id, referable(w, "B", c.of)]).toEqual([
+      c.of.id,
+      "result" in after(w, "reference-add", { of: c.of }, { book: "B" }),
+    ])
+  }
+  expect(referable(world, "a1", { kind: "page", id: "o1" })).toBe(false)
+  const trashed = after(world, "entry-trash", { entry: "B" }) as World
+  expect(referable(trashed, "B", { kind: "page", id: "a1" })).toBe(false)
+})

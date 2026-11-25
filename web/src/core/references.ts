@@ -64,14 +64,23 @@ export function deadReferences(library: Library): Readonly<Record<string, Folder
 // ページならバインダに入っていない）か。バックヤードの中のブックには置けず、バックヤードの中の物は指せない
 export function newReferencesHold(library: Library, was: StageLineup, now: StageLineup): boolean {
   const before = new Set(referencesOf(was).map(r => r.id))
-  return referencesOf(now).every(
-    r =>
-      before.has(r.id) ||
-      (referredOf(library, r) !== UNSEEN &&
-        stays(library, now.id, r) &&
-        !inBackyard(library.folders, now.id) &&
-        !inBackyard(library.folders, r.of.id)),
-  )
+  return referencesOf(now).every(r => before.has(r.id) || placeable(library, now.id, r))
+}
+
+// ブック book に、ref を新しく置いて描けるか（newReferencesHold の 1 つ分）
+const placeable = (library: Library, book: string, ref: ReferenceEntry): boolean =>
+  referredOf(library, ref) !== UNSEEN &&
+  stays(library, book, ref) &&
+  !inBackyard(library.folders, book) &&
+  !inBackyard(library.folders, ref.of.id)
+
+// ブック book に、of を指す参照エントリを置けるか（書庫で置く物・置く先を選ぶ形が、選べる行を決める）: book が書庫の見える所に在るブックで、
+// of を指す参照エントリをまだ持たず、newReferencesHold が新しく置いた物に求める事を満たす
+export function referable(library: Library, book: string, of: ReferenceEntry["of"]): boolean {
+  const holder = library.folders[book]
+  if (holder?.folderRole !== "book" || !inSight(library.folders, book)) return false
+  if (holder.lineup.some(r => r.kind === "reference" && r.of.id === of.id)) return false
+  return placeable(library, book, { kind: "reference", id: "", of })
 }
 
 // 参照エントリ ref を開いて見せるページの id: ページを指すならそのページ、バインダを指すなら、選んだページ chosen（そのバインダに無ければ最初のページ）。
