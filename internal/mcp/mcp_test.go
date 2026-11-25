@@ -415,12 +415,18 @@ func TestJoinPassesTheWorkroom(t *testing.T) {
 	}
 }
 
-// send_message は宛て先と本文を常駐に渡し、預かったら queued を、断られたら理由を返す。本文の上限は inputSchema が決める
+// send_message は宛て先と本文を常駐に渡し、預かったら queued といつ渡るか（delivers）を、断られたら理由を返す。本文の上限は inputSchema が決める
 func TestSendMessagePassesToAndText(t *testing.T) {
-	api := &fakeAPI{answer: `{"ok":true,"queued":true}`}
+	api := &fakeAPI{answer: `{"ok":true,"queued":true,"delivers":"next-call"}`}
 	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"すずめ","text":"hi"}}}`)
-	if len(api.posts) != 1 || !strings.Contains(api.posts[0], `"to":"すずめ"`) || !strings.Contains(api.posts[0], `"text":"hi"`) || textOf(got[0]) != `{"ok":true,"queued":true}` {
+	if len(api.posts) != 1 || !strings.Contains(api.posts[0], `"to":"すずめ"`) || !strings.Contains(api.posts[0], `"text":"hi"`) || textOf(got[0]) != `{"ok":true,"queued":true,"delivers":"next-call"}` {
 		t.Fatalf("posted = %v, answered = %v", api.posts, got[0])
+	}
+	// 古い版の常駐は delivers を答えない
+	api = &fakeAPI{answer: `{"ok":true,"queued":true}`}
+	got = talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"すずめ","text":"hi"}}}`)
+	if textOf(got[0]) != `{"ok":true,"queued":true,"delivers":"unknown"}` {
+		t.Fatalf("old host = %v", got[0])
 	}
 	api = &fakeAPI{answer: `{"ok":false,"reason":"unknown-recipient","detail":"no AI is in a workroom named x; you can send to: すずめ"}`}
 	got = talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"x","text":"hi"}}}`)

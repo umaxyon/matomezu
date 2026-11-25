@@ -20,13 +20,13 @@ import (
 // callsAnnounceGap は、同じ参加者の最後に呼ばれた時刻を窓に知らせ直す、いちばん短い間（毎回の呼び出しで知らせが走らないように）
 const callsAnnounceGap = 30 * time.Second
 
-// ParticipantLive は参加者の id ごとの様子（モデルとブランチ。どちらも空の参加者は省く）
+// ParticipantLive は参加者の id ごとの様子（モデルとブランチと、起こす知らせを渡せる通り道がつながっているか。どれも無い参加者は省く）
 func (h *Hub) ParticipantLive() map[string]participantLive {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	out := map[string]participantLive{}
-	for id, n := range h.participantNotes {
-		if l := n.live(); l != (participantLive{}) {
+	for id := range h.participantNotes {
+		if l := h.liveLocked(id); l != (participantLive{}) {
 			out[id] = l
 		}
 	}
@@ -122,6 +122,7 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 		announceCall := now.Sub(before) >= callsAnnounceGap
 		if announceCall {
 			h.broadcast("participant-calls", map[string]any{"participant": id, "at": n.Called})
+			h.kickRooms() // 有効時間を過ぎていた参加者が、また生きている（有効時間は callsAnnounceGap より長い）
 		}
 		if moved {
 			h.announceLive(id)

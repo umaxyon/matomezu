@@ -56,10 +56,12 @@ export const NO_PAIRING = "none"
 // 常駐がまだ知らない・相手が名乗っていない文字列の値（名前・番地・時刻・接続確認コードなど）
 export const NOT_TOLD: unique symbol = Symbol("not told")
 
-// ほかのホストのワークルーム 1 つ（相手の一覧の写し）: 名前と作業の様子（作業中・空き。答える種類が相手に無ければ unknown）
+// ほかのホストのワークルーム 1 つ（相手の一覧の写し）: 名前と作業の様子（作業中・空き。答える種類が相手に無ければ unknown）と、
+// そこにいる AI が生きているか（生きている・生きていない。相手が古い版で答えなければ unknown）
 export interface PeerWorkroom {
   name: string
   activity: "working" | "idle" | "unknown"
+  alive: "alive" | "lapsed" | "unknown"
 }
 
 // ペアリングしたホストとのつながりの様子（確かめた時点の物）: key-mismatch は覚えた鍵と合わない相手が答えた、

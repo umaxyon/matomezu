@@ -106,7 +106,11 @@ export interface PeerLive {
   hostId: string
   label: string
   state: "connected" | "unreachable" | "key-mismatch" | "update-this" | "update-that"
-  workrooms?: readonly { name: string; activity: "working" | "idle" | "unknown" }[]
+  workrooms?: readonly {
+    name: string
+    activity: "working" | "idle" | "unknown"
+    alive: "alive" | "lapsed" | "unknown" // そこにいる AI が生きているか（分からなければ unknown）
+  }[]
   lastSeen?: string
   addr?: string
   reverseOnly?: boolean
@@ -175,10 +179,12 @@ export interface StaleBuild {
   dropped: number
 }
 
-// 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチ（知らされていない物は持たない）
+// 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチと、起こす知らせを渡せる matomezu watch がつながっているか（reaches。
+// つながっていなければ持たない）（知らされていない物は持たない）
 export interface ParticipantLive {
   readonly model?: string
   readonly branch?: string
+  readonly wake?: "reaches"
 }
 
 // 編集ロックの 1 つ: within（ページの id か、ブックの id）の中の物 ids（ページなら、アイテムなどとそのページのアノテーションとページそのもの。ブックなら、バインダとブックそのもの）か、対象の種類 subject のレコード ids

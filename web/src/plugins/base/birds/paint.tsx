@@ -22,7 +22,7 @@ import suzume from "./images/sheets/suzume.png"
 import suzumeMask from "./images/sheets/suzume-mask.png"
 import tsunagidori from "./images/sheets/tsunagidori.png"
 import tsunagidoriMask from "./images/sheets/tsunagidori-mask.png"
-import { recolor, recolorFace } from "./recolor"
+import { closeEyes, recolor, recolorFace } from "./recolor"
 import { FACE_SIZE, SHEET_SIZE } from "./sheets"
 
 const IMAGES: Record<Bird, { body: string; mask: string }> = {
@@ -92,12 +92,21 @@ export function birdSheet(bird: Bird, colors: BirdColors): Promise<string> {
   return url
 }
 
-// 鳥 bird の顔の丸い絵に配色 colors を塗った絵の URL
-export function birdFace(bird: Bird, colors: BirdColors): Promise<string> {
-  const key = `face ${sheetKey(bird, colors)}`
+// 顔の目: 開いている（open）・閉じている（closed。生きていない参加者の鳥）
+export type FaceEyes = "open" | "closed"
+
+export const faceKey = (bird: Bird, colors: BirdColors, eyes: FaceEyes) =>
+  `face ${sheetKey(bird, colors)}${eyes === "closed" ? " closed" : ""}`
+
+// 鳥 bird の顔の丸い絵に配色 colors を塗った絵の URL（eyes が closed なら目を閉じた絵）
+export function birdFace(bird: Bird, colors: BirdColors, eyes: FaceEyes = "open"): Promise<string> {
+  const key = faceKey(bird, colors, eyes)
   let url = made.get(key)
   if (!url) {
-    url = paint(FACES[bird], FACE_SIZE, (body, mask) => recolorFace(body, mask, colors))
+    url = paint(FACES[bird], FACE_SIZE, (body, mask) => {
+      const face = recolorFace(body, mask, colors)
+      return eyes === "closed" ? closeEyes(face, body, FACE_SIZE) : face
+    })
     made.set(key, url)
     url.then(
       u => ready.set(key, u),

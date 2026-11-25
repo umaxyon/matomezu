@@ -44,7 +44,8 @@ type Engine struct {
 	join         func() string
 	end          func() string
 	hosts        func() string
-	alive        func(string, string, float64) bool
+	alive        func(string, string, string, float64) bool
+	lapsesAt     func(string, string) float64
 	updateCheck  func(string) bool
 	hostSettings func(string) string
 	needs        func(string, string) string
@@ -149,6 +150,7 @@ func New() (*Engine, error) {
 		{"matomezuEndActions", &e.end},
 		{"matomezuHostActions", &e.hosts},
 		{"matomezuParticipantAlive", &e.alive},
+		{"matomezuParticipantLapsesAt", &e.lapsesAt},
 		{"matomezuUpdateCheck", &e.updateCheck},
 		{"matomezuHostSettings", &e.hostSettings},
 		{"matomezuCheckRecords", &e.records},

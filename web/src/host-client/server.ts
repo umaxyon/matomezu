@@ -145,10 +145,18 @@ const browserNet: Net = {
   now: () => Date.now(),
 }
 
-// 参加者の様子のうち、空でない物（モデルもブランチも無ければ undefined）
-const liveOf = (v: { model?: string | undefined; branch?: string | undefined }): ParticipantLive | undefined =>
-  v.model || v.branch
-    ? { ...(v.model ? { model: v.model } : {}), ...(v.branch ? { branch: v.branch } : {}) }
+// 参加者の様子のうち、空でない物（モデルもブランチも無く、起こす知らせを渡せる matomezu watch もつながっていなければ undefined）
+const liveOf = (v: {
+  model?: string | undefined
+  branch?: string | undefined
+  wake?: "reaches" | undefined
+}): ParticipantLive | undefined =>
+  v.model || v.branch || v.wake
+    ? {
+        ...(v.model ? { model: v.model } : {}),
+        ...(v.branch ? { branch: v.branch } : {}),
+        ...(v.wake ? { wake: v.wake } : {}),
+      }
     : undefined
 
 // 読み直す前の窓が運んだ知らせ carried（形に合わなければ無い）

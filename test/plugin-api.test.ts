@@ -476,6 +476,7 @@ test("matomezu/ui が出す名前", () => {
     "themeVars",
     "useActions",
     "useAligns",
+    "useAliveNow",
     "useAllowed",
     "useAllowedOn",
     "useAnchorRef",

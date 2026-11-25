@@ -1,4 +1,4 @@
-// Package aiwire は、mcp とホストの AI の口（/api/ai/...）で同じでなければならない値（ヘッダの名前）
+// Package aiwire は、mcp とホストの AI の口（/api/ai/...）で同じでなければならない値（ヘッダの名前と、答えの値）
 package aiwire
 
 const (
@@ -19,3 +19,18 @@ const (
 	// ModelHeader は、MCP が、呼び出しが運んだモデルを添えるヘッダ（値は URL エンコード。参加の id と一緒に、呼び出しの _meta にモデルがあったときだけ）
 	ModelHeader = "X-Matomezu-Model"
 )
+
+// AI 間メッセージを受けたときの、いつ渡るか（send_message の答えの delivers）
+const (
+	DeliversNow      = "now"       // 起こす知らせを渡せる matomezu watch がつながっていて、すぐ渡す
+	DeliversNextCall = "next-call" // 宛て先の AI が次に matomezu を呼んだときの返事で渡す
+	DeliversUnknown  = "unknown"   // 分からない（古い版の常駐やほかのホストが受けた）
+)
+
+// KnownDelivers は、受け取った delivers の値 v を、知っている値に揃える（無いか知らない値なら DeliversUnknown）
+func KnownDelivers(v string) string {
+	if v == DeliversNow || v == DeliversNextCall {
+		return v
+	}
+	return DeliversUnknown
+}

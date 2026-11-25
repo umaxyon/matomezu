@@ -376,6 +376,7 @@ export {
   NOT_CALLED,
   NOT_REQUESTED,
   type ParticipantCategory,
+  type Presence,
   participantCategory,
   READS_ADMIN,
   READS_WORKROOM_KEYS,

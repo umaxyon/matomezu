@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
@@ -52,10 +53,24 @@ type MessageRequest struct {
 
 // MessageSent は送った結果。断ったら OK は false で、Reason と Detail に理由
 type MessageSent struct {
-	OK     bool   `json:"ok"`
-	Queued bool   `json:"queued,omitempty"`
-	Reason string `json:"reason,omitempty"`
-	Detail string `json:"detail,omitempty"`
+	OK       bool   `json:"ok"`
+	Queued   bool   `json:"queued,omitempty"`
+	Delivers string `json:"delivers,omitempty"` // 受けたとき: aiwire.DeliversNow・aiwire.DeliversNextCall・aiwire.DeliversUnknown
+	Reason   string `json:"reason,omitempty"`
+	Detail   string `json:"detail,omitempty"`
+}
+
+// deliversTo は、参加者 id に受けた AI 間メッセージが、いつ渡るか（h.mu を持って呼ぶ）
+func (h *Hub) deliversTo(id string) string {
+	if h.wakeReachLocked(id) == engine.WakeReaches {
+		return aiwire.DeliversNow
+	}
+	return aiwire.DeliversNextCall
+}
+
+// queuedFor は、参加者 id への AI 間メッセージを受けた答え（h.mu を持って呼ぶ）
+func (h *Hub) queuedFor(id string) MessageSent {
+	return MessageSent{OK: true, Queued: true, Delivers: h.deliversTo(id)}
 }
 
 // seenEnvelopesMax は、重なりを見分けるために覚えておく封筒の id の数
@@ -200,7 +215,7 @@ func (h *Hub) sendHeld(records []participantRecord, rooms []workroomRecord, req 
 	}}) {
 		return sendDecision{sent: rallyRefusal(to.Name, rallyLocalLimit)}
 	}
-	return sendDecision{sent: MessageSent{OK: true, Queued: true}}
+	return sendDecision{sent: h.queuedFor(occupant[to.ID])}
 }
 
 // delivery は、封筒と、それを入れる宛て先の参加者（宛て先のホストが引いた物）。ほかのホストから届いた物は、送り手のホストエイリアスと、印を付けるか（requests が as-user か）も
