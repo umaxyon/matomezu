@@ -99,11 +99,12 @@ test("URL の形: 値 1 つ（sc）に、スクリーンの並び・カレント
         states: {},
         stages: {
           places: [
-            { outermost: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
+            { outermost: "b1", page: "p1", binder: null, reference: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
             {
               outermost: NO_OUTERMOST,
               page: null,
               binder: null,
+              reference: null,
               zoom: 1.25,
               pan: { x: 12.5, y: -3 },
               states: { "@x/p": { a: 1 } },

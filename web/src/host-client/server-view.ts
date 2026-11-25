@@ -2,7 +2,9 @@
 // 常駐が頼んだ物（ブックか、ブックの外のページ・バインダ）を窓に出すこと（showIn）。読むのは store の状態とインスタンス（viewOf は台帳も）
 
 import type { z } from "zod"
+import { findReference, NO_PAGE } from "../core/book"
 import type { CoreCatalog } from "../core/core-catalog"
+import { referencePage } from "../core/references"
 import { NOTHING_OPENED, type Stage } from "../core/stage"
 import { currentKindOf, recentBookScreen, screenOfStage, shownScreens } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
@@ -11,13 +13,22 @@ import { NO_STAGE } from "../store/dialogs"
 import type { MatomezuInstance, MatomezuState } from "../store/state"
 import type { ShowSchema } from "./server-schemas"
 
-// ステージ stage が開いている物: entry はステージエントリ（ブックか、ブックの外のページ・バインダ。何も開いていなければ無い）、page はページの id（ブックの外のページなら、そのページ）
-const openedOf = (stage: Stage) => {
+// ステージ stage が開いている物: entry はステージエントリ（ブックか、ブックの外のページ・バインダ。何も開いていなければ無い）、page はページの id（ブックの外のページなら、そのページ。
+// 参照エントリを開いていれば、見せている指す先のページ）
+const openedOf = (state: MatomezuState, stage: Stage) => {
   const opened = stage.opened
   if (opened === NOTHING_OPENED) return { page: null, mode: stage.mode.kind }
+  const book = state.books[opened.outermost.id]
+  const ref = opened.kind === "reference" && book ? findReference(book, opened.reference) : undefined
+  const page =
+    opened.kind === "page"
+      ? opened.page
+      : opened.kind === "reference" && ref
+        ? referencePage(state, ref, opened.chosen)
+        : NO_PAGE
   return {
     entry: { kind: opened.outermost.kind, id: opened.outermost.id },
-    page: "page" in opened ? opened.page : null,
+    page: page === NO_PAGE ? null : page,
     mode: stage.mode.kind,
   }
 }
@@ -34,10 +45,10 @@ export function viewOf(catalog: CoreCatalog, state: MatomezuState) {
   const ws = book.stages
   const stage = currentStage(ws)
   const screen = {
-    ...openedOf(stage),
+    ...openedOf(state, stage),
     selection: stage.selection,
     stage: stage.id,
-    stages: ws.stages.map(s => ({ id: s.id, ...openedOf(s) })),
+    stages: ws.stages.map(s => ({ id: s.id, ...openedOf(state, s) })),
     canSplit: ws.stages.length < MAX_STAGES,
   }
   // そのブックスクリーンが見えていなければ、見えていない物として分ける

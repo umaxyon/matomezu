@@ -24,6 +24,8 @@ export const PAGE_MESSAGES = defineMessages({
   "Page list": { en: "Page list", ja: "ページ一覧" },
   "Move page": { en: "Move page", ja: "ページを動かす" },
   "Open binder": { en: "Open binder", ja: "バインダを開く" },
+  "Open reference": { en: "Open reference", ja: "参照を開く" },
+  "Go to source": { en: "Go to source", ja: "参照元へ移動" },
   "Change binder": { en: "Change binder", ja: "バインダを変える" },
   "Move binder": { en: "Move binder", ja: "バインダを動かす" },
   "Duplicate binder": { en: "Duplicate binder", ja: "バインダを複製" },

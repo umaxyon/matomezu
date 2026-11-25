@@ -1,7 +1,7 @@
 // ページ: ページを作る・開くコマンドと、ページを作るダイアログ（作るものはダイアログで決める）。ページの設定のダイアログと、それを開くコマンド。
 // ページを作るダイアログとページの設定のダイアログは、ページのタイプが自分のものにできる（dialogs。行うアクションは同じ page-add・page-update）
 
-import { findBinder, findPage, NO_BINDER, NO_PAGE, siblingsOf } from "../../../core/book"
+import { findBinder, findPage, findReference, NO_BINDER, NO_PAGE, siblingsOf } from "../../../core/book"
 import type { MessageKey } from "../../../core/catalog"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
@@ -19,6 +19,7 @@ import {
   PAGE_DUPLICATE,
   PAGE_REMOVE,
   PAGE_UPDATE,
+  REFERENCE_REMOVE,
   UNRENEWABLE_SHAPE,
 } from "../pages"
 import { hasOpenedPage } from "../utils/opened-page"
@@ -61,6 +62,8 @@ export const BINDER_DELETE_DIALOG = kit.defineDialogWith<BinderSettingsArgs>()({
 export const PAGE_CONTEXT = kit.name("page-context")
 // ページタブのバインダの右クリックのメニュー
 export const BINDER_CONTEXT = kit.name("binder-context")
+// ページタブの参照エントリの右クリックのメニュー
+export const REFERENCE_CONTEXT = kit.name("reference-context")
 // ページ一覧のページの右クリックのメニュー（ページタブのメニューに、ここにページを足すが加わる）
 export const PAGE_LIST_CONTEXT = kit.name("page-list-context")
 // ページタブの＋が開く、ページのタイプの一覧のメニュー
@@ -120,6 +123,45 @@ export const BINDER_OPEN = kit.defineCommand({
   run: (_ctx, a, binder: string) => a.openBinder(binder),
   when: ctx => ctx.book !== NO_BOOK,
   enabled: ctx => !editingBackground(ctx.stage),
+})
+
+// 開いているブックの参照エントリ reference を開く（指す先がバインダなら、選んだページ chosen。無ければ最初のページ）
+export const REFERENCE_OPEN = kit.defineCommand({
+  id: "reference-open",
+  title: "Open reference",
+  run: (_ctx, a, { reference, chosen }: { reference: string; chosen?: string }) => a.openReference(reference, chosen),
+  when: ctx => ctx.book !== NO_BOOK,
+  enabled: ctx => !editingBackground(ctx.stage),
+})
+
+// 参照エントリ reference の指す先を、それが在る所で開く（ページならそのページ、バインダなら今見せているページか、最初のページ。開ける所に無ければ何もしない）
+export const REFERENCE_SOURCE = kit.defineCommand({
+  id: "reference-source",
+  title: "Go to source",
+  run: (ctx, a, { reference }: { reference: string }) => {
+    const ref = ctx.book === NO_BOOK ? undefined : findReference(ctx.book, reference)
+    if (!ref) return
+    if (ref.of.kind === "page") return a.openPageById(ref.of.id)
+    const binder = ctx.folders[ref.of.id]
+    const ids = binder?.folderRole === "binder" ? binder.lineup.map(p => p.id) : []
+    const o = ctx.stage.opened
+    const chosen = o !== "none" && o.kind === "reference" && o.reference === reference ? o.chosen : NO_PAGE
+    const page = ids.includes(chosen) ? chosen : ids[0]
+    if (page) a.openPageById(page)
+  },
+  when: ctx => ctx.book !== NO_BOOK,
+})
+
+// 参照エントリ reference をブックの並びから消す（ゴミ箱には入れない。指す先は変わらない。Ctrl+Z で戻せる）
+export const REFERENCE_DELETE = kit.defineCommand({
+  id: "reference-delete",
+  performs: [REFERENCE_REMOVE.id],
+  permissionScope: "book",
+  title: "Delete",
+  run: (ctx, a, { reference }: { reference: string }) => {
+    if (ctx.book !== NO_BOOK) a.perform(REFERENCE_REMOVE.id, { reference }, { book: ctx.book.id })
+  },
+  when: ctx => ctx.book !== NO_BOOK,
 })
 
 // 開いているページ（ブックの外のページでも）の設定のダイアログを開く（base のダイアログは、ページの設定の項目が無いタイプでも、名前・紙・ロック・削除を持つ）

@@ -73,6 +73,7 @@ import {
   PAPER_LAYER,
   PRINT_AREA_LAYER,
   PRINT_AREA_TOGGLE,
+  REFERENCE_LAYER,
   STAGE_ICONS,
   STAND_LAYER,
 } from "./stage/ui"
@@ -340,6 +341,7 @@ export const BASE_UI = definePluginUi(BASE, {
     PAPER_LAYER,
     PRINT_AREA_LAYER,
     BOOK_CONTENT,
+    REFERENCE_LAYER,
     STAND_LAYER,
     NOTE_LAYER,
     NOTE_PANEL,
@@ -471,6 +473,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:paper-layer": typeof PAPER_LAYER
     "@matomezu/base:print-area-layer": typeof PRINT_AREA_LAYER
     "@matomezu/base:book-content": typeof BOOK_CONTENT
+    "@matomezu/base:reference-layer": typeof REFERENCE_LAYER
     "@matomezu/base:stand-layer": typeof STAND_LAYER
     "@matomezu/base:note-layer": typeof NOTE_LAYER
     "@matomezu/base:note-panel": typeof NOTE_PANEL

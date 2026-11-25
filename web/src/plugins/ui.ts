@@ -82,6 +82,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:print-area-layer",
       "@matomezu/slide:slide-layer",
       "@matomezu/base:book-content",
+      "@matomezu/base:reference-layer",
       "@matomezu/base:stand-layer",
       "@matomezu/base:note-layer",
       "@matomezu/base:mark-layer",
@@ -261,6 +262,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "-",
       "@matomezu/base:binder-delete",
     ],
+    "@matomezu/base:reference-context": ["@matomezu/base:reference-source", "-", "@matomezu/base:reference-delete"],
     "@matomezu/base:page-list-context": [
       "@matomezu/base:page-add-after",
       "@matomezu/base:page-duplicate",

@@ -17,6 +17,7 @@ import {
   followInto,
   followOutsideBinder,
   followOutsidePage,
+  followReference,
   followBook as followStage,
   NO_PAGE,
   NO_PLACING,
@@ -26,6 +27,7 @@ import {
   openBook,
   openedEntry,
   openPage,
+  openReference,
   type Placing,
   type Stage,
   type StageMode,
@@ -186,6 +188,11 @@ export function showBinder(catalog: CoreCatalog, ws: Workspace, stage: string, b
   return mapStage(ws, stage, s => openBinder(catalog, s, book, binder))
 }
 
+// ステージ stage で、開いているブック book の参照エントリ reference を開く（stage.ts の openReference）
+export function showReference(ws: Workspace, stage: string, book: Book, reference: string, chosen?: string): Workspace {
+  return mapStage(ws, stage, s => openReference(s, book, reference, chosen))
+}
+
 // ステージ stage を、変わったブック book に合わせる（stage.ts の followBook。before は変わる前のブック）。
 // 今の道具が替わった（認可ステップが今の道具を止め、組の次の使える道具になったときも）なら、その場の編集を終える
 function followIn(catalog: CoreCatalog, ws: Workspace, stage: Stage, book: Book, before?: Book): Stage {
@@ -222,7 +229,8 @@ export const NO_STAGES_LEFT = "no-stages-left"
 
 // 書庫が変わったとき（now は今の、ブックの一覧とページとフォルダの表。before は変わる前のそれら）: 開いていた物が無くなったステージは閉じ（1 つも残らなければ NO_STAGES_LEFT）、
 // 残った物には合わせる。無くなったとするのは、ブックが一覧に無い・ブックの外のページやバインダが開ける物でなくなった（core/folders-tree.ts の outsidePageIn・outsideBinderIn）とき。
-// ただし、開いているページが一覧のブックの中か、ブックの外のバインダの中へ移されたなら、閉じずに、移った先のページとして開いた形にする
+// ただし、開いているページが一覧のブックの中か、ブックの外のバインダの中へ移されたなら、閉じずに、移った先のページとして開いた形にする。
+// 参照エントリを開いているステージは、指す先が変わったことにも合わせる（stage.ts の followReference）
 export function followLibrary(
   catalog: CoreCatalog,
   ws: Workspace,
@@ -262,7 +270,9 @@ export function followLibrary(
             : followInto(catalog, s, has)
       return before ? editEndedOnToolChange(catalog, left, s, next, before, now) : next
     }
-    return at?.kind === "book" ? followIn(catalog, left, s, has, before?.books[has.id]) : followInto(catalog, s, has)
+    if (at?.kind !== "book") return followInto(catalog, s, has)
+    // 参照エントリを開いていれば、指す先の変わりにも合わせる
+    return followReference(followIn(catalog, left, s, has, before?.books[has.id]), has, now, before)
   })
   return stages.every((s, i) => s === left.stages[i]) ? left : { ...left, stages }
 }

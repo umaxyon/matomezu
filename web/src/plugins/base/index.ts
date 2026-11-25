@@ -175,6 +175,9 @@ import {
   PAGE_SETTINGS,
   PAGE_SETTINGS_DIALOG,
   PAGE_SETTINGS_OF,
+  REFERENCE_DELETE,
+  REFERENCE_OPEN,
+  REFERENCE_SOURCE,
 } from "./page-tabs"
 import {
   BINDER_DUPLICATE,
@@ -658,6 +661,9 @@ export const BASE = defineBuiltin(
       MENU_CLOSE,
       PAGE_NEW,
       BINDER_OPEN,
+      REFERENCE_OPEN,
+      REFERENCE_SOURCE,
+      REFERENCE_DELETE,
       BINDER_SETTINGS,
       BINDER_SETTINGS_OPENED,
       BINDER_DUPLICATE_COMMAND,
@@ -1009,6 +1015,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:page-new": typeof PAGE_NEW
     "@matomezu/base:page-open": typeof PAGE_OPEN
     "@matomezu/base:binder-open": typeof BINDER_OPEN
+    "@matomezu/base:reference-open": typeof REFERENCE_OPEN
+    "@matomezu/base:reference-source": typeof REFERENCE_SOURCE
+    "@matomezu/base:reference-delete": typeof REFERENCE_DELETE
     "@matomezu/base:binder-settings": typeof BINDER_SETTINGS
     "@matomezu/base:binder-settings-opened": typeof BINDER_SETTINGS_OPENED
     "@matomezu/base:binder-duplicate": typeof BINDER_DUPLICATE_COMMAND

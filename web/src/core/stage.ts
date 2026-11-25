@@ -5,7 +5,18 @@
 // 操作はデータを書き換えず、新しい値を返す（変わらなければ同じものを返す）
 
 import { anchorIds } from "./annotation"
-import { findBinder, findPage, foundPage, lineupOf, NO_BINDER, NO_PAGE, pagesIn, pagesOf } from "./book"
+import {
+  findBinder,
+  findPage,
+  findReference,
+  foundPage,
+  lineupOf,
+  NO_BINDER,
+  NO_PAGE,
+  pagesIn,
+  pagesOf,
+  referencesOf,
+} from "./book"
 import type { ItemId } from "./catalog"
 import type { CoreCatalog, PageTypeId } from "./core-catalog"
 import { isInStageEntry } from "./def/action"
@@ -17,8 +28,9 @@ import type { AskedOutermost } from "./inspect"
 import type { LibraryAndBooks } from "./library"
 import { type PaperChoice, type ResolvedPaper, resolvePaper } from "./paper"
 import type { ItemPage } from "./placed"
+import { referencePage } from "./references"
 import { sameData } from "./same"
-import type { BinderEntry, Book, Page } from "./schema/book"
+import type { BinderEntry, Book, Page, ReferenceEntry } from "./schema/book"
 import { clampPan, contentSize, paperOrigin } from "./viewport"
 
 // 開いているブックと、その中で開いているもの。開いているものは 3 通り:
@@ -28,8 +40,11 @@ import { clampPan, contentSize, paperOrigin } from "./viewport"
 //   area は、プレゼンテーションが描く広さ（可変ページで、印刷区画を並べた広さ）。プレゼンテーションが知らせるまでと、紙 1 枚で描くページでは NO_AREA。
 //   shift は、開いたページの中身をずらした量（ページの shift を写す。ずらしていなければ NO_SHIFT。変わったらパンを合わせる）。
 //   origin は、位置をデータに持たないプレゼンテーションが、描く中身を右・下へずらした量（印刷区画の数。プレゼンテーションが広さと一緒に知らせる。ずらさなければ NO_ORIGIN。変わったらパンを合わせる）
+// - reference: 並びの参照エントリ（core/references.ts）。指す先を見るだけで描く（ページを開いていないので、選ぶ・置く・付箋は始まらない）。
+//   描くページ・紙・見た目は持たず、描く側が書庫から毎回引く（指す先はほかのブックで変わる）。chosen は、バインダを指すときに選んだページ（選んでいなければ NO_PAGE で、最初のページ）。
+//   area は、描く側が知らせた、描いた広さ（知らせるまでと、描く物が無いときは NO_AREA）
 // ページが入っているバインダは持たない（ブックから引く。core/book.ts の findPage）
-export type Opened = OpenedNone | OpenedBinder | OpenedPage
+export type Opened = OpenedNone | OpenedBinder | OpenedPage | OpenedReference
 interface OpenedBook {
   outermost: StageEntry // 開いているステージエントリ
 }
@@ -49,6 +64,12 @@ export interface OpenedPage extends OpenedBook {
   area: Size | typeof NO_AREA
   shift: Point | typeof NO_SHIFT
   origin: Point | typeof NO_ORIGIN
+}
+export interface OpenedReference extends OpenedBook {
+  kind: "reference"
+  reference: string // 参照エントリの id
+  chosen: string
+  area: Size | typeof NO_AREA
 }
 
 // 開いたページの area・印刷プレビューの area の、広さを持たない（紙 1 枚で描く・プレゼンテーションがまだ知らせていない）ときの値
@@ -180,8 +201,15 @@ export const paperOf = (stage: Pick<Stage, "opened">): Size | typeof NO_PAPER =>
   return o === NO_PAGE || o.paper === NO_PAPER ? NO_PAPER : o.paper.size
 }
 
+// 参照エントリを開いていれば、その開いているもの（開いていなければ NO_REFERENCE）
+export const NO_REFERENCE = "none"
+export const openedReference = (opened: Opened | typeof NOTHING_OPENED): OpenedReference | typeof NO_REFERENCE =>
+  opened !== NOTHING_OPENED && opened.kind === "reference" ? opened : NO_REFERENCE
+
 // ステージに描く広さ（プレゼンテーションが知らせた広さ。無ければ紙 1 枚。紙が無ければ NO_PAPER）。ずらす量の範囲・紙の枠の大きさ・全体を収める倍率は、これで決める
 export function areaOf(stage: Pick<Stage, "opened">): Size | typeof NO_PAPER {
+  const ref = openedReference(stage.opened)
+  if (ref !== NO_REFERENCE) return ref.area === NO_AREA ? NO_PAPER : ref.area
   const paper = paperOf(stage)
   const o = openedPage(stage.opened)
   return paper === NO_PAPER || o === NO_PAGE ? NO_PAPER : o.area === NO_AREA ? paper : o.area
@@ -352,10 +380,20 @@ function openedAt(catalog: CoreCatalog, outermost: StageEntry, page: Page): Open
   }
 }
 
-// ブック book の、並びの最初を開いた形: 最初がページならそのページ、バインダならその最初のページ（空のバインダならバインダ）。並びが空なら何も開かない
+// ブック book の参照エントリ reference を開いた形（選んだページは無し・広さは知らせを待つ）
+const openedRef = (book: Pick<Book, "id">, reference: string, chosen: string = NO_PAGE): OpenedReference => ({
+  kind: "reference",
+  outermost: entryOf(book),
+  reference,
+  chosen,
+  area: NO_AREA,
+})
+
+// ブック book の、並びの最初を開いた形: 最初がページならそのページ、バインダならその最初のページ（空のバインダならバインダ）、参照エントリならそれ。並びが空なら何も開かない
 function openedFirst(catalog: CoreCatalog, book: Book): Opened {
   const [first] = lineupOf(book)
   if (!first) return { kind: "none", outermost: entryOf(book) }
+  if (first.kind === "reference") return openedRef(book, first.id)
   return first.kind === "page" ? openedAt(catalog, entryOf(book), first) : openedIn(catalog, book, first.id)
 }
 
@@ -415,6 +453,17 @@ export function openBinder(catalog: CoreCatalog, stage: Stage, book: Book, binde
   return settle(leave(opening(edited(stage), openedIn(catalog, book, binder))), ORIGIN)
 }
 
+// 開いているブックの参照エントリ reference を開く（指す先がバインダなら、選んだページ chosen。無ければ最初のページ）。ずらす量は左上に戻す。
+// それをもう開いていれば、ページを替えるだけ（名指さなければ印刷プレビューを閉じるだけ）。背景編集モードの間は替えない
+export function openReference(stage: Stage, book: Book, reference: string, chosen?: string): Stage {
+  const o = stage.opened
+  if (o === NOTHING_OPENED || o.outermost.id !== book.id || !findReference(book, reference)) return stage
+  if (editingBackground(stage)) return stage
+  if (o.kind === "reference" && o.reference === reference && (chosen === undefined || chosen === o.chosen))
+    return closePrintPreview(stage)
+  return settle(leave(opening(edited(stage), openedRef(book, reference, chosen))), ORIGIN)
+}
+
 // 開いているものが入っているバインダの id（空のバインダを開いていればそのバインダ。バインダの外のページか、何も開いていなければ NO_BINDER）
 export function binderOf(book: Book, opened: Opened | typeof NOTHING_OPENED): string {
   if (opened === NOTHING_OPENED) return NO_BINDER
@@ -464,6 +513,20 @@ export function followOutsideBinder(
   return settle(leave(opening(stage, openedAt(catalog, o.outermost, next))), ORIGIN)
 }
 
+// 書庫が変わったとき、開いている参照エントリ（ブック book の物）に合わせる（now は今の書庫、before は変わる前の書庫）: 指すバインダで選んだページが無くなったら、
+// 変わる前の並びで後ろにあった残りのページ、無ければ前にあった残りのページ、無ければ選ばない（最初のページ）にして、広さを捨て、左上に戻す。参照エントリを開いていなければ、同じ値を返す
+export function followReference(stage: Stage, book: Book, now: Library, before?: Library): Stage {
+  const o = openedReference(stage.opened)
+  const ref = o === NO_REFERENCE || o.outermost.id !== book.id ? undefined : findReference(book, o.reference)
+  if (o === NO_REFERENCE || !ref || o.chosen === NO_PAGE || referencePage(now, ref, o.chosen) === o.chosen) return stage
+  const binder = ref.of.kind === "binder" ? now.folders[ref.of.id] : undefined
+  const left = new Map(binder?.folderRole === "binder" ? binder.lineup.map(p => [p.id, p.id]) : [])
+  const was = before?.folders[ref.of.id]
+  const ids = was?.folderRole === "binder" ? was.lineup.map(p => p.id) : []
+  const chosen = nearIn(ids, o.chosen, left) ?? NO_PAGE
+  return settle(leave(opening(stage, { ...o, chosen, area: NO_AREA })), ORIGIN)
+}
+
 // 開いているブックでないステージエントリのページが、ブック book の中へ移されたとき、またはブックの外のバインダ into の中へ移されたときに合わせる:
 // 同じページを、移った先の物として開いた形にする（倍率・ずらす量・選択はそのまま）。ブックでないステージエントリを開いていない・そのページが移った先に無ければ、同じ値を返す
 export function followInto(catalog: CoreCatalog, stage: Stage, into: Book | BinderEntry): Stage {
@@ -501,6 +564,7 @@ function selectionKept(next: Stage, shown: Page | undefined): Stage {
 function followOpened(catalog: CoreCatalog, stage: Stage, book: Book, before?: Book): Stage {
   const o = stage.opened
   if (o === NOTHING_OPENED || o.outermost.id !== book.id) return stage
+  if (o.kind === "reference" && findReference(book, o.reference)) return stage
   const found = o.kind === "page" ? foundPage(findPage(book, o.page)) : undefined
   if (o.kind === "page" && found) return followShown(catalog, stage, o, found)
   const opened = neighbourOf(catalog, book, o, before)
@@ -552,14 +616,16 @@ function neighbourOf(catalog: CoreCatalog, book: Book, was: Opened, before?: Boo
         : undefined
     return next ? openedAt(catalog, entryOf(book), next) : openedIn(catalog, book, binder)
   }
+  // 並びに直に入っていたページか参照エントリ: 隣のタブ（バインダの中はページごとに数える）
+  const tabs = (b: Book) => lineupOf(b).flatMap(e => (e.kind === "binder" ? e.lineup.map(p => p.id) : [e.id]))
+  const refs = new Map(referencesOf(book).map(r => [r.id, r]))
+  const id = was.kind === "page" ? was.page : was.kind === "reference" ? was.reference : NO_PAGE
   const next =
-    was.kind === "page" && before
-      ? near(
-          pagesOf(before).map(p => p.id),
-          was.page,
-        )
+    before && id !== NO_PAGE
+      ? nearIn<Page | ReferenceEntry>(tabs(before), id, new Map<string, Page | ReferenceEntry>([...left, ...refs]))
       : undefined
-  return next ? openedAt(catalog, entryOf(book), next) : openedFirst(catalog, book)
+  if (next && next.kind === "reference") return openedRef(book, next.id)
+  return next ? openedAt(catalog, entryOf(book), next as Page) : openedFirst(catalog, book)
 }
 
 // 倍率を zoom にする。表示領域の中の点 at（無ければ真ん中）の下にある紙の点が動かないように、ずらす量を合わせる（紙が無ければ変えない）
@@ -632,6 +698,17 @@ export function setPreviewArea(stage: Stage, area: Size): Stage {
   if (mode.kind !== "print-preview") return stage
   if (mode.area !== NO_AREA && mode.area.w === area.w && mode.area.h === area.h) return stage
   return settle({ ...stage, mode: { ...mode, area } }, stage.pan)
+}
+
+// 参照エントリを開いているとき、描く側が知らせた描いた広さ area を持つ（描く物が無ければ null）。初めて届いたら、左上を表示領域の左上に置く
+export function setReferenceArea(stage: Stage, area: Size | null): Stage {
+  const o = openedReference(stage.opened)
+  if (o === NO_REFERENCE) return stage
+  const now = o.area === NO_AREA ? null : o.area
+  if (now === area || (now && area && now.w === area.w && now.h === area.h)) return stage
+  const opened: OpenedReference = { ...o, area: area ?? NO_AREA }
+  const next = { ...stage, opened }
+  return settle(next, now === null ? ORIGIN : stage.pan)
 }
 
 // アイテムを置こうとする。同じアイテムをもう一度選べば取り消す（道具を選択にするのは workspace.ts の togglePlacing）

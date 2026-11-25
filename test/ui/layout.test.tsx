@@ -122,6 +122,7 @@ describe("UI マッピング", () => {
       "E213 layout no-stages: context menu @matomezu/base:library-folder-context is not opened by any placed widget or book view",
       "E213 layout no-stages: context menu @matomezu/base:page-context is not opened by any placed widget or book view",
       "E213 layout no-stages: context menu @matomezu/base:binder-context is not opened by any placed widget or book view",
+      "E213 layout no-stages: context menu @matomezu/base:reference-context is not opened by any placed widget or book view",
       "E213 layout no-stages: context menu @matomezu/base:page-list-context is not opened by any placed widget or book view",
       "E213 layout no-stages: context menu @matomezu/slide:item-context is not opened by any placed widget or book view",
     ])
@@ -400,6 +401,7 @@ describe("取り込んだプラグインの置き場所", () => {
       "@matomezu/slide:slide-layer",
       "q:under",
       "@matomezu/base:book-content",
+      "@matomezu/base:reference-layer",
       "@matomezu/base:stand-layer",
       "@matomezu/base:note-layer",
       "@matomezu/base:mark-layer",

@@ -56,6 +56,7 @@ import {
   setArea,
   setEditing,
   setPreviewArea,
+  setReferenceArea,
   setStart,
   shownPageId,
   startBackground,
@@ -89,13 +90,13 @@ import {
   close,
   evenDivider,
   focus,
-  followBook,
   MAX_STAGES,
   mapStage,
   moveDivider,
   setTool,
   showBinder,
   showPage,
+  showReference,
   split,
   togglePlacing,
   unsplit,
@@ -517,10 +518,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (recorded) for (const outermost of changed) record(outermost, { pages, folders }, done.changes)
         // 画面の履歴に入れないアクション（ロックの掛け外しなど）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
         else if (changed.length > 0) dropOverwritten({ pages, folders }, tables)
-        const after = Object.values(both.books).find(b => books[b.id] !== b)
-        if (after) next.window = mapScreens(window, ws => followBook(catalog, ws, after, books[after.id]))
-        // ブックが変わらなければ、変えたのはブックの外のページ
-        else next.window = followLibraryIn(window, catalog, { books: both.books, ...tables }, { books, pages, folders })
+        // 変わったブック（参照エントリを同じ書き込みで外したほかのブックも）・ブックの外のページと、参照エントリが指す先に、全部のステージを合わせる
+        next.window = followLibraryIn(window, catalog, { books: both.books, ...tables }, { books, pages, folders })
       }
     }
     if (done.settings) {
@@ -924,6 +923,18 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           ),
         )
     },
+    openReference: (stage, reference, chosen) => {
+      const { books, window } = getState()
+      const book = openedBook(books, stageIn(window, stage)?.opened)
+      // 参照エントリを開くと、そのブックスクリーンをカレントスクリーンにする
+      if (book && inWindow(stage))
+        withWindow(win =>
+          makeCurrent(
+            mapScreenOfStage(win, stage, ws => showReference(focus(ws, stage), stage, book, reference, chosen)),
+            screenOfStage(win, stage)?.id ?? "",
+          ),
+        )
+    },
     openBinder: (stage, binder) => {
       const { books, window } = getState()
       const book = openedBook(books, stageIn(window, stage)?.opened)
@@ -966,6 +977,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (getState().canGoBack) setState({ backRequests: getState().backRequests + 1 })
     },
     setPreviewArea: (id, area) => withStageScreen(id, ws => mapStage(ws, id, s => setPreviewArea(s, area))),
+    setReferenceArea: (id, area) => withStageScreen(id, ws => mapStage(ws, id, s => setReferenceArea(s, area))),
     setTool: (id, tool) => withStageScreen(id, ws => setTool(catalog, ws, id, tool)),
     togglePlacing: (id, item, props) => withStageScreen(id, ws => togglePlacing(catalog, ws, id, item, props)),
     stopPlacing: id => withStageScreen(id, ws => mapStage(ws, id, s => stopPlacing(s))),

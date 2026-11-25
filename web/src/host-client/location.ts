@@ -55,7 +55,14 @@ interface Written {
   w?: Record<string, unknown>
 }
 interface WrittenStages {
-  l: { b: string | null; p?: string; f?: string; v: [number, number, number]; s?: Record<string, unknown> }[]
+  l: {
+    b: string | null
+    p?: string
+    f?: string
+    r?: string
+    v: [number, number, number]
+    s?: Record<string, unknown>
+  }[]
   c: number
   r: number
 }
@@ -79,6 +86,7 @@ export function searchOf(address: Address): string {
                 b: p.outermost === NO_OUTERMOST ? null : p.outermost,
                 ...(p.page !== null ? { p: p.page } : {}),
                 ...(p.binder !== null ? { f: p.binder } : {}),
+                ...(p.reference !== null ? { r: p.reference } : {}),
                 v: [round(p.zoom), round(p.pan.x), round(p.pan.y)] as [number, number, number],
                 ...(some(p.states) ? { s: { ...p.states } } : {}),
               })),
@@ -127,6 +135,7 @@ function writtenAddress(text: string): Address | null {
           outermost: typeof p.b === "string" && p.b !== "" ? p.b : NO_OUTERMOST,
           page: typeof p.p === "string" ? p.p : null,
           binder: typeof p.f === "string" ? p.f : null,
+          reference: typeof p.r === "string" ? p.r : null,
           zoom: num(v[0], 1),
           pan: { x: num(v[1], 0), y: num(v[2], 0) },
           states: isObject(p.s) ? p.s : {},

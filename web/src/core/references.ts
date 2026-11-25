@@ -2,7 +2,7 @@
 // 参照エントリは、指す先が書庫に在る限り残る（ゴミ箱・読めない物のフォルダに居る間も残り、描く所が無いと見せる）。
 // 指す先が完全に消されたときと、指す先が参照エントリを置いたブックの中に入ったとき、指す先のページがバインダに入ったときは、書庫を変えた書き込みと同じ書き込みで、仕組みが消す
 
-import { referencesOf } from "./book"
+import { NO_PAGE, referencesOf } from "./book"
 import { inBackyard } from "./entries"
 import {
   type BinderFolder,
@@ -69,4 +69,14 @@ export function newReferencesHold(library: Library, was: StageLineup, now: Stage
         !inBackyard(library.folders, now.id) &&
         !inBackyard(library.folders, r.of.id)),
   )
+}
+
+// 参照エントリ ref を開いて見せるページの id: ページを指すならそのページ、バインダを指すなら、選んだページ chosen（そのバインダに無ければ最初のページ）。
+// 指す先が見えない・空のバインダなら NO_PAGE
+export function referencePage(library: Library, ref: ReferenceEntry, chosen: string): string {
+  const found = referredOf(library, ref)
+  if (found === UNSEEN) return NO_PAGE
+  if (found.kind === "page") return found.page.id
+  const ids = found.binder.lineup.map(p => p.id)
+  return ids.includes(chosen) ? chosen : (ids[0] ?? NO_PAGE)
 }
