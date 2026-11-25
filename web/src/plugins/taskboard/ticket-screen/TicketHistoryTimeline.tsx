@@ -1,10 +1,13 @@
-// チケット履歴の一覧: 新しい順に、日ごとにまとめる。1 行は時刻・題のバッヂ・起きた事（長ければ … で切り、乗せると全文）・書いた者の鳥。
-// 利用者への質問の題（列挙の値の data.asksUser）だけは、右端の鳥から出る吹き出しにして押せる（押すと onOpenQuestion。開いている質問の吹き出しは色を当てる）。左の縦の線と点で時間の流れを見せる
+// チケット履歴の一覧: 新しい順に、日ごとにまとめる。1 行は時刻・題のバッヂ・起きた事・書いた者の鳥。
+// 起きた事は 1 行で … で切り、切れている行だけ文末に「開く」を出す（押すと折り返して全文にし、文末の「閉じる」で 1 行に戻す。開け閉めは見ている間だけ覚える）。
+// 利用者への質問の題（列挙の値の data.asksUser）だけは、右端の鳥から出る吹き出しにして押せる（押すと onOpenQuestion で右に全文が開く。開いている質問の吹き出しは色を当てる）。左の縦の線と点で時間の流れを見せる
+import { useRef, useState } from "react"
 import { useMessages, useSettings } from "../../../plugin-api/ui"
 import { kit } from "../kit"
 import { LinkedText } from "./LinkedText"
 import styles from "./TicketHistoryTimeline.module.css"
 import { TopicBadge, useTopicData, useTopicName } from "./TopicBadge"
+import { useClipped } from "./useClipped"
 import { useTicketRefs } from "./useTicketRefs"
 import { dayHeading, groupByDay, type HistoryRow, namesLine, rowTextSource, timeOf } from "./view"
 import { WriterBird } from "./WriterBird"
@@ -62,6 +65,7 @@ function Row({
 }) {
   const t = useMessages(kit)
   const { lang } = useSettings()
+  const [expanded, setExpanded] = useState(false)
   const data = useTopicData(row.topic)
   const topicName = useTopicName(row.topic)
   const source = rowTextSource(row, data?.textless === true)
@@ -77,25 +81,53 @@ function Row({
             : topicName
           : row.text
   return (
-    <li className={styles.item}>
+    <li className={styles.item} data-expanded={expanded || undefined}>
       <span className={styles.time}>{timeOf(row.at)}</span>
       <TopicBadge topic={row.topic} />
       {data?.asksUser ? (
-        <button
-          type="button"
-          className={styles.bubble}
-          title={text}
-          aria-pressed={open}
-          onClick={() => onOpenQuestion(row)}
-        >
+        <button type="button" className={styles.bubble} aria-pressed={open} onClick={() => onOpenQuestion(row)}>
           <span className={styles.bubbleText}>{text}</span>
         </button>
       ) : (
-        <span className={styles.clip} title={text}>
-          {source === "text" ? <LinkedText text={text} find={refs.find} open={refs.open} /> : text}
-        </span>
+        <RowText
+          text={text}
+          expanded={expanded}
+          onToggle={() => setExpanded(e => !e)}
+          linked={source === "text" ? refs : undefined}
+        />
       )}
       <WriterBird by={row.by} />
     </li>
+  )
+}
+
+// 行の起きた事: 閉じている間は 1 行で … で切り、切れていれば右に「開く」。開いている間は折り返して全文にし、文末に「閉じる」。linked があれば文中のチケットの番号をリンクにする
+function RowText({
+  text,
+  expanded,
+  onToggle,
+  linked,
+}: {
+  text: string
+  expanded: boolean
+  onToggle: () => void
+  linked: ReturnType<typeof useTicketRefs> | undefined
+}) {
+  const t = useMessages(kit)
+  const ref = useRef<HTMLSpanElement>(null)
+  const clipped = useClipped(ref, text, expanded)
+  const toggle = (expanded || clipped) && (
+    <button type="button" className={styles.toggle} aria-expanded={expanded} onClick={onToggle}>
+      {expanded ? t("Close the line") : t("Open the line")}
+    </button>
+  )
+  return (
+    <>
+      <span ref={ref} className={expanded ? styles.full : styles.clip}>
+        {linked ? <LinkedText text={text} find={linked.find} open={linked.open} /> : text}
+        {expanded && toggle}
+      </span>
+      {!expanded && toggle}
+    </>
   )
 }
