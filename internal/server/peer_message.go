@@ -4,7 +4,7 @@ package server
 // 送り手のホストは TLS で見た相手の鍵で決まり、封筒の From.Host と違えば断る（書き換えない）。宛て先の参加者は受けたホストが引く。
 // 届く行には、送り手のホストエイリアスを添え、そのホストの requests が as-user なら印を付ける。
 // requests を ask-user に戻したら、行列に残っている印つきの行から印を外し、ペアリングを解いたら、そのホストから届いた行を捨てる（followPeerLines）。
-// つながらなかった・相手が受けなかったと答えた（確かに届いていない）ときは unreachable、約束の版が合わないときは protocol-mismatch で断り、送ったのに答えが無ければ同じ封筒をもう 1 回送る（受けた側は同じ id を 1 通にする）。
+// つながらなかった・相手が受けなかったと答えた（確かに届いていない）ときは unreachable、常駐間通信プロトコルの版が合わないときは protocol-mismatch で断り、送ったのに答えが無ければ同じ封筒をもう 1 回送る（受けた側は同じ id を 1 通にする）。
 // それにも答えが無ければ、届いたかもしれないので no-answer で返す
 //
 //	POST /peer/v1/message 封筒（Envelope）  {"ok": true, "queued": true}、または断った理由 {"ok": false, "reason", "detail"}（unknown-recipient）。形の合わない封筒は 400
@@ -101,7 +101,7 @@ type answeredError struct{ status int }
 
 func (e answeredError) Error() string { return fmt.Sprintf("it answered %d", e.status) }
 
-// notSent は、頼みが相手に届いていないと確かに言える失敗か: つなげなかった・鍵が合わなかった・TLS を結べなかった・約束の版が合わなかった・相手が受けなかったと答えた
+// notSent は、頼みが相手に届いていないと確かに言える失敗か: つなげなかった・鍵が合わなかった・TLS を結べなかった・常駐間通信プロトコルの版が合わなかった・相手が受けなかったと答えた
 func notSent(err error) bool {
 	var op *net.OpError
 	var rec tls.RecordHeaderError
@@ -115,7 +115,7 @@ func handshakeFailed(err error) bool {
 	return strings.Contains(err.Error(), "TLS handshake")
 }
 
-// protocolRefused は、ホスト hostID（ホストエイリアス label）と約束の版が合わず送れなかったときの断り。様子にも書いて窓に知らせる（確かめたときと同じ）
+// protocolRefused は、ホスト hostID（ホストエイリアス label）と常駐間通信プロトコルの版が合わず送れなかったときの断り。様子にも書いて窓に知らせる（確かめたときと同じ）
 func (h *Hub) protocolRefused(e *hostEntrance, hostID, label string, err error) MessageSent {
 	var pm peer.ProtocolMismatchError
 	errors.As(err, &pm)

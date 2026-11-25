@@ -16,7 +16,7 @@ import (
 	"github.com/umaxyon/matomezu/internal/peer"
 )
 
-// peerHello は、hello の口の答え: ホスト名・利用者名・待っている所のポート（約束の版は、包みが見出しで確かめる）
+// peerHello は、hello の口の答え: ホスト名・利用者名・待っている所のポート（常駐間通信プロトコルの版は、包みが見出しで確かめる）
 type peerHello struct {
 	Name     string `json:"name"`
 	UserName string `json:"userName"`
@@ -76,7 +76,7 @@ func (h *Hub) Discover() {
 }
 
 // checkPeer は、ペアリングしたホスト r の hello の口に、固定した鍵で頼み、様子を直して窓に知らせる。相手が「ペアリングしていない」と答えたら、こちらも消す。
-// 約束の版が合わなければ、どちらを更新すれば合うかを様子に書く
+// 常駐間通信プロトコルの版が合わなければ、どちらを更新すれば合うかを様子に書く
 func (h *Hub) checkPeer(e *hostEntrance, r pairedHostRecord, addr string) {
 	if addr == "" {
 		return

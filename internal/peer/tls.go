@@ -56,7 +56,7 @@ var errNoCert = errors.New("peer: no certificate")
 // ErrKeyMismatch は、相手の鍵が覚えた鍵と合わないこと
 var ErrKeyMismatch = errors.New("peer: the host key does not match")
 
-// Client は、ほかのホストの入口へ頼む HTTP のクライアント（expect は ClientConfig と同じ）。どの頼みにも約束の版 proto を見出し ProtocolHeader で載せ、
+// Client は、ほかのホストの入口へ頼む HTTP のクライアント（expect は ClientConfig と同じ）。どの頼みにも常駐間通信プロトコルの版 proto を見出し ProtocolHeader で載せ、
 // 相手の包みの断り（版が合わない・ペアリングしていない）は、答えでなく error（ProtocolMismatchError・ErrNotPaired）で返す
 func Client(id *Identity, expect string, proto int, timeout time.Duration) *http.Client {
 	return &http.Client{
@@ -69,7 +69,7 @@ func Client(id *Identity, expect string, proto int, timeout time.Duration) *http
 	}
 }
 
-// versioned は、頼みに約束の版を載せ、包みの断りを error にする RoundTripper
+// versioned は、頼みに常駐間通信プロトコルの版を載せ、包みの断りを error にする RoundTripper
 type versioned struct {
 	proto int
 	base  http.RoundTripper
@@ -98,13 +98,13 @@ func (v *versioned) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-// ProtocolHeader は、頼みと包みの断りに約束の版を載せる見出し
+// ProtocolHeader は、頼みと包みの断りに常駐間通信プロトコルの版を載せる見出し
 const ProtocolHeader = "Matomezu-Protocol"
 
-// protocolMismatch は、包みが、約束の版の合わない頼みに 409 で返す本文（答えの見出し ProtocolHeader に自分の版）
+// protocolMismatch は、包みが、常駐間通信プロトコルの版の合わない頼みに 409 で返す本文（答えの見出し ProtocolHeader に自分の版）
 const protocolMismatch = "protocol-mismatch"
 
-// ProtocolMismatchError は、相手の約束の版がこちらと合わなかったこと（Theirs は相手の版。名乗らなければ 0）
+// ProtocolMismatchError は、相手の常駐間通信プロトコルの版がこちらと合わなかったこと（Theirs は相手の版。名乗らなければ 0）
 type ProtocolMismatchError struct{ Ours, Theirs int }
 
 func (e ProtocolMismatchError) Error() string {
@@ -137,7 +137,7 @@ func RequestHost(r *http.Request) (string, bool) {
 // notPaired は、Pinned が、ペアリングしていない相手に 403 で返す本文
 const notPaired = "not-paired"
 
-// Pinned は、約束の版が proto で、ペアリングしたホスト（known が true と答えるホスト id）の頼みだけを h に通す包み。
+// Pinned は、常駐間通信プロトコルの版が proto で、ペアリングしたホスト（known が true と答えるホスト id）の頼みだけを h に通す包み。
 // 版を先に見る（版の違う相手には、ペアリングしていないとも答えない。相手がそれで自分の側を消さないため）
 func Pinned(proto int, known func(hostID string) bool, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -154,7 +154,7 @@ func Pinned(proto int, known func(hostID string) bool, h http.HandlerFunc) http.
 	}
 }
 
-// Unpinned は、鍵を知らない相手の頼みも h に通す包み（ペアリングの頼みの入口だけが使う）。TLS の証明書は必ず要り、約束の版は proto でなければ通さない
+// Unpinned は、鍵を知らない相手の頼みも h に通す包み（ペアリングの頼みの口だけが使う）。TLS の証明書は必ず要り、常駐間通信プロトコルの版は proto でなければ通さない
 func Unpinned(proto int, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if _, ok := RequestHost(r); !ok {
@@ -167,7 +167,7 @@ func Unpinned(proto int, h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// sameProtocol は、頼み r の約束の版が proto か。違えば（名乗らなくても）409 で断り、答えの見出しに自分の版を載せる
+// sameProtocol は、頼み r の常駐間通信プロトコルの版が proto か。違えば（名乗らなくても）409 で断り、答えの見出しに自分の版を載せる
 func sameProtocol(w http.ResponseWriter, r *http.Request, proto int) bool {
 	if r.Header.Get(ProtocolHeader) == strconv.Itoa(proto) {
 		return true

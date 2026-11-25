@@ -98,7 +98,7 @@ func TestPinnedTakesOnlyKnownHostsAndUnpinnedTakesAny(t *testing.T) {
 	}
 }
 
-// どちらの包みも、ペアリングしているかより先に約束の版を見て断り、Client はその断りを相手の版の付いた error にする。
+// どちらの包みも、ペアリングしているかより先に常駐間通信プロトコルの版を見て断り、Client はその断りを相手の版の付いた error にする。
 // 版を名乗らない頼み（Client を通さない物）も断る。包みの答えでない 409（ペアリングの断りなど）は、本文ごとそのまま返す
 func TestBothWrappersRefuseAnotherProtocolFirst(t *testing.T) {
 	a, b, stranger := newIdentity(t), newIdentity(t), newIdentity(t)

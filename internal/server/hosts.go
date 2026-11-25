@@ -59,7 +59,7 @@ type hostEntrance struct {
 	closed bool          // CloseHostEntrance のあとは開かない
 	peers  *peerState    // ペアリングとペアリングしたホストの様子（pairing.go）
 	user   string        // mDNS で知らせている利用者名
-	proto  int           // ホストどうしの約束の版（peer.Protocol。版の違う常駐を組むテストだけが、閉じているあいだに替える）
+	proto  int           // 常駐間通信プロトコルの版（peer.Protocol。版の違う常駐を組むテストだけが、閉じているあいだに替える）
 }
 
 // SetHostEntrance は、ホストどうしの入口の用意を渡し、設定に合わせて開け閉めし始める（立ったときに 1 度呼ぶ）

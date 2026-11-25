@@ -1,4 +1,4 @@
-// 約束の版が合わないホストの一言: どちらのホストを更新すれば合うか（常駐が決めた様子のまま出す）。block なら段落、でなければ行の中に置く
+// 常駐間通信プロトコルの版が合わないホストの一言: どちらのホストを更新すれば合うか（常駐が決めた様子のまま出す）。block なら段落、でなければ行の中に置く
 import { useMessages } from "../../plugin-api/ui"
 import type { PeerLive } from "../base/ui"
 import { kit } from "./kit"

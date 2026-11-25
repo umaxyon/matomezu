@@ -445,7 +445,7 @@ func TestNotSentOnlyWhenTheMessageCertainlyDidNotArrive(t *testing.T) {
 	}
 }
 
-// reopenWithProtocol は、h の入口を閉じ、約束の版を proto にして開き直す（片方だけ matomezu を更新したのと同じ）
+// reopenWithProtocol は、h の入口を閉じ、常駐間通信プロトコルの版を proto にして開き直す（片方だけ matomezu を更新したのと同じ）
 func reopenWithProtocol(t *testing.T, h *Hub, proto int) {
 	t.Helper()
 	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":false}`)
@@ -458,7 +458,7 @@ func reopenWithProtocol(t *testing.T, h *Hub, proto int) {
 	waitHost(t, h, func(s HostStatus) bool { return s.Open })
 }
 
-// ペアリングしたあとで片方の約束の版が上がると、確かめたときに両方の様子が、どちらを更新すれば合うかになり、ワークルームの写しを捨てる
+// ペアリングしたあとで片方の常駐間通信プロトコルの版が上がると、確かめたときに両方の様子が、どちらを更新すれば合うかになり、ワークルームの写しを捨てる
 func TestAHostWithAnotherProtocolIsNotConnected(t *testing.T) {
 	_, _, a, b := pairedWorlds(t)
 	reopenWithProtocol(t, b, peer.Protocol+1)
@@ -473,7 +473,7 @@ func TestAHostWithAnotherProtocolIsNotConnected(t *testing.T) {
 	}
 }
 
-// 約束の版の合わないホストへは送らず、protocol-mismatch で、どちらを更新するかを言う
+// 常駐間通信プロトコルの版の合わないホストへは送らず、protocol-mismatch で、どちらを更新するかを言う
 func TestAMessageToAHostWithAnotherProtocolIsRefused(t *testing.T) {
 	as, bs, _, b := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")

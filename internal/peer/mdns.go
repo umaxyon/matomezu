@@ -33,7 +33,7 @@ var mdnsGroup = &net.UDPAddr{IP: net.IPv4(224, 0, 0, 251), Port: 5353}
 // Advert は、自分を知らせる中身
 type Advert struct {
 	HostID   string
-	Protocol int // 約束の版
+	Protocol int // 常駐間通信プロトコルの版
 	Port     int
 	Name     string // ホスト名
 	UserName string // 利用者名

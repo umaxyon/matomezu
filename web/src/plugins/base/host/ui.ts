@@ -63,7 +63,7 @@ export interface PeerWorkroom {
 }
 
 // ペアリングしたホストとのつながりの様子（確かめた時点の物）: key-mismatch は覚えた鍵と合わない相手が答えた、
-// update-this・update-that は約束の版が合わず、このホスト・相手のホストを更新すれば合う
+// update-this・update-that は常駐間通信プロトコルの版が合わず、このホスト・相手のホストを更新すれば合う
 export type PeerState = GivenPeers["paired"][number]["state"]
 
 // プラグインに渡す、ペアリングしたホスト 1 つの様子（常駐だけが持つ物）

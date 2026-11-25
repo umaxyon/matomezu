@@ -1,6 +1,6 @@
 package server
 
-// ペアリングとペアリングしたホストの様子（ホストどうしの入口が開いているあいだ）。約束は peer/pairing.go。
+// ペアリングとペアリングしたホストの様子（ホストどうしの入口が開いているあいだ）。手順は peer/pairing.go。
 //
 // 受ける側（B）: ペアリングの頼みの口（Unpinned）が commit を受けたら乱数を返し、reveal を受けたら、ペアリングの頼みを載せる役のアクションを利用者として行い、
 // 利用者の答えまで答えを返さずに待つ。A がつなぎを閉じた（やめた）・時間切れなら、頼みを消す役のアクションで消す。利用者が受け入れたかは、頼みが消えたあとに
@@ -107,11 +107,11 @@ const (
 	PeerConnected   PeerState = "connected"
 	PeerUnreachable PeerState = "unreachable"  // つながらない（まだ確かめていないときも）
 	PeerKeyMismatch PeerState = "key-mismatch" // 覚えた鍵と合わない相手が答えた
-	PeerUpdateThis  PeerState = "update-this"  // 約束の版が合わず、相手のほうが新しい（このホストを更新すれば合う）
-	PeerUpdateThat  PeerState = "update-that"  // 約束の版が合わず、相手のほうが古い（相手のホストを更新すれば合う）
+	PeerUpdateThis  PeerState = "update-this"  // 常駐間通信プロトコルの版が合わず、相手のほうが新しい（このホストを更新すれば合う）
+	PeerUpdateThat  PeerState = "update-that"  // 常駐間通信プロトコルの版が合わず、相手のほうが古い（相手のホストを更新すれば合う）
 )
 
-// protocolState は、約束の版の合わない相手の様子（どちらを更新すれば合うか）
+// protocolState は、常駐間通信プロトコルの版の合わない相手の様子（どちらを更新すれば合うか）
 func protocolState(pm peer.ProtocolMismatchError) PeerState {
 	if pm.TheirsNewer() {
 		return PeerUpdateThis
