@@ -364,6 +364,7 @@ export {
   aiUiText,
   type FoundWorkerBook,
   isAdminActor,
+  isAdminWorkroomIn,
   JOINED_MESSAGE,
   myWorkdeskIn,
   NO_AI_UI,

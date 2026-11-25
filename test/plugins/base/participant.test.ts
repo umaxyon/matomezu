@@ -181,7 +181,7 @@ test("管理者の印は 1 件（id は admin）。ワークルームか none �
   expect(perform(ADMIN_SET, { workroom: "nope" }).ok).toBe(false)
   expect(perform(ADMIN_SET, { workroom: room }).ok).toBe(true)
   expect(store.state.getState().records["@matomezu/base:admin-mark"]).toEqual({
-    admin: { id: "admin", workroom: room },
+    admin: { id: "admin", workroom: room, by: "user" },
   })
   expect(perform(ADMIN_SET, { workroom: "none" }, { record: "admin" }).ok).toBe(true)
 })

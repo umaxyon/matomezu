@@ -10,6 +10,7 @@ import { WARNINGS, warning, warningText } from "../core/warnings"
 import {
   JOINED_MESSAGE,
   myWorkdeskIn,
+  isAdminWorkroomIn,
   VISITOR_JOINED_MESSAGE,
   workroomActivitiesFrom,
   workTitleIn,
@@ -34,6 +35,12 @@ export function visitorJoinedText(of: Assembled, settings: string): string {
     langOf(of.catalog.core, restoreSettings(JSON.parse(settings)), "en"),
     VISITOR_JOINED_MESSAGE,
   )
+}
+
+// engine.ts の matomezuIsAdminWorkroom の中身: ワークルーム（id）が、このホストの管理者のワークルームか（レコードはホストの読み口から引く）
+export function isAdminWorkroom(of: Assembled, workroom: string): boolean {
+  const source = hostSource({}) ?? sourceOf({})
+  return isAdminWorkroomIn(of.catalog.core, source, workroom)
 }
 
 // engine.ts の matomezuWorkTitle の中身: ワークルーム（id と名前）に参加しているセッションの作業名（WorkTitle の JSON）。レコードはホストの読み口から引く

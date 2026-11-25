@@ -61,6 +61,7 @@ type Engine struct {
 	joinedMsg    func(string, string) string
 	visitorMsg   func(string) string
 	workTitle    func(string, string, string) string
+	isAdmin      func(string) bool
 	myWorkdesk   func(string, string) string
 	activities   func(string) string
 	live         func(string, string, string, string) string
@@ -164,6 +165,7 @@ func New() (*Engine, error) {
 		{"matomezuJoinedText", &e.joinedMsg},
 		{"matomezuVisitorJoinedText", &e.visitorMsg},
 		{"matomezuWorkTitle", &e.workTitle},
+		{"matomezuIsAdminWorkroom", &e.isAdmin},
 		{"matomezuMyWorkdesk", &e.myWorkdesk},
 		{"matomezuWorkroomActivities", &e.activities},
 		{"matomezuUnexpired", &e.live},

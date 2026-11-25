@@ -50,7 +50,15 @@ import {
   subjectRolesOf,
   unlistedOf,
 } from "./records"
-import { joinedText, myWorkdesk, visitorJoinedText, windowWarningLines, workroomActivities, workTitle } from "./texts"
+import {
+  isAdminWorkroom,
+  joinedText,
+  myWorkdesk,
+  visitorJoinedText,
+  windowWarningLines,
+  workroomActivities,
+  workTitle,
+} from "./texts"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
@@ -255,6 +263,10 @@ let lastAdded: readonly Plugin[] = []
   settings,
   workroom,
 ) => joinedText(assembled, settings, workroom)
+
+// ワークルーム（id）が、このホストの管理者のワークルームか（管理者の印が指す。常駐が、同じホストの管理者の AI 間メッセージに利用者の頼みの印を付けるかに読む。読み口を置いている間に呼ぶ）
+;(globalThis as { matomezuIsAdminWorkroom?: (workroom: string) => boolean }).matomezuIsAdminWorkroom = workroom =>
+  isAdminWorkroom(assembled, workroom)
 
 // ワークルーム（id と名前）に参加している AI のセッションの作業名（利用者の設定が書くのを止めていれば off。常駐が、話しかけとターンの終わりのフックに答える）
 // 作業はレコードから決まるので、常駐が読み口を置いている間に呼ぶ
