@@ -12,6 +12,8 @@ declare module "../../../core/catalog" {
   interface SettingExtras {
     // 値の形が選択肢の利用者の設定の項目で、選択肢の値 → 名前（頭の付いた文言の鍵。kit.message で作る）。設定の画面が選択肢に出す（無い値は、値をそのまま出す）
     optionTitles?: Readonly<Record<string, string>>
+    // 設定の項目の短い説明（頭の付いた文言の鍵。kit.message で作る）。設定の画面とダイアログが、項目の名前の右の「？」を押すと吹き出しに出す
+    help?: string
   }
 }
 
@@ -76,10 +78,16 @@ export function autoInputOf(catalog: CoreCatalog, def: SettingDef): AutoInput | 
   return null
 }
 
-// optionTitles の文言の鍵が文言にあるか（台帳アセンブルのときの確かめ）
-export const OPTION_TITLES_CHECK: CatalogCheckDef = catalog =>
-  [...catalog.userSettings.values()].flatMap(d =>
-    Object.values(d.optionTitles ?? {})
+// optionTitles と help の文言の鍵が文言にあるか（台帳アセンブルのときの確かめ。help は設定の項目も見る）
+export const OPTION_TITLES_CHECK: CatalogCheckDef = catalog => [
+  ...[...catalog.userSettings.values()].flatMap(d =>
+    [...Object.values(d.optionTitles ?? {}), ...(d.help === undefined ? [] : [d.help])]
       .filter(title => !catalog.messages.has(title))
       .map(title => problem("E018", { kind: "userSetting", id: d.id, title })),
-  )
+  ),
+  ...[...catalog.settings.values()].flatMap(d =>
+    d.help === undefined || catalog.messages.has(d.help)
+      ? []
+      : [problem("E018", { kind: "setting", id: d.id, title: d.help })],
+  ),
+]

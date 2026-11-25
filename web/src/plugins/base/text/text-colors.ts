@@ -1,15 +1,12 @@
-// 文字の色の値: 文字の色の定義の色を、ページのテーマの textColors で変え、ページの設定の項目 page-text-colors（文字の色の id → #rrggbb）で上書きし、
-// 利用者の上書き（利用者の設定の項目 text-colors）をさらに重ねる。ページのタイプが settings に選んだページだけが上書きを持てる（選ばなければテーマか定義の色）
+// 文字の色の値: 文字の色の定義の色を、ページのテーマの textColors で変え、利用者の上書き（利用者の設定の項目 text-colors。文字の色の id → #rrggbb）を重ねる
 import { z } from "zod"
 import { HEX } from "../../../core/color"
 import type { CatalogCheckDef, CoreCatalog } from "../../../core/core-catalog"
-import { settingOr } from "../../../core/def/setting"
 import { problem } from "../../../core/errors"
 import { splitId } from "../../../core/names"
 import type { Page } from "../../../core/schema/book"
 import { warning } from "../../../core/warnings"
 import { pageTheme } from "../book-look"
-import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 
 declare module "../../../core/catalog" {
@@ -30,23 +27,18 @@ export const THEME_TEXT_COLORS_CHECK: CatalogCheckDef = catalog =>
     ]),
   )
 
-// ページの文字の色の上書き（無い色の id は使わずに残す）
-export const PAGE_TEXT_COLORS = kit.defineSetting({
-  id: "page-text-colors",
-  holder: "page",
-  title: "Text colors",
-  schema: z.record(z.string(), z.string().regex(HEX)),
-})
-
 // 利用者の文字の色の上書き（利用者の設定の項目。無い色の id は使わずに残す）
 export const USER_TEXT_COLORS = kit.defineSetting({
   id: "text-colors",
   title: "Text colors",
+  help: kit.message(
+    "The colors you can give part of a text in a text box. Used in the body of a box on a drawing and so on",
+  ),
   schema: z.record(z.string(), z.string().regex(HEX)),
   default: {},
 })
 
-// 文字の色の上書き own（ブックか利用者の設定の項目の値。無ければ undefined）の、文字の色 id を color にした値（undefined は上書きを消す）。
+// 文字の色の上書き own（利用者の設定の項目の値。無ければ undefined）の、文字の色 id を color にした値（undefined は上書きを消す）。
 // 項目の値は丸ごと置き換わるので、ほかの色の上書きも残す。上書きが 1 つも残らなければ undefined（項目の値を消す）
 export function withTextColor(
   own: TextColorValues | undefined,
@@ -69,15 +61,12 @@ export function textColorVars(colors: ReadonlyMap<string, string>): Record<strin
 
 export type TextColorValues = Readonly<Record<string, string>>
 
-// ページ page の、文字の色の id → 色: 定義の色 ← テーマ ← ページの上書き ← 利用者の上書き viewer
+// ページ page の、文字の色の id → 色: 定義の色 ← テーマ ← 利用者の上書き viewer
 export function textColorsOf(
   catalog: CoreCatalog,
   page: Pick<Page, "type">,
   viewer: TextColorValues = {},
 ): ReadonlyMap<string, string> {
-  const own: Readonly<Record<string, string>> = settingOr(settingValue(catalog, page, PAGE_TEXT_COLORS), {})
   const theme = catalog.themes.get(pageTheme(catalog, page))?.textColors ?? {}
-  return new Map(
-    [...catalog.textColors.values()].map(c => [c.id, viewer[c.id] ?? own[c.id] ?? theme[c.id] ?? c.color] as const),
-  )
+  return new Map([...catalog.textColors.values()].map(c => [c.id, viewer[c.id] ?? theme[c.id] ?? c.color] as const))
 }

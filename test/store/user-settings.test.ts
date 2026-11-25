@@ -112,6 +112,18 @@ test("選択肢の名前（optionTitles）の文言の鍵が文言に無けれ�
   expect(() => assemble([...BUILTIN, named])).toThrow("E018")
 })
 
+test("設定の項目の説明（help）の文言の鍵が文言に無ければ、利用者の設定の項目でもページの設定の項目でも、台帳アセンブルで誤り", () => {
+  const user: Plugin = { id: "@ex/h", userSettings: [{ ...OPEN, id: "@ex/h:mode", help: "@ex/h:none" }] }
+  expect(() => assemble([...BUILTIN, user])).toThrow("E018")
+  const page: Plugin = {
+    id: "@ex/h",
+    settings: [
+      { id: "@ex/h:look", title: "@matomezu/base:Language", schema: z.number(), holder: "page", help: "@ex/h:none" },
+    ],
+  }
+  expect(() => assemble([...BUILTIN, page])).toThrow("E018")
+})
+
 test("参加者が生きているとする長さは、role が participant-alive の項目（分の数）から決まる", () => {
   expect(participantAliveMs(CORE_CATALOG, {})).toBe(60 * 60_000)
   expect(participantAliveMs(CORE_CATALOG, { "@matomezu/base:participant-alive": "15" })).toBe(15 * 60_000)

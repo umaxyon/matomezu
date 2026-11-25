@@ -19,6 +19,7 @@ import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, PAGE_LOCK, PAGE_UNLOCK } from "../lock"
 import { LockToggle } from "../lock/LockToggle"
 import { NO_RIGHT_SIDE_PANEL, useCloseRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
+import { helpOf } from "../settings/SettingRow"
 import { ZoomBar, ZoomButton } from "../zoom/ZoomBar"
 import { fitSide, PRINT, PRINT_PREVIEW_BOOK_NAME, PRINT_PREVIEW_FIT, PRINT_PREVIEW_UPDATE } from "."
 import { entryCrossings } from "./entry-sheets"
@@ -82,6 +83,7 @@ function PrintPreviewPanelBody({ previewed }: { previewed: PreviewedEntry }) {
               key={id}
               of="outermost"
               label={t(def.title)}
+              help={helpOf(def, t)}
               value={own[id] ?? NOT_SET}
               inherited={def.default ?? NOT_SET}
               page={NO_PAGE}
