@@ -20,7 +20,7 @@ import (
 )
 
 // Protocol は、常駐間通信プロトコルの版。入口の包み（Pinned・Unpinned）が、どの頼みでも見出しで確かめ、合わなければ断る。mDNS の知らせにも載せる
-const Protocol = 1
+const Protocol = 2
 
 // Identity は、このホストの鍵: TLS で見せる証明書と、その公開鍵から決まるホスト id
 type Identity struct {

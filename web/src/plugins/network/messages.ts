@@ -6,6 +6,7 @@ export const NETWORK_MESSAGES = defineMessages({
   "Host name": { en: "Host name", ja: "ホスト名" },
   "Connect with other hosts": { en: "Connect with other hosts", ja: "ホストとつなぐ" },
   "Listening at": { en: "Listening at", ja: "待っている所" },
+  "Connecting from the other host": { en: "Connecting from the other host", ja: "相手からつないでいる" },
   "Host key": { en: "Host key", ja: "このホストの鍵の印" },
   "Could not open the entrance for other hosts": {
     en: "Could not open the entrance for other hosts",

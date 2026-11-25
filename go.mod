@@ -8,6 +8,7 @@ require (
 	github.com/dop251/goja v0.0.0-20261021140635-64adc8bb4d51
 	github.com/evanw/esbuild v0.28.2
 	github.com/gofrs/flock v0.13.1
+	golang.org/x/net v0.63.0
 	golang.org/x/sys v0.50.0
 	modernc.org/sqlite v1.61.0
 )
@@ -31,7 +32,6 @@ require (
 	github.com/sosodev/duration v1.4.0 // indirect
 	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	golang.org/x/net v0.63.0 // indirect
 	golang.org/x/text v0.44.0 // indirect
 	modernc.org/libc v1.79.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
