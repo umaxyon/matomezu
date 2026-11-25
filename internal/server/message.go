@@ -248,7 +248,12 @@ func (h *Hub) deliver(d delivery) bool {
 	if d.peer != "" {
 		head = remoteMessageHead(e.From.Workroom, d.host, d.asUser)
 	}
+	if d.peer == "" && d.from != "" {
+		// 受け手が送り手へ送ったので、その組の承認待ちは知らせずに消す（返事）
+		h.dropRepliedHeld(func(p pendingMessage) bool { return p.Receiver == d.from && p.Sender == d.to && p.SenderHost == "" })
+	}
 	h.enqueueWake(wakeItem{participant: d.to, kind: wakeMessage, line: head + " " + quote(e.Text), head: head, body: quote(e.Text), peer: d.peer, asUser: d.asUser})
+	h.addPendingHeld(d)
 	return true
 }
 

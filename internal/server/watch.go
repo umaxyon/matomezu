@@ -107,6 +107,9 @@ const (
 	wakeUpdate    = "update"    // 利用者が、matomezu の版を上げるよう頼んだ（update.go）
 	wakeHost      = "host"      // 常駐メッセージ（フォローステップが返した、常駐からの知らせ。message.go）
 	wakeRally     = "rally"     // AI ラリーを上限で止め、宛て先に届けなかったという知らせ（rally.go）
+
+	wakeMessageApproved  = "message-approved"  // 承認待ちの AI 間メッセージを利用者が承認した（受け手に、利用者の頼みとして。pending_message.go）
+	wakeMessageCancelled = "message-cancelled" // 承認待ちの AI 間メッセージを利用者がキャンセルした（送り手と受け手に。pending_message.go）
 )
 
 // asUserMark は、利用者の頼みと扱ってよい知らせの行の、頭に付ける印（requests が as-user のホストから届いた行と、利用者が画面で押した頼みの行）

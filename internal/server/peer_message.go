@@ -78,6 +78,14 @@ func (h *Hub) sendToHost(from, fromID string, req MessageRequest, now time.Time)
 	}
 	switch {
 	case err == nil:
+		if sent.OK {
+			// 受け手が、ほかのホストの送り手へ送れたので、その組の承認待ちは知らせずに消す（返事。pending_message.go）
+			h.mu.Lock()
+			h.dropRepliedHeld(func(p pendingMessage) bool {
+				return p.Receiver == fromID && p.SenderHost == target.HostID && p.senderRoom == req.To
+			})
+			h.mu.Unlock()
+		}
 		return sent
 	case errors.Is(err, peer.ErrNotPaired):
 		return MessageSent{Reason: "unknown-host", Detail: "host " + req.Host + " is not paired with this host any more; the message was not sent"}

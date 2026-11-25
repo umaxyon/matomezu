@@ -45,6 +45,9 @@ func (h *Hub) Join() *client {
 		hello["build"] = h.build
 	}
 	h.send(c, "hello", hello)
+	if len(h.pending) > 0 {
+		h.send(c, "pending-messages", h.pendingListHeld())
+	}
 	return c
 }
 
