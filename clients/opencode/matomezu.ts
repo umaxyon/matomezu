@@ -72,6 +72,9 @@ export const processes: Processes = {
 
 const envOf = (m: Matomezu) => (m.home ? { ...process.env, MATOMEZU_HOME: m.home } : process.env)
 
+// binName は、matomezu の実行ファイルの名前（Windows は .exe が付く）
+const binName = process.platform === "win32" ? "matomezu.exe" : "matomezu"
+
 // findMatomezu は、フォルダ directory で呼ぶ matomezu。directory が matomezu のリポジトリ（git の共通のフォルダの隣に開発の常駐 .dev-home がある）なら、
 // その常駐（MATOMEZU_HOME も合わせる）。そうでなければ PATH の matomezu。どちらも無ければ undefined
 export const findMatomezu = (directory: string) =>
@@ -84,14 +87,10 @@ export const findMatomezu = (directory: string) =>
         const common = err ? "" : String(stdout).trim()
         if (common !== "") {
           const home = join(dirname(common), ".dev-home")
-          if (executable(join(home, "matomezu")))
-            return resolve({ bin: join(home, "matomezu"), root: dirname(common), home })
+          if (executable(join(home, binName))) return resolve({ bin: join(home, binName), root: dirname(common), home })
         }
-        const names = process.platform === "win32" ? ["matomezu.exe"] : ["matomezu"]
         for (const dir of (process.env.PATH ?? "").split(delimiter)) {
-          for (const name of names) {
-            if (dir !== "" && executable(join(dir, name))) return resolve({ bin: join(dir, name) })
-          }
+          if (dir !== "" && executable(join(dir, binName))) return resolve({ bin: join(dir, binName) })
         }
         resolve(undefined)
       },

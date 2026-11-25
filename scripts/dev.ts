@@ -1,13 +1,14 @@
 // 開発用: 画面を変更のたびにビルドし直し、web/dist を Go の常駐（matomezu serve）で配る。bun scripts/dev.ts [--port <ポート>] [serve に渡す引数]
 // ポートを付けなければ、.dev-home が覚えたポート（選んだことが無ければ 5300）。付けたポートは .dev-home が覚える。
-// 開いたブラウザは画面 cookie を持つ必要がある（cookie が無い画面は「画面 cookie が要る」と出る）。リポジトリの中で .dev-home/matomezu open を打つと、画面 cookie を渡す URL でブラウザが開く。
+// 開いたブラウザは画面 cookie を持つ必要がある（cookie が無い画面は「画面 cookie が要る」と出る）。リポジトリの中で .dev-home/matomezu open（Windows は .dev-home/matomezu.exe open）を打つと、画面 cookie を渡す URL でブラウザが開く。
 // 追加プラグインを結ぶなら bun run dev --plugin <開発者プロジェクトのフォルダ>（変えたら起動し直すか、POST /api/plugins で入れ替える）。
 // 常駐の matomezu 保管庫フォルダは .dev-home（利用者が使っている matomezu 保管庫フォルダに触らない）。Go のコードを変えたら起動し直す
 import { webBuild } from "./web-build"
 
 const args = process.argv.slice(2)
 const build = webBuild("web/dist", "development")
-const exe = ".dev-home/matomezu"
+// Windows は拡張子 .exe の無い実行ファイルを起動できない
+const exe = process.platform === "win32" ? ".dev-home/matomezu.exe" : ".dev-home/matomezu"
 
 const built = await Bun.spawn(["go", "build", "-o", exe, "./cmd/matomezu"], { stdout: "inherit", stderr: "inherit" })
   .exited
