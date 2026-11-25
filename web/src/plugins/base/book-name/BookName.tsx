@@ -1,5 +1,6 @@
 // ブックの名前のボタン（ウィジェット book-name）: ステージのブックの名前（ブックの外のページを開いていれば、そのページの名前。ブックの外のバインダを開いていれば、そのバインダの名前）を出す。
 // ロック中のブック（ブックの外のページを開いていれば、ロック中のそのページ）は名前の左に鍵を出す（印だけ。外すのはブック・ページの設定のダイアログ）。
+// 鍵と名前の間に、スロット book-name-head に置いたウィジェット（作業しているワークルームの鳥など）を描く。
 // ブックの外のバインダはロックを持たないので、鍵を出さない（ロックしたページは、ページ一覧に鍵を出す）。
 // 乗せるか押すと、下の行の真上に、行の幅いっぱいのフッタメニューが下から上がり、離れると下がる。下の行に置かれていれば、下の行のどこに乗せても出し、
 // 下の行から離れると下がる（フッタメニューは下の行の中に描くので、フッタメニューに乗っている間も下の行に乗っている）。
@@ -20,6 +21,7 @@ import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
 import { useBottomHover } from "../workspace/bottom-hover"
 import styles from "./BookName.module.css"
+import { BOOK_NAME_HEAD } from "./head"
 
 // 離れてからメニューが下がるまで（ボタンとメニューの間を動く間に下がらないように）
 const LEAVE_MS = 250
@@ -72,20 +74,20 @@ export function BookName() {
           type="button"
           className={styles.trigger}
           data-current={current}
-          data-locked={locked}
           aria-label={title || t("Book menu")}
           aria-haspopup="menu"
           aria-expanded={open}
           title={title || undefined}
           onClick={show}
         >
-          {title}
+          {locked && (
+            <span className={styles.lock} role="img" aria-label={t("Locked")}>
+              <LockIcon />
+            </span>
+          )}
+          <Slot name={BOOK_NAME_HEAD} props={{}} />
+          <span className={styles.title}>{title}</span>
         </button>
-        {locked && (
-          <span className={styles.lock} role="img" aria-label={t("Locked")}>
-            <LockIcon />
-          </span>
-        )}
       </div>
       <FooterMenu
         open={open}

@@ -212,7 +212,7 @@ test("書庫の検索は、チケットの番号と名前・ページの名前�
   await expect(page.getByText("見つける絵").first()).toBeVisible()
 })
 
-test("ワーカーブックの下の行は、名前の左に作業しているワークルームの鳥を出し、フォルダの絵を押すと書庫でその作業机を開いてワーカーブックを選ぶ", async ({
+test("ワーカーブックの下の行は、名前の枠の中の名前の前に作業しているワークルームの鳥を出し、フォルダの絵を押すと書庫でその作業机を開いてワーカーブックを選ぶ", async ({
   page,
 }) => {
   await page.goto(CONTROL_CENTER_URL)
@@ -226,6 +226,7 @@ test("ワーカーブックの下の行は、名前の左に作業している�
   await page.locator("[data-workroom]").filter({ hasText: "とり" }).locator("[data-current-line]").dblclick()
   await expect(page.getByText("鳥のメモ").first()).toBeVisible()
   await expect(page.locator("[data-worker-birds]")).toHaveAttribute("title", "とり")
+  await expect(page.locator('button[aria-haspopup="menu"] [data-worker-birds]')).toHaveCount(1)
   const place = page.getByRole("button", { name: "置き場所: ワークルーム › とり" })
   await expect(place).toHaveText("")
   await place.click()

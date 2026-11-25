@@ -91,12 +91,12 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:sheet-layers": ["@matomezu/slide:slide-sheet", "@matomezu/base:sheet-content"],
     "@matomezu/base:stage-bottom": [
       "@matomezu/base:footer-close-button",
-      "@matomezu/base:worker-birds",
       "@matomezu/base:book-name",
       "@matomezu/base:page-place",
       "@matomezu/base:page-tabs",
       "@matomezu/base:footer-widen-button",
     ],
+    "@matomezu/base:book-name-head": ["@matomezu/base:worker-birds"],
     "@matomezu/base:stage-corner": [],
     "@matomezu/base:footer-menu-map": ["@matomezu/base:footer-menu-minimap"],
     "@matomezu/base:footer-menu-history": ["@matomezu/base:history-buttons"],
