@@ -6,7 +6,7 @@ import { type Library, TRASH_ID } from "../../web/src/core/folders"
 import { bookOf } from "../../web/src/core/folders-books"
 import { withChanges } from "../../web/src/core/folders-changes"
 import { performIn, type World } from "../../web/src/core/perform-world"
-import { referredOf, UNSEEN } from "../../web/src/core/references"
+import { deadReferences, referredOf, UNSEEN } from "../../web/src/core/references"
 import type { AnyPage } from "../../web/src/core/schema/book"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, libraryWith, sequence } from "../support"
@@ -132,4 +132,17 @@ test("バックヤードの中のブックには置けず、バックヤード�
   } as unknown as World
   expect("result" in after(yard, "reference-add", { of: { kind: "page", id: "w1" } }, { book: "B" })).toBe(false)
   expect("result" in after(yard, "reference-add", { of: { kind: "page", id: "a1" } }, { book: "W" })).toBe(false)
+})
+
+test("指す先のページがバインダに入っていれば、整えるときに参照を外す（置くときと同じ決まり）", () => {
+  const world = start()
+  const b = world.folders.B as { lineup: readonly object[] }
+  const odd = {
+    ...world,
+    folders: {
+      ...world.folders,
+      B: { ...b, lineup: [...b.lineup, { kind: "reference", id: "r9", of: { kind: "page", id: "s1" } }] },
+    },
+  } as unknown as World
+  expect(Object.keys(deadReferences(odd))).toEqual(["B"])
 })

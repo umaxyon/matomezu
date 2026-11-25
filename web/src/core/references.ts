@@ -1,6 +1,6 @@
 // 参照エントリ: ブックの並びに置く、ほかの所のページ（バインダの外の物）かバインダを id で指す 1 つ。中身・名前・設定を持たず、指す先を見るだけで描く。
 // 参照エントリは、指す先が書庫に在る限り残る（ゴミ箱・読めない物のフォルダに居る間も残り、描く所が無いと見せる）。
-// 指す先が完全に消されたときと、指す先が参照エントリを置いたブックの中に入ったときは、書庫を変えた書き込みと同じ書き込みで、仕組みが消す
+// 指す先が完全に消されたときと、指す先が参照エントリを置いたブックの中に入ったとき、指す先のページがバインダに入ったときは、書庫を変えた書き込みと同じ書き込みで、仕組みが消す
 
 import { referencesOf } from "./book"
 import { inBackyard } from "./entries"
@@ -36,9 +36,14 @@ function targetOf({ pages, folders }: Library, ref: ReferenceEntry): Referred | 
   return binder?.folderRole === "binder" ? { kind: "binder", binder } : undefined
 }
 
-// 参照エントリ ref が、ブック book の並びに残れるか: 指す先が書庫に在り（ゴミ箱の中なども）、そのブックの中に居ない
+// 参照エントリ ref が、ブック book の並びに残れるか: 指す先が書庫に在り（ゴミ箱の中なども）、そのブックの中に居ず、ページならバインダに入っていない
 function stays(library: Library, book: string, ref: ReferenceEntry): boolean {
-  return targetOf(library, ref) !== undefined && !foldersOver(library.folders, ref.of.id).some(f => f.id === book)
+  const over = foldersOver(library.folders, ref.of.id)
+  return (
+    targetOf(library, ref) !== undefined &&
+    !over.some(f => f.id === book) &&
+    (ref.of.kind === "binder" || over[0]?.folderRole !== "binder")
+  )
 }
 
 // 書庫 library で、残れない参照エントリを並びから外したブックのフォルダの変わり（どのブックにも外す物が無ければ空）
@@ -62,7 +67,6 @@ export function newReferencesHold(library: Library, was: StageLineup, now: Stage
       (referredOf(library, r) !== UNSEEN &&
         stays(library, now.id, r) &&
         !inBackyard(library.folders, now.id) &&
-        !inBackyard(library.folders, r.of.id) &&
-        (r.of.kind === "binder" || foldersOver(library.folders, r.of.id)[0]?.folderRole !== "binder")),
+        !inBackyard(library.folders, r.of.id)),
   )
 }
