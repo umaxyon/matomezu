@@ -92,7 +92,12 @@ export const ADMIN_MARK = kit.defineSubject({
   title: "adminMark",
   aiDescription:
     "The administrator's mark: which workroom is the administrator (the id, or none). There is one, with the id admin.",
-  record: z.strictObject({ id: z.string().min(1), workroom: z.string().min(1) }), // id は "admin"（admin-set が作る）
+  // id は "admin"（admin-set が作る）。by は、利用者が王冠で選んだか（user）、受け入れで自動に付いたか（auto）。無い物は auto と同じに扱う
+  record: z.strictObject({
+    id: z.string().min(1),
+    workroom: z.string().min(1),
+    by: z.enum(["user", "auto"]).optional(),
+  }),
   refers: a => (a.workroom === "none" ? [] : [{ subject: WORKROOM.id, id: a.workroom }]),
 })
 
@@ -258,7 +263,9 @@ export const PARTICIPANT_ACCEPT = kit.defineAction({
     const joined = (workroom: string): Participant => ({ ...rest, state: "joined", workroom, joinedAt: ctx.now })
     // 管理者がいなければ、入れたワークルームに管理者の印を付ける
     const admin = (workroom: string, gone: string | undefined) =>
-      lacksAdmin(ctx, gone) ? [{ subject: ADMIN_MARK.id, id: "admin", record: { id: "admin", workroom } }] : []
+      lacksAdmin(ctx, gone)
+        ? [{ subject: ADMIN_MARK.id, id: "admin", record: { id: "admin", workroom, by: "auto" as const } }]
+        : []
     if (!("newWorkroom" in args)) {
       if (ctx.records?.[WORKROOM.id]?.[args.workroom] === undefined) return { declined: "the workroom is not there" }
       const out = leaving(ctx, args.workroom, args.occupant)
@@ -422,7 +429,7 @@ export const ADMIN_SET = kit.defineAction({
   run: (_now, args, ctx) => {
     if (args.workroom !== "none" && ctx.records?.[WORKROOM.id]?.[args.workroom] === undefined)
       return { declined: "the workroom is not there" }
-    return { next: { id: "admin", workroom: args.workroom }, result: {} }
+    return { next: { id: "admin", workroom: args.workroom, by: "user" }, result: {} }
   },
 })
 // 管理者の印を読むアクションが reads に足す物（印は全体に 1 件）

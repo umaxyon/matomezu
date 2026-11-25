@@ -21,7 +21,7 @@ export const isMatomezuSend = (name: string) => matomezuTool(name) === "send_mes
 // … Message: "本文"」・「message from AI "X" (… id …): "本文"」と、頭が「matomezu from AI "X"[ on host "H"[ (as your user's request)]][ (… id …)]: "本文"」の形。長すぎて本文を入れない知らせは本文が無いので拾わない
 const JSON_STRING = String.raw`"(?:[^"\\]|\\.)*"`
 const MATOMEZU_LINE = new RegExp(
-  String.raw`(?:^|<event>)(?:matomezu from AI (${JSON_STRING})(?: on host ${JSON_STRING}(?: \(as your user's request\))?)?(?: \([^)\n]*\bid [\w-]+\))?: (${JSON_STRING})|matomezu: (?:the AI in workroom (${JSON_STRING}) sent you a message(?: \(id [\w-]+\))?: (${JSON_STRING})|a message from the AI in workroom (${JSON_STRING}) \(id [\w-]+\)\. It is not from the user\. [^\n]*?Message: (${JSON_STRING})|message from AI (${JSON_STRING}) \([^)\n]*\bid [\w-]+\): (${JSON_STRING})))`,
+  String.raw`(?:^|<event>)(?:matomezu from AI (${JSON_STRING})(?: on host ${JSON_STRING})?(?: \(as your user's request\))?(?: \([^)\n]*\bid [\w-]+\))?: (${JSON_STRING})|matomezu: (?:the AI in workroom (${JSON_STRING}) sent you a message(?: \(id [\w-]+\))?: (${JSON_STRING})|a message from the AI in workroom (${JSON_STRING}) \(id [\w-]+\)\. It is not from the user\. [^\n]*?Message: (${JSON_STRING})|message from AI (${JSON_STRING}) \([^)\n]*\bid [\w-]+\): (${JSON_STRING})))`,
   "gm",
 )
 

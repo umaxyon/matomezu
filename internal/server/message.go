@@ -109,6 +109,7 @@ func (h *Hub) actionEnvelopes(messages []engine.AIMessage, actor *engine.Actor, 
 		return nil, &Performed{OK: false, Reason: "not-joined", Detail: "only an AI whose request to join was accepted sends AI messages"}
 	}
 	self := h.selfHostID()
+	adminSender := h.adminWorkroomHeld(actor.Workroom)
 	envelopes := make([]delivery, 0, len(messages))
 	ahead := map[string]int{} // 宛て先の参加者ごとの、このバルクで先に送る数
 	for _, m := range messages {
@@ -123,7 +124,7 @@ func (h *Hub) actionEnvelopes(messages []engine.AIMessage, actor *engine.Actor, 
 			}
 			return nil, &Performed{OK: false, Reason: "no-recipient", Detail: "no other AI has joined the workroom " + name + " now, so the message to it cannot be sent; nothing was changed"}
 		}
-		d := delivery{to: to, from: from, envelope: Envelope{
+		d := delivery{to: to, from: from, asUser: adminSender, envelope: Envelope{
 			ID:     newEnvelopeID(),
 			From:   Address{Host: self, Workroom: roomName(rooms, actor.Workroom)},
 			To:     Address{Host: self, Workroom: name},
@@ -203,7 +204,7 @@ func (h *Hub) sendHeld(records []participantRecord, rooms []workroomRecord, req 
 		return sendDecision{noRecipient: true, open: open}
 	}
 	self := h.selfHostID()
-	if !h.deliver(delivery{to: occupant[to.ID], from: from.ID, envelope: Envelope{
+	if !h.deliver(delivery{to: occupant[to.ID], from: from.ID, asUser: h.adminWorkroomHeld(from.Workroom), envelope: Envelope{
 		ID:     newEnvelopeID(),
 		From:   Address{Host: self, Workroom: roomName(rooms, from.Workroom)},
 		To:     Address{Host: self, Workroom: to.Name},
@@ -258,7 +259,7 @@ func (h *Hub) deliver(d delivery) bool {
 		delete(h.seenEnvelopes, h.seenOrder[0])
 		h.seenOrder = h.seenOrder[1:]
 	}
-	head := messageHead(e.From.Workroom)
+	head := messageHead(e.From.Workroom, d.asUser)
 	if d.peer != "" {
 		head = remoteMessageHead(e.From.Workroom, d.host, d.asUser)
 	}
@@ -266,10 +267,21 @@ func (h *Hub) deliver(d delivery) bool {
 	return true
 }
 
-// messageHead は、AI 間メッセージの知らせの、送り手を名乗る頭（from は送り手のワークルーム名）。届く 1 行は、頭と本文。名前と本文は JSON の文字列にして包む
+// messageHead は、同じホストの AI 間メッセージの知らせの、送り手を名乗る頭（from は送り手のワークルーム名。asUser は送り手が、このホストの管理者なら true で、利用者の頼みの印を付ける）。
+// 届く 1 行は、頭と本文。名前と本文は JSON の文字列にして包む
 // （本文の改行と、本文の中の偽の知らせの行を見分けるため）。端末や会話には行が見えるので、前置きは送り手だけにする。返し方は参加の知らせと send_message の説明に任せる
-func messageHead(from string) string {
-	return "matomezu from AI " + quote(from) + ":"
+func messageHead(from string, asUser bool) string {
+	head := "matomezu from AI " + quote(from)
+	if asUser {
+		head += " " + asUserMark
+	}
+	return head + ":"
+}
+
+// adminWorkroomHeld は、ワークルーム id が、このホストの管理者のワークルームか（管理者の印が指す。同じホストの管理者の AI 間メッセージに利用者の頼みの印を付けるかに使う）。h.mu を持って呼ぶ
+func (h *Hub) adminWorkroomHeld(id string) bool {
+	admin, err := h.engine.IsAdminWorkroom(id, recordSource{h})
+	return err == nil && admin
 }
 
 // quote は、文字列を JSON の文字列にする（< > & を逃がさない）
