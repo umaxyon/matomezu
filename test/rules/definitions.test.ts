@@ -12,7 +12,6 @@ import {
   ROOT,
   relative,
   SRC,
-  slashed,
   sources,
   specOwner,
   specs,
@@ -51,8 +50,8 @@ test("アクションは同じ入力なら同じ結果: アクションと、ア
   const defining = [...sources, ...added].filter(
     f =>
       /\bdefineAction\s*\(|\bpageFieldsInput\b|\bpageFieldsWay\b|\bFollowStepDef\b/.test(f.text) &&
-      !slashed(f.path).endsWith("def/action.ts") &&
-      !slashed(f.path).endsWith("def/follow-step.ts"),
+      !f.rel.endsWith("def/action.ts") &&
+      !f.rel.endsWith("def/follow-step.ts"),
   )
   expect(defining.length).toBeGreaterThan(0)
   const bad = defining

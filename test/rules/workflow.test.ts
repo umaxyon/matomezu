@@ -1,7 +1,7 @@
 // 「作業の進め方」の決まりを見張る: 単体のテストの置き場、e2e、テストの用意の手段
 import { describe, expect, test } from "bun:test"
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
-import { dirname, join, normalize, resolve } from "node:path"
+import { dirname, join, posix, resolve } from "node:path"
 import { ADDED, CRATES, filesUnder, ROOT, relative, SRC, slashed, sources } from "./sources"
 
 // 単体のテストの置き場: test の直下は全体を見張るテストだけ。test/<クレート> はそのクレート（かその置き場の手伝い）を、test/plugins/<置き場> はそのプラグインを、test/scripts は scripts のスクリプトを、test/clients/<AI の名前> はその AI ごとの部品を読む
@@ -28,7 +28,7 @@ test("単体のテストは、確かめる物の置き場（クレート・test/
   const targetsOf = (rel: string, text: string) =>
     [...text.matchAll(/^import\s+(type\s+)?([^"']*?)\s*from\s*["'](\.{1,2}\/[^"']+)["']/gm)]
       .filter(m => !typeOnly(m[1], m[2]!.trim()))
-      .map(m => slashed(normalize(join(dirname(rel), m[3]!))))
+      .map(m => posix.normalize(posix.join(posix.dirname(rel), m[3]!)))
   const CRATE_DIRS = [...CRATES, "plugins"]
   const ROOT_TESTS = ["engine.test.ts", "fonts.test.ts", "plugin-api.test.ts"]
   const bad = tests.flatMap(({ rel, text }) => {
@@ -205,7 +205,7 @@ test("根の tsconfig が外すフォルダ（見本のほか）の tsconfig は
       .flatMap(name =>
         readdirSync(join(ROOT, dir, name))
           .filter(f => /^tsconfig.*\.json$/.test(f))
-          .map(f => slashed(join(dir, name, f)).replace(/\/tsconfig\.json$/, "")),
+          .map(f => posix.join(dir, name, f).replace(/\/tsconfig\.json$/, "")),
       ),
   )
   expect(configs.length).toBeGreaterThan(0)

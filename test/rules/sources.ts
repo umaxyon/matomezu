@@ -1,4 +1,4 @@
-// 規約を見張るテスト（test/rules）が共に使う物: web/src のファイルと読み込みの先、クレートごとに読んでよいもの
+// 規約を見張るテスト（test/rules）が共に使う物: web/src のファイルと読み込みの先、クレートごとに読んでよいもの、パスの区切りを / にそろえる手伝い
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { basename, dirname, join, relative as nodeRelative, resolve, sep } from "node:path"
 

@@ -5,6 +5,7 @@ import { basename, dirname, join, resolve } from "node:path"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import {
   ALLOWED,
+  added,
   apiAllowed,
   baseAllowed,
   CRATES,
@@ -58,6 +59,12 @@ test("外のライブラリを読むファイルは、そのライブラリの�
 
 test("web/src の直下は、決めたクレートとファイルだけ", () => {
   expect(readdirSync(SRC).sort()).toEqual([...CRATES, ...ROOT_FILES].sort())
+})
+
+// 規則はファイルの rel を / 区切りで照合する。rel が OS の区切りのままだと、絞り込みが 0 件になって黙って通る
+test("規則が照合するファイルの rel は / 区切りで、web/src のファイルはどれもクレートかの直下のファイルに当たる", () => {
+  expect([...sources, ...added].filter(f => f.rel.includes("\\")).map(f => f.rel)).toEqual([])
+  expect(sources.filter(f => ![...CRATES, ...ROOT_FILES].includes(crateOf(f.rel))).map(f => f.rel)).toEqual([])
 })
 
 describe("依存の向き", () => {
@@ -173,13 +180,13 @@ const ENTRY_ALLOWED: Record<string, (target: string) => boolean> = {
 }
 
 test("プラグイン API の入口は、ビルトインの一覧（plugins・plugins/ui）を型だけ読む（値で読むと、ビルトインの全部が入口に入る）", () => {
-  const bad = sources
-    .filter(f => f.rel.startsWith("plugin-entry/"))
-    .flatMap(f =>
-      readsOf(f.text)
-        .filter(r => !r.typeOnly && ["plugins", "plugins/ui"].includes(relative(SRC, resolve(dirname(f.path), r.spec))))
-        .map(r => `${f.rel} → ${r.spec}`),
-    )
+  const entries = sources.filter(f => f.rel.startsWith("plugin-entry/"))
+  expect(entries.length).toBeGreaterThan(0)
+  const bad = entries.flatMap(f =>
+    readsOf(f.text)
+      .filter(r => !r.typeOnly && ["plugins", "plugins/ui"].includes(relative(SRC, resolve(dirname(f.path), r.spec))))
+      .map(r => `${f.rel} → ${r.spec}`),
+  )
   expect(bad).toEqual([])
 })
 
