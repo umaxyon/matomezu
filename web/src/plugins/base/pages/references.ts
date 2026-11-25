@@ -1,7 +1,7 @@
-// 参照エントリのアクション: ブックの並びに、ほかの所のページ（バインダの外の物）かバインダを見るだけで置く・消す。
+// 参照エントリのアクション: ブックの並びに、ほかの所のページ（バインダの外の物）かバインダを見るだけで置く・動かす・消す。
 // 指す先が書庫に在り、ゴミ箱に無く、このブックの中に無く、同じ先を指す参照エントリがこのブックに無いかは、土台が書庫を読んで確かめる（core/references.ts）
 import { z } from "zod"
-import { addReference, findReference, lineupOf, removeReference } from "../../../core/book"
+import { addReference, findReference, lineupOf, moveEntry, removeReference } from "../../../core/book"
 import { kit } from "../kit"
 
 export const REFERENCE_ADD = kit.defineAction({
@@ -35,5 +35,23 @@ export const REFERENCE_REMOVE = kit.defineAction({
   run: (book, args) => {
     if (!findReference(book, args.reference)) return null
     return { next: removeReference(book, args.reference), result: {} }
+  },
+})
+
+export const REFERENCE_MOVE = kit.defineAction({
+  id: "reference-move",
+  attach: { books: true },
+  aiDescription:
+    "Move a reference to index among the entries of the book's lineup counted without it (the end without index), which reorders the page tabs. Returns nothing. Refused for a reference not in the book, an index past the end, or when the reference would stay where it is.",
+  title: "Move reference",
+  target: "book",
+  args: z.strictObject({ reference: z.string().min(1), index: z.number().int().min(0).optional() }),
+  permissionScope: "book",
+  run: (book, args) => {
+    const ids = lineupOf(book).map(e => e.id)
+    const from = ids.indexOf(args.reference)
+    const to = args.index ?? ids.length - 1
+    if (!findReference(book, args.reference) || to > ids.length - 1 || to === from) return null
+    return { next: moveEntry(book, args.reference, to), result: {} }
   },
 })

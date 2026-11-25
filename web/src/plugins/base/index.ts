@@ -187,6 +187,7 @@ import {
   PAGE_REMOVE,
   PAGE_UPDATE,
   REFERENCE_ADD,
+  REFERENCE_MOVE,
   REFERENCE_REMOVE,
   VARIABLE_PAGES,
 } from "./pages"
@@ -519,6 +520,7 @@ export const BASE = defineBuiltin(
       BINDER_DUPLICATE,
       BINDER_REMOVE,
       REFERENCE_ADD,
+      REFERENCE_MOVE,
       REFERENCE_REMOVE,
       PAGES_UPDATE,
       PAGE_REMOVE,
@@ -831,6 +833,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:binder-duplicate": typeof BINDER_DUPLICATE
     "@matomezu/base:binder-remove": typeof BINDER_REMOVE
     "@matomezu/base:reference-add": typeof REFERENCE_ADD
+    "@matomezu/base:reference-move": typeof REFERENCE_MOVE
     "@matomezu/base:reference-remove": typeof REFERENCE_REMOVE
     "@matomezu/base:pages-update": typeof PAGES_UPDATE
     "@matomezu/base:page-remove": typeof PAGE_REMOVE

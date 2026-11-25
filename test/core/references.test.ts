@@ -146,3 +146,15 @@ test("指す先のページがバインダに入っていれば、整えると�
   } as unknown as World
   expect(Object.keys(deadReferences(odd))).toEqual(["B"])
 })
+
+test("参照は並びの中で動かせる。動かない所・並びの外への動きは断る", () => {
+  const world = added(start(), { kind: "page", id: "a1" })
+  const id = (world as { result: { reference: string } }).result.reference
+  const moved = after(world, "reference-move", { reference: id, index: 0 }, { book: "B" }) as World
+  expect(lineupOfBook(moved, "B")).toEqual([id, "b1"])
+  expect("result" in after(world, "reference-move", { reference: id }, { book: "B" })).toBe(false)
+  expect("result" in after(world, "reference-move", { reference: id, index: 2 }, { book: "B" })).toBe(false)
+  expect("result" in after(world, "reference-move", { reference: "b1", index: 0 }, { book: "B" })).toBe(false)
+})
+
+const lineupOfBook = (world: Library, book: string) => (bookOf(world, book)?.lineup ?? []).map(e => e.id)

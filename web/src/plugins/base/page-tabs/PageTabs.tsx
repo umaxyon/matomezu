@@ -3,7 +3,7 @@
 // ロック中のページのタブには鍵の印を出す（押せない。外すのはページの設定のダイアログ）。
 // タブが横にあふれているときは、ホイールの縦の回転で横にスクロールする。
 // 選ばれたタブ（ブックかタブが替わったとき）と、並びが出たときは、選ばれたタブが見える所まで並びを送る（どの道で開いても同じ）。
-// タブはドラッグで並べ替えられる（useTabDrag。アクション page-move・binder-move）。掴んだタブは元の所で薄くなり、写しがポインタに付き、落とす所に線が出る
+// タブはドラッグで並べ替えられる（useTabDrag。アクション page-move・binder-move・reference-move）。掴んだタブは元の所で薄くなり、写しがポインタに付き、落とす所に線が出る
 import { useLayoutEffect, useRef } from "react"
 import { lineupOf, NO_BINDER } from "../../../core/book"
 import type { Library } from "../../../core/folders"
@@ -76,6 +76,7 @@ export function PageTabs() {
     lineup.map(e => e.id),
     "x",
     new Set(lineup.flatMap(e => (e.kind === "binder" ? [e.id] : []))),
+    new Set(lineup.flatMap(e => (e.kind === "reference" ? [e.id] : []))),
   )
   const shown = shownPageId(opened)
   const binder = book ? binderOf(book, opened) : NO_BINDER

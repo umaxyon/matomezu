@@ -30,6 +30,7 @@ export const PAGE_MESSAGES = defineMessages({
   "Remove binder": { en: "Remove binder", ja: "バインダを消す" },
   "Add reference": { en: "Add reference", ja: "参照を置く" },
   "Remove reference": { en: "Remove reference", ja: "参照を消す" },
+  "Move reference": { en: "Move reference", ja: "参照を動かす" },
   "No Data": { en: "No Data", ja: "No Data" },
   "Delete page": { en: "Delete page", ja: "ページを削除" },
   "The page and its contents will be deleted": {

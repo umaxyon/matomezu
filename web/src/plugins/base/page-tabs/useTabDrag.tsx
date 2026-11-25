@@ -1,9 +1,10 @@
-// ページタブのドラッグ（フック）: タブ（ページ一覧のページも）を掴んで並べ替える。並びの向き axis は、タブの横（x）か、ページ一覧の縦（y）。4px 動かしてから始め、落とす所を index で追い、離したらアクション page-move（バインダのタブなら binder-move）を行う。
+// ページタブのドラッグ（フック）: タブ（ページ一覧のページも）を掴んで並べ替える。並びの向き axis は、タブの横（x）か、ページ一覧の縦（y）。4px 動かしてから始め、落とす所を index で追い、離したらアクション page-move（バインダのタブなら binder-move、参照のタブなら reference-move）を行う。
 // タブの並びの外で離したら取り消す。並びが横にあふれていれば、端へ寄せている間スクロールする。始める前に page-move を行えるか問い、行えなければ始めない
 import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "react"
 import { useAllowed, usePerform } from "../../../ui/view-hooks"
 import { BINDER_MOVE } from "../pages/binders"
 import { PAGE_MOVE } from "../pages/page-move"
+import { REFERENCE_MOVE } from "../pages/references"
 import { DRAG_START, edgePanner, NO_VIEW_AREA } from "../utils"
 import { dropIndex, within } from "./tab-drop"
 
@@ -19,12 +20,13 @@ export interface TabDrag {
   index: number | null
 }
 
-// binders は ids のうちバインダの id（ページタブの並びに出るバインダ）
+// binders は ids のうちバインダの id（ページタブの並びに出るバインダ）、references は参照エントリの id
 export function useTabDrag(
   list: RefObject<HTMLElement | null>,
   ids: readonly string[],
   axis: "x" | "y" = "x",
   binders: ReadonlySet<string> = NO_BINDERS,
+  references: ReadonlySet<string> = NO_BINDERS,
 ) {
   const perform = usePerform()
   const movable = useAllowed(PAGE_MOVE.id).ok
@@ -78,6 +80,7 @@ export function useTabDrag(
     setDrag(null)
     if (commit && g && d?.index != null && d.index !== ids.indexOf(g.id)) {
       if (binders.has(g.id)) perform(BINDER_MOVE.id, { binder: g.id, index: d.index })
+      else if (references.has(g.id)) perform(REFERENCE_MOVE.id, { reference: g.id, index: d.index })
       else perform(PAGE_MOVE.id, { page: g.id, index: d.index })
     }
   }
