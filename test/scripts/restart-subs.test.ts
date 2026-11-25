@@ -3,6 +3,8 @@ import {
   joinedSince,
   lastAssistantText,
   lastModel,
+  launchArgs,
+  launchedWith,
   NG_MARK,
   parseTarget,
   projectDir,
@@ -126,4 +128,12 @@ test("参加しているワークルームは、フックが足した知らせ�
       ].join("\n"),
     ),
   ).toBe("sub2_work")
+})
+
+test("起動した claude の cmdline が、送った引数だけを受けたかを見る", () => {
+  const args = launchArgs("claude-opus-5-5")
+  expect(args).toEqual(["--model", "claude-opus-5-5"])
+  expect(launchedWith("claude\0--model\0claude-opus-5-5\0", args)).toBe(true)
+  expect(launchedWith("claude\0--model\0claude-opus-5-535\0", args)).toBe(false)
+  expect(launchedWith("claude\0--model\0claude-opus-5-5\x0035\0", args)).toBe(false)
 })
