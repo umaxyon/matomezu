@@ -44,7 +44,7 @@ import { OPEN_GUIDE } from "./open-guide/ui"
 import type { AnnotationIconProps } from "./outbox/ui"
 import { OUTBOX, OUTBOX_BUTTON } from "./outbox/ui"
 import { PAGE_CONTEXT_MENU_ROWS, PAGE_DIALOG_VIEWS, PAGE_LIST, PAGE_SETTINGS_ICONS, PAGE_TABS } from "./page-tabs/ui"
-import { JOIN_REQUEST_BOOKMARKS, JOIN_REQUEST_WATCH, PARTICIPANT_DIALOG_VIEWS } from "./participant/ui"
+import { JOIN_REQUEST_BOOKMARKS, JOIN_REQUEST_WATCH, PARTICIPANT_DIALOG_VIEWS, WORKER_BIRDS } from "./participant/ui"
 import {
   PRINT_CHECK_PANEL,
   PRINT_PREVIEW_BUTTON,
@@ -369,6 +369,7 @@ export const BASE_UI = definePluginUi(BASE, {
     STARTUP_ERROR,
     UNREADABLE_NOTICE,
     PAGE_PLACE,
+    WORKER_BIRDS,
     PROPOSAL_ACTIONS,
     FULL_TEXT_MODE,
     WIDE_SEARCH_TAB,
@@ -425,6 +426,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-layers": Record<string, never>
     "@matomezu/base:sheet-layers": PrintSheetProps // 印刷区画 1 つの中のレイヤー
     "@matomezu/base:stage-bottom": Record<string, never>
+    "@matomezu/base:book-name-head": Record<string, never> // ブックの名前の枠の中、名前のボタンの前
     "@matomezu/base:stage-corner": Record<string, never>
     "@matomezu/base:footer-menu-map": Record<string, never>
     "@matomezu/base:footer-menu-history": Record<string, never>
@@ -496,6 +498,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:startup-error": typeof STARTUP_ERROR
     "@matomezu/base:unreadable-notice": typeof UNREADABLE_NOTICE
     "@matomezu/base:page-place": typeof PAGE_PLACE
+    "@matomezu/base:worker-birds": typeof WORKER_BIRDS
     "@matomezu/base:proposal-actions": typeof PROPOSAL_ACTIONS
     "@matomezu/base:wide-search-full-text": typeof FULL_TEXT_MODE
     "@matomezu/base:wide-search": typeof WIDE_SEARCH_TAB

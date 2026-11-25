@@ -106,6 +106,7 @@ describe("UI マッピング", () => {
       "E211 layout no-stages: slot @matomezu/base:book-layers is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:sheet-layers is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-bottom is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:book-name-head is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:footer-menu-map is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:footer-menu-history is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:footer-menu-basics is not opened by any placed widget",

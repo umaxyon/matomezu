@@ -16,6 +16,8 @@ import { JoinRequestWatch } from "./JoinRequestWatch"
 import { PendingMessageDialog } from "./PendingMessageDialog"
 import { ParticipantWelcomeDialog } from "./WelcomeDialog"
 
+export { WORKER_BIRDS } from "./WorkerBirds"
+
 export const JOIN_REQUEST_BOOKMARKS = defineBookmarks({
   id: kit.name("join-request-bookmarks"),
   view: JoinRequestBookmarks,

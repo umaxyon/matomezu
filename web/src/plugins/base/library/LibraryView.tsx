@@ -5,9 +5,8 @@
 import { type CSSProperties, type MouseEvent, useCallback, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { NO_STATE } from "../../../core/def/plugin-state"
-import { type Naming, namingOf, titleOf } from "../../../core/entries"
+import { namingOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
-import type { MatomezuState } from "../../../store/state"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu, useToggledMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
@@ -21,7 +20,6 @@ import { useCatalog, useMatomezuState, useReadState } from "../../../ui/store-co
 import { useUserSetting } from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import type { Workdesk } from "../participant/workdesks"
 import { SplitHandle } from "../utils/SplitHandle"
 import {
   LIBRARY_ADD_PAGE_MENU,
@@ -47,6 +45,7 @@ import styles from "./LibraryView.module.css"
 import { MoveClashConfirm } from "./MoveClashConfirm"
 import {
   arrivedAt,
+  folderTitleOf,
   holdsRows,
   type LibraryRow,
   NO_TITLE,
@@ -70,7 +69,7 @@ import { TrashView } from "./TrashView"
 import { CONTENT_MIN_WIDTH, TREE_MIN_WIDTH, treeWidthAt } from "./tree-width"
 import { UnreadableView } from "./UnreadableView"
 import { type LibraryDrag, useLibraryDrag } from "./useLibraryDrag"
-import { createdIn, deskTitleOf, isDeskRow } from "./workdesk-rows"
+import { createdIn } from "./workdesk-rows"
 
 // 一番上に並ぶフォルダの行（書庫ホームとゴミ箱と、設定がオンなら読めない物のフォルダ。名前は画面が付ける）
 const topRowsOf = (unreadableShown: boolean): readonly LibraryRow[] =>
@@ -127,7 +126,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const path = useMatomezuState(useShallow(s => pathTo(s.folders, opened, desks)))
   const catalog = useCatalog().core
   const titles = useMatomezuState(
-    useShallow(s => path.map(id => folderTitle(s, id, namingOf(catalog, s.settings), desks))),
+    useShallow(s => path.map(id => folderTitleOf(s, id, namingOf(catalog, s.settings), desks))),
   )
   const rows = useRowsIn(opened)
   const unreadableShown = useUserSetting(SHOW_UNREADABLE_FOLDER.id) === true
@@ -424,12 +423,6 @@ const dragMarks = (drag: LibraryDrag | null, zone: string, row: string) => ({
   "data-dragging": drag?.id === row ? true : undefined,
   "data-drop": drag?.aim?.zone === zone && drag.aim.row === row ? drag.aim.where : undefined,
 })
-
-// フォルダ id の名前（作業机とその下の行も。名前を持たない物・無い物は NO_TITLE）
-const folderTitle = (s: MatomezuState, id: string, naming: Naming, desks: readonly Workdesk[]): string =>
-  (isDeskRow(id)
-    ? deskTitleOf(desks, s.folders, id, real => titleOf(s, s.folders[real] ? "folder" : "page", real, naming))
-    : titleOf(s, "folder", id, naming)) ?? NO_TITLE
 
 // 右の枠の中身の 1 つ（大きなアイコンと名前）。押して選び、ダブルクリックで開く（ページの在るワーカーブックは RowPressOf）
 function ContentEntry({
