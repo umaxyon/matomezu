@@ -170,14 +170,14 @@ func TestTheMessageEntranceChecksTheEnvelope(t *testing.T) {
 	forged.From.Host = strings.Repeat("c", 64)
 	elsewhere := good
 	elsewhere.To.Host = strings.Repeat("d", 64)
-	// キャンセルの知らせの封筒は本文を持たず、AI 間メッセージは本文を持つ
+	// キャンセルの知らせの封筒が運ぶ本文は、取り消した本文の頭まで。AI 間メッセージは本文を持つ
 	cancelWithText := good
-	cancelWithText.ID, cancelWithText.Cancel = "e2", "m1"
+	cancelWithText.ID, cancelWithText.Cancel, cancelWithText.Text = "e2", "m1", strings.Repeat("あ", gistMax+2)
 	empty := good
 	empty.ID, empty.Text = "e3", ""
 	longCancel := good
 	longCancel.ID, longCancel.Text, longCancel.Cancel = "e4", "", strings.Repeat("x", envelopeIDMax+1)
-	for name, env := range map[string]Envelope{"forged": forged, "elsewhere": elsewhere, "cancel with text": cancelWithText, "empty": empty, "long cancel": longCancel} {
+	for name, env := range map[string]Envelope{"forged": forged, "elsewhere": elsewhere, "cancel with a long text": cancelWithText, "empty": empty, "long cancel": longCancel} {
 		if got := post(env); got != http.StatusBadRequest {
 			t.Fatalf("%s = %d", name, got)
 		}

@@ -38,7 +38,7 @@ type Envelope struct {
 	Text   string  `json:"text"`
 	SentAt string  `json:"sentAt"`
 	Rally  int     `json:"rally,omitempty"` // ほかのホストへ送る物の、送り手の AI の利用者トリガートークの後に、その宛て先へ送った何通目か（rally.go。載せないホストもある）
-	// Cancel は、ほかのホストへ運ぶ、キャンセルの知らせの封筒だけが持つ: 宛て先（送り手の AI）が送った封筒の、利用者がキャンセルした id。Text は空（pending_message.go）
+	// Cancel は、ほかのホストへ運ぶ、キャンセルの知らせの封筒だけが持つ: 宛て先（送り手の AI）が送った封筒の、利用者がキャンセルした id。Text はその本文の頭（pending_message.go）
 	Cancel string `json:"cancel,omitempty"`
 }
 

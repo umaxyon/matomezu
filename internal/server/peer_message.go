@@ -177,10 +177,10 @@ func (h *Hub) peerMessage(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, h.receiveEnvelope(env))
 }
 
-// fitsBody は、封筒の中身が形に合うか: AI 間メッセージは本文があってキャンセルが無く、キャンセルの知らせは本文が無い（pending_message.go）
+// fitsBody は、封筒の中身が形に合うか: AI 間メッセージは本文があり、キャンセルの知らせの本文は、取り消した本文の頭（gistMax 字と … まで。pending_message.go）
 func fitsBody(env Envelope) bool {
 	if env.Cancel != "" {
-		return env.Text == "" && len(env.Cancel) <= envelopeIDMax
+		return utf8.RuneCountInString(env.Text) <= gistMax+1 && len(env.Cancel) <= envelopeIDMax
 	}
 	return env.Text != "" && utf8.RuneCountInString(env.Text) <= messageTextMax
 }

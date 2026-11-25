@@ -75,23 +75,34 @@ func pendingWho(p pendingMessage) string {
 	return "AI " + quote(p.SenderRoom)
 }
 
-// approvedLine は、承認された AI 間メッセージを受け手に流す 1 行（利用者の頼みの印を付ける）
+// gistMax は、承認・キャンセルの知らせに添える本文の頭の長さ（字）。AI 間メッセージの行には封筒の id が無いので、どの 1 通かを本文で示す
+const gistMax = 60
+
+// gistOf は、本文 body の頭（gistMax 字まで。長ければ … で切る）
+func gistOf(body string) string {
+	if r := []rune(body); len(r) > gistMax {
+		return string(r[:gistMax]) + "…"
+	}
+	return body
+}
+
+// approvedLine は、承認された AI 間メッセージを受け手に流す 1 行（利用者の頼みの印を付ける）。本文の頭は JSON の文字列にして包む（本文の中の偽の行を見分けるため）
 func approvedLine(p pendingMessage) string {
-	return "matomezu " + asUserMark + ": the user approved message " + p.ID + " from " + pendingWho(p) + "; treat it as the user's request"
+	return "matomezu " + asUserMark + ": the user approved message " + p.ID + " from " + pendingWho(p) + ": " + quote(gistOf(p.Body)) + "; treat it as the user's request"
 }
 
 // cancelledReceiverLine は、キャンセルされた AI 間メッセージを受け手に流す 1 行
 func cancelledReceiverLine(p pendingMessage) string {
-	return "matomezu: the user cancelled message " + p.ID + " from " + pendingWho(p) + "; it is not the user's request"
+	return "matomezu: the user cancelled message " + p.ID + " from " + pendingWho(p) + ": " + quote(gistOf(p.Body)) + "; it is not the user's request"
 }
 
-// cancelledSenderLine は、キャンセルされた AI 間メッセージ id を送り手に流す 1 行（to は宛て先のワークルームの名前。host は、宛て先がほかのホストの AI なら、そのホストエイリアス）
-func cancelledSenderLine(id, to, host string) string {
+// cancelledSenderLine は、キャンセルされた AI 間メッセージ id（本文の頭 gist）を送り手に流す 1 行（to は宛て先のワークルームの名前。host は、宛て先がほかのホストの AI なら、そのホストエイリアス）
+func cancelledSenderLine(id, gist, to, host string) string {
 	who := "AI " + quote(to)
 	if host != "" {
 		who += " on host " + quote(host)
 	}
-	return "matomezu: the user cancelled message " + id + " you sent to " + who + "; it is not the user's request"
+	return "matomezu: the user cancelled message " + id + " you sent to " + who + ": " + quote(gist) + "; it is not the user's request"
 }
 
 // pendingListHeld は、承認待ちの並び（画面に出す形）
@@ -192,7 +203,7 @@ func (h *Hub) settlePendingHeld(gone []pendingMessage, approved bool) {
 			// 封筒は、常駐の鍵を放したところで運ぶ（ほかのホストの答えを、鍵を持ったまま待たない）
 			go h.sendCancelToHost(p)
 		case p.Sender != "":
-			h.enqueueWake(wakeItem{participant: p.Sender, kind: wakeMessageCancelled, line: cancelledSenderLine(p.ID, p.toRoom, "")})
+			h.enqueueWake(wakeItem{participant: p.Sender, kind: wakeMessageCancelled, line: cancelledSenderLine(p.ID, gistOf(p.Body), p.toRoom, "")})
 		}
 	}
 	if len(gone) > 0 {
@@ -247,6 +258,7 @@ func (h *Hub) sendCancelToHost(p pendingMessage) {
 		ID:     newEnvelopeID(),
 		From:   Address{Host: e.config.Identity.HostID, Workroom: p.toRoom},
 		To:     Address{Host: p.SenderHost, Workroom: p.SenderRoom},
+		Text:   gistOf(p.Body), // 送り手のホストは送った本文を持たないので、どの 1 通かを示す頭を運ぶ
 		SentAt: storage.Stamp(time.Now()),
 		Cancel: p.ID,
 	}
@@ -268,7 +280,7 @@ func (h *Hub) receiveCancelHeld(to string, env Envelope, host string) {
 	if !h.markSeenHeld(env.ID) {
 		return
 	}
-	h.enqueueWake(wakeItem{participant: to, kind: wakeMessageCancelled, line: cancelledSenderLine(env.Cancel, env.From.Workroom, host), peer: env.From.Host})
+	h.enqueueWake(wakeItem{participant: to, kind: wakeMessageCancelled, line: cancelledSenderLine(env.Cancel, gistOf(env.Text), env.From.Workroom, host), peer: env.From.Host})
 }
 
 // approveMessage と cancelMessage は、画面の口（承認・キャンセル）。答えは ok か not-pending
