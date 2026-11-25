@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import { referencesOf } from "../../web/src/core/book"
-import { type Library, TRASH_ID } from "../../web/src/core/folders"
+import { type Folder, type Library, TRASH_ID } from "../../web/src/core/folders"
 import { bookOf, libraryOf } from "../../web/src/core/folders-books"
 import { withChanges } from "../../web/src/core/folders-changes"
 import { changesByCause } from "../../web/src/core/history"
@@ -211,7 +211,7 @@ test("画面の履歴の段の持ち主: 指す先を消されて参照エント
   expect(caused.A?.also).toEqual(["B"])
   expect(Object.keys(caused.A?.changes.folders ?? {})).toContain("B")
   // B の名前も変えた書き込みなら、B は自分の分のまま
-  const b = done.changes.folders.B as { title?: string }
+  const b = done.changes.folders.B as Folder & { folderRole: "book" }
   const both = { ...done.changes, folders: { ...done.changes.folders, B: { ...b, title: "B2" } } }
   const own = changesByCause(world, withChanges(world, both), both)
   expect(Object.keys(own).sort()).toEqual(["A", "B"])
