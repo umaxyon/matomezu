@@ -3,7 +3,12 @@
 import { defineWidget } from "../../../ui/layout"
 import { defineBookmarks } from "../bookmarks/ui"
 import { kit } from "../kit"
-import { JOIN_REQUEST_DIALOG, PARTICIPANT_JOIN_DIALOG, PARTICIPANT_WELCOME_DIALOG, PENDING_MESSAGE_DIALOG } from "./dialogs"
+import {
+  JOIN_REQUEST_DIALOG,
+  PARTICIPANT_JOIN_DIALOG,
+  PARTICIPANT_WELCOME_DIALOG,
+  PENDING_MESSAGE_DIALOG,
+} from "./dialogs"
 import { ParticipantJoinDialog } from "./JoinDialog"
 import { JoinRequestBookmarks } from "./JoinRequestBookmarks"
 import { JoinRequestDialog } from "./JoinRequestDialog"

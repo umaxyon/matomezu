@@ -457,7 +457,12 @@ export function isAdminActor(actor: Actor, ctx: Pick<ActionContext, "records" | 
 }
 
 export { PARTICIPANT_ALIVE } from "./alive"
-export { JOIN_REQUEST_DIALOG, PARTICIPANT_JOIN_DIALOG, PARTICIPANT_WELCOME_DIALOG, PENDING_MESSAGE_DIALOG } from "./dialogs"
+export {
+  JOIN_REQUEST_DIALOG,
+  PARTICIPANT_JOIN_DIALOG,
+  PARTICIPANT_WELCOME_DIALOG,
+  PENDING_MESSAGE_DIALOG,
+} from "./dialogs"
 export {
   NO_AI_UI,
   NO_BRANCH,
