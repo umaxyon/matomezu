@@ -164,6 +164,9 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 // 一覧のアクション（宛先が無く、レコードが対象でない）か、宛先がブックの外のバインダのアクションか、0 番目でなく宛先が置き場所に無い（バルクの前のアクションが作ったページなど）アクションを含むなら、
 // 全部のブックと、ブックに入っていないページとバインダの全部（ゴミ箱の中の物も）と、アノテーションの全部と、書庫ホーム・ゴミ箱・フォルダ・バックヤードの全部
 // （バックヤードは、バックヤードにまだ無いブックを作って置くアクションのため）
+// referenceAdd は、参照エントリを置くアクションの id（指す物の行も渡す）
+const referenceAdd = "@matomezu/base:reference-add"
+
 func (h *Hub) performInputs(in *engine.Input) error {
 	all := false
 	yards := false // レコードが対象のアクションがある（フォローステップがバックヤードの中のブックを引くので、バックヤードの行も渡す）
@@ -196,6 +199,21 @@ func (h *Hub) performInputs(in *engine.Input) error {
 			// 置き場所に無い宛先は、前のアクションが作った物でありうるので全部のブック。0 番目のアクションの宛先は前のアクションが作った物ではないので、何も足さない
 			book := h.bookOn(step.On)
 			_, known := h.pages[step.On.Page]
+			// 参照を置くなら、指す物の行も（在るか・どこに居るかを確かめるため）
+			if step.Action == referenceAdd {
+				var args struct {
+					Of struct {
+						ID string `json:"id"`
+					} `json:"of"`
+				}
+				if json.Unmarshal(step.Args, &args) == nil {
+					if e, isBook := h.referredEntry(args.Of.ID); isBook {
+						add(e)
+					} else if e != "" && !slices.Contains(entries, e) {
+						entries = append(entries, e)
+					}
+				}
+			}
 			switch {
 			case book != "" && (step.On.Page != "" || h.hasBook(book)):
 				add(book)
@@ -227,6 +245,10 @@ func (h *Hub) performInputs(in *engine.Input) error {
 			}
 		}
 		return nil
+	}
+	// 渡す物を指す参照エントリを持つブックも（指す物を消す・ブックに入れると、同じ書き込みでその参照エントリを外すため）
+	for _, b := range h.referringBooks(append(slices.Clone(books), entries...)) {
+		add(b)
 	}
 	needed := append(slices.Clone(books), entries...)
 	in.Pages, in.Folders = h.rowsOf(needed)
