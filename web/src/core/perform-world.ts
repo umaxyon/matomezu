@@ -236,8 +236,9 @@ function changedBook(naming: Naming, world: World, book: Book, done: ReturnType<
   if (collides(world, [book], own)) return { ok: false, reason: "refused" }
   const after = withChanges(world, own)
   if (!newReferencesHold(after, book, next)) return { ok: false, reason: "refused" }
-  // ページやバインダを消して、ほかのブックの参照エントリが残れなくなったら、同じ書き込みで外す
-  const dead = deadReferences(after)
+  // ページやバインダを消して・入れ替えて、ほかのブックの参照エントリが残れなくなったら、同じ書き込みで外す
+  // （残れなくなるのはフォルダの並びが変わったときだけなので、ページの中身だけの変わりでは確かめない）
+  const dead = Object.keys(own.folders).length === 0 ? {} : deadReferences(after)
   const changes = Object.keys(dead).length === 0 ? own : { ...own, folders: { ...own.folders, ...dead } }
   if (next.title !== book.title) {
     const clashes = titleClashes(after, naming)
