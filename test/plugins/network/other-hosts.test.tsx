@@ -45,12 +45,16 @@ function open() {
   return { store, asked, connect, peers }
 }
 
-test("「ほかのホスト」の節は、つなぐが入のときだけ出し、出したらつながりを確かめてもらう。行を選ぶと右下に詳しい所、ペアリングを解く（確かめてから）と選んでいないのと同じ", async () => {
+test("「ほかのホスト」の節は、つなぐが入のときだけ出し、出したときと［↻］を押したときにつながりを確かめてもらう。行を選ぶと右下に詳しい所、ペアリングを解く（確かめてから）と選んでいないのと同じ", async () => {
   const { store, asked, connect, peers } = open()
   expect(screen.queryByText("ほかのホスト")).toBeNull()
   connect()
   expect(screen.getByText("ペアリングしたホストはありません")).toBeTruthy()
   expect(asked).toContainEqual({ kind: "check" })
+  const checks = () => asked.filter(r => (r as { kind: string }).kind === "check").length
+  const before = checks()
+  fireEvent.click(screen.getByRole("button", { name: "つながりを確かめ直す", hidden: true }))
+  expect(checks()).toBe(before + 1)
   act(() => {
     store.actions.perform("@matomezu/network:paired-host-add", {
       hostId: B,

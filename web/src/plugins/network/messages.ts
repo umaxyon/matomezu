@@ -185,6 +185,7 @@ export const NETWORK_MESSAGES = defineMessages({
   "Treat as the user's button": { en: "Treat as the user's", ja: "ユーザーの指示として扱う" },
   Idle: { en: "Idle", ja: "空き" },
   "Not responding": { en: "Not responding", ja: "応答なし" },
+  "Check the hosts again": { en: "Check the hosts again", ja: "つながりを確かめ直す" },
   "Change how requests from a host are taken": {
     en: "Change how requests from a host are taken",
     ja: "ホストからの頼みの扱いを変える",
