@@ -483,7 +483,7 @@ func (h *Hub) Tables() ([]storage.Page, []storage.Folder) {
 	return pages, folders
 }
 
-// Referred は、参照エントリの指す先（kind は page か binder、id はその id）の名前・タイプと見えるか（表に無ければ ok が偽）
+// Referred は、参照エントリの指す先（kind は page か binder、id はその id）の名前・タイプと見えるか（バインダなら中のページも。表に無ければ ok が偽）
 func (h *Hub) Referred(kind, id string) (Referred, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -507,7 +507,18 @@ func (h *Hub) Referred(kind, id string) (Referred, bool) {
 	default:
 		return Referred{}, false
 	}
-	return Referred{Title: head.Title, Type: head.Type, Visible: !h.outOfSight(id)}, true
+	found := Referred{Title: head.Title, Type: head.Type, Visible: !h.outOfSight(id)}
+	if kind == storage.KindBinder {
+		for _, p := range h.folders[id].entries {
+			var page struct {
+				Title string `json:"title"`
+			}
+			if row, ok := h.pages[p]; ok && json.Unmarshal(row.body, &page) == nil {
+				found.Pages = append(found.Pages, ReferredPage{ID: p, Title: page.Title})
+			}
+		}
+	}
+	return found, true
 }
 
 // PageVersion は、ページ id の版（無ければ 0）

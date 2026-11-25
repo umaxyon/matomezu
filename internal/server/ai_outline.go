@@ -43,6 +43,13 @@ type Referred struct {
 	Title   string
 	Type    string
 	Visible bool
+	Pages   []ReferredPage // バインダなら、中のページ（並びの順）
+}
+
+// ReferredPage は、参照エントリが指すバインダの中のページ 1 つ（read_page で読む id と名前）
+type ReferredPage struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
 }
 
 // outlinedReference は、目次の参照エントリ（指す先の id に、指す先の名前・タイプを添え、見えないときは visible を偽にした物）
@@ -53,6 +60,7 @@ type outlinedReference struct {
 	Title   string          `json:"title,omitempty"`
 	Type    string          `json:"type,omitempty"`
 	Visible bool            `json:"visible"`
+	Pages   []ReferredPage  `json:"pages,omitempty"`
 }
 
 // outlineBook は、ブックの本文の並び（lineup）の、ページを kind・id・title・type・size・version にした物（バインダは kind・id・title・pageType と中の並び。
@@ -99,7 +107,7 @@ func outlineReference(e json.RawMessage, referred func(kind, id string) (Referre
 		return e
 	}
 	if found, ok := referred(of.Kind, of.ID); ok {
-		ref.Title, ref.Type, ref.Visible = found.Title, found.Type, found.Visible
+		ref.Title, ref.Type, ref.Visible, ref.Pages = found.Title, found.Type, found.Visible, found.Pages
 	}
 	out, err := json.Marshal(ref)
 	if err != nil {

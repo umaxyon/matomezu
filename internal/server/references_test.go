@@ -116,3 +116,19 @@ func TestReferencesGoWithAPurgedBook(t *testing.T) {
 		t.Fatalf("b2 after the purge = %s", hub.Book("b2").Body)
 	}
 }
+
+// バインダを指す参照エントリの目次は、中のページの id と名前も添える
+func TestAnOutlinedBinderReferenceListsItsPages(t *testing.T) {
+	hub, _, c := bulkHub(t, `{"id":"b2","title":"U","lineup":[]}`)
+	done, err := hub.Perform(Perform{Actions: []engine.BulkAction{
+		step("@matomezu/base:page-add", `{"type":"@matomezu/slide-page:slide","title":"Q","into":{"newBinder":"D"}}`, &engine.On{Book: "b2"}, "q1", "d1"),
+		step("@matomezu/base:reference-add", `{"of":{"kind":"binder","id":"d1"}}`, &engine.On{Book: "b1"}, "r1"),
+	}, Client: c.id, Seq: 1})
+	if err != nil || !done.OK {
+		t.Fatalf("perform = %+v, %v", done, err)
+	}
+	outlined := lineupOf(outlineBook(hub.Book("b1").Body, hub.PageVersion, hub.Referred))
+	if len(outlined) != 2 || !strings.Contains(string(outlined[1]), `"title":"D"`) || !strings.Contains(string(outlined[1]), `"visible":true`) || !strings.Contains(string(outlined[1]), `"pages":[{"id":"q1","title":"Q"}]`) {
+		t.Fatalf("outlined = %s", outlined)
+	}
+}
