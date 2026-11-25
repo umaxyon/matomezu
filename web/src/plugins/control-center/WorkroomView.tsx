@@ -3,8 +3,7 @@
 // ワークルームとビジターのほかの種類を選んでいれば、スロット picked-detail のその種類の物が枠の中を描く。ビジターを選んでいれば、ビジターの印・呼び名・（ビジター（読むだけ））・情報と、右下に外すアイコン（確かめのダイアログを開く）
 import { KindSlot, Slot, useActions, useAllowedOn, useMessages, useT } from "../../plugin-api/ui"
 import {
-  AI_UI_LABELS,
-  type AiUi,
+  aiUiText,
   NO_AI_UI,
   NO_BRANCH,
   NO_MODEL,
@@ -170,14 +169,14 @@ function LeaveIconButton({ workroom, enabled }: { workroom: string; enabled: boo
 }
 
 // AI の UI の行（分からなければ、ブランチと同じに行ごと出さない）
-function AiUiFact({ aiUi }: { aiUi: AiUi | typeof NO_AI_UI }) {
+function AiUiFact({ aiUi }: { aiUi: string | typeof NO_AI_UI }) {
   const t = useMessages(kit)
   const tt = useT()
   if (aiUi === NO_AI_UI) return null
   return (
     <>
       <dt>{t("Interface:")}</dt>
-      <dd>{tt(AI_UI_LABELS[aiUi])}</dd>
+      <dd>{aiUiText(aiUi, tt)}</dd>
     </>
   )
 }

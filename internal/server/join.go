@@ -1,7 +1,7 @@
 package server
 
 // AI の参加: AI（MCP の join）が参加を頼む口と、参加者ごとの記録（常駐だけが持つ）。
-// 参加を頼むと、参加者を作るアクションを行う（どのアクションかは、アクションの定義が runsWhenAIJoins で名乗る）。利用者は、要求中の参加者を画面のしおりで見る。
+// 参加を頼むと、参加者を作るアクションを行う（どのアクションかは、アクションの定義が runsWhenAIJoins で名乗る）。受け入れ済みの参加者が頼み直したら、頼み直しを書くアクション（役 rejoin-participant）を、利用者としてその参加者のレコードに行う（何を書き換えるかはアクションが決める）。利用者は、要求中の参加者を画面のしおりで見る。
 // 同じ AI（参加の id・link・ai と env と sessionName が同じ）の要求が答えを待っている間は、頼み直しを断る（already-requested）。ただし、その要求のセッションが終わっていれば、
 // 知らせずに要求を消して（セッションが終わったときに行うアクション。runsWhenAIEnds）、新しい要求を受ける。
 // 参加者・ワークルームはアクションの結果（レコード）が持つ。ここが持つ常駐だけが持つ参加者の記録はアクションを通さない記録で、参加者の id ごとに
@@ -130,7 +130,7 @@ type JoinRequest struct {
 	Workroom        string `json:"workroom"`
 	As              string `json:"as"`           // visitor なら、ビジターとしての参加（ワークルームと一緒には頼めない）
 	AdeWorkspace    string `json:"adeWorkspace"` // AI が動いている ADE のワークスペースの名前（MCP が clients/ade の部品に訊いて添える。分からなければ空）
-	AiUi            string `json:"aiUi"`         // 利用者がその会話と話している AI の UI（MCP が clients の部品で決めて添える。分からなければ空。値の組は参加の要求のアクションが確かめる）
+	AiUi            string `json:"aiUi"`         // 利用者がその会話と話している AI の UI（MCP が clients の部品で決めて添える。分からなければ空。値は参加の要求のアクションが確かめる）
 	Participant     string `json:"-"`
 	Host            string `json:"-"` // AI のプログラムのプロセス id（MCP が X-Matomezu-Host で添える。起こす知らせの宛て先。watch.go）
 	HostSession     string `json:"-"` // AI のプログラムが MCP を立てたときのセッション id（MCP が X-Matomezu-Host-Session で添える。起こす知らせの宛て先。watch.go）
@@ -210,7 +210,10 @@ func (h *Hub) putParticipantNotes() error {
 // askedArgs は、参加の要求のアクションに渡す、頼んだ AI についての引数（画面で受け入れる道と、合言葉で入り直す道で同じにする）。
 // ADE のワークスペース・望むワークルームの名前・ビジターかは、画面で受け入れる道だけが足す
 func (req JoinRequest) askedArgs() map[string]any {
-	args := map[string]any{"ai": req.AI, "model": req.Model, "env": req.Env, "link": req.Link}
+	args := map[string]any{"ai": req.AI, "model": req.Model, "env": req.Env}
+	if req.Link != "" { // 参加の id で頼み直したときは無い（参加の要求は link を求めるので、空なら断られる）
+		args["link"] = req.Link
+	}
 	if req.SessionName != "" {
 		args["sessionName"] = req.SessionName
 	}
@@ -253,6 +256,9 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 			}
 			h.noteSession(s.ID, req.SessionID)
 			h.noteJoinHost(s.ID, req)
+			if err := h.rejoinAsked(ids.Rejoin, s.ID, req); err != nil {
+				return Joined{}, err
+			}
 			return Joined{OK: true, Participant: s.ID}, h.settleNotes()
 		}
 	}

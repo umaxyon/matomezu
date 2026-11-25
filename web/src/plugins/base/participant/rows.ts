@@ -2,7 +2,7 @@
 // 管理者のワークルームは先頭に出し、ほかは受け取った順（作った順）。管理者の印が指すワークルームが無ければ、管理者は無い。
 // 様子は 3 つ: 空室（いる参加者が無い）・準備中（受け入れたあと、AI のフックが参加を伝えるまで）・参加済み（準備中でない）。生きているかは行の様子でなく、最後に呼ばれた時刻（calledAt）で見る
 import type { ParticipantLive } from "../../../store/state"
-import type { AiUi, Participant, Workroom } from "."
+import type { Participant, Workroom } from "."
 import type { WorkroomActivity } from "./activity"
 import { shownModel } from "./live"
 import { NOT_CALLED, occupantOf } from "./workroom"
@@ -19,8 +19,8 @@ export const NO_MODEL: unique symbol = Symbol("no model")
 export const NO_BRANCH: unique symbol = Symbol("no branch")
 // その名前で入りたいと頼んでいる参加者がいないときの、頼んだ時刻の値
 export const NOT_REQUESTED = "none"
-// AI の UI が分からない（参加を頼んだ AI が添えなかった）ときの値
-export const NO_AI_UI = "none"
+// AI の UI が分からない（参加を頼んだ AI が添えなかった）ときの値（AI の UI はどんな文字列にもなるので、文字列でない定数）
+export const NO_AI_UI: unique symbol = Symbol("no AI UI")
 
 export interface WorkroomRow {
   room: Workroom
@@ -29,7 +29,7 @@ export interface WorkroomRow {
   admin: boolean
   model: string | typeof NO_MODEL // 画面に出すモデル（AI のフックが知らせた今のモデルを、参加を頼んだときのモデルより先に。空室なら NO_MODEL）
   branch: string | typeof NO_BRANCH // git のブランチ（知らされた参加者だけ。ほかは NO_BRANCH）
-  aiUi: AiUi | typeof NO_AI_UI // AI の UI（参加を頼んだ AI が添えた物。空室か、添えなければ NO_AI_UI）
+  aiUi: string | typeof NO_AI_UI // AI の UI（参加を頼んだ AI が添えた物。頼み直しで書き換わる。空室か、添えなければ NO_AI_UI）
   calledAt: string | typeof NOT_CALLED // 参加者が最後に呼ばれた時刻（呼ばれていなければ NOT_CALLED）
   requestedAt: string | typeof NOT_REQUESTED // このワークルームの名前で入りたいと頼んでいる要求中の参加者の、頼んだ時刻（いちばん新しいもの。無ければ NOT_REQUESTED）
   activity: WorkroomActivity | "unknown" // 作業の様子（activity.ts。見せるためだけ。答える種類が無ければ unknown）
@@ -83,7 +83,7 @@ export interface VisitorRow {
   state: Exclude<WorkroomState, "empty">
   model: string
   branch: string | typeof NO_BRANCH
-  aiUi: AiUi | typeof NO_AI_UI
+  aiUi: string | typeof NO_AI_UI
   calledAt: string | typeof NOT_CALLED
 }
 
