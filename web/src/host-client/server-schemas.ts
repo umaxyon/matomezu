@@ -80,6 +80,7 @@ export const HostPeersSchema = z.object({
       workrooms: z.array(z.object({ name: z.string(), activity: z.enum(["working", "idle", "unknown"]) })).optional(),
       lastSeen: z.string().optional(),
       addr: z.string().optional(),
+      route: z.enum(["direct", "reverse"]).optional(),
       name: z.string().optional(),
       userName: z.string().optional(),
     }),

@@ -153,10 +153,12 @@ func TestTheMessageEntranceChecksTheEnvelope(t *testing.T) {
 	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
 	e := a.entrance.Load()
 	bID := b.selfHostID()
-	addr := a.peerAddr(e, a.pairedHostRecords()[0])
-	c := peer.Client(e.config.Identity, bID, peer.Protocol, peerAskTimeout)
+	c, base, ok := a.peerRoute(e, bID)
+	if !ok {
+		t.Fatal("no route to b")
+	}
 	post := func(env Envelope) int {
-		resp, err := c.Post("https://"+addr+"/peer/v1/message", "application/json", bytes.NewReader(mustJSON(env)))
+		resp, err := c.Post(base+"/peer/v1/message", "application/json", bytes.NewReader(mustJSON(env)))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -464,6 +466,12 @@ func TestAHostWithAnotherProtocolIsNotConnected(t *testing.T) {
 	reopenWithProtocol(t, b, peer.Protocol+1)
 	a.CheckPeers()
 	b.CheckPeers()
+	defer func() {
+		if t.Failed() {
+			t.Logf("A: %+v", a.HostPeers().Paired)
+			t.Logf("B: %+v", b.HostPeers().Paired)
+		}
+	}()
 	waitFor(t, "both see the mismatch", func() bool {
 		pa, pb := a.HostPeers().Paired, b.HostPeers().Paired
 		return len(pa) == 1 && pa[0].State == PeerUpdateThis && pa[0].Workrooms == nil && len(pb) == 1 && pb[0].State == PeerUpdateThat

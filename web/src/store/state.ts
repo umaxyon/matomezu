@@ -98,6 +98,7 @@ export interface HostStatus {
 }
 
 // ペアリングしたホストの、常駐だけが持つ様子: state はつながりの様子（確かめた時点で）、lastSeen は最後につながった時刻、addr は待っている所（番地:ポート）、
+// route はつながっている道（つながっているときだけ。direct はこちらから相手の待っている所へ届く、reverse は相手が張ったリバース接続でだけつながっている）、
 // name と userName は相手の今のホスト名と利用者名（つながったときに聞いた物）、
 // label はホストエイリアス（常駐が決める。同じ名前のホストがあれば鍵の印の頭（違うまで伸ばす）を添える）、workrooms は相手のワークルームの一覧の写し（つながっていて写しのあるときだけ）
 export interface PeerLive {
@@ -107,6 +108,7 @@ export interface PeerLive {
   workrooms?: readonly { name: string; activity: "working" | "idle" | "unknown" }[]
   lastSeen?: string
   addr?: string
+  route?: "direct" | "reverse"
   name?: string
   userName?: string
 }

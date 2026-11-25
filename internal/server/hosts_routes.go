@@ -13,6 +13,7 @@ func (h *Hub) hostsHandler(proto int) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("POST /peer/v1/pairing", peer.Unpinned(proto, h.pairing)) // peer.PairingPath
 	mux.Handle("GET /peer/v1/hello", peer.Pinned(proto, h.isPairedHost, h.peerHello))
+	mux.Handle("POST /peer/v1/reverse", peer.Pinned(proto, h.isPairedHost, h.peerReverse)) // peer.ReversePath
 	mux.Handle("POST /peer/v1/unpair", peer.Pinned(proto, h.isPairedHost, h.peerUnpair))
 	mux.Handle("POST /peer/v1/message", peer.Pinned(proto, h.isPairedHost, h.peerMessage))
 	mux.Handle("POST /peer/v1/workrooms", peer.Pinned(proto, h.isPairedHost, h.peerRoomsPost))

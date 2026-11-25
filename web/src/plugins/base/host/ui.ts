@@ -74,6 +74,7 @@ export interface PeerLive {
   workrooms: readonly PeerWorkroom[] // 相手のワークルームの一覧の写し（つながっていなければ空）
   lastSeen: string | typeof NOT_TOLD // 最後につながった時刻
   addr: string | typeof NOT_TOLD // 確かめた待っている所（番地:ポート）
+  reverseOnly: boolean // 相手が張ったリバース接続でだけつながっている（こちらから相手の待っている所へは届かない）
   name: string | typeof NOT_TOLD // 今のホスト名
   userName: string | typeof NOT_TOLD
 }
@@ -115,6 +116,7 @@ const peersOf = (p: GivenPeers): HostPeers => ({
     workrooms: l.workrooms ?? [],
     lastSeen: told(l.lastSeen),
     addr: told(l.addr),
+    reverseOnly: l.route === "reverse",
     name: told(l.name),
     userName: told(l.userName),
   })),

@@ -33,7 +33,15 @@ export function PairedHostInfoDialog({ args, onClose }: DialogProps<{ pairedHost
                 <ProtocolWarning live={row.live} className={styles.warnBelow} block />
               </dd>
               <dt>{t("Listening at")}</dt>
-              <dd>{addr ? <code>{addr}</code> : t("Not known yet")}</dd>
+              <dd>
+                {row.live?.reverseOnly ? (
+                  t("Connecting from the other host")
+                ) : addr ? (
+                  <code>{addr}</code>
+                ) : (
+                  t("Not known yet")
+                )}
+              </dd>
               <dt>{t("Key")}</dt>
               <dd>
                 <code>{shownHostKey(row.record.hostId)}</code>

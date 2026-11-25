@@ -54,8 +54,8 @@ func (h *Hub) sendToHost(from, fromID string, req MessageRequest, now time.Time)
 	if utf8.RuneCountInString(req.To) > workroomNameMax {
 		return MessageSent{Reason: "unknown-recipient", Detail: fmt.Sprintf("no workroom has a name longer than %d characters; the message was not sent", workroomNameMax)}
 	}
-	addr := h.peerAddr(e, *target)
-	if addr == "" {
+	c, base, ok := h.peerRoute(e, target.HostID)
+	if !ok {
 		return MessageSent{Reason: "unreachable", Detail: "where host " + req.Host + " listens is not known yet; the message was not sent"}
 	}
 	self := e.config.Identity.HostID
@@ -71,11 +71,10 @@ func (h *Hub) sendToHost(from, fromID string, req MessageRequest, now time.Time)
 		Rally:  rally,
 	}
 	body := mustJSON(env)
-	c := peerClient(e, target.HostID)
 	var sent MessageSent
 	var err error
 	for try := 0; try < 2; try++ {
-		sent, err = h.postEnvelope(e, c, target.HostID, addr, body)
+		sent, err = h.postEnvelope(e, c, target.HostID, base, body)
 		if err == nil || notSent(err) {
 			break
 		}
@@ -135,9 +134,9 @@ func (h *Hub) protocolRefused(e *hostEntrance, hostID, label string, err error) 
 	return MessageSent{Reason: "protocol-mismatch", Detail: "host " + label + "'s matomezu keeps another protocol; update " + which + " with matomezu update. The message was not sent"}
 }
 
-// postEnvelope は、ホスト hostID の待っている所 addr に封筒 body を渡し、相手の答えを返す。相手が「ペアリングしていない」と答えたら、こちらも消す
-func (h *Hub) postEnvelope(e *hostEntrance, c *http.Client, hostID, addr string, body []byte) (MessageSent, error) {
-	resp, err := c.Post("https://"+addr+"/peer/v1/message", "application/json", bytes.NewReader(body))
+// postEnvelope は、ホスト hostID へ、道 base（peerRoute）で封筒 body を渡し、相手の答えを返す。相手が「ペアリングしていない」と答えたら、こちらも消す
+func (h *Hub) postEnvelope(e *hostEntrance, c *http.Client, hostID, base string, body []byte) (MessageSent, error) {
+	resp, err := c.Post(base+"/peer/v1/message", "application/json", bytes.NewReader(body))
 	if errors.Is(err, peer.ErrNotPaired) {
 		h.dropPairedHost(e.peers, hostID, "because it answered that it is not paired")
 	}
