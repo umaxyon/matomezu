@@ -145,12 +145,11 @@ export interface HostPeers {
   pairing?: HostPairing
 }
 
-// 承認待ちの AI 間メッセージ 1 通（常駐だけが持つ）。receiver は受け手の参加者 id、sender は送り手の参加者 id（ほかのホストから届いた物は空）、
-// senderRoom は送り手のワークルームの名前、senderHost は送り手のホスト id で senderHostName はそのホストエイリアス（どちらも、同じホストなら空）
+// 承認待ちの AI 間メッセージ 1 通（ほかのホストから届いた物。常駐だけが持つ）。receiver は受け手の参加者 id、
+// senderRoom は送り手のワークルームの名前、senderHost は送り手のホスト id で senderHostName はそのホストエイリアス
 export interface PendingMessage {
   id: string
   receiver: string
-  sender: string
   senderRoom: string
   senderHost: string
   senderHostName: string

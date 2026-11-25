@@ -34,148 +34,131 @@ func answerPending(t *testing.T, srv, path, id string) string {
 	return got
 }
 
-// 届いた AI 間メッセージは受け手に届き、承認待ちが 1 件できる。承認すると受け手に利用者の頼みとして扱う知らせが流れ、承認待ちは消える。
+// remoteDelivery は、ほかのホスト（id H2、ホストエイリアス h2）のワークルーム「ひよこ」から、参加者 to（ワークルーム「すずめ」）へ届いた AI 間メッセージ id
+func remoteDelivery(to, id, text string) delivery {
+	return delivery{
+		to:       to,
+		peer:     "H2",
+		host:     "h2",
+		limit:    rallyLimitDefault,
+		envelope: Envelope{ID: id, From: Address{Host: "H2", Workroom: "ひよこ"}, To: Address{Host: "H1", Workroom: "すずめ"}, Text: text},
+	}
+}
+
+// fromHost は、remoteDelivery の AI 間メッセージを受け手の行列に入れる
+func fromHost(hub *Hub, to, id, text string) {
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	hub.deliver(remoteDelivery(to, id, text))
+}
+
+// ほかのホストから届いた AI 間メッセージは受け手に届き、承認待ちが 1 件できる。承認すると受け手に利用者の頼みとして扱う知らせが流れ、承認待ちは消える。
 // 2 度目の承認は not-pending
 func TestAIMessageWaitsForTheUsersApproval(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
-	if sent, _ := sendMessage(t, s.URL, a, "すずめ", "hi"); !sent.OK {
-		t.Fatalf("sent = %+v", sent)
-	}
+	fromHost(hub, b, "m1", "hi")
 	got := pendingNow(hub)
-	if len(got) != 1 || got[0].Receiver != b || got[0].Sender != a || got[0].Body != "hi" || got[0].SenderHost != "" {
+	if len(got) != 1 || got[0].Receiver != b || got[0].Body != "hi" || got[0].SenderHost != "H2" || got[0].SenderHostName != "h2" {
 		t.Fatalf("pending = %+v", got)
 	}
-	id := got[0].ID
 	if msg := wakesWith(hub, "200", `"hi"`); len(msg) != 1 {
 		t.Fatalf("the message did not arrive: %q", msg)
 	}
-	if out := answerPending(t, s.URL, "/api/message/approve", id); !strings.Contains(out, `"ok":true`) {
+	if out := answerPending(t, s.URL, "/api/message/approve", "m1"); !strings.Contains(out, `"ok":true`) {
 		t.Fatalf("approve = %s", out)
 	}
-	want := `matomezu ` + asUserMark + `: the user approved message ` + id + ` from AI "ひよこ": "hi"; treat it as the user's request`
+	want := `matomezu ` + asUserMark + `: the user approved message m1 from AI "ひよこ" on host "h2": "hi"; treat it as the user's request`
 	if lines := wakesWith(hub, "200", "approved message"); len(lines) != 1 || lines[0] != want {
 		t.Fatalf("approval wakes = %q", lines)
 	}
 	if n := len(pendingNow(hub)); n != 0 {
 		t.Fatalf("pending after approve = %d", n)
 	}
-	if out := answerPending(t, s.URL, "/api/message/approve", id); !strings.Contains(out, `"reason":"not-pending"`) {
+	if out := answerPending(t, s.URL, "/api/message/approve", "m1"); !strings.Contains(out, `"reason":"not-pending"`) {
 		t.Fatalf("second approve = %s", out)
 	}
 }
 
-// キャンセルは送り手と受け手の両方に 1 通ずつ知らせ、AI ラリーの数をその組で 0 に戻す。利用者の頼みの印は付けない
-func TestCancelNoticesBothAndResetsTheRally(t *testing.T) {
+// キャンセルは受け手に 1 通知らせ（送り手へは封筒で運ぶ。TestCancelReachesASenderOnAnotherHost）、AI ラリーの数をその組で 0 に戻す。利用者の頼みの印は付けない
+func TestCancelNoticesTheReceiverAndResetsTheRally(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
-	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
-	for _, text := range []string{"one", "two", "three"} {
-		sendMessage(t, s.URL, a, "すずめ", text)
+	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	for _, id := range []string{"one", "two", "three"} {
+		fromHost(hub, b, id, id)
 	}
-	first := pendingNow(hub)[0]
-	id, b := first.ID, first.Receiver
+	key := rallyKey{fromHost: "H2", fromRoom: "ひよこ", to: b}
 	hub.mu.Lock()
-	before := hub.rallies[rallyKey{from: a, to: b}]
+	before := hub.rallies[key]
 	hub.mu.Unlock()
 	if before != 3 {
 		t.Fatalf("rally before cancel = %d", before)
 	}
-	if out := answerPending(t, s.URL, "/api/message/cancel", id); !strings.Contains(out, `"ok":true`) {
+	if out := answerPending(t, s.URL, "/api/message/cancel", "one"); !strings.Contains(out, `"ok":true`) {
 		t.Fatalf("cancel = %s", out)
 	}
-	if lines := wakesWith(hub, "100", "cancelled message "+id); len(lines) != 1 || !strings.Contains(lines[0], "you sent to AI") {
-		t.Fatalf("sender wakes = %q", lines)
-	}
-	if lines := wakesWith(hub, "200", "cancelled message "+id); len(lines) != 1 || strings.Contains(lines[0], asUserMark) {
+	if lines := wakesWith(hub, "200", "cancelled message one"); len(lines) != 1 || strings.Contains(lines[0], asUserMark) {
 		t.Fatalf("receiver wakes = %q", lines)
 	}
 	hub.mu.Lock()
-	after := hub.rallies[rallyKey{from: a, to: b}]
+	after := hub.rallies[key]
 	hub.mu.Unlock()
 	if after != 0 {
 		t.Fatalf("rally after cancel = %d", after)
 	}
-	if out := answerPending(t, s.URL, "/api/message/cancel", id); !strings.Contains(out, `"reason":"not-pending"`) {
+	if out := answerPending(t, s.URL, "/api/message/cancel", "one"); !strings.Contains(out, `"reason":"not-pending"`) {
 		t.Fatalf("second cancel = %s", out)
 	}
 }
 
-// 受け手が送り手へ AI 間メッセージを送ったら、承認待ちは知らせずに消える（返事）。送り手にも受け手にも、キャンセルや承認の知らせは出ない
-func TestReplyDropsThePendingWithoutANotice(t *testing.T) {
+// 利用者が受け手の AI に話しかけても、承認待ちは残り、キャンセルの知らせは出ない（承認のつもりの話しかけもある）
+func TestUserTalkingKeepsThePending(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
-	sendMessage(t, s.URL, a, "すずめ", "question")
-	if sent, _ := sendMessage(t, s.URL, b, "ひよこ", "answer"); !sent.OK {
-		t.Fatalf("reply = %+v", sent)
-	}
-	// 返事そのものは、送り手（今は受け手）への AI 間メッセージなので、それだけの承認待ちが 1 件残る。最初の組（a → b）の承認待ちは消える
-	got := pendingNow(hub)
-	if len(got) != 1 || got[0].Receiver != a || got[0].Sender != b || got[0].Body != "answer" {
-		t.Fatalf("pending after reply = %+v", got)
-	}
-	for _, host := range []string{"100", "200"} {
-		for _, line := range wakesWith(hub, host, "") {
-			if strings.Contains(line, "approved") || strings.Contains(line, "cancelled") {
-				t.Fatalf("a notice on reply: %q", line)
-			}
-		}
-	}
-}
-
-// 利用者が受け手の AI に話しかけたら、その受け手の承認待ちはキャンセル扱い（知らせあり）。
-// 送り手も受け手も、キャンセルの知らせを 1 通ずつ受ける
-func TestUserTalkingCancelsTheReceiversPendingWithNotices(t *testing.T) {
-	s, hub := joinWorld(t, joinStore(t))
-	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
-	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
-	sendMessage(t, s.URL, a, "すずめ", "hello")
-	id := pendingNow(hub)[0].ID
+	fromHost(hub, b, "m1", "hello")
 	hub.UserTalkedIn("SB")
-	if n := len(pendingNow(hub)); n != 0 {
+	if n := len(pendingNow(hub)); n != 1 {
 		t.Fatalf("pending after the user talked = %d", n)
 	}
-	if lines := wakesWith(hub, "200", "cancelled message "+id); len(lines) != 1 {
+	if lines := wakesWith(hub, "200", "cancelled message m1"); len(lines) != 0 {
 		t.Fatalf("receiver wakes = %q", lines)
-	}
-	if lines := wakesWith(hub, "100", "cancelled message "+id); len(lines) != 1 {
-		t.Fatalf("sender wakes = %q", lines)
 	}
 }
 
 // 受け手が参加者でなくなったら、承認待ちは知らせずに消える
 func TestLeavingReceiverDropsThePendingSilently(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
-	sendMessage(t, s.URL, a, "すずめ", "hello")
+	fromHost(hub, b, "m1", "hello")
 	if _, out := postPerform(t, s.URL, `{"action":"@matomezu/base:participant-remove","args":{},"on":{"record":"`+b+`"},"lang":"ja","now":"2026-11-08T02:00:00.000Z"}`); !strings.Contains(out, `"ok":true`) {
 		t.Fatalf("remove = %s", out)
 	}
 	if n := len(pendingNow(hub)); n != 0 {
 		t.Fatalf("pending after the receiver left = %d", n)
 	}
-	if lines := wakesWith(hub, "100", "cancelled"); len(lines) != 0 {
-		t.Fatalf("sender got a notice: %q", lines)
-	}
 }
 
-// 利用者の頼みの印が付く AI 間メッセージ（自動の印の物）は承認待ちを作らず、印の無い物は作る
-func TestAutomaticMarkMessageMakesNoPending(t *testing.T) {
+// 承認待ちを作るのは、ほかのホストから届いて、利用者の頼みの印が付かない物だけ。
+// 同じホストの中の物（印の有無によらず）と、as-user のホストから届いた物は作らない
+func TestOnlyAnUnmarkedMessageFromAnotherHostMakesAPending(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
-	env := func(id string) Envelope {
-		return Envelope{ID: id, From: Address{Host: "h", Workroom: "ひよこ"}, To: Address{Host: "h", Workroom: "すずめ"}, Text: "t"}
+	if sent, _ := sendMessage(t, s.URL, a, "すずめ", "same host"); !sent.OK {
+		t.Fatalf("sent = %+v", sent)
 	}
+	local := func(id string, asUser bool) delivery {
+		return delivery{to: b, from: a, asUser: asUser, envelope: Envelope{ID: id, From: Address{Workroom: "ひよこ"}, To: Address{Workroom: "すずめ"}, Text: "t"}}
+	}
+	marked := remoteDelivery(b, "as-user host", "t")
+	marked.asUser = true
 	hub.mu.Lock()
-	hub.deliver(delivery{to: b, from: a, asUser: true, envelope: env("auto")})
-	hub.deliver(delivery{to: b, from: a, envelope: env("plain")})
-	got := hub.pending
+	for _, d := range []delivery{local("same host, no mark", false), local("same host, admin mark", true), marked, remoteDelivery(b, "other host", "t")} {
+		hub.deliver(d)
+	}
+	got := append([]pendingMessage(nil), hub.pending...)
 	hub.mu.Unlock()
-	if len(got) != 1 || got[0].ID != "plain" {
+	if len(got) != 1 || got[0].ID != "other host" {
 		t.Fatalf("pending = %+v", got)
 	}
 }
@@ -183,11 +166,10 @@ func TestAutomaticMarkMessageMakesNoPending(t *testing.T) {
 // 承認待ちの並びは、窓につながったときと、変わったときに pending-messages で知らせる
 func TestPendingListIsToldToWindows(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
-	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	c := hub.Join()
 	<-c.ch // hello
-	sendMessage(t, s.URL, a, "すずめ", "hi")
+	fromHost(hub, b, "m1", "hi")
 	deadline := time.After(2 * time.Second)
 	for {
 		select {
@@ -209,26 +191,20 @@ func TestPendingListIsToldToWindows(t *testing.T) {
 // 起こされる通り道を持たない AI にも、承認とキャンセルの知らせは、呼び出しの返事に添って届く
 func TestApprovalAndCancelComeWithACallReply(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
-	sendMessage(t, s.URL, a, "すずめ", "one")
-	sendMessage(t, s.URL, a, "すずめ", "two")
-	got := pendingNow(hub)
-	answerPending(t, s.URL, "/api/message/approve", got[0].ID)
-	answerPending(t, s.URL, "/api/message/cancel", got[1].ID)
-	notice := noticeOf(t, s.URL, b)
-	if !strings.Contains(notice, "approved message "+got[0].ID) || !strings.Contains(notice, "cancelled message "+got[1].ID) {
+	fromHost(hub, b, "one", "one")
+	fromHost(hub, b, "two", "two")
+	answerPending(t, s.URL, "/api/message/approve", "one")
+	answerPending(t, s.URL, "/api/message/cancel", "two")
+	if notice := noticeOf(t, s.URL, b); !strings.Contains(notice, "approved message one") || !strings.Contains(notice, "cancelled message two") {
 		t.Fatalf("receiver notice = %q", notice)
-	}
-	if notice := noticeOf(t, s.URL, a); !strings.Contains(notice, "cancelled message "+got[1].ID) {
-		t.Fatalf("sender notice = %q", notice)
 	}
 }
 
 // 承認・キャンセルの知らせは、どの 1 通かを本文の頭で示す（長ければ gistMax 字で切り、本文の中の引用符は包んで偽の行にしない）
 func TestNoticesNameTheMessageByItsHead(t *testing.T) {
 	long := strings.Repeat("あ", gistMax+5)
-	p := pendingMessage{PendingMessage: PendingMessage{ID: "m1", SenderRoom: "ひよこ", Body: long}}
+	p := pendingMessage{PendingMessage: PendingMessage{ID: "m1", SenderRoom: "ひよこ", SenderHostName: "h2", Body: long}}
 	if got := approvedLine(p); !strings.Contains(got, `"`+strings.Repeat("あ", gistMax)+`…"`) {
 		t.Fatalf("approved = %s", got)
 	}
@@ -243,13 +219,10 @@ func TestPendingKeepsAtMostTheQueueSizePerReceiver(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
-	env := func(id, to string) Envelope {
-		return Envelope{ID: id, From: Address{Host: "h", Workroom: "ひよこ"}, To: Address{Host: "h", Workroom: to}, Text: "t"}
-	}
 	hub.mu.Lock()
-	hub.addPendingHeld(delivery{to: a, from: b, envelope: env("other", "ひよこ")})
+	hub.addPendingHeld(remoteDelivery(a, "other", "t"))
 	for i := 0; i <= wakeQueueMax; i++ {
-		hub.addPendingHeld(delivery{to: b, from: a, envelope: env(fmt.Sprintf("m%d", i), "すずめ")})
+		hub.addPendingHeld(remoteDelivery(b, fmt.Sprintf("m%d", i), "t"))
 	}
 	got := append([]pendingMessage(nil), hub.pending...)
 	hub.mu.Unlock()
@@ -268,7 +241,7 @@ func TestCancelReachesASenderOnAnotherHost(t *testing.T) {
 		t.Fatalf("sent = %+v", sent)
 	}
 	got := pendingNow(b)
-	if len(got) != 1 || got[0].SenderRoom != "s1" || got[0].SenderHost != a.selfHostID() || got[0].SenderHostName != "a" || got[0].Sender != "" {
+	if len(got) != 1 || got[0].SenderRoom != "s1" || got[0].SenderHost != a.selfHostID() || got[0].SenderHostName != "a" {
 		t.Fatalf("pending = %+v", got)
 	}
 	id := got[0].ID

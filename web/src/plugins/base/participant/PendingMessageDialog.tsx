@@ -33,9 +33,7 @@ export function PendingMessageDialog({ args, onClose }: DialogProps<{ message: s
       },
     )
   }
-  const sender = message.senderHostName
-    ? t("{room} on host {host}", { room: message.senderRoom, host: message.senderHostName })
-    : message.senderRoom
+  const sender = t("{room} on host {host}", { room: message.senderRoom, host: message.senderHostName })
   return (
     <Dialog title={t("Message waiting for approval")} width={520} onClose={onClose}>
       <p className={styles.sender}>{t("Sender: {name}", { name: sender })}</p>

@@ -181,15 +181,14 @@ export const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unk
 export const ASK_UPDATE_ANSWER = z.object({ ok: z.boolean() })
 
 // 承認待ちの AI 間メッセージ（常駐だけが持つ。知らせ pending-messages の中身は、その並び）。
-// senderHost と senderHostName は、ほかのホストから届いたときだけ常駐が載せる（載せなければ空）
+// 承認待ちは、ほかのホストから届いた物だけ（senderHost は送り手のホスト id、senderHostName はそのホストエイリアス）
 export const PENDING_MESSAGES = z.array(
   z.object({
     id: z.string(),
     receiver: z.string(),
-    sender: z.string(),
     senderRoom: z.string(),
-    senderHost: z.string().default(""),
-    senderHostName: z.string().default(""),
+    senderHost: z.string(),
+    senderHostName: z.string(),
     body: z.string(),
     at: z.string(),
   }),
