@@ -5,6 +5,7 @@ import { referencesOf } from "../../web/src/core/book"
 import { type Library, TRASH_ID } from "../../web/src/core/folders"
 import { bookOf, libraryOf } from "../../web/src/core/folders-books"
 import { withChanges } from "../../web/src/core/folders-changes"
+import { changesByCause } from "../../web/src/core/history"
 import { performIn, type World } from "../../web/src/core/perform-world"
 import { deadReferences, referable, referredLineup, referredOf, UNSEEN } from "../../web/src/core/references"
 import type { AnyPage } from "../../web/src/core/schema/book"
@@ -199,4 +200,20 @@ test("参照エントリを指す先の物に置き換えた並び（印刷）: 
   ])
   const trashed = after(world, "entry-trash", { entry: "A" }) as World
   expect(lineupOf(trashed).lineup.map(e => e.id)).toEqual(["b1", "o1"])
+})
+
+test("画面の履歴の段の持ち主: 指す先を消されて参照エントリが外れただけのブックの分は、消した側の分に寄せる。ほかにも変わったブックは寄せない", () => {
+  const world = added(start(), { kind: "page", id: "a1" })
+  const done = performIn(world, base("page-remove"), { page: "a1" }, { book: "A" }, ctxOf())
+  if (!done.ok || !done.changes) throw new Error("page-remove")
+  const caused = changesByCause(world, withChanges(world, done.changes), done.changes)
+  expect(Object.keys(caused)).toEqual(["A"])
+  expect(caused.A?.also).toEqual(["B"])
+  expect(Object.keys(caused.A?.changes.folders ?? {})).toContain("B")
+  // B の名前も変えた書き込みなら、B は自分の分のまま
+  const b = done.changes.folders.B as { title?: string }
+  const both = { ...done.changes, folders: { ...done.changes.folders, B: { ...b, title: "B2" } } }
+  const own = changesByCause(world, withChanges(world, both), both)
+  expect(Object.keys(own).sort()).toEqual(["A", "B"])
+  expect(own.A?.also).toEqual([])
 })

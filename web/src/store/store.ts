@@ -18,7 +18,7 @@ import { outsideBinderIn, outsidePageIn } from "../core/folders-tree"
 import { outsideUnreadable, rawBooksOf } from "../core/folders-unreadable"
 import { deepFreeze } from "../core/freeze"
 import {
-  changesByOutermost,
+  changesByCause,
   HISTORY_LIMIT,
   type History,
   type HistoryStep,
@@ -159,6 +159,7 @@ interface OpenStep {
   answer?: Promise<HostAnswer>
   settle?: (a: HostAnswer) => void
   outermosts: string[]
+  also: string[] // 段の履歴には入れず、戻す・やり直すときに一緒に置き直すステージエントリ（HistoryStep の also）
   pages: Record<string, RowChange<PageRow>>
   folders: Record<string, RowChange<Folder>>
   // 書庫が対象のアクションが変えたページとフォルダ（書庫の履歴に、別の段として入れる）と、閉じて入れたその段
@@ -334,10 +335,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (was.outermosts.length === 0 && !was.continued) return
     const { seq, continued } = was
     const kept = keptRows
+    const also = was.also.filter(id => !was.outermosts.includes(id))
     const step: HistoryStep = {
       seq,
       by: "user",
       outermosts: was.outermosts,
+      ...(also.length > 0 ? { also } : {}),
       pages: kept(was.pages),
       folders: kept(was.folders),
     }
@@ -382,9 +385,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     options,
   })
   // ステージエントリ outermost の物を、表 was から changes のとおりに変えたことを、開いている画面の履歴の段に足す（同じ物を続けて変えたら、最初の前と最後の後を持つ）
-  const record = (outermost: string, was: Library, changes: TableChanges): OpenStep => {
+  const record = (outermost: string, was: Library, changes: TableChanges, also: readonly string[] = []): OpenStep => {
     const into = opened()
     if (!into.outermosts.includes(outermost)) into.outermosts.push(outermost)
+    for (const id of also) if (!into.also.includes(id)) into.also.push(id)
     const rows = rowChangesOf(was, changes)
     for (const [id, r] of Object.entries(rows.pages))
       into.pages[id] = { before: into.pages[id]?.before ?? r.before, after: r.after }
@@ -430,7 +434,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 開いている段とアクションバルク（無ければ開き、同期の流れが終わったら閉じる）
   const opened = (): OpenStep => {
     if (!open) {
-      open = { seq: nextSeq(), done: [], after: [], outermosts: [], pages: {}, folders: {} }
+      open = { seq: nextSeq(), done: [], after: [], outermosts: [], also: [], pages: {}, folders: {} }
       queueMicrotask(closeStep)
     }
     return open
@@ -512,10 +516,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           dropOverwritten({ pages, folders }, tables)
         else recordLibrary({ pages, folders }, done.changes)
       } else {
-        // ブックかページが対象のアクションが変えるのは、開けるブック 1 冊か、ブックの外のページ 1 枚
-        const changed = Object.keys(changesByOutermost({ pages, folders }, tables, done.changes))
+        // ブックかページが対象のアクションが変えるのは、開けるブック 1 冊か、ブックの外のページ 1 枚（と、指す先を消されて参照エントリが外れたほかのブック。
+        // その分は、消した側の段に寄せる。changesByCause）
+        const caused = changesByCause({ pages, folders }, tables, done.changes)
+        const changed = Object.keys(caused)
         const recorded = catalog.actions.get(id)?.history !== false
-        if (recorded) for (const outermost of changed) record(outermost, { pages, folders }, done.changes)
+        if (recorded)
+          for (const [outermost, c] of Object.entries(caused))
+            record(outermost, { pages, folders }, done.changes, c.also)
         // 画面の履歴に入れないアクション（ロックの掛け外しなど）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
         else if (changed.length > 0) dropOverwritten({ pages, folders }, tables)
         // 変わったブック（参照エントリを同じ書き込みで外したほかのブックも）・ブックの外のページと、参照エントリが指す先に、全部のステージを合わせる
@@ -1009,6 +1017,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         done: [],
         after: [],
         outermosts: [...step.outermosts],
+        also: [...(step.also ?? [])],
         pages: { ...step.pages },
         folders: { ...step.folders },
         continued: true,

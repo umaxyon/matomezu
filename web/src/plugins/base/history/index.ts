@@ -6,7 +6,7 @@ import { pagesOf } from "../../../core/book"
 import { CREATES_NOTHING, type LibraryTargets } from "../../../core/def/action"
 import { NO_NAME } from "../../../core/entries"
 import type { Folders } from "../../../core/folders"
-import { foldersOver } from "../../../core/folders-tree"
+import { foldersOver, inTrash } from "../../../core/folders-tree"
 import type { HistoryStep } from "../../../core/history"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import type { Books } from "../../../core/library"
@@ -150,11 +150,18 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
   const opened = ctx.stage.opened
   if (opened === NOTHING_OPENED) return
   const to = from === "undo" ? "before" : "after"
-  const argsOf = (step: HistoryStep) => ({
-    outermosts: step.outermosts.map(id => ({ kind: kindOf(ctx.folders, id), id })),
-    pages: patchesToward(step.pages, to),
-    folders: patchesToward(step.folders, to),
-  })
+  // 一緒に置き直すブック（also）のうち、もうゴミ箱の外のブックでない物は、その行（並び）を置き直さずに外す（段の持ち主のブックは戻せるように）
+  const argsOf = (step: HistoryStep) => {
+    const also = (step.also ?? []).filter(id => !step.outermosts.includes(id))
+    const gone = new Set(also.filter(id => ctx.folders[id]?.folderRole !== "book" || inTrash(ctx.folders, id)))
+    const named = [...step.outermosts, ...also.filter(id => !gone.has(id))]
+    const folders = Object.fromEntries(Object.entries(step.folders).filter(([id]) => !gone.has(id)))
+    return {
+      outermosts: named.map(id => ({ kind: kindOf(ctx.folders, id), id })),
+      pages: patchesToward(step.pages, to),
+      folders: patchesToward(folders, to),
+    }
+  }
   const changes = (args: RevertArgs) => Object.keys(args.pages).length + Object.keys(args.folders).length > 0
   const steps = [...ctx.history[from]].reverse()
   for (const [i, step] of steps.entries()) {

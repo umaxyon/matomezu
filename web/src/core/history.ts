@@ -18,10 +18,12 @@ export type HistoryBy = "user" | "ai" | "window"
 // 画面の履歴の段: 変えたページとフォルダごとの前と後（足した物の前と、無くした物の後は "none"）。seq は、この窓で段を始めた順の番号
 // （利用者の段は始めたとき、AI とほかの窓の段は届いたときに振る。マシンの時計は合わせ直しで後ろへ戻ることがあるので、並びは時計で決めない）。
 // outermosts は、この段を入れる履歴の鍵: 変えた物を持つステージエントリの id（1 回の操作が、いくつかのステージエントリを変えることがある）。書庫の段は LIBRARY_HISTORY
+// also は、この段の履歴には入れないが、戻す・やり直すときに一緒に置き直すステージエントリ: 指す先を同じ書き込みで消されて、参照エントリが外れただけのブック（changesByCause）
 export interface HistoryStep {
   seq: number
   by: HistoryBy
   outermosts: readonly string[]
+  also?: readonly string[]
   pages: Readonly<Record<string, RowChange<PageRow>>>
   folders: Readonly<Record<string, RowChange<Folder>>>
 }
@@ -52,6 +54,58 @@ export function changesByOutermost(was: Library, now: Library, changes: TableCha
   for (const [id, to] of Object.entries(changes.pages)) put("pages", id, to)
   for (const [id, to] of Object.entries(changes.folders)) put("folders", id, to)
   return out as Record<string, TableChanges>
+}
+
+// 1 回の書き込みが変えた物の、画面の履歴の段を入れるステージエントリごとの分。changesByOutermost のうち、参照エントリが外れただけのブック
+// （外れた参照エントリの指す先を持っていたステージエントリが 1 つで、それも同じ書き込みで変わった）の分は、その持ち主の分に寄せ、also に名を足す
+// （参照エントリを外したのは、持ち主の側の書き込み。外れたブックの履歴には入れない）
+export interface CausedChanges {
+  changes: TableChanges
+  also: readonly string[]
+}
+export function changesByCause(was: Library, now: Library, changes: TableChanges): Record<string, CausedChanges> {
+  const by = changesByOutermost(was, now, changes)
+  const found = new Map<string, string>()
+  for (const [id, c] of Object.entries(by)) {
+    const cause = causeOf(was, id, c)
+    if (cause !== undefined && cause !== id && cause in by) found.set(id, cause)
+  }
+  // 寄せる先が、それ自身も寄せる物なら寄せない
+  const causes = [...found].filter(([, cause]) => !found.has(cause))
+  const moved = new Set(causes.map(([id]) => id))
+  const out: Record<
+    string,
+    { changes: { pages: Record<string, unknown>; folders: Record<string, unknown> }; also: string[] }
+  > = {}
+  for (const [id, c] of Object.entries(by))
+    if (!moved.has(id)) out[id] = { changes: { pages: { ...c.pages }, folders: { ...c.folders } }, also: [] }
+  for (const [id, cause] of causes) {
+    const into = out[cause] as (typeof out)[string]
+    Object.assign(into.changes.folders, by[id]?.folders)
+    into.also.push(id)
+  }
+  return out as Record<string, CausedChanges>
+}
+
+// ステージエントリ id の分 c が、ブックの行の並びから参照エントリが外れただけなら、外れた参照エントリの指す先を持っていたステージエントリ（1 つのときだけ）
+function causeOf(was: Library, id: string, c: TableChanges): string | undefined {
+  const row = was.folders[id]
+  const after = c.folders[id]
+  if (Object.keys(c.pages).length > 0 || Object.keys(c.folders).length !== 1) return undefined
+  if (row?.folderRole !== "book" || after === undefined || after === REMOVED || (after as Folder).folderRole !== "book")
+    return undefined
+  const kept = new Set((after as Folder & { folderRole: "book" }).lineup.map(r => r.id))
+  const lost = row.lineup.filter(r => !kept.has(r.id))
+  if (lost.length === 0 || !lost.every(r => r.kind === "reference")) return undefined
+  if (!sameData({ ...row, lineup: row.lineup.filter(r => kept.has(r.id)) }, after)) return undefined
+  const owners = new Set(
+    lost.map(r => {
+      const o = r.kind === "reference" ? outermostOf(was, r.of.id) : NO_OUTERMOST
+      return o === NO_OUTERMOST ? "" : o.id
+    }),
+  )
+  const [owner] = owners
+  return owners.size === 1 && owner ? owner : undefined
 }
 
 // 画面の履歴（ステージエントリごとと、書庫に 1 つ）: 戻せる画面の履歴の段（古い順）と、やり直せる画面の履歴の段（古い順。最後が次にやり直す物）
