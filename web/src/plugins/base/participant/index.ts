@@ -93,7 +93,11 @@ export const ADMIN_MARK = kit.defineSubject({
   aiDescription:
     "The administrator's mark: which workroom is the administrator (the id, or none). There is one, with the id admin.",
   // id は "admin"（admin-set が作る）。by は、利用者が王冠で選んだか（user）、受け入れで自動に付いたか（auto）。無い物は auto と同じに扱う
-  record: z.strictObject({ id: z.string().min(1), workroom: z.string().min(1), by: z.enum(["user", "auto"]).optional() }),
+  record: z.strictObject({
+    id: z.string().min(1),
+    workroom: z.string().min(1),
+    by: z.enum(["user", "auto"]).optional(),
+  }),
   refers: a => (a.workroom === "none" ? [] : [{ subject: WORKROOM.id, id: a.workroom }]),
 })
 
@@ -104,7 +108,6 @@ export const VISITOR_JOINED_MESSAGE = kit.message("Joined matomezu as a visitor 
 export { workroomActivitiesFrom } from "./activity"
 export { myWorkdeskIn } from "./my-workdesk"
 export { SESSION_RENAME, workTitleIn } from "./work-title"
-export { isAdminWorkroomIn } from "./admin-room"
 export { type FoundWorkerBook, NO_WORKER_BOOK, WORKER_BOOK } from "./worker-book"
 export { FOLLOW_WORK_ENDED, FOLLOW_WORKROOM_GONE, WORK_SUBJECTS_CHECK } from "./worker-book-follow"
 export { WORKER_PAGE_ADD } from "./worker-page-add"
