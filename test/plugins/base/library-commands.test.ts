@@ -41,7 +41,8 @@ function setup(now: () => string = () => "2026-11-18T01:00:00.000Z") {
     }
   }
   const ids = (into: string) => entriesIn(state.getState().folders, into).map(r => r.id)
-  const shown = (id: string) => isShown(store, state.getState(), center, `@matomezu/base:${id}` as CommandId)
+  const shown = (id: string, ...given: [named?: unknown]) =>
+    isShown(store, state.getState(), center, `@matomezu/base:${id}` as CommandId, ...given)
   return {
     store,
     center,
@@ -217,8 +218,8 @@ test("扱う物: 何も受け取らなければ選んでいる行（無ければ
   expect(dialog()).toMatchObject({ id: "@matomezu/base:library-entry-rename", args: { entry: "p1" } })
 })
 
-test("右クリックのメニューの行: フォルダは作る・名前の変更・ゴミ箱、ブックは開く・名前の変更・ゴミ箱、ブックの中のページは開く・名前の変更・複製・削除。何も無い所は、作るだけ（ブックの中なら、それを入れているフォルダに作る）", () => {
-  const { store, center, folder, run, shown, dialog } = setup()
+test("右クリックのメニューの行: フォルダは開く・作る・名前の変更・ゴミ箱、ブックは開く・名前の変更・ゴミ箱、ブックの中のページは開く・名前の変更・複製・削除。何も無い所は、作るだけ（ブックの中なら、それを入れているフォルダに作る）", () => {
+  const { store, folder, run, shown, dialog } = setup()
   const a = folder("あ")
   const [open, book, fold, rename, copy, trash, remove] = [
     "library-entry-open",
@@ -230,11 +231,8 @@ test("右クリックのメニューの行: フォルダは作る・名前の変
     "library-entry-remove",
   ] as const
   const rows = [open, book, fold, rename, copy, trash, remove]
-  const menu = (id: string, target: unknown) => {
-    store.actions.openContextMenu(center, `@matomezu/base:${id}`, target, { x: 0, y: 0 })
-    return rows.filter(shown)
-  }
-  expect(menu("library-entry-context", { entry: a })).toEqual([book, fold, rename, trash])
+  const menu = (_id: string, target: unknown) => rows.filter(r => shown(r, target))
+  expect(menu("library-entry-context", { entry: a })).toEqual([open, book, fold, rename, trash])
   expect(menu("library-entry-context", { entry: "b1" })).toEqual([open, rename, trash])
   expect(menu("library-entry-context", { entry: "p1" })).toEqual([open, rename, copy, remove])
   expect(menu("library-entry-context", { entry: HOME_ID })).toEqual([book, fold])
@@ -252,13 +250,16 @@ test("右クリックのメニューの行: フォルダは作る・名前の変
   expect(dialog()).toMatchObject({ args: { into: HOME_ID } })
 })
 
-test("Delete キーのコマンド（library-entry-trash）: 書庫ホームかフォルダの直下の物はゴミ箱に入れ、ブックやバインダの中の物は、消す前に確かめるダイアログを開く", () => {
-  const { folder, run, ids, dialog } = setup()
+test("Delete キーのコマンド（library-entry-trash）: 書庫ホームかフォルダの直下の物はゴミ箱に入れ、ブックやバインダの中の物は、消す前に確かめるダイアログを開く（名指した中の物は受け付けない: メニューの行）", () => {
+  const { store, center, folder, run, ids, dialog } = setup()
   const a = folder("あ")
   run("library-entry-trash", { entry: a })
   expect(ids(HOME_ID)).not.toContain(a)
   expect(dialog()).toBeNull()
-  run("library-entry-trash", { entry: "p1" })
+  expect(run("library-entry-trash", { entry: "p1" })).toBe(false)
+  expect(dialog()).toBeNull()
+  store.setPluginState(LIBRARY_PICKED.id, center, "p1")
+  run("library-entry-trash", undefined)
   expect(dialog()).toMatchObject({ id: "@matomezu/base:library-entry-remove", args: { entry: "p1" } })
   expect(ids("b1")).toEqual(["p1"])
   run("dialog-close")
@@ -468,12 +469,7 @@ test("「新しいページ…」は、受け取った物（書庫ホーム・�
   const binder = made({ folder: a, type: "@matomezu/slide-page:slide", title: "1", into: { newBinder: "発表" } })
     .binder as string
   const book = (perform("@matomezu/base:book-create", { title: "本", into: a }).result as { book: string }).book
-  const open = (target: object) => {
-    actions.openContextMenu(center, "@matomezu/base:library-entry-context", target, { x: 1, y: 2 })
-    const was = shown("library-page-new")
-    actions.closeContextMenu()
-    return was
-  }
+  const open = (target: object) => shown("library-page-new", target)
   // ページの行には出さない
   expect(open({ entry: page })).toBe(false)
   for (const entry of [a, binder, book]) {

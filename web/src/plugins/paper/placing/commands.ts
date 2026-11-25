@@ -6,7 +6,6 @@ import {
   connectorsOf,
   findShape,
   type MessageKey,
-  NO_CONTEXT_MENU,
   NO_DIALOG,
   NO_ITEM,
   NO_PAPER,
@@ -105,15 +104,11 @@ export const PAPER_PLACE = kit.defineCommand({
   when: ctx => hasOpenedPage(ctx) && ctx.stage.placing !== NO_PLACING,
 })
 
-// 右クリックされた形が編集のダイアログを持つか（右クリックのメニューが開いていなければ、呼んだ所が形を選んでいる）。
+// 形 item が編集のダイアログを持つか。
 // いくつか選んでいて、その中の物を右クリックしたなら、メニューは選んだ物全部に向けるので出さない
-function editable(ctx: CommandContext): boolean {
-  const target = (ctx.contextMenu === NO_CONTEXT_MENU ? undefined : ctx.contextMenu.target) as
-    | { item?: string }
-    | undefined
-  if (target?.item === undefined) return true
-  if (amongSelected(ctx.stage.selection, target.item)) return false
-  const placed = hasOpenedPage(ctx) ? findShape(ctx.page, target.item) : NO_ITEM
+function editable(ctx: CommandContext, item: string): boolean {
+  if (amongSelected(ctx.stage.selection, item)) return false
+  const placed = hasOpenedPage(ctx) ? findShape(ctx.page, item) : NO_ITEM
   const def = placed !== NO_ITEM ? shapeDefOf(ctx.catalog, placed.shape.item) : NO_SHAPE_DEF
   return def !== NO_SHAPE_DEF && shapeDialogs(def).edit !== NO_DIALOG
 }
@@ -133,8 +128,9 @@ export const PAPER_EDIT = kit.defineCommand({
     if (dialog === NO_DIALOG) return
     a.openDialog(dialog, { page: ctx.page.id, item })
   },
-  // 右クリックのメニューでは、編集のダイアログを持つ形のときだけ出す
-  when: ctx => hasOpenedPage(ctx) && editable(ctx),
+  when: hasOpenedPage,
+  // 編集のダイアログを持つ形のときだけ出す
+  accepts: (ctx, { item }) => editable(ctx, item),
 })
 
 // 選んでいる物が、開いているページのアイテム（どの深さの形も、つなぐものも）だけか（リストの行など、形の中の物が混じれば、ほかのコマンドの物）

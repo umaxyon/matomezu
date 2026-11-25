@@ -1,6 +1,6 @@
 // 線のコマンド: 形の〇から引いて離したときに線を引く（ラインビューから呼ぶ）、線の編集のダイアログを開く（線のダブルクリックと右クリックのメニュー）、線の端をほかの形の上で離したときにつなぎ替える
 
-import { NO_CONTEXT_MENU, NO_PAPER, type Point } from "../../../plugin-api"
+import { NO_PAPER, type Point } from "../../../plugin-api"
 import { amongSelected, hasOpenedPage, portAreasOf } from "../../base"
 import { LINE_CONNECT, LINE_RECONNECT, LINE_UPDATE } from "./actions"
 import { drawnLineProps, loopEndsNear, nearestEnd } from "./connect"
@@ -36,12 +36,8 @@ export const LINE_EDIT = kit.defineCommand({
   run: (ctx, a, { item }: { item: string }) => {
     if (hasOpenedPage(ctx)) a.openDialog(LINE_EDIT_DIALOG.id, { page: ctx.page.id, item })
   },
-  when: ctx => {
-    const target = (ctx.contextMenu === NO_CONTEXT_MENU ? undefined : ctx.contextMenu.target) as
-      | { item?: string }
-      | undefined
-    return hasOpenedPage(ctx) && !(target?.item !== undefined && amongSelected(ctx.stage.selection, target.item))
-  },
+  when: hasOpenedPage,
+  accepts: (ctx, { item }) => !amongSelected(ctx.stage.selection, item),
 })
 
 // 線 line の端 end（始点 from か終点 to）を運んで、形 item の上の at（表示領域の左上からの画面の座標）で離したときに、つなぎ替える（アクション line-reconnect）。

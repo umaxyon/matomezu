@@ -103,19 +103,25 @@ export function useOpenContextMenu(): <M extends ContextMenuId>(
   }
 }
 
-// UI マッピングに書いたメニューの中身のうち、そのステージから見て出ているコマンドと区切り線（並びは UI マッピングの順。先頭・末尾・続けての区切り線は消す）
-export function useContextMenuItems<M extends ContextMenuId>(stage: string, id: M): readonly ContextMenuEntry<M>[] {
+// UI マッピングに書いたメニューの中身のうち、そのステージから見て、右クリックされた物 target で出ているコマンドと区切り線（並びは UI マッピングの順。先頭・末尾・続けての区切り線は消す）
+export function useContextMenuItems<M extends ContextMenuId>(
+  stage: string,
+  id: M,
+  target: unknown,
+): readonly ContextMenuEntry<M>[] {
   const menus = useLayout().contextMenus as { [K in ContextMenuId]?: readonly ContextMenuEntry<K>[] } | undefined
   const items = menus?.[id] ?? []
   const defs = useInstance()
   return useMatomezuState(
-    useShallow(s => tidySeparators(items.filter(c => c === SEPARATOR || isShown(defs, s, stage, c)))),
+    useShallow(s => tidySeparators(items.filter(c => c === SEPARATOR || isShown(defs, s, stage, c, target)))),
   )
 }
 
-// UI マッピングの anchorMenu（押した物にアンカーがあるとき、どの右クリックのメニューにも足すコマンド）のうち、そのステージから見て出ているもの（並びは UI マッピングの順）
-export function useAnchorMenuItems(stage: string): readonly AnchorMenuCommandId[] {
+// UI マッピングの anchorMenu（押した物にアンカーがあるとき、どの右クリックのメニューにも足すコマンド）のうち、そのステージから見て出ているもの
+// （並びは UI マッピングの順。押した物のアンカー anchor が分かっていれば、その引数で問う）
+export function useAnchorMenuItems(stage: string, anchor: string | undefined): readonly AnchorMenuCommandId[] {
   const items = useLayout().anchorMenu ?? []
   const defs = useInstance()
-  return useMatomezuState(useShallow(s => items.filter(c => isShown(defs, s, stage, c))))
+  const given: [] | [string] = anchor === undefined ? [] : [anchor]
+  return useMatomezuState(useShallow(s => items.filter(c => isShown(defs, s, stage, c, ...given))))
 }
