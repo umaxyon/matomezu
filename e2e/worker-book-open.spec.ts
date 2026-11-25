@@ -3,6 +3,7 @@
 // 窓が低いと、番号の行のクリックで全画面で開く。書庫の行はクリックで 2 択を出す。「作業ブック」はクリックで右を本文からページの一覧に替え（もう一度押しても閉じない）、ダブルクリックで全画面で開く
 import { aiAuth, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
+import { onPaper } from "./helpers/paper"
 
 const NOW = "2026-11-23T00:00:00.000Z"
 
@@ -232,4 +233,42 @@ test("ワーカーブックの下の行は、名前の枠の中の名前の前�
   await place.click()
   const desk = page.getByRole("list", { name: "とり の中身" })
   await expect(desk.getByRole("button")).toHaveAttribute("aria-pressed", "true")
+})
+
+test("チケットのワーカーブックのページの名前を、チケットの番号で始まる名前に変えようとすると、断りをトーストに出し、ダイアログは開いたまま", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  const made = await perform(page, "@matomezu/taskboard:project-add", { prefix: "N-" })
+  const added = await perform(page, "@matomezu/taskboard:ticket-add", {
+    project: made.result?.project ?? "",
+    name: "名前の写し",
+    body: "",
+  })
+  const ai = await member(page, "なまえ")
+  await aiPerform(
+    page,
+    { action: "@matomezu/taskboard:ticket-start", args: {}, on: { record: added.result?.ticket ?? "" } },
+    ai,
+  )
+  const page1 = await aiPerform(
+    page,
+    { action: "@matomezu/base:worker-page-add", args: { type: "@matomezu/drawing:drawing", title: "メモ" } },
+    ai,
+  )
+  expect(page1, JSON.stringify(page1)).toMatchObject({ ok: true })
+  await page.locator("[data-workroom]").filter({ hasText: "なまえ" }).locator("[data-current-line]").dblclick()
+  await expect(page.getByText("メモ").first()).toBeVisible()
+  await settled(page)
+  const empty = await onPaper(page, 300, 300)
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ページの設定" })
+  await dialog.getByLabel("名前").fill("N-0001 メモ")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(page.getByText("ページの名前がブックの名前で始まっています")).toBeVisible()
+  await expect(dialog).toBeVisible()
+  await dialog.getByLabel("名前").fill("[N-0001] メモ")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
 })

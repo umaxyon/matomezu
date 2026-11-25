@@ -21,9 +21,8 @@ declare module "../../../core/catalog" {
     // completesWork が読む物（種類と id。種類の id から型を引くと、対象の定義の型が自分を指すので、型の付かない形で書く）
     completesWorkReads?(before: unknown, after: unknown): readonly { subject: string; id: string }[]
     // このレコードの before（作ったなら none）から after（消したなら removed）への変わりで、短く呼ぶ名前（workRecordName の label）が
-    // 変わり得る作業のレコードと、その名前を引くのに読む物（reads の形。変わったこのレコード自身は足さなくてよい）。変わり得なければ空。
-    // 作業のレコードの名前が依る種類（作業のレコードの種類自身と、workRecordNameReads の種類）が書く。読んだ物のうち workRecordName を持つ種類のレコードの
-    // ワーカーブックの名前を、今の短く呼ぶ名前に直す
+    // 変わり得る作業のレコード（reads の形。変わり得なければ空）。作業のレコードの種類自身と workRecordNameReads の種類のうち、変わると短く呼ぶ名前が変わる種類が書く。
+    // 返した作業のレコードのワーカーブックの名前を、今の短く呼ぶ名前に直す（名前を引くのに読む物は、変わったこのレコード自身と、作業のレコードの種類の workRecordNameReads の種類を base が読む）
     workRecordsRenamedBy?(before: unknown, after: unknown): readonly AnyRecordRead[]
   }
 }
@@ -51,7 +50,7 @@ export const WORK_SUBJECTS_CHECK: CatalogCheckDef = catalog =>
   )
 
 // ワークルームが消えたら、そのワークルーム自身のブックを完全に消す（チケットのブックは残る）。名前が変わったら、そのブックの名前を直す
-export const FOLLOW_WORKROOM: FollowStepDef<typeof WORKROOM.id> = {
+export const FOLLOW_WORKROOM_BOOK: FollowStepDef<typeof WORKROOM.id> = {
   watches: WORKROOM.id,
   writes: [],
   backyards: [TICKETS_HISTORY.id],
@@ -71,10 +70,13 @@ export const FOLLOW_WORKROOM: FollowStepDef<typeof WORKROOM.id> = {
   },
 }
 
-// 種類 subject の変わり change で名前が変わり得る作業のレコードを読む物（workRecordsRenamedBy。空でなければ、変わったレコード自身も読む）
+// 変わり change で名前が変わり得る作業のレコードを読む物（workRecordsRenamedBy。空でなければ、変わったレコード自身と、作業のレコードの種類の workRecordNameReads の種類の全部も読む）
 function renamedReads(change: FollowedChange, catalog: CoreCatalog): readonly AnyRecordRead[] {
-  const reads = catalog.subjects.get(change.subject)?.workRecordsRenamedBy?.(change.before, change.after) ?? []
-  return reads.length === 0 ? [] : [{ subject: change.subject, id: change.id }, ...reads]
+  const works = catalog.subjects.get(change.subject)?.workRecordsRenamedBy?.(change.before, change.after) ?? []
+  if (works.length === 0) return []
+  const named = new Set(works.flatMap(w => catalog.subjects.get(w.subject)?.workRecordNameReads ?? []))
+  named.delete(change.subject)
+  return [{ subject: change.subject, id: change.id }, ...works, ...[...named].map(subject => ({ subject, where: [] }))]
 }
 
 // 作業のレコードの短く呼ぶ名前が変わり得る変わり（workRecordsRenamedBy が答える）で、読んだ作業のレコードのワーカーブックの名前を、今の名前に直す

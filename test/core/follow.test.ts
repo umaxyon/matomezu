@@ -406,6 +406,39 @@ test("purge はブックと中のページを消してバックヤードの並�
   expect((cleared as { changes?: unknown }).changes).toBeUndefined()
 })
 
+// カードが変わると、そのブックの名前を title にするフォローステップ
+const retitleTo = (title: string): FollowStepDef => ({
+  ...PURGE_CARD,
+  follow: c => ({ backyard: [{ backyard: YARD_DEF, key: { subject: CARD, id: c.id }, does: "retitle", title }] }),
+})
+
+test("retitle はブックの名前を変える。今と同じ名前なら変わりに出ず、ブックが無ければ何もせず、空の名前ならきっかけのアクションごと断る", () => {
+  const rename = (step: FollowStepDef, w = yardWorld()) =>
+    performIn(
+      w,
+      "@ex/card:card-rename",
+      { label: "b" },
+      { record: "c1" },
+      {
+        ...ctx,
+        catalog: assemble(yardPlugins(step), CENTER).catalog.core,
+        ...at,
+      },
+    )
+  expect(rename(retitleTo("B2"))).toMatchObject({ ok: true, changes: { folders: { b1: { title: "B2" } } } })
+  expect((rename(retitleTo("B1")) as { changes?: unknown }).changes).toBeUndefined()
+  const yardId = `library-backyard-${YARD_DEF}`
+  const empty = yardWorld()
+  const noBook: World = {
+    ...empty,
+    folders: { ...empty.folders, [yardId]: { ...empty.folders[yardId], lineup: [] } as never },
+  }
+  expect((rename(retitleTo("B2"), noBook) as { changes?: { folders: object } }).changes?.folders).not.toHaveProperty(
+    "b1",
+  )
+  expect(rename(retitleTo(""))).toMatchObject({ ok: false, reason: "refused" })
+})
+
 test("バックヤードの中に行う事にも、followed を持つ認可ステップの keeps だけをかけ、守らなければきっかけのアクションごと断る", () => {
   const keep = (followed: boolean) => ({
     id: "@ex/tally:keep-books",

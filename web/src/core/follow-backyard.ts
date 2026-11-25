@@ -32,7 +32,7 @@ export function followedInBackyard(
     }
     if (d.does === "retitle") {
       const row = now.folders[book]
-      if (row?.folderRole === "book" && d.title !== "" && row.title !== d.title)
+      if (row?.folderRole === "book" && row.title !== d.title)
         now = { ...now, folders: { ...now.folders, [book]: { ...row, title: d.title } } }
       continue
     }
