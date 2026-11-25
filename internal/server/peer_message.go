@@ -54,7 +54,7 @@ func (h *Hub) sendToHost(from, fromID string, req MessageRequest, now time.Time)
 	if utf8.RuneCountInString(req.To) > workroomNameMax {
 		return MessageSent{Reason: "unknown-recipient", Detail: fmt.Sprintf("no workroom has a name longer than %d characters; the message was not sent", workroomNameMax)}
 	}
-	c, base, ok := h.peerRoute(e, target.HostID)
+	c, base, ok := h.peerTarget(e, target.HostID)
 	if !ok {
 		return MessageSent{Reason: "unreachable", Detail: "where host " + req.Host + " listens is not known yet; the message was not sent"}
 	}
@@ -134,7 +134,7 @@ func (h *Hub) protocolRefused(e *hostEntrance, hostID, label string, err error) 
 	return MessageSent{Reason: "protocol-mismatch", Detail: "host " + label + "'s matomezu keeps another protocol; update " + which + " with matomezu update. The message was not sent"}
 }
 
-// postEnvelope は、ホスト hostID へ、道 base（peerRoute）で封筒 body を渡し、相手の答えを返す。相手が「ペアリングしていない」と答えたら、こちらも消す
+// postEnvelope は、ホスト hostID へ、頼む先 base（peerTarget）へ封筒 body を渡し、相手の答えを返す。相手が「ペアリングしていない」と答えたら、こちらも消す
 func (h *Hub) postEnvelope(e *hostEntrance, c *http.Client, hostID, base string, body []byte) (MessageSent, error) {
 	resp, err := c.Post(base+"/peer/v1/message", "application/json", bytes.NewReader(body))
 	if errors.Is(err, peer.ErrNotPaired) {

@@ -153,9 +153,9 @@ func TestTheMessageEntranceChecksTheEnvelope(t *testing.T) {
 	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
 	e := a.entrance.Load()
 	bID := b.selfHostID()
-	c, base, ok := a.peerRoute(e, bID)
+	c, base, ok := a.peerTarget(e, bID)
 	if !ok {
-		t.Fatal("no route to b")
+		t.Fatal("b cannot be asked")
 	}
 	post := func(env Envelope) int {
 		resp, err := c.Post(base+"/peer/v1/message", "application/json", bytes.NewReader(mustJSON(env)))

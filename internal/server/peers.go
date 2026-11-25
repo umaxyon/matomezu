@@ -77,7 +77,7 @@ func (h *Hub) Discover() {
 	}
 }
 
-// checkPeer は、ペアリングしたホスト r の hello の口に、固定した鍵で頼み、様子を直して窓に知らせる。addr が空なら peerRoute の道で、
+// checkPeer は、ペアリングしたホスト r の hello の口に、固定した鍵で頼み、様子を直して窓に知らせる。addr が空なら peerTarget で決めた先へ、
 // 空でなければ（mDNS で見えた所）その所へ直に頼む。直に答えたときだけ、待っている所を書き直す。相手が「ペアリングしていない」と答えたら、こちらも消す。
 // 常駐間通信プロトコルの版が合わなければ、どちらを更新すれば合うかを様子に書く
 func (h *Hub) checkPeer(e *hostEntrance, r pairedHostRecord, addr string) {
@@ -88,7 +88,7 @@ func (h *Hub) checkPeer(e *hostEntrance, r pairedHostRecord, addr string) {
 		c = peerClient(e, r.HostID)
 	} else {
 		var ok bool
-		if c, base, ok = h.peerRoute(e, r.HostID); !ok {
+		if c, base, ok = h.peerTarget(e, r.HostID); !ok {
 			return
 		}
 		direct = base != reverseBase
@@ -124,7 +124,7 @@ func (h *Hub) checkPeer(e *hostEntrance, r pairedHostRecord, addr string) {
 		if host, _, splitErr := net.SplitHostPort(addr); direct && splitErr == nil && hello.Port > 0 {
 			l.Addr = net.JoinHostPort(host, strconv.Itoa(hello.Port))
 		}
-	case ps.routeLocked(r.HostID) != "" && direct:
+	case ps.linkedLocked(r.HostID) && direct:
 		// 直に届かなくても、相手が張った接続でつながっている
 	default:
 		l.State = stateOfError(err)

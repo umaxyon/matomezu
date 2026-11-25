@@ -87,27 +87,19 @@ type HostPairing struct {
 
 // PeerLive は、ペアリングしたホストの、常駐だけが持つ様子
 type PeerLive struct {
-	HostID    string    `json:"hostId"`
-	Label     string    `json:"label"` // ホストエイリアス（labelsLocked。届く行・send_message の host・画面に同じ物を使う）
-	State     PeerState `json:"state"`
-	LastSeen  string    `json:"lastSeen,omitempty"` // 最後につながった時刻
-	Addr      string    `json:"addr,omitempty"`     // 待っている所（番地:ポート）
-	Route     PeerRoute `json:"route,omitempty"`    // つながっている道（つながっているときだけ）
-	Name      string    `json:"name,omitempty"`     // 相手の今のホスト名
-	UserName  string    `json:"userName,omitempty"`
-	Workrooms []RoomRow `json:"workrooms,omitempty"` // 相手のワークルームの一覧の写し（つながっていて、写しのあるときだけ）
+	HostID      string    `json:"hostId"`
+	Label       string    `json:"label"` // ホストエイリアス（labelsLocked。届く行・send_message の host・画面に同じ物を使う）
+	State       PeerState `json:"state"`
+	LastSeen    string    `json:"lastSeen,omitempty"`    // 最後につながった時刻
+	Addr        string    `json:"addr,omitempty"`        // 待っている所（番地:ポート）
+	ReverseOnly bool      `json:"reverseOnly,omitempty"` // 相手が張ったリバース接続でだけつながっている（相手の待っている所へは届かない）
+	Name        string    `json:"name,omitempty"`        // 相手の今のホスト名
+	UserName    string    `json:"userName,omitempty"`
+	Workrooms   []RoomRow `json:"workrooms,omitempty"` // 相手のワークルームの一覧の写し（つながっていて、写しのあるときだけ）
 }
 
 // newPeerLive は、まだつながっていない、ペアリングしたホスト id の様子
 func newPeerLive(id string) *PeerLive { return &PeerLive{HostID: id, State: PeerUnreachable} }
-
-// PeerRoute は、ペアリングしたホストとつながっている道
-type PeerRoute string
-
-const (
-	RouteDirect  PeerRoute = "direct"  // こちらから相手の待っている所へ届く（こちらが張ったリバース接続が生きている）
-	RouteReverse PeerRoute = "reverse" // 相手が張ったリバース接続でだけつながっている（相手の待っている所へは届かない）
-)
 
 // PeerState は、ペアリングしたホストとのつながりの様子（確かめた時点の物）
 type PeerState string
@@ -393,9 +385,9 @@ func (h *Hub) HostPeers() HostPeers {
 			l = *x
 		}
 		l.Label = labels[id]
-		l.Workrooms, l.Route = nil, ""
+		l.Workrooms, l.ReverseOnly = nil, false
 		if l.State == PeerConnected {
-			l.Workrooms, l.Route = ps.roomsOfLocked(id), ps.routeLocked(id)
+			l.Workrooms, l.ReverseOnly = ps.roomsOfLocked(id), ps.reverseOnlyLocked(id)
 		}
 		out.Paired = append(out.Paired, l)
 	}

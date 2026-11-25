@@ -236,7 +236,7 @@ func (h *Hub) refreshRooms(e *hostEntrance) {
 	ps.mu.Unlock()
 	body := mustJSON(d)
 	for _, id := range targets {
-		c, base, ok := h.peerRoute(e, id)
+		c, base, ok := h.peerTarget(e, id)
 		if !ok {
 			continue
 		}
@@ -396,7 +396,7 @@ const (
 
 // fetchRooms は、相手の取り直しの口に頼み、答えで写しを直して窓に知らせる
 func (h *Hub) fetchRooms(e *hostEntrance, hostID, epoch string, since int) {
-	c, base, ok := h.peerRoute(e, hostID)
+	c, base, ok := h.peerTarget(e, hostID)
 	if !ok {
 		return
 	}

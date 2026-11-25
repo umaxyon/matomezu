@@ -60,8 +60,8 @@ func natWorlds(t *testing.T) (as, bs *httptest.Server, a, b *Hub) {
 	}()
 	waitFor(t, "both connected, B over A's reverse connection", func() bool {
 		pa, pb := a.HostPeers().Paired, b.HostPeers().Paired
-		return len(pa) == 1 && pa[0].State == PeerConnected && pa[0].Route == RouteDirect &&
-			len(pb) == 1 && pb[0].State == PeerConnected && pb[0].Route == RouteReverse
+		return len(pa) == 1 && pa[0].State == PeerConnected && !pa[0].ReverseOnly &&
+			len(pb) == 1 && pb[0].State == PeerConnected && pb[0].ReverseOnly
 	})
 	return as, bs, a, b
 }
@@ -106,7 +106,7 @@ func TestAReverseConnectionComesBackAndClosesWithTheEntrance(t *testing.T) {
 	})
 	waitFor(t, "connected again", func() bool {
 		pb := b.HostPeers().Paired
-		return len(pb) == 1 && pb[0].State == PeerConnected && pb[0].Route == RouteReverse
+		return len(pb) == 1 && pb[0].State == PeerConnected && pb[0].ReverseOnly
 	})
 	setHostSettings(t, b, `{"@matomezu/network:connect-hosts":false}`)
 	waitHost(t, b, func(s HostStatus) bool { return !s.Open })

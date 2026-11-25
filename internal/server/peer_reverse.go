@@ -1,7 +1,7 @@
 package server
 
 // リバース接続（peer/reverse.go）の指図: 入口が開いている間、ペアリングしたホストみなへ張り続け、相手が張ってきた接続を預かる。
-// ペアリングしたホストへの頼みは、相手が張った接続があればその上で、無ければ相手の待っている所へ直に送る（peerRoute。どの頼みもここで道を選ぶ）。
+// ペアリングしたホストへの頼みは、相手が張った接続があればその上で、無ければ相手の待っている所へ直に送る（どの頼みも peerTarget で頼む先を決める）。
 // つながっているかは、どちらかの向きの接続が生きているか: 接続ができたら確かめ（hello と一覧の取り直し）を起こし、両方が切れたらつながらない様子にする。
 // 張り直すのは、切れた接続と張れなかった接続だけで、hello を間を置いて頼むことはしない
 
@@ -31,9 +31,9 @@ type reverseDial struct {
 	up     bool // 今張れている
 }
 
-// peerRoute は、ペアリングしたホスト hostID へ頼む道: 相手が張った接続があればその上、無ければ待っている所（つながったときに聞いた所、無ければ覚えた所）へ直に。
+// peerTarget は、ペアリングしたホスト hostID へ頼む先: 相手が張った接続があればその上、無ければ待っている所（つながったときに聞いた所、無ければ覚えた所）へ直に。
 // base は頼みの URL の頭（口の道を足して使う）。どちらも無ければ ok が false
-func (h *Hub) peerRoute(e *hostEntrance, hostID string) (c *http.Client, base string, ok bool) {
+func (h *Hub) peerTarget(e *hostEntrance, hostID string) (c *http.Client, base string, ok bool) {
 	ps := e.peers
 	ps.mu.Lock()
 	in := ps.reverseIn[hostID]
@@ -51,15 +51,26 @@ func (h *Hub) peerRoute(e *hostEntrance, hostID string) (c *http.Client, base st
 	return peerClient(e, hostID), "https://" + addr, true
 }
 
-// routeLocked は、ペアリングしたホスト hostID とつながっている道（どちらの接続も無ければ空）（ps.mu を持って呼ぶ）
-func (ps *peerState) routeLocked(hostID string) PeerRoute {
-	if d := ps.reverseOut[hostID]; d != nil && d.up {
-		return RouteDirect
-	}
-	if in := ps.reverseIn[hostID]; in != nil && peer.ReverseOpen(in) {
-		return RouteReverse
-	}
-	return ""
+// linkedLocked は、ペアリングしたホスト hostID と、どちらかの向きのリバース接続が生きているか（ps.mu を持って呼ぶ）
+func (ps *peerState) linkedLocked(hostID string) bool {
+	return ps.dialedLocked(hostID) || ps.takenLocked(hostID)
+}
+
+// reverseOnlyLocked は、ホスト hostID と、相手が張ったリバース接続でだけつながっているか（ps.mu を持って呼ぶ）
+func (ps *peerState) reverseOnlyLocked(hostID string) bool {
+	return !ps.dialedLocked(hostID) && ps.takenLocked(hostID)
+}
+
+// dialedLocked は、こちらがホスト hostID へ張ったリバース接続が生きているか（ps.mu を持って呼ぶ）
+func (ps *peerState) dialedLocked(hostID string) bool {
+	d := ps.reverseOut[hostID]
+	return d != nil && d.up
+}
+
+// takenLocked は、ホスト hostID が張って、こちらが預かったリバース接続が生きているか（ps.mu を持って呼ぶ）
+func (ps *peerState) takenLocked(hostID string) bool {
+	in := ps.reverseIn[hostID]
+	return in != nil && peer.ReverseOpen(in)
 }
 
 // peerReverse は、ペアリングしたホストがリバース接続を張る口: 接続を預かり（前の物は閉じる）、確かめを起こす。切れたら外す
@@ -207,7 +218,7 @@ func (h *Hub) reverseFailed(e *hostEntrance, hostID string, err error) {
 	}
 	ps := e.peers
 	ps.mu.Lock()
-	if ps.routeLocked(hostID) != "" {
+	if ps.linkedLocked(hostID) {
 		ps.mu.Unlock()
 		return
 	}
@@ -228,7 +239,7 @@ func (h *Hub) reverseFailed(e *hostEntrance, hostID string, err error) {
 func (h *Hub) reverseDown(e *hostEntrance, hostID string) {
 	ps := e.peers
 	ps.mu.Lock()
-	if ps.routeLocked(hostID) != "" {
+	if ps.linkedLocked(hostID) {
 		ps.mu.Unlock()
 		h.tellPeers()
 		return

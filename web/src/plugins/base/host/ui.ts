@@ -116,7 +116,7 @@ const peersOf = (p: GivenPeers): HostPeers => ({
     workrooms: l.workrooms ?? [],
     lastSeen: told(l.lastSeen),
     addr: told(l.addr),
-    reverseOnly: l.route === "reverse",
+    reverseOnly: l.reverseOnly === true,
     name: told(l.name),
     userName: told(l.userName),
   })),
