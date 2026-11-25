@@ -774,6 +774,7 @@ test("読めない物のフォルダの物を完全に消すと、それを指�
   }
   const moved = settled(CORE_CATALOG, withRef)
   expect(folderOf(moved, "b1").lineup.map(e => e.id)).toEqual(["p1", "r1"])
+  expect(folderOf(settled(CORE_CATALOG, moved, LATER), "b1").lineup.map(e => e.id)).toEqual(["p1", "r1"])
   const purge = purgedRows(moved.pages, moved.folders, "b2")
   expect((purge?.folders.b1 as { lineup: { id: string }[] } | undefined)?.lineup.map(e => e.id)).toEqual(["p1"])
 })
