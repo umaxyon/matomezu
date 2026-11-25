@@ -166,10 +166,11 @@ export type HostRequest =
   | { kind: "discover" }
   | { kind: "repick-port" }
 
-// 常駐の版とデータの形の番号（移し替えの数）
+// 常駐の版とデータの形の番号（移し替えの数）と、配る画面の印（index.html から求めた物。無い常駐もある）
 export interface Build {
   version: string
   dataVersion: number
+  web?: string
 }
 // 窓を開いたときの常駐（from）と、つなぎ直したときの常駐（to）。dropped は、データの形が違うので送らずに捨てた、まだ確かめられていなかったアクションバルクの数
 export interface StaleBuild {

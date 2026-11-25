@@ -7,7 +7,7 @@ package server
 //
 // /api/events のイベント（data は JSON）:
 //
-//	hello     {"client", "build"} この接続の id と、常駐の版とデータの形（{"version", "dataVersion"}。SetBuild の前は無い）。窓はアクションバルクにこの id と、自分で振った順の番号 seq を添えて送る
+//	hello     {"client", "build"} この接続の id と、常駐の版とデータの形と配る画面の印（{"version", "dataVersion", "web"?}。SetBuild の前は無い）。窓はアクションバルクにこの id と、自分で振った順の番号 seq を添えて送る
 //	changed   {"pages": [{"id", "page"（消したなら "removed": true）, "version"}], "folders": [{"id", "folder"（同じ）, "version"}], "books", "library"?, "client", "seq", "by", "act", "actions",
 //	          "settings"?, "annotations", "records": [{"subject", "id", "record"（消したなら "removed"）, "version"（消したなら 0）}], "counters"?, "window"}
 //	          1 回の Perform が変えた物の全部（何か変わったときだけ 1 つ）。pages・folders は変えた・足した・消したページとフォルダ（書庫ホームとフォルダも）、
@@ -29,8 +29,11 @@ package server
 //	keep      {} keepAlive ごとに送る。窓は、これも含めて知らせが QUIET_MS（host-client/server.ts）届かなければ、黙って切れたとみてつなぎ直す
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"maps"
 	"os"
 	"slices"
@@ -90,7 +93,7 @@ type Hub struct {
 	update           UpdateStatus                 // 新しい版の確かめの結果（update.go）
 	latest           LatestFunc                   // 新しい版を聞く口（無ければ確かめない）
 	entrance         atomic.Pointer[hostEntrance] // ホストどうしの入口（hosts.go。SetHostEntrance の前は nil）
-	build            *Build                       // 常駐の版とデータの形（hello で窓に知らせる。SetBuild）
+	build            *Build                       // 常駐の版とデータの形と配る画面の印（hello で窓に知らせる。SetBuild）
 	command          atomic.Pointer[string]       // 利用者が端末で打つ matomezu の名前（command.go）
 	store            storage.Storage
 	engine           *engine.Engine
@@ -161,13 +164,24 @@ type Hub struct {
 	systemFolderTitles map[string]string
 }
 
-// Build は、常駐の版と、書くデータの形の番号。窓は開いたときの物と、つなぎ直したときの物を比べ、違えば読み直しを促す
+// Build は、常駐の版と、書くデータの形の番号と、配る画面の印（WebPrint。無ければ空）。窓は開いたときの物と、つなぎ直したときの物を比べ、違えば読み直しを促す
 type Build struct {
 	Version     string `json:"version"`
 	DataVersion int    `json:"dataVersion"`
+	Web         string `json:"web,omitempty"`
 }
 
-// SetBuild は、hello で窓に知らせる常駐の版とデータの形を入れる
+// WebPrint は、配る画面の印: index.html の sha256 の頭 12 桁（画面をビルドし直せば、中で読む js・css の名前が変わるので変わる）。index.html が無ければ空
+func WebPrint(web fs.FS) string {
+	index, err := fs.ReadFile(web, "index.html")
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(index)
+	return hex.EncodeToString(sum[:])[:12]
+}
+
+// SetBuild は、hello で窓に知らせる常駐の版とデータの形と配る画面の印を入れる
 func (h *Hub) SetBuild(b Build) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

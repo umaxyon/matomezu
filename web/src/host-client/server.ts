@@ -400,13 +400,15 @@ export function serverClient(net: Net = browserNet): HostClient {
         first = null
         return
       }
-      // 常駐が別の版に替わった: 読み込み直すよう促す。データの形も違えば、まだ確かめられていないアクションを送らずに捨て、知らせも聞かない（古い画面で新しい形を読まない）
+      // 常駐が別の版に替わったか、配る画面が変わった（画面の印は両方にあるときだけ比べる）: 読み込み直すよう促す。
+      // データの形も違えば、まだ確かめられていないアクションを送らずに捨て、知らせも聞かない（古い画面で新しい形を読まない）
       const now = hello.build
-      if (build && now && (build.version !== now.version || build.dataVersion !== now.dataVersion)) {
+      const webChanged = build?.web !== undefined && now?.web !== undefined && build.web !== now.web
+      if (build && now && (build.version !== now.version || build.dataVersion !== now.dataVersion || webChanged)) {
         const formChanged = build.dataVersion !== now.dataVersion
         const dropped = formChanged ? queue.discard() : 0
         logLine(
-          `the server is now ${now.version} (data ${now.dataVersion}); this window has ${build.version} (data ${build.dataVersion})`,
+          `the server is now ${now.version} (data ${now.dataVersion}, web ${now.web ?? "-"}); this window has ${build.version} (data ${build.dataVersion}, web ${build.web ?? "-"})`,
         )
         instance?.setStaleBuild({ from: build, to: now, dropped })
         if (formChanged) {
