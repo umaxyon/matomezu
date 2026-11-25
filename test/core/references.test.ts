@@ -3,10 +3,10 @@ import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import { referencesOf } from "../../web/src/core/book"
 import { type Library, TRASH_ID } from "../../web/src/core/folders"
-import { bookOf } from "../../web/src/core/folders-books"
+import { bookOf, libraryOf } from "../../web/src/core/folders-books"
 import { withChanges } from "../../web/src/core/folders-changes"
 import { performIn, type World } from "../../web/src/core/perform-world"
-import { deadReferences, referable, referredOf, UNSEEN } from "../../web/src/core/references"
+import { deadReferences, referable, referredLineup, referredOf, UNSEEN } from "../../web/src/core/references"
 import type { AnyPage } from "../../web/src/core/schema/book"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, libraryWith, sequence } from "../support"
@@ -181,4 +181,22 @@ test("置けるか（referable）は、置くアクションが通るかと同�
   expect(referable(world, "a1", { kind: "page", id: "o1" })).toBe(false)
   const trashed = after(world, "entry-trash", { entry: "B" }) as World
   expect(referable(trashed, "B", { kind: "page", id: "a1" })).toBe(false)
+})
+
+test("参照エントリを指す先の物に置き換えた並び（印刷）: ページ・バインダは中身ごと並びの所に入り、指す先が見えない物は飛ばす", () => {
+  const world = added(added(added(start(), { kind: "page", id: "a1" }), { kind: "binder", id: "x1" }), {
+    kind: "page",
+    id: "o1",
+  })
+  const lineupOf = (w: World) => referredLineup({ ...w, books: libraryOf(w) }, bookOf(w, "B")?.lineup ?? [])
+  const done = lineupOf(world)
+  expect(done.lineup.map(e => e.id)).toEqual(["b1", "a1", "x1", "o1"])
+  expect(done.lineup[2]?.kind === "binder" && done.lineup[2].lineup.map(p => p.id)).toEqual(["s1"])
+  expect([...done.referred].map(([page, r]) => [page, r.outermost])).toEqual([
+    ["a1", "A"],
+    ["s1", "A"],
+    ["o1", "o1"],
+  ])
+  const trashed = after(world, "entry-trash", { entry: "A" }) as World
+  expect(lineupOf(trashed).lineup.map(e => e.id)).toEqual(["b1", "o1"])
 })

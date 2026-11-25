@@ -11,11 +11,12 @@ import { type SheetAt, SheetFrame } from "./SheetFrame"
 export interface OutputSheet extends SheetAt {
   key: string
   page: Page | undefined
+  entry: string // ページを持つステージエントリの id（参照エントリの指す先のページなら、指す先の物）
   measured: unknown
   labels: SheetLabels
 }
 
-export function PrintOutput({ entry, sheets }: { stage: string; entry: string; sheets: readonly OutputSheet[] }) {
+export function PrintOutput({ sheets }: { stage: string; sheets: readonly OutputSheet[] }) {
   const style = usePageLookStyle() // 外の枠は開いているページの見た目。印刷区画の中は、印刷区画ごとのページの見た目（SheetFrame）
   return createPortal(
     <div className={styles.output} style={style} data-print-output={sheets.length} aria-hidden="true">
@@ -27,7 +28,7 @@ export function PrintOutput({ entry, sheets }: { stage: string; entry: string; s
           style={{ width: s.w, height: s.h, page: pageNameOf(s) }}
           data-print-sheet={pageNameOf(s)}
         >
-          <SheetFrame zoom={1} entry={entry} page={s.page} sheet={s} measured={s.measured} labels={s.labels} />
+          <SheetFrame zoom={1} entry={s.entry} page={s.page} sheet={s} measured={s.measured} labels={s.labels} />
         </div>
       ))}
     </div>,

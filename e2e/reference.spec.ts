@@ -2,7 +2,9 @@
 // タブの右クリックの「参照元へ移動」で指す先のブックのページが開き、「削除」でタブが消える（指す先はそのまま）
 import { drawingPage, SLIDE, testBinder, testBook, testPage, withSlide } from "../test/lineup"
 import { bookScreenUrl, expect, test } from "./fixtures"
+import { aiPerform } from "./helpers/ai"
 import { addBox } from "./helpers/paper"
+import { fromMenu } from "./helpers/stage-menu"
 
 test.use({
   // 2 冊の並びは、値と設定の組 [値, {}] で渡す（そのままだと 2 冊目を設定と読む）
@@ -44,6 +46,34 @@ test("参照のタブを押すと指す先のページが見るだけで描か�
   await page.getByRole("menu").getByRole("menuitem", { name: "削除" }).click()
   await expect(page.getByRole("tab", { name: "全体図" })).toHaveCount(0)
   await expect(page.getByRole("tab", { name: "設計" })).toBeVisible()
+})
+
+test("印刷プレビューには参照の指す先のページも並びの所に入り、ダブルクリックでその参照を開く。指す先が見えなければ飛ばす", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(bookScreenUrl("ref-a", "ref-a1"))
+  await addBox(page, 200, 150, "元の箱")
+  await page.goto(bookScreenUrl("ref-b", "ref-b1"))
+  await addBox(page, 200, 150, "Bの箱")
+  await (await fromMenu(page, "印刷プレビュー")).click()
+  const sheets = page.locator("[data-sheet]")
+  await expect(sheets).toHaveCount(2)
+  await expect(sheets.nth(0)).toContainText("Bの箱")
+  await expect(sheets.nth(1)).toContainText("元の箱")
+  // 刷る物にも入る
+  await expect(page.locator("[data-print-output]")).toContainText("元の箱")
+  await sheets.nth(1).dblclick()
+  await expect(page.getByRole("tab", { name: "全体図" })).toHaveAttribute("aria-selected", "true")
+  await expect(page.locator('[data-reference="shown"]')).toContainText("元の箱")
+  // 指す先のブックをゴミ箱に入れると、印刷プレビューから外れる
+  expect(await aiPerform(page, { action: "@matomezu/base:entry-trash", args: { entry: "ref-a" } })).toMatchObject({
+    ok: true,
+  })
+  await page.getByRole("tab", { name: "設計" }).click()
+  await (await fromMenu(page, "印刷プレビュー")).click()
+  await expect(sheets).toHaveCount(1)
+  await expect(sheets.nth(0)).toContainText("Bの箱")
 })
 
 // スライドのバインダを指す参照: ページ一覧に指す先のスライドが並び（＋は無い）、押すとそのスライドを見せる

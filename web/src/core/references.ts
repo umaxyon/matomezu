@@ -2,7 +2,7 @@
 // 参照エントリは、指す先が書庫に在る限り残る（ゴミ箱・読めない物のフォルダに居る間も残り、描く所が無いと見せる）。
 // 指す先が完全に消されたときと、指す先が参照エントリを置いたブックの中に入ったとき、指す先のページがバインダに入ったときは、書庫を変えた書き込みと同じ書き込みで、仕組みが消す
 
-import { NO_PAGE, referencesOf } from "./book"
+import { findBinder, NO_BINDER, NO_PAGE, referencesOf } from "./book"
 import { inBackyard } from "./entries"
 import {
   type BinderFolder,
@@ -13,8 +13,9 @@ import {
   type Library,
   type PageRow,
 } from "./folders"
-import { foldersOver } from "./folders-tree"
-import type { ReferenceEntry, StageLineup } from "./schema/book"
+import { foldersOver, outsideBinderIn } from "./folders-tree"
+import { type LibraryAndBooks, openablePage } from "./library"
+import type { AnyPage, BinderEntry, LineupEntry, ReferenceEntry, StageLineup } from "./schema/book"
 
 // 参照エントリ ref が指す物: 書庫に在り、見える所（ゴミ箱・読めない物のフォルダの外）に居る指す先（ページかバインダの行）。
 // 見えない所に居るか、無ければ UNSEEN（ゴミ箱の中なら戻り得るので、参照エントリは残る）
@@ -108,4 +109,36 @@ export function bookOfReference(folders: Folders, id: string): BookFolder | unde
     if (f.folderRole === "book" && f.lineup.some(r => r.kind === "reference" && r.id === id)) return f
   }
   return undefined
+}
+
+// 並び lineup の参照エントリを、指す先の物（ページかバインダ。中身ごと）に置き換えた並びと、置き換えたページの id → そのページを持つステージエントリの id と参照エントリの id。
+// 指す先が見えない物・空のバインダは除く（印刷が、参照エントリも並びの所に刷り、No Data の物は飛ばすのに使う）
+export interface ReferredPage {
+  outermost: string
+  reference: string
+}
+export function referredLineup(
+  from: LibraryAndBooks,
+  lineup: readonly LineupEntry[],
+): { lineup: (AnyPage | BinderEntry)[]; referred: ReadonlyMap<string, ReferredPage> } {
+  const referred = new Map<string, ReferredPage>()
+  const out = lineup.flatMap((e): (AnyPage | BinderEntry)[] => {
+    if (e.kind !== "reference") return [e]
+    const found = referredOf(from, e)
+    if (found === UNSEEN) return []
+    const first = found.kind === "page" ? found.page.id : found.binder.lineup[0]?.id
+    const at = first === undefined ? undefined : openablePage(from, first)
+    if (!at) return []
+    const mark = (page: string) => referred.set(page, { outermost: at.outermost.id, reference: e.id })
+    if (found.kind === "page") {
+      mark(at.page.id)
+      return [at.page as AnyPage]
+    }
+    const book = at.outermost.kind === "book" ? from.books[at.outermost.id] : undefined
+    const binder = book ? findBinder(book, found.binder.id) : (outsideBinderIn(from, found.binder.id) ?? NO_BINDER)
+    if (binder === NO_BINDER) return []
+    for (const p of binder.lineup) mark(p.id)
+    return [binder]
+  })
+  return { lineup: out, referred }
 }

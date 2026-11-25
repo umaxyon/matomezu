@@ -42,7 +42,7 @@ import { sheetLabels } from "./print-pages"
 import { Printing } from "./printing"
 import { SheetFrame } from "./SheetFrame"
 import { PRINT_PREVIEW_BOOK_NAME, PRINT_PREVIEW_PAGE_NAME, PRINT_PREVIEW_SHEET_NUMBERS } from "./settings"
-import { usePreviewed } from "./usePreviewed"
+import { usePreviewed, usePrinted } from "./usePreviewed"
 
 // 印刷区画 1 つのビュー（プレゼンテーションのビューの定義の printSheet）が受け取る物: ページと、
 // そのページを紙の大きさ paper で区切った column 列目・row 行目の印刷区画（0 から）。ビューはページの中身を、ページの原点で描く
@@ -104,10 +104,13 @@ function PrintPreviewBody({ id }: { id: string }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
-  const previewed = usePreviewed()
+  const shownEntry = usePreviewed()
+  // 刷る物（参照エントリは指す先の物に置き換えた物）。ページを持つステージエントリは、置き換えたページなら指す先の物
+  const { printed: previewed, referred } = usePrinted(shownEntry)
+  const entryOf = (page: string) => referred.get(page)?.outermost ?? previewed?.id ?? ""
   const pan = useStagePan()
   const panel = useRightSidePanelAt(id)
-  const { setPreviewArea, closePrintPreview, openPage } = useStoreActions()
+  const { setPreviewArea, closePrintPreview, openPage, openReference } = useStoreActions()
   const read = useReadState()
   // 測るプレゼンテーションのページの、測った結果（ページの id → 結果。base が持つステージごとのプラグイン状態。measures.tsx）
   const entryId = previewed?.id
@@ -179,7 +182,7 @@ function PrintPreviewBody({ id }: { id: string }) {
   const opened = stage === NO_STAGE || stage.opened === NOTHING_OPENED ? null : stage.opened
   // 印刷区画の境目をまたいだ形を直してもらうタイプで、またいだ形があれば（AI が印刷プレビューで開いた・開いている間に AI が動かした）、
   // 印刷プレビューを閉じて、それを知らせる右サイドパネルを開く（フッタメニューのボタンと同じ）
-  const crossing = useMemo(() => !!previewed && hasCrossing(catalog, previewed), [catalog, previewed])
+  const crossing = useMemo(() => !!shownEntry && hasCrossing(catalog, shownEntry), [catalog, shownEntry])
   useEffect(() => {
     if (!crossing || !opened) return
     closePrintPreview(id)
@@ -208,11 +211,15 @@ function PrintPreviewBody({ id }: { id: string }) {
         .elementsFromPoint(clientX, clientY)
         .find(x => x instanceof HTMLElement && x.dataset.sheetPage)
       const sheetPage = hit instanceof HTMLElement ? hit.dataset.sheetPage : undefined
-      if (sheetPage) openPage(id, sheetPage)
+      if (!sheetPage) return
+      // 参照エントリの指す先のページは、その参照エントリを開いて見せる
+      const ref = referred.get(sheetPage)
+      if (ref) openReference(id, ref.reference, sheetPage)
+      else openPage(id, sheetPage)
     }
     el.addEventListener("dblclick", onDoubleClick)
     return () => el.removeEventListener("dblclick", onDoubleClick)
-  }, [id, openPage])
+  }, [id, openPage, openReference, referred])
   if (!layout || pan === NO_STAGE || !previewed) return null
   const pageOf = (pageId: string) => pages.find(p => p.id === pageId)
   // ブック名（バインダ名）・ページ名と印刷区画の番号（設定で入れるときだけ。番号は並べた印刷区画全体の通し）
@@ -233,7 +240,7 @@ function PrintPreviewBody({ id }: { id: string }) {
       <Printing>
         {measuring.map(({ page: p, paper, Measure }) => (
           // 測るページを、ステージの外で見るだけに描くページとして描く
-          <PageScope key={p.id} outermost={previewed.id} page={p.id} zoom={1}>
+          <PageScope key={p.id} outermost={entryOf(p.id)} page={p.id} zoom={1}>
             <Measure page={p} paper={paper} report={reporterOf(p.id)} />
           </PageScope>
         ))}
@@ -278,7 +285,7 @@ function PrintPreviewBody({ id }: { id: string }) {
           >
             <SheetFrame
               zoom={zoom}
-              entry={previewed.id}
+              entry={entryOf(s.page)}
               page={pageOf(s.page)}
               sheet={s}
               measured={measures[s.page]?.data ?? NOT_MEASURED}
@@ -290,11 +297,11 @@ function PrintPreviewBody({ id }: { id: string }) {
       {shown && ready && opened && (
         <PrintOutput
           stage={id}
-          entry={previewed.id}
           sheets={layout.sheets.map(s => ({
             ...s,
             key: keyOf(s),
             page: pageOf(s.page),
+            entry: entryOf(s.page),
             measured: measures[s.page]?.data ?? NOT_MEASURED,
             labels: labelsOf(s),
           }))}
