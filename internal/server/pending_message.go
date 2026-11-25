@@ -12,7 +12,7 @@ package server
 //	POST /api/message/cancel  {"id"}  同じ答え
 //
 // 知らせの文は英語。送り手がほかのホストの AI のときは、そのホストのホストエイリアスを添える（pendingWho）。
-// 送り手がほかのホストの AI のキャンセルは、取り消す封筒の id を載せた封筒（Envelope.Cancel）で送り手のホストへ運び、
+// 送り手がほかのホストの AI のキャンセルは、取り消す封筒の id（Envelope.Cancel）と本文の頭を載せた封筒で送り手のホストへ運び、
 // そのホストが送り手に知らせる（sendCancelToHost・receiveCancelHeld）。
 
 import (
