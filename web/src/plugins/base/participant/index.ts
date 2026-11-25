@@ -263,7 +263,9 @@ export const PARTICIPANT_ACCEPT = kit.defineAction({
     const joined = (workroom: string): Participant => ({ ...rest, state: "joined", workroom, joinedAt: ctx.now })
     // 管理者がいなければ、入れたワークルームに管理者の印を付ける
     const admin = (workroom: string, gone: string | undefined) =>
-      lacksAdmin(ctx, gone) ? [{ subject: ADMIN_MARK.id, id: "admin", record: { id: "admin", workroom, by: "auto" as const } }] : []
+      lacksAdmin(ctx, gone)
+        ? [{ subject: ADMIN_MARK.id, id: "admin", record: { id: "admin", workroom, by: "auto" as const } }]
+        : []
     if (!("newWorkroom" in args)) {
       if (ctx.records?.[WORKROOM.id]?.[args.workroom] === undefined) return { declined: "the workroom is not there" }
       const out = leaving(ctx, args.workroom, args.occupant)
