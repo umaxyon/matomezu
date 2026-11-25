@@ -9,6 +9,7 @@ import {
   lineupOf,
   moveEntry,
   NO_BINDER,
+  ownTitlesOf,
   pagesIn,
   putBinder,
   putPage,
@@ -46,7 +47,11 @@ export const BINDER_UPDATE = kit.defineAction({
     const binder = findBinder(book, args.binder)
     const { title, paper, orientation } = args
     if (binder === NO_BINDER || (title === undefined && paper === undefined && orientation === undefined)) return null
-    if (title !== undefined && lineupOf(book).some(e => e.id !== args.binder && e.title === title)) return null
+    if (
+      title !== undefined &&
+      lineupOf(book).some(e => e.id !== args.binder && e.kind !== "reference" && e.title === title)
+    )
+      return null
     const named = title === undefined ? book : putBinder(book, args.binder, f => ({ ...f, title }))
     if (paper === undefined && orientation === undefined) return { next: named, result: {} }
     const pages = pagesIn(book, args.binder)
@@ -117,7 +122,7 @@ export function duplicatedBinder<B extends StageLineup>(
 ): { book: B; binder: string; pages: string[] } | Declined | null {
   const source = findBinder(book, binder)
   if (source === NO_BINDER) return null
-  const titles = lineupOf(book).map(e => e.title)
+  const titles = ownTitlesOf(lineupOf(book))
   if (title !== undefined && titles.includes(title)) return null
   // 中の物の id は、ページごとに振り直す（ブックのどの id とも、写しどうしでも重ならない。core が run の振る id を重ねない）
   const { id: _binder, kind: _kind, lineup: _lineup, ...rest } = source

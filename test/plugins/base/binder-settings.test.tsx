@@ -2,7 +2,7 @@
 // フッタメニューの歯車（開いている物の設定）、紙をそろえるタイプのページの設定に紙と向きを出さない
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
-import { pagesIn } from "../../../web/src/core/book"
+import { ownTitlesOf, pagesIn } from "../../../web/src/core/book"
 import { A4, WIDE } from "../../../web/src/plugins/base/looks/papers"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../../lineup"
 import { renderScreen } from "../../ui/support"
@@ -55,7 +55,7 @@ test("バインダのタブの右クリックの複製で、写しのバイン�
   const { book } = open()
   fireEvent.contextMenu(tab("提案"))
   fireEvent.click(screen.getByRole("menuitem", { name: "複製" }))
-  expect(book().lineup.map(e => e.title)).toEqual(["提案", "提案 2", "図"])
+  expect(ownTitlesOf(book().lineup)).toEqual(["提案", "提案 2", "図"])
   const copy = book().lineup[1]!
   expect(pagesIn(book(), copy.id).map(p => p.title)).toEqual(["一枚目", "二枚目"])
   expect(tab("提案 2").getAttribute("aria-selected")).toBe("true")

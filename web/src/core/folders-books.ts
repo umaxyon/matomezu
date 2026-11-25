@@ -1,7 +1,17 @@
 // ブック（core/schema/book.ts の Book）は、ブックのフォルダと、その下のバインダ・ページの中身をまとめた、読む用の値。ここの関数が表から組み、変えた結果を表への書き込みに分ける
 // （組むのと分けるのは、ここだけ。同じページが 2 つの値に入らないよう、持つのは表の方）
 
-import type { BinderFolder, BookFolder, EntryRef, Folder, Folders, Library, PageRef, PageRow, Pages } from "./folders"
+import type {
+  BinderFolder,
+  BookFolder,
+  BookLineupRef,
+  Folder,
+  Folders,
+  Library,
+  PageRef,
+  PageRow,
+  Pages,
+} from "./folders"
 import { sameData } from "./same"
 import type { BinderEntry, Book, LineupEntry } from "./schema/book"
 
@@ -25,7 +35,9 @@ function split(book: Book): { folders: Folder[]; pages: PageRow[] } {
   const own: BookFolder = {
     ...fields,
     folderRole: "book",
-    lineup: lineup.map((e): EntryRef => (e.kind === "binder" ? { kind: "binder", id: e.id } : ref(e))),
+    lineup: lineup.map(
+      (e): BookLineupRef => (e.kind === "binder" ? { kind: "binder", id: e.id } : e.kind === "reference" ? e : ref(e)),
+    ),
   } as BookFolder
   // 分けたフォルダから組み直すと、元のブックとバインダの値になるよう覚えておく
   bookKept.set(own, { parts: lineup, made: book })
@@ -45,7 +57,9 @@ function split(book: Book): { folders: Folder[]; pages: PageRow[] } {
         return folder
       }),
     ],
-    pages: lineup.flatMap((e): readonly PageRow[] => (e.kind === "binder" ? e.lineup : [e])),
+    pages: lineup.flatMap((e): readonly PageRow[] =>
+      e.kind === "binder" ? e.lineup : e.kind === "reference" ? [] : [e],
+    ),
   }
 }
 
@@ -108,6 +122,7 @@ export function bookOf({ pages, folders }: Library, id: string): Book | undefine
   if (folder?.folderRole !== "book") return undefined
   const parts: (LineupEntry | undefined)[] = folder.lineup.map(r => {
     if (r.kind === "page") return pages[r.id]
+    if (r.kind === "reference") return r
     const binder = folders[r.id]
     return binder?.folderRole === "binder" ? binderEntryOf(pages, binder) : undefined
   })

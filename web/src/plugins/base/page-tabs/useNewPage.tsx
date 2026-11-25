@@ -4,7 +4,7 @@
 // 書いていなければ、描いている場所のステージが開いているブック（アクション page-add で足し、そのステージで開く）
 
 import { useMemo } from "react"
-import { lineupOf, pagesIn } from "../../../core/book"
+import { lineupOf, ownTitlesOf, pagesIn } from "../../../core/book"
 import { freeTitle, titlesIn } from "../../../core/entries"
 import { outsideBinderIn } from "../../../core/folders-tree"
 import type { ArgsOf } from "../../../core/perform"
@@ -56,7 +56,7 @@ export function useNewPage(args: NewPageDialogArgs): NewPage {
     into !== undefined ? { binder: into } : type?.grouping === "binder" ? "new-binder" : "lineup"
   // 作る先に並ぶ名前（書庫ホーム・フォルダはその直下のエントリ、ブックはその並び）
   const taken = (): string[] =>
-    intoFolder && held ? titlesIn(read(), held, naming()) : lineup ? lineupOf(lineup).map(e => e.title) : []
+    intoFolder && held ? titlesIn(read(), held, naming()) : lineup ? ownTitlesOf(lineupOf(lineup)) : []
   const inBinder = lineup && into !== undefined ? pagesIn(lineup, into).map(p => p.title) : undefined
   const none: StageLineup = { id: "", lineup: [] }
   return {

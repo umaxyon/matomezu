@@ -14,6 +14,7 @@ import {
   type NewPageInto,
   NO_BINDER,
   NO_PAGE,
+  ownTitlesOf,
   pagesIn,
   putPage,
   withSettings,
@@ -93,13 +94,7 @@ export function withNewPage<B extends StageLineup>(
   if (settings === undefined || settings?.success === false) return null
   // 名前は、同じブックかバインダの中で重ならない（渡した名前が重なれば、並びの決まりで断られる。渡さなければ、重ならない「（無題）」）
   const siblings = binder !== NO_BINDER ? pagesIn(book, binder.id) : args.into ? [] : lineupOf(book)
-  const title =
-    args.title ??
-    untitledAmong(
-      catalog,
-      ctx.lang,
-      siblings.map(e => e.title),
-    )
+  const title = args.title ?? untitledAmong(catalog, ctx.lang, ownTitlesOf(siblings))
   const content: NewPage = { kind: "page", type: type.id, title, ...choice, ...(grows === undefined ? {} : { grows }) }
   const into: NewPageInto =
     args.into && "newBinder" in args.into

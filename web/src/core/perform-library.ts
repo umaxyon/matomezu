@@ -20,6 +20,7 @@ import {
 } from "./perform-checks"
 import { inputFor } from "./permission-input"
 import type { ItemPage } from "./placed"
+import { deadReferences } from "./references"
 import type { BinderEntry, Book } from "./schema/book"
 
 // 書庫が対象のアクションの、行う前に問う相手: ブック book とその中の所 where か、ページそのもの（ブックの外のページか作るページ。core/inspect.ts の AskedPage）か、
@@ -279,8 +280,8 @@ export function placeChecksBetween(was: Library, now: Library): PlaceCheck[] {
   })
 }
 
-// 書庫が対象のアクションが返した書庫 after の、変わったページ（ブックの中でも外でも）を 1 枚ずつ、行う前の書庫 was の同じページと比べて整えた書庫
-// （どれかが整えられなければ null）
+// 書庫が対象のアクションが返した書庫 after の、変わったページ（ブックの中でも外でも）を 1 枚ずつ、行う前の書庫 was の同じページと比べて整え、
+// 残れなくなった参照エントリを外した書庫（どれかが整えられなければ null）
 export function normalizedLibrary(
   catalog: CoreCatalog,
   action: ActionDef,
@@ -295,7 +296,10 @@ export function normalizedLibrary(
     if (!done) return null
     if (done !== row) tidied[id] = done as PageRow
   }
-  const done = Object.keys(tidied).length === 0 ? after : { ...after, pages: { ...after.pages, ...tidied } }
+  const kept = Object.keys(tidied).length === 0 ? after : { ...after, pages: { ...after.pages, ...tidied } }
+  // 残れなくなった参照エントリ（指す先を完全に消した・指す先が置いたブックに入った）は、同じ書き込みで外す
+  const dead = deadReferences(kept)
+  const done = Object.keys(dead).length === 0 ? kept : { ...kept, folders: { ...kept.folders, ...dead } }
   const lost = rowsLosingOutermostSettings(catalog, was, done)
   if (Object.keys(lost.pages).length === 0 && Object.keys(lost.folders).length === 0) return done
   return { pages: { ...done.pages, ...lost.pages }, folders: { ...done.folders, ...lost.folders } }

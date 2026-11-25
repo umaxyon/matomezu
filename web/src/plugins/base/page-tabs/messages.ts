@@ -28,6 +28,9 @@ export const PAGE_MESSAGES = defineMessages({
   "Move binder": { en: "Move binder", ja: "バインダを動かす" },
   "Duplicate binder": { en: "Duplicate binder", ja: "バインダを複製" },
   "Remove binder": { en: "Remove binder", ja: "バインダを消す" },
+  "Add reference": { en: "Add reference", ja: "参照を置く" },
+  "Remove reference": { en: "Remove reference", ja: "参照を消す" },
+  "No Data": { en: "No Data", ja: "No Data" },
   "Delete page": { en: "Delete page", ja: "ページを削除" },
   "The page and its contents will be deleted": {
     en: "The page and its contents will be deleted",

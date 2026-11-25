@@ -207,7 +207,7 @@ function buildPageSchema(parts: CoreCatalogParts, t: PageTypeDef): z.ZodObject {
 
 // ブックのデータの形: 名前 title（1 字以上）・ロック locked・並び lineup・ステージエントリが持つ設定の項目（holder が "outermost" の項目）。
 // エントリ 1 つは、ページ（kind が "page"。タイプごとの形のどれか）か、1 つのタイプのページだけを入れるバインダ（中身も同じ並びで、入るのはページだけ。
-// ブックの中のバインダは、機能台帳に在る設定の項目の値を持てない）
+// ブックの中のバインダは、機能台帳に在る設定の項目の値を持てない）か、ほかの所のページかバインダを id で指す参照エントリ（kind が "reference"）
 function buildBookSchema(parts: CoreCatalogParts, pageSchemas: ReadonlyMap<string, z.ZodObject>): z.ZodType {
   const [first, ...rest] = [...pageSchemas.values()]
   if (!first) return fail("E015")
@@ -220,11 +220,16 @@ function buildBookSchema(parts: CoreCatalogParts, pageSchemas: ReadonlyMap<strin
     lineup: z.array(page),
     ...settingsField(parts, []),
   })
+  const referenceEntry = z.strictObject({
+    kind: z.literal("reference"),
+    id: z.string().min(1),
+    of: z.strictObject({ kind: z.enum(["page", "binder"]), id: z.string().min(1) }),
+  })
   return z.strictObject({
     id: z.string().min(1),
     title: z.string().min(1),
     locked: z.literal(true).optional(),
-    lineup: z.array(z.union([page, binderEntry])),
+    lineup: z.array(z.union([page, binderEntry, referenceEntry])),
     ...outermostSettingsField(parts),
   })
 }

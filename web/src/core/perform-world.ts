@@ -40,6 +40,7 @@ import { FOLDERS, type WithFolders } from "./permission-input"
 import type { ItemPage } from "./placed"
 import { type RecordSource, readerOf, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, REMOVED, type RecordChange, type Records } from "./records"
+import { deadReferences, newReferencesHold } from "./references"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import { langChosen, type Settings } from "./settings"
@@ -224,17 +225,21 @@ function changedLibrary(naming: Naming, world: World, done: ReturnType<typeof pe
 const collides = (world: Library, before: readonly Book[], changes: TableChanges): boolean =>
   createdIn(before, changes).some(id => id in world.pages || id in world.folders)
 
-// ブックを変えるアクションの結果 done を、変わった物だけの形にする（book は行う前のブック）。
+// ブックを変えるアクションの結果 done を、変わった物だけの形にする（book は行う前のブック。残れなくなったほかのブックの参照エントリも外す）。
 // ブックの id を変えていたら断り、変わったページでは無くなった物をアノテーションのアンカーから外し、無くなったページのアノテーションは消す（名前は naming で引く）
 function changedBook(naming: Naming, world: World, book: Book, done: ReturnType<typeof perform>): PerformedIn {
   if (!done.ok) return done
   const next = done.next as Book
   if (next.id !== book.id) return { ok: false, reason: "refused" }
   if (next === book) return { ok: true, result: done.result }
-  const changes = changesBetween([book], [next])
-  if (collides(world, [book], changes)) return { ok: false, reason: "refused" }
+  const own = changesBetween([book], [next])
+  if (collides(world, [book], own)) return { ok: false, reason: "refused" }
+  const after = withChanges(world, own)
+  if (!newReferencesHold(after, book, next)) return { ok: false, reason: "refused" }
+  // ページやバインダを消して、ほかのブックの参照エントリが残れなくなったら、同じ書き込みで外す
+  const dead = deadReferences(after)
+  const changes = Object.keys(dead).length === 0 ? own : { ...own, folders: { ...own.folders, ...dead } }
   if (next.title !== book.title) {
-    const after = withChanges(world, changes)
     const clashes = titleClashes(after, naming)
     if (clashes.length > 0) return titleTaken(after, clashes, naming)
   }

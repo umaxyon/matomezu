@@ -6,6 +6,7 @@
 // タブはドラッグで並べ替えられる（useTabDrag。アクション page-move・binder-move）。掴んだタブは元の所で薄くなり、写しがポインタに付き、落とす所に線が出る
 import { useLayoutEffect, useRef } from "react"
 import { lineupOf, NO_BINDER } from "../../../core/book"
+import type { Library } from "../../../core/folders"
 import type { LineupEntry } from "../../../core/schema/book"
 import { binderOf, NO_PAGE_TYPE, NOTHING_OPENED, openedBook, shownPageId, shownType } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
@@ -20,6 +21,7 @@ import { BINDER_CONTEXT, BINDER_OPEN, PAGE_CONTEXT, PAGE_OPEN } from "."
 import { AddPageMenu } from "./AddPageMenu"
 import { FileIcon } from "./FileIcon"
 import styles from "./PageTabs.module.css"
+import { ReferenceIcon } from "./ReferenceIcon"
 import { useTabDrag } from "./useTabDrag"
 
 // 横にあふれた要素の上で、ホイールの縦の回転を横のスクロールにする（あふれていない・横に回したときは、そのまま）。
@@ -46,8 +48,15 @@ function reveal(el: HTMLElement | null): void {
   else if (tab.right > box.right) el.scrollLeft += Math.min(tab.right - box.right, tab.left - box.left)
 }
 
-// エントリ 1 つのタイプ（ページはそのタイプ、バインダは入れるページのタイプ）
-const typeOf = (e: LineupEntry): string => (e.kind === "page" ? e.type : e.pageType)
+// エントリ 1 つのタイプと名前（ページはそのタイプ、バインダは入れるページのタイプ。参照エントリは指す先の物。指す先の行が無ければ null）
+function shownOf(e: LineupEntry, { pages, folders }: Library): { type: string; title: string } | null {
+  if (e.kind === "page") return { type: e.type, title: e.title }
+  if (e.kind === "binder") return { type: e.pageType, title: e.title }
+  const row = e.of.kind === "page" ? pages[e.of.id] : undefined
+  if (row) return { type: row.type, title: row.title }
+  const binder = e.of.kind === "binder" ? folders[e.of.id] : undefined
+  return binder?.folderRole === "binder" ? { type: binder.pageType, title: binder.title } : null
+}
 
 export function PageTabs() {
   const opened = useStageHere(st => st?.opened ?? NOTHING_OPENED)
@@ -56,6 +65,8 @@ export function PageTabs() {
   const openBinder = useCommand(BINDER_OPEN.id)
   const openMenu = useContextMenu(PAGE_CONTEXT)
   const openBinderMenu = useContextMenu(BINDER_CONTEXT)
+  const pages = useMatomezuState(s => s.pages)
+  const folders = useMatomezuState(s => s.folders)
   const icons = useUiCatalog().pageTypeIcons // タイプのアイコン（名乗らないタイプは通常のファイル）
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
@@ -86,43 +97,47 @@ export function PageTabs() {
         return sideways(el)
       }}
     >
-      {lineup.map(e => (
-        <span key={e.id} className={styles.slot} ref={tabDrag.slot(e.id)} data-carried={drag?.id === e.id}>
-          <button
-            type="button"
-            role="tab"
-            className={styles.tab}
-            data-locked={e.kind === "page" && e.locked === true}
-            data-binder={e.kind === "binder" || undefined}
-            aria-selected={e.kind === "page" ? e.id === shown : e.id === binder}
-            onClick={() => {
-              if (tabDrag.swallowClick()) return
-              if (e.kind === "binder") openBinder.run(e.id)
-              else openPage.run(e.id)
-            }}
-            onContextMenu={ev => {
-              if (e.kind === "page") openMenu(ev, { page: e.id })
-              else openBinderMenu(ev, { binder: e.id })
-            }}
-            {...tabDrag.handlers(e.id)}
-          >
-            <span className={styles.typeIcon} aria-hidden="true">
-              {icons.get(typeOf(e)) ?? <FileIcon />}
-            </span>
-            {e.title}
-          </button>
-          {e.kind === "page" && e.locked && (
-            <span className={styles.lock} role="img" aria-label={t("Locked")}>
-              <LockIcon />
-            </span>
-          )}
-        </span>
-      ))}
+      {lineup.map(e => {
+        const look = shownOf(e, { pages, folders })
+        const icon = (look && icons.get(look.type)) ?? <FileIcon />
+        return (
+          <span key={e.id} className={styles.slot} ref={tabDrag.slot(e.id)} data-carried={drag?.id === e.id}>
+            <button
+              type="button"
+              role="tab"
+              className={styles.tab}
+              data-locked={e.kind === "page" && e.locked === true}
+              data-binder={e.kind === "binder" || undefined}
+              aria-selected={e.kind === "page" ? e.id === shown : e.id === binder}
+              onClick={() => {
+                if (tabDrag.swallowClick()) return
+                if (e.kind === "binder") openBinder.run(e.id)
+                else if (e.kind === "page") openPage.run(e.id)
+              }}
+              onContextMenu={ev => {
+                if (e.kind === "page") openMenu(ev, { page: e.id })
+                else if (e.kind === "binder") openBinderMenu(ev, { binder: e.id })
+              }}
+              {...tabDrag.handlers(e.id)}
+            >
+              <span className={styles.typeIcon} aria-hidden="true">
+                {e.kind === "reference" ? <ReferenceIcon icon={icon} /> : icon}
+              </span>
+              {look?.title ?? t("No Data")}
+            </button>
+            {e.kind === "page" && e.locked && (
+              <span className={styles.lock} role="img" aria-label={t("Locked")}>
+                <LockIcon />
+              </span>
+            )}
+          </span>
+        )
+      })}
       {tabDrag.bar !== null && <div className={styles.dropBar} style={{ left: tabDrag.bar }} />}
       {drag && grabbed && (
         <GhostArea>
           <div className={styles.ghost} style={{ left: drag.x - drag.grab, top: drag.y - 12 }}>
-            {grabbed.title}
+            {shownOf(grabbed, { pages, folders })?.title}
           </div>
         </GhostArea>
       )}

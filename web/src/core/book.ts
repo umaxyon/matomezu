@@ -29,6 +29,7 @@ import type {
   LineupEntry,
   OutermostSettings,
   Page,
+  ReferenceEntry,
   StageLineup,
   UnreadableCode,
 } from "./schema/book"
@@ -148,7 +149,7 @@ function wholeBook(catalog: CoreCatalog, saved: unknown): Book | null {
   const book = parsed.data as Book
   // 形に合ったので、残したページは読んだページと同じ順に並ぶ
   const raw = (saved as { lineup: readonly { kind: string; lineup?: readonly object[] }[] }).lineup.flatMap(
-    (e): readonly object[] => (e.kind === "binder" ? (e.lineup ?? []) : [e]),
+    (e): readonly object[] => (e.kind === "binder" ? (e.lineup ?? []) : e.kind === "page" ? [e] : []),
   )
   const kept = pageChecksOf(catalog)
   return pagesOf(book).every((page, i) => {
@@ -417,9 +418,13 @@ export function readLibrary(
 // ブックの並び（ページタブの順。1 つはページか、1 つのタイプのページだけを入れるバインダ）
 export const lineupOf = (book: StageLineup): readonly LineupEntry[] => book.lineup
 
+// 並び entries の名前（並びの順。参照エントリは名前を持たないので入らない。名前の重なりは、これを比べる）
+export const ownTitlesOf = (entries: readonly (LineupEntry | ItemPage)[]): string[] =>
+  entries.flatMap(e => (e.kind === "reference" ? [] : [e.title]))
+
 // このブックが持つページを、並びの順に（バインダの中のページも、バインダの所に続けて）
 export const pagesOf = (book: StageLineup): readonly ItemPage[] =>
-  book.lineup.flatMap((e): readonly ItemPage[] => (e.kind === "page" ? [e] : e.lineup))
+  book.lineup.flatMap((e): readonly ItemPage[] => (e.kind === "page" ? [e] : e.kind === "binder" ? e.lineup : []))
 
 // ブックのバインダを、並びの順に
 export const bindersOf = (book: StageLineup): readonly BinderEntry[] =>
@@ -472,6 +477,7 @@ export const findBinder = (book: StageLineup, id: string): BinderEntry | typeof 
 function mapPages<B extends StageLineup>(book: B, f: (page: AnyPage) => AnyPage | undefined): B {
   const lineup = book.lineup.flatMap((e): LineupEntry[] => {
     if (e.kind === "page") return [f(e)].flatMap(x => x ?? [])
+    if (e.kind === "reference") return [e]
     const inner = e.lineup.flatMap((p): AnyPage[] => [f(p)].flatMap(x => x ?? []))
     return [{ ...e, lineup: inner }]
   })
@@ -582,7 +588,9 @@ export function frameOf(book: Book): unknown {
   const stub = ({ id }: { id: string }) => ({ id })
   return {
     ...book,
-    lineup: book.lineup.map(e => (e.kind === "binder" ? { ...e, lineup: e.lineup.map(stub) } : stub(e))),
+    lineup: book.lineup.map(e =>
+      e.kind === "binder" ? { ...e, lineup: e.lineup.map(stub) } : e.kind === "reference" ? e : stub(e),
+    ),
   }
 }
 
@@ -592,12 +600,41 @@ export function putBinder<B extends StageLineup>(book: B, id: string, f: (binder
 }
 
 // id のバインダを、中のページごと除く
+// ブックの並びの index の所（無ければ末尾）に、of を指す参照エントリを足したブックと、その id（指す先が在るかは、書庫を読む perform が確かめる）
+export function addReference<B extends StageLineup>(
+  book: B,
+  of: ReferenceEntry["of"],
+  newId: () => string,
+  index?: number,
+): { book: B; reference: string } {
+  const made: ReferenceEntry = { kind: "reference", id: freshPageId(newId, lineupIds(book)), of }
+  return { book: { ...book, lineup: insertAt<LineupEntry>(book.lineup, made, index) }, reference: made.id }
+}
+
+// id の参照エントリ（無ければ undefined）
+export const findReference = (book: StageLineup, id: string): ReferenceEntry | undefined =>
+  referencesOf(book).find(r => r.id === id)
+
+// id の参照エントリを並びから除く（指す先には触らない）
+export const removeReference = <B extends StageLineup>(book: B, id: string): B => ({
+  ...book,
+  lineup: book.lineup.filter(e => !(e.kind === "reference" && e.id === id)),
+})
+
 export function removeBinder<B extends StageLineup>(book: B, id: string): B {
   return { ...book, lineup: book.lineup.filter(e => !(e.kind === "binder" && e.id === id)) }
 }
 
 // ブックの中の id（ページとバインダ）。新しい id を振るときに、重ならないようにする相手
-const lineupIds = (book: StageLineup): string[] => [...pagesOf(book).map(p => p.id), ...bindersOf(book).map(f => f.id)]
+const lineupIds = (book: StageLineup): string[] => [
+  ...pagesOf(book).map(p => p.id),
+  ...bindersOf(book).map(f => f.id),
+  ...referencesOf(book).map(r => r.id),
+]
+
+// ブックの参照エントリを、並びの順に
+export const referencesOf = (book: StageLineup): readonly ReferenceEntry[] =>
+  book.lineup.flatMap(e => (e.kind === "reference" ? [e] : []))
 
 // タイプのページで使えるアイテム（タイプの候補。データに置ける・引けるのはこの中だけ）
 export function allowedItems(catalog: CoreCatalog, page: Pick<Page, "type">): readonly string[] {
@@ -632,13 +669,22 @@ export function holds(catalog: CoreCatalog, book: Book): boolean {
 function lineupHolds(catalog: CoreCatalog, book: Book): boolean {
   const ids = lineupIds(book)
   if (new Set(ids).size !== ids.length) return false
-  if (!distinctTitles(book.lineup)) return false
+  if (!distinctTitles(book.lineup.flatMap(e => (e.kind === "reference" ? [] : [e])))) return false
+  if (!referencesHold(book)) return false
   for (const e of book.lineup) {
     if (e.kind === "page") {
       if (catalog.pageTypes.get(e.type)?.grouping !== "none") return false
     } else if (e.kind === "binder" && !binderHolds(catalog, e)) return false
   }
   return true
+}
+
+// 並びの参照エントリの決まり: 指す先が、同じブックの中の物でなく、同じ先を指す参照エントリが 2 つ無い
+// （指す先が書庫に在るかは、ブック 1 冊では分からないので見ない。在るかで残すか消すかは、書庫を読む所が決める）
+function referencesHold(book: Book): boolean {
+  const own = new Set([...pagesOf(book).map(p => p.id), ...bindersOf(book).map(f => f.id)])
+  const targets = book.lineup.flatMap(e => (e.kind === "reference" ? [e.of.id] : []))
+  return new Set(targets).size === targets.length && targets.every(t => !own.has(t))
 }
 
 // 名前の重なりの無い並びか（名前の無い物は数えない）
