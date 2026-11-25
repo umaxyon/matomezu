@@ -6,8 +6,9 @@
 //   2. 最後の返事が READY_MARK で終わり、追跡するファイルに変更が無ければ /exit を送り、claude が終わるのを待つ
 //   3. scripts/claude-relay.sh --model <モデル> を送り、起動した claude の引数がそのとおりかを確かめ（違えば止める）、/reload-plugins と /mcp reconnect を送り、引き継ぎを読んで join するよう頼む。
 //      join の合言葉（link）はここで作り、開発の常駐に前もって承認させておく（画面で受け入れずに入る。開発用の口 /api/dev/rejoin-pass）
-//   4. join が参加者 id を返したら、手が空くのを待って、もう一言送る。セッションと参加者を結ぶのは利用者が話しかけたときのフックなので、
-//      join の頼みが最後の発話のままだと結ばれず、画面で準備中のまま残る
+//   4. join が参加者 id を返したら、手が空くのを待ち、ターンの始まりのフックが参加を伝えたか（セッションと参加者を結んだか）を BOUND_WAIT_MS まで待つ。
+//      合言葉の受け入れの起こす知らせで、watch がターンを始めるはず。伝えなければ、もう一言（CONFIRM_PROMPT）送る。結ぶのはそのフックなので、
+//      どのターンも始まらないと、画面で準備中のまま残る
 // サブは Orca にエージェントとして見えない（claude-relay.sh で起動するため）ので、Orca の端末に打ち込んで進める。
 // 端末は、そのワークルームに参加している claude のプロセスから探す（workroomOf・terminalOf）
 import { execFile, execFileSync } from "node:child_process"
@@ -22,6 +23,8 @@ export const NG_MARK = "再起動の準備NG"
 export const MCP_SERVER = "plugin:matomezu:matomezu"
 
 export const CONFIRM_PROMPT = "参加の確かめです。返事は短く"
+// join の返事のあと、フックが参加を伝えるのを待つ長さ（伝えなければ CONFIRM_PROMPT を送る）
+const BOUND_WAIT_MS = 120_000
 
 export type Target = { workroom: string; model?: string }
 
@@ -109,17 +112,29 @@ const JOINED = /(?:oined matomezu\. Workroom name|matomezu に参加しました
 
 type Attachment = { type?: string; attachment?: { type?: string; content?: unknown } }
 
-export function workroomOf(jsonl: string): string | undefined {
-  const told = jsonl.split("\n").flatMap(line => {
+// 会話の記録で、フックが足した「参加しました」の知らせのワークルーム名（since より後の物だけ。since が無ければ全部）
+function toldWorkrooms(jsonl: string, since?: number): string[] {
+  return jsonl.split("\n").flatMap(line => {
     if (!line.includes("hook_additional_context")) return []
     try {
-      const a = (JSON.parse(line) as Attachment).attachment
+      const e = JSON.parse(line) as Attachment & { timestamp?: string }
+      const a = e.attachment
       if (a?.type !== "hook_additional_context" || !Array.isArray(a.content)) return []
+      if (since !== undefined && !(e.timestamp && Date.parse(e.timestamp) > since)) return []
       return a.content.flatMap(c => (typeof c === "string" ? [JOINED.exec(c)?.[1]].filter(w => w !== undefined) : []))
     } catch {
       return []
     }
   })
+}
+
+// since より後に、ターンの始まりのフックが参加を伝えたか（セッションと参加者を結んだ）
+export function toldJoinedSince(jsonl: string, since: number): boolean {
+  return toldWorkrooms(jsonl, since).length > 0
+}
+
+export function workroomOf(jsonl: string): string | undefined {
+  const told = toldWorkrooms(jsonl)
   if (told.length > 0) return told.at(-1)
   const all = entries(jsonl)
   const asked = new Map<string, string>()
@@ -393,8 +408,17 @@ async function restart(target: Target, opts: { dryRun: boolean; timeoutMs: numbe
     return now ? joinedSince(readFileSync(now, "utf8"), joinAskedAt) : false
   })
   await waitIdle(term.handle, opts.timeoutMs)
-  await send(term.handle, CONFIRM_PROMPT)
-  log("参加した。セッションと結ぶため、もう一言送った")
+  const bound = () => {
+    const now = latestTranscript(cwd)
+    return now ? toldJoinedSince(readFileSync(now, "utf8"), joinAskedAt) : false
+  }
+  try {
+    await until("フックが参加を伝える", BOUND_WAIT_MS, bound)
+    log("参加した（受け入れの知らせで始まったターンのフックが、セッションと結んだ）")
+  } catch {
+    await send(term.handle, CONFIRM_PROMPT)
+    log("参加した。フックが参加を伝えなかったので、セッションと結ぶため、もう一言送った")
+  }
 }
 
 if (import.meta.main) {
