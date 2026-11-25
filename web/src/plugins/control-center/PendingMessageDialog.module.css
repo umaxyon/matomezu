@@ -1,0 +1,24 @@
+.sender {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--skin-text-muted);
+}
+.body {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--skin-border);
+  border-radius: 6px;
+  font-size: 15px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.warn {
+  margin: -8px 0 12px;
+  font-size: 12px;
+  color: var(--skin-danger);
+}
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

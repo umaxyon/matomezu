@@ -29,7 +29,12 @@ export const PARTICIPANT_DIALOG_VIEWS = {
 export { AdminCrown, CrownIcon } from "./AdminCrown"
 export { BirdFaceView } from "./BirdFaceView"
 export {
+  useAnswerMessage,
   useOwnBookPages,
+  useParticipantLabel,
+  usePendingMessageById,
+  usePendingMessageFor,
+  usePendingMessages,
   useVisitorRows,
   useWorkerBook,
   useWorkroomActions,

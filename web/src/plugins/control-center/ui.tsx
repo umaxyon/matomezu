@@ -4,8 +4,15 @@ import type { NO_STATE } from "../../plugin-api"
 import { definePluginUi, defineWidget } from "../../plugin-api/ui"
 import { LIBRARY_CONTEXT_MENUS, MAIL_ACTIONS, WIDE_SEARCH_OPENS } from "../base/ui"
 import { CONTROL_CENTER_PLUGIN } from "."
-import { CONTROL_CENTER_SCREEN, type Picked, VISITOR_LEAVE_DIALOG, WORKROOM_LEAVE_DIALOG } from "./control-center"
+import {
+  CONTROL_CENTER_SCREEN,
+  PENDING_MESSAGE_DIALOG,
+  type Picked,
+  VISITOR_LEAVE_DIALOG,
+  WORKROOM_LEAVE_DIALOG,
+} from "./control-center"
 import { kit } from "./kit"
+import { PendingMessageDialog } from "./PendingMessageDialog"
 import { ControlCenterScreen } from "./Screen"
 import { BELOW_PARTICIPANTS, PICKED_DETAIL, PROJECTS, SIDE, WORKROOM_COLUMNS, WORKROOM_ROW_LINE } from "./slots"
 import { VisitorLeaveDialog } from "./VisitorLeaveDialog"
@@ -30,7 +37,11 @@ export const CONTROL_CENTER_SCREEN_WIDGET = defineWidget({
 
 export const CONTROL_CENTER_UI = definePluginUi(CONTROL_CENTER_PLUGIN, {
   widgets: [CONTROL_CENTER_SCREEN_WIDGET],
-  dialogViews: { [WORKROOM_LEAVE_DIALOG.id]: WorkroomLeaveDialog, [VISITOR_LEAVE_DIALOG.id]: VisitorLeaveDialog },
+  dialogViews: {
+    [WORKROOM_LEAVE_DIALOG.id]: WorkroomLeaveDialog,
+    [VISITOR_LEAVE_DIALOG.id]: VisitorLeaveDialog,
+    [PENDING_MESSAGE_DIALOG.id]: PendingMessageDialog,
+  },
 })
 
 declare module "../../core/catalog" {
