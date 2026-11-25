@@ -1,6 +1,6 @@
 // 参照エントリ: ほかのブックのページを指すタブを押すと、指す先のページが見るだけで描かれる（道具も選択も始まらない）。
 // タブの右クリックの「参照元へ移動」で指す先のブックのページが開き、「削除」でタブが消える（指す先はそのまま）
-import { drawingPage, testBook } from "../test/lineup"
+import { drawingPage, SLIDE, testBinder, testBook, testPage, withSlide } from "../test/lineup"
 import { bookScreenUrl, expect, test } from "./fixtures"
 import { addBox } from "./helpers/paper"
 
@@ -44,4 +44,39 @@ test("参照のタブを押すと指す先のページが見るだけで描か�
   await page.getByRole("menu").getByRole("menuitem", { name: "削除" }).click()
   await expect(page.getByRole("tab", { name: "全体図" })).toHaveCount(0)
   await expect(page.getByRole("tab", { name: "設計" })).toBeVisible()
+})
+
+// スライドのバインダを指す参照: ページ一覧に指す先のスライドが並び（＋は無い）、押すとそのスライドを見せる
+test.describe("バインダを指す参照", () => {
+  const slide = (id: string, title: string, text: string) =>
+    withSlide(testPage(SLIDE, id, { title }), [
+      { id: `${id}-t`, x: 80, y: 60, item: "@matomezu/slide:slide-text", w: 500, h: 80, props: { text, fontSize: 48 } },
+    ])
+  test.use({
+    books: [
+      [
+        testBook("ref-s", "説明のブック", [
+          testBinder("ref-x", "説明", SLIDE, slide("ref-s1", "1", "一枚目"), slide("ref-s2", "2", "二枚目")),
+        ]),
+        testBook("ref-c", "まとめ", [
+          drawingPage("ref-c1", { title: "表紙" }),
+          { kind: "reference", id: "ref-r2", of: { kind: "binder", id: "ref-x" } },
+        ]),
+      ],
+      {},
+    ],
+  })
+
+  test("ページ一覧に指す先のスライドが並び、押すとそのスライドを見せる。＋は無い", async ({ page }) => {
+    await page.goto(bookScreenUrl("ref-c", "ref-c1"))
+    await page.getByRole("tab", { name: "説明" }).click()
+    const shown = page.locator('[data-reference="shown"]')
+    await expect(shown).toContainText("一枚目")
+    const list = page.locator("[data-page-list]")
+    await expect(list.getByRole("button", { name: "2" })).toBeVisible()
+    await expect(list.getByRole("button", { name: "ページを足す" })).toHaveCount(0)
+    await list.getByRole("button", { name: "2" }).click()
+    await expect(shown).toContainText("二枚目")
+    await expect(list.getByRole("button", { name: "2" })).toHaveAttribute("aria-current", "page")
+  })
 })
