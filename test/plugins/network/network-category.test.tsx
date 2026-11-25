@@ -69,13 +69,15 @@ test("つなぐを入にし、入口が開くと、待っている所（番地�
   expect(within(panel()).queryByText("ほかのホストを待つ入口を開けませんでした")).toBeNull()
 })
 
-test("WSL で動いていて、つなぐが入でポートが決まっていれば、ほかのマシンから届かせる設定の案内を出す", () => {
+test("WSL で動いていて、つなぐが入でポートが決まっていれば、このホストからつなぐ案内と、相手からも見つけられるようにする手引きを出す", () => {
   const { panel, setStatus } = openNetwork()
   setStatus({ wsl: true })
-  expect(within(panel()).queryByText("設定のしかた")).toBeNull()
+  expect(within(panel()).queryByText("相手からも見つけられるようにするには")).toBeNull()
   fireEvent.click(within(panel()).getByRole("switch", { name: "ホストとつなぐ" }))
   setStatus({ wsl: true, open: true, port: 41234, addrs: ["172.21.69.139"] })
-  expect(within(panel()).getByText("WSL では、設定するまでほかのマシンからこのホストに届きません")).toBeTruthy()
+  expect(within(panel()).getByText("WSL では、ほかのマシンからこのホストは見つかりません")).toBeTruthy()
+  expect(within(panel()).getByText("このホストから相手の待っている所を入れてつなぐと、両方から使えます")).toBeTruthy()
+  expect(within(panel()).getByText("相手からも見つけられるようにするには")).toBeTruthy()
   expect(within(panel()).getByText(/-LocalPorts 41234/)).toBeTruthy()
 })
 

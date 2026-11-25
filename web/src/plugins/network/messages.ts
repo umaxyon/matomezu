@@ -61,6 +61,10 @@ export const NETWORK_MESSAGES = defineMessages({
     en: "If the host is not listed, type where it listens",
     ja: "一覧に出ないときは、待っている所を入れる",
   },
+  "On WSL, other machines are not listed": {
+    en: "On WSL, other machines are not listed",
+    ja: "WSL では、ほかのマシンは一覧に出ません",
+  },
   "Could not ask the server": { en: "Could not ask the server", ja: "常駐に頼めませんでした" },
   "Cancel pairing": { en: "Cancel", ja: "やめる" },
   Pair: { en: "Pair", ja: "つなぐ" },
@@ -102,11 +106,18 @@ export const NETWORK_MESSAGES = defineMessages({
   "Already answered": { en: "Already answered", ja: "返事済み" },
   Copied: { en: "Copied", ja: "コピーしました" },
   "Could not copy": { en: "Could not copy", ja: "コピーできませんでした" },
-  "On WSL, other machines cannot reach this host until WSL is set up for it": {
-    en: "On WSL, other machines cannot reach this host until WSL is set up for it",
-    ja: "WSL では、設定するまでほかのマシンからこのホストに届きません",
+  "On WSL, other machines cannot find this host": {
+    en: "On WSL, other machines cannot find this host",
+    ja: "WSL では、ほかのマシンからこのホストは見つかりません",
   },
-  "How to set up": { en: "How to set up", ja: "設定のしかた" },
+  "Pair from this host by typing where the other host listens, and both can use it": {
+    en: "Pair from this host by typing where the other host listens, and both can use it",
+    ja: "このホストから相手の待っている所を入れてつなぐと、両方から使えます",
+  },
+  "To let other machines find this host too": {
+    en: "To let other machines find this host too",
+    ja: "相手からも見つけられるようにするには",
+  },
   "In .wslconfig in your Windows user folder, add networkingMode=mirrored under [wsl2]": {
     en: "In .wslconfig in your Windows user folder, add networkingMode=mirrored under [wsl2]",
     ja: "Windows のユーザーのフォルダの .wslconfig の [wsl2] に networkingMode=mirrored を書く",
