@@ -599,7 +599,6 @@ export function putBinder<B extends StageLineup>(book: B, id: string, f: (binder
   return { ...book, lineup: book.lineup.map(e => (e.kind === "binder" && e.id === id ? f(e) : e)) }
 }
 
-// id のバインダを、中のページごと除く
 // ブックの並びの index の所（無ければ末尾）に、of を指す参照エントリを足したブックと、その id（指す先が在るかは、書庫を読む perform が確かめる）
 export function addReference<B extends StageLineup>(
   book: B,
@@ -621,6 +620,7 @@ export const removeReference = <B extends StageLineup>(book: B, id: string): B =
   lineup: book.lineup.filter(e => !(e.kind === "reference" && e.id === id)),
 })
 
+// id のバインダを、中のページごと除く
 export function removeBinder<B extends StageLineup>(book: B, id: string): B {
   return { ...book, lineup: book.lineup.filter(e => !(e.kind === "binder" && e.id === id)) }
 }
@@ -669,7 +669,7 @@ export function holds(catalog: CoreCatalog, book: Book): boolean {
 function lineupHolds(catalog: CoreCatalog, book: Book): boolean {
   const ids = lineupIds(book)
   if (new Set(ids).size !== ids.length) return false
-  if (!distinctTitles(book.lineup.flatMap(e => (e.kind === "reference" ? [] : [e])))) return false
+  if (!distinctTitles(ownTitlesOf(book.lineup))) return false
   if (!referencesHold(book)) return false
   for (const e of book.lineup) {
     if (e.kind === "page") {
@@ -688,15 +688,15 @@ function referencesHold(book: Book): boolean {
 }
 
 // 名前の重なりの無い並びか（名前の無い物は数えない）
-function distinctTitles(entries: readonly { title: string }[]): boolean {
-  const titles = entries.map(e => e.title).filter(t => t !== "")
+function distinctTitles(names: readonly string[]): boolean {
+  const titles = names.filter(t => t !== "")
   return new Set(titles).size === titles.length
 }
 
 // バインダの決まり（ブックの中でも外でも同じ）を守っているか: 中の名前は重ならない／中のページは、入れるタイプのページ／入れるタイプは、まとまるタイプ
 // ／中のページは、紙と向きが同じ
 function binderHolds(catalog: CoreCatalog, binder: BinderEntry): boolean {
-  return distinctTitles(binder.lineup) && typesAndPaperHold(catalog, binder)
+  return distinctTitles(ownTitlesOf(binder.lineup)) && typesAndPaperHold(catalog, binder)
 }
 
 // バインダの決まりのうち、名前に依らない物を守っているか: 入れるタイプは、まとまるタイプ／中のページは、入れるタイプのページ／中のページは、紙と向きが同じ
