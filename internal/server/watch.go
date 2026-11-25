@@ -109,6 +109,9 @@ const (
 	wakeRally     = "rally"     // AI ラリーを上限で止め、宛て先に届けなかったという知らせ（rally.go）
 )
 
+// asUserMark は、利用者の頼みと扱ってよい知らせの行の、頭に付ける印（requests が as-user のホストから届いた行と、利用者が画面で押した頼みの行）
+const asUserMark = "(as your user's request)"
+
 // logWake は、起こす知らせが通り道に届いたかを調べるための 1 行を常駐のログに書く
 func logWake(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "%s wake: %s\n", stamp(), fmt.Sprintf(format, args...))
