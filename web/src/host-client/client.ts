@@ -51,6 +51,8 @@ export interface HostClient {
   askUpdate(workroom: string): Promise<boolean>
   // ほかのホストについて頼む（様子は知らせで入る）。常駐が断るか（200 でない）つながらなければ E413 を投げる
   askHosts(request: HostRequest): Promise<void>
+  // 承認待ちの AI 間メッセージに、承認（approve）かキャンセル（cancel）を頼む（答えは知らせでも入る）。not-pending で断られても投げない（もう承認待ちでない）。常駐が断るか（200 でない）つながらなければ E415 を投げる
+  answerMessage(id: string, answer: "approve" | "cancel"): Promise<void>
   visible(): boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。createMatomezu の visible に渡す）
 }
 

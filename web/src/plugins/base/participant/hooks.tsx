@@ -5,8 +5,8 @@ import type { WorkKey } from "../../../core/folders"
 import { readerOf, sourceOf } from "../../../core/record-source"
 import type { Records } from "../../../core/records"
 import { isParticipantAlive } from "../../../core/settings"
-import type { ParticipantLive } from "../../../store/state"
-import { useMatomezuState } from "../../../ui/store-context"
+import type { ParticipantLive, PendingMessage } from "../../../store/state"
+import { useInstance, useMatomezuState } from "../../../ui/store-context"
 import { useActions, useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
@@ -46,6 +46,18 @@ export const useParticipantLive = (): Readonly<Record<string, ParticipantLive>> 
 
 // 準備中でない参加者の id
 export const useParticipantReady = (): readonly string[] => useMatomezuState(s => s.participantReady)
+
+// 受け手の参加者 receiver の承認待ちの最初の 1 通（無ければ undefined）
+export const usePendingMessageFor = (receiver: string): PendingMessage | undefined =>
+  useMatomezuState(s => s.pendingMessages.find(m => m.receiver === receiver))
+
+// 承認待ちの 1 通（id）。承認・キャンセルで消えれば undefined
+export const usePendingMessageById = (id: string): PendingMessage | undefined =>
+  useMatomezuState(s => s.pendingMessages.find(m => m.id === id))
+
+// 承認・キャンセルを常駐に頼む（答えは知らせでも入る）。頼めなければ投げる
+export const useAnswerMessage = (): ((id: string, answer: "approve" | "cancel") => Promise<void>) =>
+  useInstance().answerMessage
 
 // 参加者が生きているかを決める関数（最後に呼ばれた時刻と、起こす知らせを渡せる matomezu watch がつながっているかと、今の時刻から。参加の有効時間の設定で決まる）
 export function useIsAlive(): (presence: Presence, nowMs: number) => boolean {

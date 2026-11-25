@@ -102,6 +102,7 @@ export {
   type PaperValue,
   type PeerLive,
   type PeerState,
+  PendingBalloon,
   type PrintMeasured,
   type PrintMeasureProps,
   type PrintSheetProps,

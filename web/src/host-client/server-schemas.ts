@@ -179,3 +179,20 @@ export const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 export const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown() })
 // 更新を頼んだ答え（ok が偽なら、そのワークルームに参加の確定した AI がいない）
 export const ASK_UPDATE_ANSWER = z.object({ ok: z.boolean() })
+
+// 承認待ちの AI 間メッセージ（常駐だけが持つ。知らせ pending-messages の中身は、その並び）。
+// senderHost と senderHostName は、ほかのホストから届いたときだけ常駐が載せる（載せなければ空）
+export const PENDING_MESSAGES = z.array(
+  z.object({
+    id: z.string(),
+    receiver: z.string(),
+    sender: z.string(),
+    senderRoom: z.string(),
+    senderHost: z.string().default(""),
+    senderHostName: z.string().default(""),
+    body: z.string(),
+    at: z.string(),
+  }),
+)
+// 承認・キャンセルの答え（not-pending なら ok が false。画面はどちらでも閉じる）
+export const MESSAGE_ANSWER = z.object({ ok: z.boolean(), reason: z.string().optional() })

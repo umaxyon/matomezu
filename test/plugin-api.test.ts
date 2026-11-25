@@ -413,6 +413,7 @@ test("matomezu/ui が出す名前", () => {
     "PageSettingsDialogView",
     "Panel",
     "PaperFrame",
+    "PendingBalloon",
     "Problem",
     "RIGHT_SIDE_PANEL",
     "RichBar",

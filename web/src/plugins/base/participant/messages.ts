@@ -2,6 +2,11 @@
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const PARTICIPANT_MESSAGES = defineMessages({
+  "Message waiting for approval": { en: "Message waiting for approval", ja: "承認待ちのメッセージ" },
+  "Sender: {name}": { en: "Sender: {name}", ja: "送り手: {name}" },
+  "{room} on host {host}": { en: "{room} on host {host}", ja: "{host} の {room}" },
+  Approve: { en: "Approve", ja: "承認" },
+  "The answer could not be sent": { en: "The answer could not be sent", ja: "返事を送れませんでした" },
   "Request to participate": { en: "Request to participate", ja: "参加を要求する" },
   "Write a rejoin": { en: "Write a rejoin", ja: "参加の頼み直しを書く" },
   "Name sessions by work": { en: "Name sessions by work", ja: "セッション名を作業名にする" },

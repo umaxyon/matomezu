@@ -56,6 +56,7 @@ export interface MatomezuState {
   updateStatus: UpdateStatus | null // 新しい版の確かめの結果（常駐だけが持つ。ホストクライアントが知らせる。無ければ null）
   hostStatus: HostStatus | null // ホストどうしの入口の様子（常駐だけが持つ。ホストクライアントが知らせる。無ければ null）
   hostPeers: HostPeers | null // ほかのホストの様子（常駐だけが持つ。ホストクライアントが知らせる。無ければ null）
+  pendingMessages: readonly PendingMessage[] // 承認待ちの AI 間メッセージ（常駐だけが持つ。ホストクライアントが知らせる。無ければ空）
   lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐のレコードの知らせに添えられた値で入れる）
   // ステージエントリの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのステージエントリを変えたら、その全部に同じ画面の履歴の段が入る
   history: Readonly<Record<string, History>>
@@ -142,6 +143,19 @@ export interface HostPeers {
   paired: readonly PeerLive[]
   found: readonly FoundHost[]
   pairing?: HostPairing
+}
+
+// 承認待ちの AI 間メッセージ 1 通（常駐だけが持つ）。receiver は受け手の参加者 id、sender は送り手の参加者 id（ほかのホストから届いた物は空）、
+// senderRoom は送り手のワークルームの名前、senderHost は送り手のホスト id で senderHostName はそのホストエイリアス（どちらも、同じホストなら空）
+export interface PendingMessage {
+  id: string
+  receiver: string
+  sender: string
+  senderRoom: string
+  senderHost: string
+  senderHostName: string
+  body: string
+  at: string
 }
 
 // ほかのホストについてホストに頼む事: pair は addr（番地:ポート）のホストにペアリングを頼む（manual は利用者が手で入れたか）、end-pairing は頼んでいるのをやめる（終わった様子も消す）、
@@ -292,6 +306,10 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   setHostStatus(status: HostStatus): void
   // ほかのホストの様子（hostPeers）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setHostPeers(peers: HostPeers): void
+  // 承認待ちの AI 間メッセージを入れる（pendingMessages）。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
+  setPendingMessages(messages: readonly PendingMessage[]): void
+  // 承認待ちの AI 間メッセージに、承認（approve）かキャンセル（cancel）を頼む。base のフックを通して使う。ホストが無いか、頼めなければ投げる
+  answerMessage(id: string, answer: "approve" | "cancel"): Promise<void>
   // ほかのホストについてホストに頼む（様子はホストの知らせで入る）。base のフックを通して使う。ホストが無いか、頼めなければ投げる
   askHosts(request: HostRequest): Promise<void>
   // 新しい版を今確かめるのをホストに頼む（結果はホストの知らせで入る）。base のフックを通して使う。ホストが無いか、頼めなければ投げる
@@ -380,6 +398,7 @@ export function initialState(
     updateStatus: null,
     hostStatus: null,
     hostPeers: null,
+    pendingMessages: [],
     lastWindow: false,
     history: {},
     pluginValues: NO_PLUGIN_STATES,
@@ -439,6 +458,8 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   updateHost?: { check(): Promise<void>; ask(workroom: string): Promise<boolean> }
   // ほかのホストについてホストに頼む口。無ければ、頼むと投げる（E412）
   hostsHost?: { ask(request: HostRequest): Promise<void> }
+  // 承認待ちの AI 間メッセージの承認・キャンセルをホストに頼む口。無ければ、頼むと投げる（E414）
+  messageHost?: { answer(id: string, answer: "approve" | "cancel"): Promise<void> }
   // 読めない物のフォルダについてホストに頼む口（完全に消す・無効にしたら移る物を数える）。無ければ、頼むと投げる（E406）
   unreadableHost?: {
     purge(id: string): Promise<Purged>
