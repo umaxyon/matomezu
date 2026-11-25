@@ -85,9 +85,9 @@ export interface WindowActions {
   continueStep(outermost: string): void
 }
 
-// ステージで開く物: ブック（とその中のページ・バインダ）か、ブックの外のページか、ブックの外のバインダ（とその中のページ）
+// ステージで開く物: ブック（とその中のページ・バインダ・参照エントリ）か、ブックの外のページか、ブックの外のバインダ（とその中のページ）
 export type OpenTo =
-  | { to: "book"; book: string; page?: string; binder?: string }
+  | { to: "book"; book: string; page?: string; binder?: string; reference?: string }
   | { to: "page"; page: string }
   | { to: "binder"; binder: string; page?: string }
 

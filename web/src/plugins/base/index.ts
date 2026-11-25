@@ -64,6 +64,7 @@ import {
   LIBRARY_PLACE_OPEN,
   LIBRARY_QUERY,
   LIBRARY_REDO,
+  LIBRARY_REFERENCE_SOURCE,
   LIBRARY_REMOVE_DIALOG,
   LIBRARY_RENAME_DIALOG,
   LIBRARY_REVERT,
@@ -683,6 +684,7 @@ export const BASE = defineBuiltin(
       LIBRARY_REDO,
       LIBRARY_ENTRY_OPEN,
       LIBRARY_ENTRY_OPEN_SPLIT,
+      LIBRARY_REFERENCE_SOURCE,
       LIBRARY_BOOK_NEW,
       LIBRARY_OPEN,
       LIBRARY_SCREEN_CLOSE,
@@ -965,6 +967,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-redo": typeof LIBRARY_REDO
     "@matomezu/base:library-entry-open": typeof LIBRARY_ENTRY_OPEN
     "@matomezu/base:library-entry-open-split": typeof LIBRARY_ENTRY_OPEN_SPLIT
+    "@matomezu/base:library-reference-source": typeof LIBRARY_REFERENCE_SOURCE
     "@matomezu/base:library-book-new": typeof LIBRARY_BOOK_NEW
     "@matomezu/base:library-open": typeof LIBRARY_OPEN
     "@matomezu/base:library-screen-close": typeof LIBRARY_SCREEN_CLOSE

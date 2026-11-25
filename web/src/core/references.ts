@@ -22,10 +22,13 @@ export const UNSEEN = "unseen"
 export type Referred = { kind: "page"; page: PageRow } | { kind: "binder"; binder: BinderFolder }
 export function referredOf(library: Library, ref: ReferenceEntry): Referred | typeof UNSEEN {
   const found = targetOf(library, ref)
-  if (found === undefined) return UNSEEN
-  const over = foldersOver(library.folders, ref.of.id)
-  if (over.length === 0 || over.some(f => f.folderRole === "trash" || isUnreadableRole(f.folderRole))) return UNSEEN
-  return found
+  return found === undefined || !inSight(library.folders, ref.of.id) ? UNSEEN : found
+}
+
+// id の物が、書庫の見える所（ゴミ箱・読めない物のフォルダの外）に置かれているか（ページの中身を持たない所でも読める）
+export function inSight(folders: Folders, id: string): boolean {
+  const over = foldersOver(folders, id)
+  return over.length > 0 && !over.some(f => f.folderRole === "trash" || isUnreadableRole(f.folderRole))
 }
 
 // 参照エントリ ref の指す先の行（どこに居ても。書庫の表に無ければ undefined）
@@ -79,4 +82,21 @@ export function referencePage(library: Library, ref: ReferenceEntry, chosen: str
   if (found.kind === "page") return found.page.id
   const ids = found.binder.lineup.map(p => p.id)
   return ids.includes(chosen) ? chosen : (ids[0] ?? NO_PAGE)
+}
+
+// 参照エントリ ref の指す先のタイプと名前（ページはそのタイプ、バインダは入れるページのタイプ。指す先の行が無ければ null。ゴミ箱の中なども、行が在れば答える）
+export function referenceLook(library: Library, ref: ReferenceEntry): { type: string; title: string } | null {
+  const found = targetOf(library, ref)
+  if (found === undefined) return null
+  return found.kind === "page"
+    ? { type: found.page.type, title: found.page.title }
+    : { type: found.binder.pageType, title: found.binder.title }
+}
+
+// 参照エントリ id を並びに置いているブックのフォルダ（どのブックにも無ければ undefined）
+export function bookOfReference(folders: Folders, id: string): BookFolder | undefined {
+  for (const f of Object.values(folders)) {
+    if (f.folderRole === "book" && f.lineup.some(r => r.kind === "reference" && r.id === id)) return f
+  }
+  return undefined
 }

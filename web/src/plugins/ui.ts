@@ -240,6 +240,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:library-entry-trash",
       "@matomezu/base:library-entry-remove",
     ],
+    "@matomezu/base:library-reference-context": ["@matomezu/base:library-reference-source"],
     "@matomezu/base:library-folder-context": [
       "@matomezu/base:library-book-new",
       "@matomezu/base:library-folder-new",

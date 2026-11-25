@@ -4,9 +4,11 @@
 // タブが横にあふれているときは、ホイールの縦の回転で横にスクロールする。
 // 選ばれたタブ（ブックかタブが替わったとき）と、並びが出たときは、選ばれたタブが見える所まで並びを送る（どの道で開いても同じ）。
 // タブはドラッグで並べ替えられる（useTabDrag。アクション page-move・binder-move・reference-move）。掴んだタブは元の所で薄くなり、写しがポインタに付き、落とす所に線が出る
+
 import { useLayoutEffect, useRef } from "react"
 import { lineupOf, NO_BINDER } from "../../../core/book"
 import type { Library } from "../../../core/folders"
+import { referenceLook } from "../../../core/references"
 import type { LineupEntry } from "../../../core/schema/book"
 import {
   binderOf,
@@ -61,10 +63,7 @@ function reveal(el: HTMLElement | null): void {
 function shownOf(e: LineupEntry, { pages, folders }: Library): { type: string; title: string } | null {
   if (e.kind === "page") return { type: e.type, title: e.title }
   if (e.kind === "binder") return { type: e.pageType, title: e.title }
-  const row = e.of.kind === "page" ? pages[e.of.id] : undefined
-  if (row) return { type: row.type, title: row.title }
-  const binder = e.of.kind === "binder" ? folders[e.of.id] : undefined
-  return binder?.folderRole === "binder" ? { type: binder.pageType, title: binder.title } : null
+  return referenceLook({ pages, folders }, e)
 }
 
 export function PageTabs() {

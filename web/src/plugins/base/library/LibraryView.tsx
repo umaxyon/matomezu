@@ -34,6 +34,7 @@ import {
   LIBRARY_FOLDER_NEW,
   LIBRARY_FOUND_SCOPE,
   LIBRARY_PAGE_NEW,
+  LIBRARY_REFERENCE_CONTEXT,
   LIBRARY_SCOPE,
   LIBRARY_TREE_AROUND_SCOPE,
   LIBRARY_TREE_SCOPE,
@@ -186,6 +187,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
   }
   const openEntryMenu = useContextMenu(LIBRARY_ENTRY_CONTEXT)
   const openFolderMenu = useContextMenu(LIBRARY_FOLDER_CONTEXT)
+  const openReferenceMenu = useContextMenu(LIBRARY_REFERENCE_CONTEXT)
   const { drag, asking, clearing, onPointerDown, answered, cleared } = useLibraryDrag(root, id => {
     const now = readUnfolded()
     if (!now.includes(id) && read().folders[id] !== undefined && id !== TRASH_ID) setUnfolded([...now, id])
@@ -202,7 +204,10 @@ export function LibraryView({ className }: { className?: string } = {}) {
   )
   const handlers: Handlers = {
     drag,
-    menu: (e, row) => openEntryMenu(e, { entry: row.id, pressed: { x: e.clientX, y: e.clientY } }),
+    menu: (e, row) =>
+      row.kind === "reference"
+        ? openReferenceMenu(e, { reference: row.id })
+        : openEntryMenu(e, { entry: row.id, pressed: { x: e.clientX, y: e.clientY } }),
     opened,
     picked,
     shown,
@@ -460,6 +465,7 @@ function ContentEntry({
             className={styles.entry}
             {...marks}
             data-holder={holder}
+            data-reference={row.kind === "reference" ? "" : undefined}
             {...dragMarks(drag, LIBRARY_CONTENTS_SCOPE, row.id)}
             onClick={press.onClick}
             onDoubleClick={press.onDoubleClick}

@@ -840,6 +840,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (to.page !== undefined) actions.openPage(at, to.page)
       }
       if (to.binder !== undefined) actions.openBinder(at, to.binder)
+      if (to.reference !== undefined) actions.openReference(at, to.reference)
       return at
     },
     showBook: (bookId, page) => actions.showBookStage(bookId, page) !== NO_STAGE,

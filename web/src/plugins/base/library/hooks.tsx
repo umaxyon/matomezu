@@ -91,16 +91,18 @@ export interface FolderEntry {
 // フォルダが無いときの値（useFolderEntries）
 export const NO_FOLDER = "none"
 
-// フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下のエントリ（並びの順。フォルダの中を問うので、作業机は出さない）。フォルダが無ければ NO_FOLDER
+// フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下のエントリ（並びの順。フォルダの中を問うので、作業机と参照エントリは出さない）。フォルダが無ければ NO_FOLDER
 export function useFolderEntries(folder: string): readonly FolderEntry[] | typeof NO_FOLDER {
   const entries = useLibraryRows(folder, (s, naming) =>
-    rowsIn(s, folder, naming, NO_DESKS).map((r): FolderEntry => ({ id: r.id, kind: r.kind, name: r.title })),
+    rowsIn(s, folder, naming, NO_DESKS).flatMap((r): FolderEntry[] =>
+      r.kind === "reference" ? [] : [{ id: r.id, kind: r.kind, name: r.title }],
+    ),
   )
   return useMatomezuState(s => s.folders[folder] !== undefined) ? entries : NO_FOLDER
 }
 
 // 行の名前: 書庫ホームとゴミ箱と読めない物のフォルダは画面の言葉、ブックごと読めないブックは読めない訳に残った名前、名前の無い物は id を添える
-export function useNameOf(): (row: Pick<LibraryRow, "id" | "title">) => string {
+export function useNameOf(): (row: Pick<LibraryRow, "id" | "title"> & { kind?: LibraryRow["kind"] }) => string {
   const t = useMessages(kit)
   const unreadable = useMatomezuState(s => s.unreadable)
   return row => {
@@ -108,6 +110,8 @@ export function useNameOf(): (row: Pick<LibraryRow, "id" | "title">) => string {
     if (row.id === TRASH_ID) return t("Trash")
     if (row.id === UNREADABLE_ID) return t("Unreadable")
     if (row.title !== NO_TITLE) return row.title
+    // 指す先の行が無い参照エントリ（ページタブと同じ）
+    if (row.kind === "reference") return t("No Data")
     // ブックごと読めないブックは書庫の表に行が無いので、読めない訳（warning）に残った名前
     const title = unreadable.find(w => w.params.book === row.id)?.params.title
     return title !== undefined && title !== NO_TITLE ? title : t("Untitled ({id})", { id: row.id })

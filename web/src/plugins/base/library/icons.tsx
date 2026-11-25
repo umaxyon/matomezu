@@ -3,6 +3,8 @@ import type { EntryKind } from "../../../core/entries"
 import { useUiCatalog } from "../../../ui/store-context"
 import { REDO_ICON, UNDO_ICON } from "../history/icons"
 import { LockIcon } from "../lock/LockIcon"
+import { FileIcon } from "../page-tabs/FileIcon"
+import { ReferenceIcon } from "../page-tabs/ReferenceIcon"
 import { BirdFaceView } from "../participant/BirdFaceView"
 import { asBird } from "../participant/birds"
 import { BookIcon, BookOpenIcon } from "../utils/book-icons"
@@ -68,10 +70,12 @@ export function RowIcon({
     )
   ) : row.kind === "page" && typed !== undefined ? (
     typed
+  ) : row.kind === "reference" ? (
+    <ReferenceIcon icon={typed ?? <FileIcon />} />
   ) : undefined
   return (
     <span className={picture === undefined ? className : `${className} ${styles.typed}`}>
-      {picture ?? iconOf(row.kind)}
+      {picture ?? (row.kind === "reference" ? null : iconOf(row.kind))}
       {row.locked && (
         <span className={styles.lock}>
           <LockIcon />

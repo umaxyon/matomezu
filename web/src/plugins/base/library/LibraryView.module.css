@@ -187,6 +187,14 @@
   width: 100%;
   height: 100%;
 }
+/* 参照エントリのアイコン（ReferenceIcon）も、中の絵ごと枠いっぱいに広げる */
+.typed > [data-reference-icon],
+.typed > [data-reference-icon] > span,
+.typed > [data-reference-icon] > span > span,
+.typed > [data-reference-icon] svg {
+  width: 100%;
+  height: 100%;
+}
 .name {
   display: flex;
   flex: 1;

@@ -14,6 +14,8 @@ import type { Folders } from "../../../core/folders"
 import { isKeptSystemFolder, systemFolderOf } from "../../../core/folders-tree"
 import type { Point } from "../../../core/geom"
 import { LIBRARY_HISTORY } from "../../../core/history"
+import { bookOfReference, inSight } from "../../../core/references"
+import type { OpenTo } from "../../../store/actions"
 import {
   type CommandActions,
   type ScreenCommandContext,
@@ -57,6 +59,7 @@ import {
   openedFolderOf,
   openTargetOf,
   paneIdsOf,
+  type RowKind,
   type TreeRow,
   treeCurrentOf,
   treeRowsOf,
@@ -119,10 +122,17 @@ export const LIBRARY_REDO = kit.defineScreenCommand({
 // 書庫の画面の右クリックのメニュー: 行（ツリーの行・右の枠のアイコン）のメニューと、右の枠の何も無い所のメニュー（受け取るのは、開いているフォルダ）
 export const LIBRARY_ENTRY_CONTEXT = kit.name("library-entry-context")
 export const LIBRARY_FOLDER_CONTEXT = kit.name("library-folder-context")
+// 書庫の画面の、ブックの中身に並ぶ参照エントリの行のメニュー（受け取るのは、参照エントリの id。エントリのコマンドが参照エントリの id を受けないよう、行のメニューとは分ける）
+export const LIBRARY_REFERENCE_CONTEXT = kit.name("library-reference-context")
 // 「ページ新規作成」を押して開く、ページのタイプの一覧のメニュー（受け取るのは、作る先のフォルダ。行はメニューが自分で出す）
 export const LIBRARY_ADD_PAGE_MENU = kit.name("library-add-page-menu")
 // LibraryView が開くメニュー（LibraryView を描くウィジェットが、contextMenus に書く）
-export const LIBRARY_CONTEXT_MENUS = [LIBRARY_ENTRY_CONTEXT, LIBRARY_FOLDER_CONTEXT, LIBRARY_ADD_PAGE_MENU] as const
+export const LIBRARY_CONTEXT_MENUS = [
+  LIBRARY_ENTRY_CONTEXT,
+  LIBRARY_FOLDER_CONTEXT,
+  LIBRARY_REFERENCE_CONTEXT,
+  LIBRARY_ADD_PAGE_MENU,
+] as const
 // 右クリックした物を受け取るメニュー
 const NAMING_MENUS: readonly string[] = [LIBRARY_ENTRY_CONTEXT, LIBRARY_FOLDER_CONTEXT]
 
@@ -206,7 +216,9 @@ function openedRow(ctx: ScreenCommandContext, named?: Named) {
   if (entry === undefined) return undefined
   const desks = desksIn(ctx)
   const real = realOf(desks, ctx.folders, entry)
-  const kind = placeOf(ctx.folders, real)?.ref.kind ?? (isDeskRow(entry) ? "folder" : undefined)
+  const kind: RowKind | undefined =
+    placeOf(ctx.folders, real)?.ref.kind ??
+    (isDeskRow(entry) ? "folder" : bookOfReference(ctx.folders, entry) ? "reference" : undefined)
   if (kind === undefined) return undefined
   const readable = isDeskRow(entry) || kind === "page" || entry in ctx.folders
   return { row: { id: entry, kind, readable }, desks }
@@ -258,6 +270,30 @@ export const LIBRARY_ENTRY_OPEN_SPLIT = kit.defineScreenCommand({
   },
   when: inMenu(ctx => splitOpening(ctx)),
 })
+
+// 参照元へ移動: 参照エントリ reference の指す先を、書庫から開くのと同じく窓に出す（指す先がゴミ箱・読めない物のフォルダに居れば出さない）
+export const LIBRARY_REFERENCE_SOURCE = kit.defineScreenCommand({
+  id: "library-reference-source",
+  readsSubjects: workdesksReadsOf,
+  title: "Go to source",
+  run: (ctx, a, { reference }: { reference: string }) => {
+    const target = sourceOf(ctx, reference)
+    if (target) openFromLibrary(ctx, a, target)
+  },
+  when: ctx => {
+    const menu = ctx.contextMenu
+    if (menu === NO_CONTEXT_MENU || menu.id !== LIBRARY_REFERENCE_CONTEXT) return true
+    return sourceOf(ctx, (menu.target as { reference: string }).reference) !== undefined
+  },
+})
+
+// 参照エントリ reference の指す先を開く所（見えなければ undefined）
+function sourceOf(ctx: ScreenCommandContext, reference: string): OpenTo | undefined {
+  const ref = bookOfReference(ctx.folders, reference)?.lineup.find(r => r.kind === "reference" && r.id === reference)
+  if (ref?.kind !== "reference" || !inSight(ctx.folders, ref.of.id)) return undefined
+  const target = openTargetOf(ctx.folders, { id: ref.of.id, kind: ref.of.kind, readable: true }, desksIn(ctx))
+  return target === NOT_OPENED || target.to === "folder" ? undefined : target
+}
 
 export const LIBRARY_BOOK_NEW = kit.defineScreenCommand({
   id: "library-book-new",

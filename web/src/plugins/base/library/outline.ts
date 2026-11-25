@@ -23,6 +23,8 @@ import {
 } from "../../../core/folders"
 import { atOutsidePagePlace, foldersOver, inTrash, systemFolderOf } from "../../../core/folders-tree"
 import type { UnreadableItem } from "../../../core/folders-unreadable"
+import { bookOfReference, referenceLook } from "../../../core/references"
+import type { ReferenceEntry } from "../../../core/schema/book"
 import type { MovedIfOff } from "../../../core/unreadable"
 import type { Workdesk } from "../participant/workdesks"
 import { restoreTargetOf } from "./entries"
@@ -42,9 +44,11 @@ import {
 } from "./workdesk-rows"
 
 // 行 1 つ（描くのに要る物だけ）。title は名前（名前の無い物は NO_TITLE）、type はページのタイプの id（バインダなら入れるページのタイプ。無ければ NO_TYPE）、
-// readable は読めるか（表に無い物は false）
+// readable は読めるか（表に無い物は false）。参照エントリの行（kind が reference。ブックの中身にだけ出る）は、id が参照エントリの id、名前とタイプが指す先の物
+// （指す先の行が無ければ NO_TITLE）
+export type RowKind = EntryKind | "reference"
 export interface LibraryRow {
-  kind: EntryKind
+  kind: RowKind
   id: string
   title: string
   type: string
@@ -84,6 +88,19 @@ function rowOf(library: Library, r: AnyEntryRef, naming: Naming): LibraryRow {
   }
 }
 
+// ブックの並びの参照エントリ r の行
+function referenceRowOf(library: Library, r: ReferenceEntry): LibraryRow {
+  const look = referenceLook(library, r)
+  return {
+    kind: "reference",
+    id: r.id,
+    title: look?.title ?? NO_TITLE,
+    type: look?.type ?? NO_TYPE,
+    readable: true,
+    locked: false,
+  }
+}
+
 // フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ。作業机とその下の行も）の直下の行（並びの順。フォルダが無ければ空）。
 // ワークルームのフォルダの直下は、作業机 desks
 export function rowsIn(
@@ -94,6 +111,9 @@ export function rowsIn(
 ): readonly LibraryRow[] {
   const under = childrenOf(library.folders, folder, desks)
   if (under === undefined) {
+    const holder = library.folders[folder]
+    if (holder?.folderRole === "book" && holder.lineup.some(r => r.kind === "reference"))
+      return holder.lineup.map(r => (r.kind === "reference" ? referenceRowOf(library, r) : rowOf(library, r, naming)))
     const entries = entriesIn(library.folders, folder)
     return entries.length === 0 ? NO_ROWS : entries.map(r => rowOf(library, r, naming))
   }
@@ -210,7 +230,11 @@ export function paneIdsOf(
 ): readonly string[] {
   if (opened === TRASH_ID) return trashNewestFirst(trashRefsOf(folders)).map(r => r.id)
   if (opened === UNREADABLE_ID) return unreadableOrder(unreadable).map(i => i.id)
-  return childrenOf(folders, opened, desks)?.map(c => c.id) ?? entriesIn(folders, opened).map(r => r.id)
+  const under = childrenOf(folders, opened, desks)
+  if (under !== undefined) return under.map(c => c.id)
+  // ブックは、参照エントリの行も並べる（rowsIn と同じ並び）
+  const holder = folders[opened]
+  return holder?.folderRole === "book" ? holder.lineup.map(r => r.id) : entriesIn(folders, opened).map(r => r.id)
 }
 
 // 読めない物の行 1 つ: 読めない物のフォルダの直下の物の id と名前 title。並びの要素が形に合えば（fits）、種類 kind・在った所 place・訳の番号 code・
@@ -367,7 +391,7 @@ export function outsidePagePlaceOf(folders: Folders, page: string): string[] {
 // ブックの外のバインダはそのバインダを（中のページの行なら、そのページで）窓に出す。ゴミ箱の中の物・読めない物は開かない（NOT_OPENED）
 export type OpenTarget =
   | { to: "folder"; folder: string }
-  | { to: "book"; book: string; page?: string; binder?: string }
+  | { to: "book"; book: string; page?: string; binder?: string; reference?: string }
   | { to: "page"; page: string }
   | { to: "binder"; binder: string; page?: string }
   | typeof NOT_OPENED
@@ -384,6 +408,10 @@ export function openTargetOf(
     if (place === GONE) return NOT_OPENED
     if (place.at === "desk") return { to: "folder", folder: place.id }
     return place.real === undefined ? NOT_OPENED : openTargetOf(folders, { ...row, id: place.real }, desks)
+  }
+  if (row.kind === "reference") {
+    const book = bookOfReference(folders, row.id)
+    return book && !inTrash(folders, book.id) ? { to: "book", book: book.id, reference: row.id } : NOT_OPENED
   }
   if (!row.readable || row.id === TRASH_ID || inTrash(folders, row.id)) return NOT_OPENED
   if (row.kind === "folder") return { to: "folder", folder: row.id }
@@ -420,7 +448,8 @@ export function bookOpenedFrom(
     return pagesIn(place.real) > 0 ? { book: place.real } : undefined
   }
   const target = openTargetOf(folders, row, desks)
-  if (target === NOT_OPENED || target.to !== "book" || target.binder !== undefined) return undefined
+  if (target === NOT_OPENED || target.to !== "book" || target.binder !== undefined || target.reference !== undefined)
+    return undefined
   if (target.page !== undefined) return { book: target.book, page: target.page }
   return pagesIn(target.book) > 0 ? { book: target.book } : undefined
 }
