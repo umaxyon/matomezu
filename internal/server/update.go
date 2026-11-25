@@ -89,7 +89,7 @@ func (h *Hub) checkUpdate(ctx context.Context) (UpdateStatus, error) {
 
 // askUpdateLine は、版を上げるよう頼まれた AI に流す 1 行（command は利用者が端末で打つ matomezu の名前）
 func askUpdateLine(command string) string {
-	return `matomezu: the user asks you to update matomezu. Run "` + command + ` update" in a terminal and tell the user the result.`
+	return `matomezu ` + asUserMark + `: the user pressed "Ask to update" on the matomezu screen. Run "` + command + ` update" in a terminal and tell the user the result.`
 }
 
 // AskUpdate は、ワークルーム workroom（id）の、参加が確定した参加者に、版を上げるよう頼む（まだ渡せたと返っていない前の頼みがあれば、新しくは足さない）。

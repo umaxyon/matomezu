@@ -33,9 +33,6 @@ const (
 	workroomNameMax = 20       // ワークルームの名前の上限（字。base の WORKROOM_NAME_MAX と同じ。送る前と、届く封筒で確かめる）
 )
 
-// asUserMark は、requests が as-user のホストから届いた行の、頭に付ける印
-const asUserMark = "(as your user's request)"
-
 // remoteMessageHead は、ほかのホストの AI からの知らせの頭（from は送り手のワークルーム名、host は送り手のホストエイリアス、asUser は印を付けるか）
 func remoteMessageHead(from, host string, asUser bool) string {
 	head := "matomezu from AI " + quote(from) + " on host " + quote(host)

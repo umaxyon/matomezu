@@ -51,7 +51,7 @@ func TestTheCommandGoesToTheScreenAndTheAI(t *testing.T) {
 	if err := json.Unmarshal([]byte(rules), &reply); err != nil || !strings.Contains(reply.Rules, "run matomezu.cmd open") {
 		t.Fatalf("join rules = %s", rules)
 	}
-	if line := askUpdateLine(hub.Command()); !strings.Contains(line, `"matomezu.cmd update"`) {
+	if line := askUpdateLine(hub.Command()); !strings.Contains(line, `"matomezu.cmd update"`) || !strings.Contains(line, asUserMark) {
 		t.Fatalf("line = %q", line)
 	}
 }
