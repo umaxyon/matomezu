@@ -34,6 +34,8 @@ const (
 	KindBinder = "binder"
 	KindBook   = "book"
 	KindFolder = "folder"
+	// KindReference は、ブックの並びの参照エントリ（ほかの所のページかバインダを of で指す。中身を持たない）
+	KindReference = "reference"
 )
 
 // HomeID は、書庫ホームの id（決まった値）

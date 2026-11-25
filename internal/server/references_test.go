@@ -49,4 +49,14 @@ func TestReferencesSurviveStorage(t *testing.T) {
 	if ids := pageIDs(b.Body); len(ids) != 1 || ids[0] != "b1" {
 		t.Fatalf("pages = %v", ids)
 	}
+	// AI の目次は、参照エントリに指す先の名前・タイプと見えるかを添える
+	outlined := lineupOf(outlineBook(b.Body, h.PageVersion, h.Referred))
+	var row map[string]any
+	_ = json.Unmarshal(outlined[1], &row)
+	if row["title"] != "a1" || row["type"] != "@matomezu/drawing:drawing" || row["visible"] != true {
+		t.Fatalf("outlined reference = %s", outlined[1])
+	}
+	if _, ok := h.Referred("page", "none"); ok {
+		t.Fatal("a missing target is referred")
+	}
 }
