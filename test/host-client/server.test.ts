@@ -1195,6 +1195,34 @@ test("つなぎ直した常駐がデータの形も違えば、確かめられ�
   expect(await s.host.removeScreenPlugins(["ex2"])).toEqual({ state: "unreachable" })
 })
 
+test("つなぎ直した常駐が版もデータの形も同じで、配る画面の印だけ違えば、古い版の知らせを出し、アクションは捨てずに送り直す", async () => {
+  const server = fakeServer()
+  const loading = server.host.load()
+  server.emit("hello", { client: "c1", build: { version: "dev", dataVersion: 7, web: "aaa" } })
+  const saved = await loading
+  const store = newStore({ books: [], saved: saved.saved, observe: bulk => server.host.observe(bulk) })
+  server.host.connect(store)
+  place(store)
+  await flush()
+  server.fail()
+  server.emit("hello", { client: "c2", build: { version: "dev", dataVersion: 7, web: "bbb" } })
+  await flush()
+  expect(store.state.getState().staleBuild).toEqual({
+    from: { version: "dev", dataVersion: 7, web: "aaa" },
+    to: { version: "dev", dataVersion: 7, web: "bbb" },
+    dropped: 0,
+  })
+  expect(server.performs().map(p => p.client)).toEqual(["c1", "c2"])
+})
+
+test("画面の印を片方の常駐しか持たなければ、画面の印は比べない", async () => {
+  const s = await connectedTo("dev", 7)
+  s.fail()
+  s.emit("hello", { client: "c2", build: { version: "dev", dataVersion: 7, web: "bbb" } })
+  await flush()
+  expect(s.store.state.getState().staleBuild).toBeNull()
+})
+
 test("新しい版を確かめる頼みは JSON の本文で送り、答えの結果を返す", async () => {
   const status = { state: "newer", version: "1.0.0", latest: "1.0.1", checkedAt: "2026-11-22T00:00:00Z" }
   const { host, sent } = removing({ status: 200, body: status }, "api/update/check")

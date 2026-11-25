@@ -37,3 +37,22 @@ test("つなぎ直した常駐が別の版なら、版の違いと捨てた操�
   fireEvent.click(screen.getByRole("button", { name: "画面を読み込み直す" }))
   expect(reloaded).toBe(1)
 })
+
+test("つなぎ直した常駐が版もデータの形も同じで、配る画面だけ違えば、画面が新しくなったと出す", () => {
+  const instance = createMatomezu({ plugins: BUILTIN_UI, lang: "ja", reloadWindow: () => {} })
+  render(
+    <MatomezuProvider instance={instance} layout={LAYOUT} warnings={[]}>
+      <WindowRoot />
+    </MatomezuProvider>,
+  )
+  act(() =>
+    instance.setStaleBuild({
+      from: { version: "dev", dataVersion: 7, web: "aaa" },
+      to: { version: "dev", dataVersion: 7, web: "bbb" },
+      dropped: 0,
+    }),
+  )
+  const dialog = screen.getByRole("alertdialog", { name: "matomezu が更新されました" })
+  expect(dialog.textContent).toContain("画面が新しくなりました")
+  expect(dialog.textContent).not.toContain("データの形が変わりました")
+})

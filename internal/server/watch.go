@@ -570,7 +570,7 @@ func (h *Hub) cancelledIn(actions []engine.BulkAction) map[string]bool {
 	return out
 }
 
-// wakeOnParticipants は、窓のアクションの前に要求中だった参加者 before のうち、受け入れられた・断られた・キャンセルされた（cancelled）参加者に知らせる（h.mu を持って呼ぶ）
+// wakeOnParticipants は、窓のアクションの前に要求中だった参加者か、合言葉の join で受け入れた参加者（joinByPass） before のうち、受け入れられた・断られた・キャンセルされた（cancelled）参加者に知らせる（h.mu を持って呼ぶ）
 func (h *Hub) wakeOnParticipants(before, cancelled map[string]bool) {
 	if len(before) == 0 {
 		return

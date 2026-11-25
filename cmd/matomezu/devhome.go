@@ -98,9 +98,10 @@ func gitCommonDir(dotGit string) string {
 	return filepath.Clean(c)
 }
 
-// devNotUsedNote は、配る版の matomezu が、開発の常駐のあるリポジトリの中（dir）で呼ばれたときの知らせ（開発の常駐でなく、利用者の保管庫を使っている）。当たらなければ空
+// devNotUsedNote は、配る版の matomezu が、開発の常駐のあるリポジトリの中（dir）で呼ばれたときの知らせ（開発の常駐でなく、利用者の保管庫を使っている）。当たらなければ空。
+// MATOMEZU_HOME があれば、つなぐ保管庫はそれで決まる（開発の常駐のこともある）ので知らせない
 func devNotUsedNote(dir string) string {
-	if version == devVersion {
+	if version == devVersion || os.Getenv(home.EnvHome) != "" {
 		return ""
 	}
 	root := repoDevRoot(dir)

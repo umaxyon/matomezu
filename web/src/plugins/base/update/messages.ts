@@ -5,6 +5,7 @@ export const UPDATE_MESSAGES = defineMessages({
   "matomezu was updated": { en: "matomezu was updated", ja: "matomezu が更新されました" },
   "{from} → {to}": { en: "{from} → {to}", ja: "{from} → {to}" },
   "The data format changed": { en: "The data format changed", ja: "データの形が変わりました" },
+  "The screen was updated": { en: "The screen was updated", ja: "画面が新しくなりました" },
   "{count} edits did not reach the server": {
     en: "{count} edits did not reach the server",
     ja: "届いていない操作 {count} 件",

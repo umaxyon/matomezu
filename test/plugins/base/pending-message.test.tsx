@@ -13,10 +13,9 @@ afterEach(cleanup)
 const message: PendingMessage = {
   id: "m1",
   receiver: "p-receiver",
-  sender: "p-sender",
   senderRoom: "ひよこ",
-  senderHost: "",
-  senderHostName: "",
+  senderHost: "h-id",
+  senderHostName: "macbook",
   body: "確認してください",
   at: "2026-11-25T00:00:00Z",
 }
@@ -55,26 +54,19 @@ test("承認待ちが無ければ吹き出しは出ず、届くと受け手の�
   expect(screen.getByRole("button", { name: "承認待ちのメッセージ", hidden: true })).toBeTruthy()
 })
 
-test("ダイアログは送り手のワークルームと本文を出し、承認を頼んで閉じる", async () => {
+test("ダイアログは送り手のワークルームとホストエイリアスと本文を出し、承認を頼んで閉じる", async () => {
   const answers: [string, string][] = []
   const store = setup(answers)
   store.setPendingMessages([message])
   let closed = 0
   renderDialog(store, () => closed++)
   expect(screen.getByText("確認してください")).toBeTruthy()
-  expect(screen.getByText("送り手: ひよこ")).toBeTruthy()
+  expect(screen.getByText("送り手: macbook の ひよこ")).toBeTruthy()
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "承認", hidden: true }))
   })
   expect(answers).toEqual([["m1", "approve"]])
   expect(closed).toBe(1)
-})
-
-test("ほかのホストから届いた物は、送り手にホストエイリアスを添える", () => {
-  const store = setup([])
-  store.setPendingMessages([{ ...message, sender: "", senderHost: "h-id", senderHostName: "macbook" }])
-  renderDialog(store)
-  expect(screen.getByText("送り手: macbook の ひよこ")).toBeTruthy()
 })
 
 test("キャンセルは cancel を頼む", async () => {

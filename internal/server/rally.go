@@ -132,7 +132,6 @@ func (h *Hub) UserTalkedIn(session string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.rallyReset(id, joined)
-	h.cancelReceiverPendingHeld(id) // 承認待ちは、利用者の話しかけでキャンセル扱い（知らせあり。pending_message.go）
 }
 
 // rallyStoppedDetail は、上限を超えて届けなかった AI 間メッセージの、送り手への断りの句（to は宛て先のワークルーム名）

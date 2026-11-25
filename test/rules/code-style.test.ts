@@ -1,8 +1,8 @@
 // 「コードの書き方」の決まりを見張る: コメントの言葉、データとビュー、文言、使う技術
 import { expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
-import { basename, join, relative } from "node:path"
-import { crateOf, filesEnding, filesUnder, ROOT, SRC, sources } from "./sources"
+import { basename, join } from "node:path"
+import { crateOf, filesEnding, filesUnder, ROOT, relative, SRC, sources } from "./sources"
 
 // コメントの言葉を見張るファイル（ソース・テスト・e2e・スクリプト・CSS・Go。このファイルは除く）
 const wordedFiles = () =>
