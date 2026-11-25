@@ -27,6 +27,7 @@ type HostConfig struct {
 	OSHostName string          // OS のホスト名（ホスト名の設定が無いときの名前）
 	WSL        bool            // WSL で動いているか（画面が案内を出す）
 	Discover   bool            // 入口を開いているあいだ mDNS で知らせ、見つける（テストは同じ網に出さないよう切る）
+	Loopback   bool            // 127.0.0.1 だけで待つ（テストは同じ網に出さないよう付ける）
 }
 
 // HostFailed は、入口を開こうとして開けなかった理由
@@ -221,7 +222,11 @@ func (h *Hub) tellHostStatus(was, now HostStatus) {
 
 // open は、覚えたポートで入口を開く。覚えていなければ空いている番号を取って覚える（e.mu を持って呼ぶ）
 func (e *hostEntrance) open(h *Hub) {
-	ln, err := net.Listen("tcp", ":"+strconv.Itoa(e.config.Port))
+	bind := ""
+	if e.config.Loopback {
+		bind = "127.0.0.1"
+	}
+	ln, err := net.Listen("tcp", net.JoinHostPort(bind, strconv.Itoa(e.config.Port)))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "hosts: could not open the entrance:", err)
 		e.status.Open, e.status.Addrs, e.status.Failed = false, nil, HostListen
