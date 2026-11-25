@@ -9,7 +9,13 @@ import { LIBRARY_APPEARANCE, LIBRARY_FOLDER, LIBRARY_UNFOLDED } from "../../../w
 import { WORKROOMS } from "../../../web/src/plugins/base/library/system-folders"
 import { deskBookRowId } from "../../../web/src/plugins/base/library/workdesk-rows"
 import { ADMIN_MARK, PARTICIPANT } from "../../../web/src/plugins/base/participant"
-import { ownBookPagesOf, workdesksOf, workdesksReadsOf } from "../../../web/src/plugins/base/participant/workdesks"
+import {
+  ownBookPagesOf,
+  type Workdesk,
+  workdesksOf,
+  workdesksReadsOf,
+  workerBirdsOf,
+} from "../../../web/src/plugins/base/participant/workdesks"
 import { WORKROOM } from "../../../web/src/plugins/base/participant/workroom"
 import { CORE_CATALOG } from "../../support"
 
@@ -129,4 +135,32 @@ test("ワークルーム自身のワーカーブックのページの数（バ�
   } as unknown as Folders
   expect(ownBookPagesOf(folders, "r1")).toBe(2)
   expect(ownBookPagesOf(folders, "r2")).toBe(0)
+})
+
+test("ワーカーブックの鳥: ワークルーム自身のブックはそのワークルーム（参加者がいなくても）、作業のブックはそれを映している作業机のワークルーム、ほかのブックは無し", () => {
+  const desk = (room: string, book: string | undefined): Workdesk => ({
+    room,
+    title: room,
+    bird: "inko",
+    palette: "p",
+    bookTitle: "",
+    book,
+  })
+  const yard = {
+    ...folders,
+    [YARD]: {
+      ...(folders[YARD] as Folder),
+      lineup: [
+        { kind: "book", id: "wb2", workKey: { subject: WORKROOM.id, id: "r2" } },
+        { kind: "book", id: "wt", workKey: { subject: "ticket", id: "t1" } },
+      ],
+    } as Folder,
+  }
+  const rooms = [room("r2", "二")] as never
+  const names = (book: string, desks: readonly Workdesk[]) => workerBirdsOf(yard, book, desks, rooms).map(b => b.title)
+  expect(names("wb2", [])).toEqual(["二"])
+  expect(names("wt", [])).toEqual([])
+  expect(names("wt", [desk("r1", "wt")])).toEqual(["r1"])
+  expect(names("wt", [desk("r1", "wt"), desk("r3", "x"), desk("r4", "wt")])).toEqual(["r1", "r4"])
+  expect(names("plain", [desk("r1", "plain")])).toEqual([])
 })

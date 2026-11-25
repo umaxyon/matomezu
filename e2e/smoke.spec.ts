@@ -164,13 +164,18 @@ test("分割して右で同じブックを開くと右にもタブがあり、�
     .click()
   await expect(lists.nth(0).getByRole("tab", { selected: true })).toHaveText("ページ 1")
   await expect(lists.nth(1).getByRole("tab", { selected: true })).toHaveText("ページ 2")
-  // 右のタブは、右のステージの真下で、閉じるとブックの名前のボタン（156px）の右にある
+  // 右のタブは、右のステージの真下で、閉じるとブックの名前のボタン（156px）と置き場所のフォルダの絵の右にある
   const bar = (await lists.nth(1).boundingBox())!
   const stage = (await right.boundingBox())!
   const close = (await page.locator("[data-footer-close]").nth(1).boundingBox())!
+  const place = (await page
+    .getByRole("button", { name: /^置き場所: / })
+    .nth(1)
+    .boundingBox())!
   expect(bar.y).toBeGreaterThanOrEqual(stage.y + stage.height - 1)
-  expect(bar.x).toBeGreaterThanOrEqual(stage.x + close.width + 156)
-  expect(bar.x).toBeLessThan(stage.x + close.width + 180)
+  expect(place.x).toBeGreaterThanOrEqual(stage.x + close.width + 156)
+  expect(bar.x).toBeGreaterThanOrEqual(place.x + place.width)
+  expect(bar.x).toBeLessThan(place.x + place.width + 24)
 })
 
 test("在るブックと同じ名前では作れず、ダイアログの中に「同じ名前があります」が出て、名前を変えると作れる", async ({

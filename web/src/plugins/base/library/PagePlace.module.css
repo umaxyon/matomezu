@@ -48,3 +48,11 @@
 .place:hover .holder {
   text-decoration: underline;
 }
+/* ブック・ブックの外のバインダ: フォルダの絵だけ（右にページのタブが並ぶため） */
+.icon {
+  flex: none;
+  padding: 0 4px;
+}
+.icon:hover svg {
+  opacity: 1;
+}
