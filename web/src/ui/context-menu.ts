@@ -96,12 +96,17 @@ export function useOpenContextMenu(): <M extends ContextMenuId>(
   return (e, stage, id, target) => {
     e.preventDefault()
     e.stopPropagation()
+    taken.add("nativeEvent" in e ? (e as { nativeEvent: Event }).nativeEvent : (e as unknown as Event))
     if (press.suppressed) return
     const open = () => openContextMenu(stage, id, target, { x: e.clientX, y: e.clientY })
     if (press.held) press.pending = open
     else open()
   }
 }
+
+// 右クリック e で、どれかがメニューを開いた（開くのを待たせたのも）か。ステージの中のどこでも開くメニューを、window で受けて開くかを決めるのに使う
+const taken = new WeakSet<Event>()
+export const contextMenuTaken = (e: Event): boolean => taken.has(e)
 
 // UI マッピングに書いたメニューの中身のうち、そのステージから見て、右クリックされた物 target で出ているコマンドと区切り線（並びは UI マッピングの順。先頭・末尾・続けての区切り線は消す）
 export function useContextMenuItems<M extends ContextMenuId>(

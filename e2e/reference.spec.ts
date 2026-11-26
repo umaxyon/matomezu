@@ -48,6 +48,33 @@ test("参照のタブを押すと指す先のページが見るだけで描か�
   await expect(page.getByRole("tab", { name: "設計" })).toBeVisible()
 })
 
+test("参照を開いている間は、ステージのどこを右クリックしてもタブと同じメニューが出て、描いたページの上からも紙の外からも参照元へ移動・削除ができる", async ({
+  page,
+}) => {
+  await page.goto(bookScreenUrl("ref-b", "ref-b1"))
+  const tab = page.getByRole("tab", { name: "全体図" })
+  await tab.click()
+  const shown = page.locator('[data-reference="shown"]')
+  await expect(shown).toBeVisible()
+  const menu = page.getByRole("menu")
+  // 描いたページの上: 参照元へ移動
+  const box = await shown.boundingBox()
+  if (!box) throw new Error("no reference frame")
+  await page.mouse.click(box.x + 20, box.y + 20, { button: "right" })
+  await expect(menu.getByRole("menuitem")).toHaveText(["参照元へ移動", "削除"])
+  await menu.getByRole("menuitem", { name: "参照元へ移動" }).click()
+  await expect(page.getByRole("tablist", { name: "元のブック" })).toBeVisible()
+  // 紙の外（ステージの隅）: 削除
+  await page.goto(bookScreenUrl("ref-b", "ref-b1"))
+  await page.getByRole("tab", { name: "全体図" }).click()
+  await expect(shown).toBeVisible()
+  const stage = await page.locator("[data-stage]").first().boundingBox()
+  if (!stage) throw new Error("no stage")
+  await page.mouse.click(stage.x + stage.width - 10, stage.y + stage.height - 60, { button: "right" })
+  await menu.getByRole("menuitem", { name: "削除" }).click()
+  await expect(page.getByRole("tab", { name: "全体図" })).toHaveCount(0)
+})
+
 test("印刷プレビューには参照の指す先のページも並びの所に入り、ダブルクリックでその参照を開く。指す先が見えなければ飛ばす", async ({
   page,
 }) => {

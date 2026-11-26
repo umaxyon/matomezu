@@ -2,6 +2,7 @@
 import { defineWidget } from "../../../ui/layout"
 import { CORNER_STATUSES } from "../corner-status/corner"
 import { kit } from "../kit"
+import { REFERENCE_CONTEXT } from "../page-tabs"
 import { ReferenceLayer } from "../references/ReferenceLayer"
 import { StandLayer } from "../stand/anchors"
 import { BOOK_LAYERS, SHEET_LAYERS, STAGE_BODY } from "../workspace/slots"
@@ -31,6 +32,7 @@ export const REFERENCE_LAYER = defineWidget({
   id: kit.name("reference-layer"),
   slots: [BOOK_LAYERS],
   view: ReferenceLayer,
+  contextMenus: [REFERENCE_CONTEXT],
 })
 export const STAND_LAYER = defineWidget({ id: kit.name("stand-layer"), slots: [BOOK_LAYERS], view: StandLayer })
 export const PRINT_AREA_TOGGLE = defineWidget({
