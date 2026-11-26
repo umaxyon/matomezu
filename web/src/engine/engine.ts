@@ -123,12 +123,12 @@ let lastAdded: readonly Plugin[] = []
 ;(globalThis as { matomezuCheckOutsidePages?: (pages: string) => string }).matomezuCheckOutsidePages = pages =>
   checkOutsidePageLines(assembled, pages)
 
-// 残したフォルダの行の全部（書庫ホーム・フォルダ・ブック・バインダ）とページの行の id の全部が木の決まりを守るかを確かめ、破れていれば warning（W030）の 1 行を、守っていれば空の文字列を返す
-// （常駐が一覧に持つ。データには手を付けない）
 // ページの行の全部が指すアセットの id と、全部のページで答えられたか（{ ids, sure }。常駐が起動のときに、指されないアセットを消すのに使う。core/assets.ts）
 ;(globalThis as { matomezuAssetsInUse?: (pages: string) => string }).matomezuAssetsInUse = pages =>
   JSON.stringify(assetsInUse(assembled.catalog.core, JSON.parse(pages) as unknown[]))
 
+// 残したフォルダの行の全部（書庫ホーム・フォルダ・ブック・バインダ）とページの行の id の全部が木の決まりを守るかを確かめ、破れていれば warning（W030）の 1 行を、守っていれば空の文字列を返す
+// （常駐が一覧に持つ。データには手を付けない）
 ;(globalThis as { matomezuCheckLibrary?: (folders: string, pages: string) => string }).matomezuCheckLibrary = (
   folders,
   pages,

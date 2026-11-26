@@ -4,7 +4,7 @@
 // 向きは画像の縦横（横長なら横、ほかは縦）。受けない画像は、ファイルごとに訳をトーストに出して飛ばす。選ぶのをやめたら閉じる
 import { useEffect, useRef } from "react"
 import type { NewPageDialogArgs } from "../../../../plugin-api"
-import { type DialogProps, useActions } from "../../../../plugin-api/ui"
+import { type DialogProps, useActions, useMessages } from "../../../../plugin-api/ui"
 import { useCreateAsking, useImportAsset } from "../../../base/ui"
 import { IMAGE } from "../image"
 import { kit } from "../kit"
@@ -18,6 +18,7 @@ const titleOf = (file: File, fallback: string): string => file.name.replace(/\.[
 export function ImportImagesDialog({ args, onClose }: DialogProps<NewPageDialogArgs>) {
   const input = useRef<HTMLInputElement>(null)
   const opened = useRef(false)
+  const t = useMessages(kit)
   const put = useImportAsset()
   const { showToast } = useActions()
   const { create, confirm } = useCreateAsking(args.folder ?? "")
@@ -57,7 +58,7 @@ export function ImportImagesDialog({ args, onClose }: DialogProps<NewPageDialogA
       }
       await create({
         type: IMAGE.id,
-        title: titleOf(file, kit.message("Image")),
+        title: titleOf(file, t("Image")),
         orientation: done.width > done.height ? "landscape" : "portrait",
         fields: { asset: done.asset },
       })

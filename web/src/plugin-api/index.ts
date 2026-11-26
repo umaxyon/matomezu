@@ -4,6 +4,7 @@
 export type { Actor } from "../core/actor"
 export { isAI, isUser, isVisitor, NO_WORKROOM, workroomOfActor } from "../core/actor"
 export type { Anchors, Annotation, PageAnnotations } from "../core/annotation"
+export { NO_ASSET_URL } from "../core/assets"
 export type { PageInto } from "../core/book"
 export {
   addBinder,
@@ -52,7 +53,7 @@ export type {
   RecordOf,
   RecordRead,
 } from "../core/def/action"
-export { NO_CONTROL_CENTER } from "../core/def/action"
+export { ANY_PAGE_TYPE, NO_CONTROL_CENTER } from "../core/def/action"
 export type { AnnotationDef } from "../core/def/annotation"
 export type { EnumDef, EnumValueDef } from "../core/def/enum"
 export type {

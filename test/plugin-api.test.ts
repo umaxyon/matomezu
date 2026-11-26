@@ -52,6 +52,7 @@ const names = (m: object) => Object.keys(m).sort()
 
 test("matomezu が出す名前", () => {
   expect(names(api)).toEqual([
+    "ANY_PAGE_TYPE",
     "AlignSchema",
     "AnchorsArg",
     "BACKGROUND_PRINT",
@@ -84,6 +85,7 @@ test("matomezu が出す名前", () => {
     "NO_AI_UI",
     "NO_ANCHORS",
     "NO_AREA",
+    "NO_ASSET_URL",
     "NO_BINDER",
     "NO_BOOK",
     "NO_BRANCH",

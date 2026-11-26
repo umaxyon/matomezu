@@ -1,23 +1,22 @@
 // 画像のフォルダの中と外を分ける認可ステップ in-images: 画像のページは画像のフォルダとその下だけに置き（外のフォルダ・ブックへ出さず、ほかの所には作らない）、
 // ほかの物（ほかのタイプのページ・ブック・バインダ）は中へ入れない。フォルダは中で作り、中で動かせるが、外との間では動かさない。ゴミ箱へは出せ、ゴミ箱から元の所へ戻せる。
 // 行う前の問いは見せ方のためで、守るのは行った後の確かめ（置き場所の確かめと、ブックの確かめ）
-import { findPage, type PermissionDef } from "../../../plugin-api"
+import { ANY_PAGE_TYPE, findPage, type PermissionDef } from "../../../plugin-api"
 import { IMAGE, underImages } from "./image"
 import { kit } from "./kit"
 
 type Query = Parameters<PermissionDef["denies"]>[0]
 type Check = Parameters<NonNullable<PermissionDef["keeps"]>>[0]
-type Input = Parameters<PermissionDef["denies"]>[1]
 
 const isImagePage = (e: { kind: string; pageType?: string }): boolean => e.kind === "page" && e.pageType === IMAGE.id
 
 // 行う前: 置き場所の問い（入れる先が画像のフォルダの中か外か）と、ブックに画像のページを作る問い
-function denies(q: Query, { catalog }: Input): boolean {
+function denies(q: Query): boolean {
   if (q.kind === "place") {
     const inside = underImages(q.into)
     if (isImagePage(q.entry)) return !inside
-    // 作るページのタイプがまだ決まっていない（機能台帳に無い）なら、まだ止めない
-    if (q.entry.kind === "page" && !catalog.pageTypes.has(q.entry.pageType)) return false
+    // 作るページのタイプがまだ決まっていなければ、まだ止めない
+    if (q.entry.kind === "page" && q.entry.pageType === ANY_PAGE_TYPE) return false
     // 在るフォルダは、画像のフォルダの中で動かすこともある（どこから来たかは、行った後の確かめで分かる）
     return inside && q.entry.kind !== "folder"
   }
