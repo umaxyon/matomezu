@@ -185,27 +185,27 @@ func (e *Engine) MyWorkdesk(workroom string, folders []json.RawMessage, src Sour
 	return out, err
 }
 
-// WorkShiftChoice は、作業の替わり目の問いの選べる事 1 つ（利用者の言語の文と、会話を空にするか・ワーカーブックを読ませるか）
+// WorkShiftChoice は、今の作業が替わったときの問いの選べる事 1 つ（利用者の言語の文と、セッションを新しくするか・ワーカーブックを読ませるか）
 type WorkShiftChoice struct {
 	Label string `json:"label"`
 	Clear bool   `json:"clear"`
 	Read  bool   `json:"read"`
 }
 
-// WorkShiftAsk は、作業の替わり目に利用者に聞く問い（Read は、読ませるを選んだときに AI に打つ英語の文）
+// WorkShiftAsk は、今の作業が替わったときに利用者に聞く問い（Read は、読ませるを選んだときに AI に打つ英語の文）
 type WorkShiftAsk struct {
 	Question string            `json:"question"`
 	Choices  []WorkShiftChoice `json:"choices"`
 	Read     string            `json:"read"`
 }
 
-// WorkShift は、ターンの終わりの作業の替わり目: 次に覚える印 Mark（作業を答える種類が無ければ空）と、替わっていれば問い Ask
+// WorkShift は、ターンの終わりに今の作業が替わったかの答え: 次に覚える印 Mark（作業を答える種類が無ければ空）と、替わっていれば問い Ask
 type WorkShift struct {
 	Mark string        `json:"mark"`
 	Ask  *WorkShiftAsk `json:"ask,omitempty"`
 }
 
-// WorkShift は、ワークルーム workroom の今の作業と、前のターンの終わりの印 before（覚えていなければ空）から、作業の替わり目。
+// WorkShift は、ワークルーム workroom の今の作業と、前のターンの終わりの印 before（覚えていなければ空）から、今の作業が替わったかの答え。
 // 問いの文は利用者の設定 settings の言語で作る。作業はレコードから決まるので、レコードを引く口 src を渡す
 func (e *Engine) WorkShift(settings json.RawMessage, workroom, before string, src Source) (out WorkShift, err error) {
 	if len(settings) == 0 {

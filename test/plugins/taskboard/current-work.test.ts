@@ -357,7 +357,7 @@ test("作業名: 作業中なら題名とワークルームの名前、空きな
   expect(title(CORE_CATALOG, { ...ja, "@matomezu/base:session-rename": false })).toEqual({ kind: "off" })
 })
 
-test("作業の替わり目: 覚えていない・替わっていなければ聞かない。替わった・新しく振られたら 4 つ、終わったら 2 つの選べる事で 1 度だけ聞く", () => {
+test("今の作業が替わったか: 覚えていない・替わっていなければ聞かない。替わった・新しく振られたら 4 つ、終わったら 2 つの選べる事で 1 度だけ聞く", () => {
   const { user, room, doing, add, world } = board()
   const a = room("ひよこ")
   const ja = { "@matomezu/base:lang": "matomezu:ja" }

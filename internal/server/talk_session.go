@@ -249,9 +249,9 @@ func (h *Hub) WorkTitle(sessionID string) string {
 	return title
 }
 
-// WorkShift は、セッション sessionID のターンの終わりの作業の替わり目: そのセッションに結ばれた、ワークルームに入っている参加者がちょうど 1 人なら、
+// WorkShift は、セッション sessionID のターンの終わりに、今の作業が替わったかの答え: そのセッションに結ばれた、ワークルームに入っている参加者がちょうど 1 人なら、
 // その参加者に覚えた前のターンの終わりの印と今の作業を比べ、替わっていれば利用者に聞く問いを返す（nil なら聞かない）。今の印を覚え直すので、1 つの替わりには 1 度だけ答える。
-// 初めてのターンの終わりは、覚えるだけで聞かない。問いを出す・会話を空にするのは AI のプログラムの部品が行う
+// 初めてのターンの終わりは、覚えるだけで聞かない。問いを出す・セッションを新しくするのは AI のプログラムの部品が行う
 func (h *Hub) WorkShift(sessionID string) (*engine.WorkShiftAsk, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

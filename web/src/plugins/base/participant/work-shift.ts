@@ -1,6 +1,6 @@
-// 作業の替わり目: ワークルームの今の作業が、前のターンの終わりから替わったかを判じ、替わっていれば利用者に聞く問いを作る。
-// 常駐が参加者ごとに前のターンの終わりの印（mark）を覚え、ターンの終わりに AI のプログラムの部品が訊く。問いを出す・会話を空にする・文を打つのは、その部品が行う。
-// 選べる事は、会話を空にするか（clear）と、新しい作業のワーカーブックを読ませるか（read）の組。読ませる文は AI の種類を問わないので、ここが持つ
+// 今の作業が替わったら聞く: ワークルームの今の作業が、前のターンの終わりから替わったかを判じ、替わっていれば利用者に聞く問いを作る。
+// 常駐が参加者ごとに前のターンの終わりの印（mark）を覚え、ターンの終わりに AI のプログラムの部品が訊く。問いを出す・セッションを新しくする・文を打つのは、その部品が行う。
+// 選べる事は、セッションを新しくするか（clear。チャットスレッドはそのまま）と、新しい作業のワーカーブックを読ませるか（read）の組。読ませる文は AI の種類を問わないので、ここが持つ
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { WorkKey } from "../../../core/folders"
 import { translate } from "../../../core/i18n/i18n"
@@ -23,7 +23,7 @@ const KEEP = kit.message("Leave it as it is")
 const YES = kit.message("Yes")
 const NO = kit.message("No")
 
-// 問いの選べる事 1 つ: 利用者の言語の文 label と、会話を空にするか clear、ワーカーブックを読ませるか read
+// 問いの選べる事 1 つ: 利用者の言語の文 label と、セッションを新しくするか clear、ワーカーブックを読ませるか read
 export interface WorkShiftChoice {
   label: string
   clear: boolean

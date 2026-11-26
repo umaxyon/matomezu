@@ -9,7 +9,7 @@ import (
 	"github.com/umaxyon/matomezu/internal/engine"
 )
 
-// workShiftAs は、ターンの終わりの部品として、セッション session の作業の替わり目を訊いた答え（聞かないなら nil）
+// workShiftAs は、ターンの終わりの部品として、セッション session の今の作業が替わったかを訊いた答え（聞かないなら nil）
 func workShiftAs(t *testing.T, srv, session string) *engine.WorkShiftAsk {
 	t.Helper()
 	got, _ := call(t, "POST", srv+"/api/ai/work-shift", `{"sessionId":"`+session+`"}`, nil)
@@ -22,7 +22,7 @@ func workShiftAs(t *testing.T, srv, session string) *engine.WorkShiftAsk {
 	return out.Ask
 }
 
-// 作業の替わり目: 初めてのターンの終わりは覚えるだけ。今の作業が替わったら 1 度だけ聞き、覚えた印は常駐を起動し直しても残る。
+// 今の作業が替わったか: 初めてのターンの終わりは覚えるだけ。今の作業が替わったら 1 度だけ聞き、覚えた印は常駐を起動し直しても残る。
 // 参加者でなくなったら聞かない。セッションに結ばれた参加者がいなければ聞かない
 func TestWorkShiftAsksOnceWhenTheCurrentWorkChanges(t *testing.T) {
 	store := joinStore(t)

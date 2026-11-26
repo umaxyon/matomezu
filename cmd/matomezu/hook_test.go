@@ -327,7 +327,7 @@ func TestStopRenamesTheAdeWorkspace(t *testing.T) {
 	}
 }
 
-// ターンの終わりの作業の替わり目: 常駐に訊き、問いがあればその JSON を 1 行出す。問いが無い・常駐が無い・セッションが無ければ何も出さない
+// ターンの終わりに今の作業が替わったか: 常駐に訊き、問いがあればその JSON を 1 行出す。問いが無い・常駐が無い・セッションが無ければ何も出さない
 func TestWorkShiftPrintsTheQuestionOnly(t *testing.T) {
 	var out bytes.Buffer
 	var asked map[string]any

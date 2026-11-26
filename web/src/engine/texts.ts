@@ -58,7 +58,7 @@ export function workTitle(of: Assembled, settings: string, workroom: string, nam
   )
 }
 
-// engine.ts の matomezuWorkShift の中身: ワークルーム workroom の今の作業と、前のターンの終わりの印 before から、作業の替わり目（WorkShift の JSON）。レコードはホストの読み口から引く
+// engine.ts の matomezuWorkShift の中身: ワークルーム workroom の今の作業と、前のターンの終わりの印 before から、今の作業が替わったかの答え（WorkShift の JSON）。レコードはホストの読み口から引く
 export function workShift(of: Assembled, settings: string, workroom: string, before: string): string {
   const source = hostSource({}) ?? sourceOf({})
   return JSON.stringify(workShiftIn(of.catalog.core, restoreSettings(JSON.parse(settings)), source, workroom, before))

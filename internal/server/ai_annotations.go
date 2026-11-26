@@ -377,7 +377,7 @@ func (o Options) aiWorkTitle(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"workTitle": o.Hub.WorkTitle(req.SessionID)})
 }
 
-// aiWorkShift は、ターンの終わりに、セッションの作業の替わり目を答える（AI のプログラムの部品が、利用者に聞く問いを読む。{"sessionId"} → {"ask"}。ask が無ければ聞かない。
+// aiWorkShift は、ターンの終わりに、セッションの今の作業が替わったかを答える（AI のプログラムの部品が、利用者に聞く問いを読む。{"sessionId"} → {"ask"}。ask が無ければ聞かない。
 // 今の作業の印を覚え直すので、読むだけでない）
 func (o Options) aiWorkShift(w http.ResponseWriter, r *http.Request) {
 	var req struct {

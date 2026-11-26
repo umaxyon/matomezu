@@ -159,7 +159,7 @@ type claudeWorkShiftCmd struct {
 	Session string `required:"" help:"The session id."`
 }
 
-// Run は、ターンの終わりに、セッションの作業の替わり目を常駐に訊き、利用者に聞く問いがあればその JSON を 1 行出す（無い・常駐が立っていなければ何も出さない）
+// Run は、ターンの終わりに、セッションの今の作業が替わったかを常駐に訊き、利用者に聞く問いがあればその JSON を 1 行出す（無い・常駐が立っていなければ何も出さない）
 func (c claudeWorkShiftCmd) Run() error {
 	claudeDev()
 	workShift(os.Stdout, c.Session, runningAPI("api/ai/work-shift"))
