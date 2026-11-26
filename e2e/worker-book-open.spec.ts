@@ -213,7 +213,7 @@ test("書庫の検索は、チケットの番号と名前・ページの名前�
   await expect(page.getByText("見つける絵").first()).toBeVisible()
 })
 
-test("ワーカーブックの下の行は、名前の枠の中の名前の前に作業しているワークルームの鳥を出し、フォルダの絵を押すと書庫でその作業机を開いてワーカーブックを選ぶ", async ({
+test("ワーカーブックの下の行は、名前の枠の中の名前の前に作業しているワークルームの鳥を出し、フォルダの絵は出さない。鳥を押すと書庫でその作業机を開いてワーカーブックを選ぶ。指になるのは鳥だけ", async ({
   page,
 }) => {
   await page.goto(CONTROL_CENTER_URL)
@@ -228,9 +228,20 @@ test("ワーカーブックの下の行は、名前の枠の中の名前の前�
   await expect(page.getByText("鳥のメモ").first()).toBeVisible()
   await expect(page.locator("[data-worker-birds]")).toHaveAttribute("title", "とり")
   await expect(page.locator("[data-book-name] [data-worker-birds]")).toHaveCount(1)
-  const place = page.getByRole("button", { name: "置き場所: ワークルーム › とり" })
-  await expect(place).toHaveText("")
-  await place.click()
+  await expect(page.getByRole("button", { name: /^置き場所/ })).toHaveCount(0)
+  const birds = page.locator("[data-worker-birds]")
+  const cursor = (l: typeof birds) => l.evaluate(e => getComputedStyle(e).cursor)
+  expect(await cursor(birds)).toBe("pointer")
+  expect(await cursor(page.locator("[data-book-name] button[aria-haspopup]"))).toBe("default")
+  // 鳥の左（枠の左端の強調の線から）と右（名前との間）の余白はそろう
+  const [frame, face, name] = await Promise.all(
+    [page.locator("[data-book-name]"), birds, page.locator("[data-book-name] button[aria-haspopup]")].map(l =>
+      l.boundingBox(),
+    ),
+  )
+  expect(Math.abs(face!.x - (frame!.x + 3) - (name!.x - (face!.x + face!.width)))).toBeLessThanOrEqual(1)
+  expect(Math.abs(face!.y + face!.height / 2 - (frame!.y + frame!.height / 2))).toBeLessThanOrEqual(1)
+  await birds.click()
   const desk = page.getByRole("list", { name: "とり の中身" })
   await expect(desk.getByRole("button")).toHaveAttribute("aria-pressed", "true")
 })

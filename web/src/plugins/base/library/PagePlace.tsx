@@ -3,7 +3,8 @@
 // ブックの外のページは、フォルダの絵と、そのページの入っているフォルダまでの名前を小さい薄い字で出す（書庫ホームに直に在れば書庫。フォルダの中なら、書庫ホームの下から）。
 // 入り切らなければ頭の側を省き、入っているフォルダの名前は残す。乗せると全部を出す。
 // ブックとブックの外のバインダは、右にページのタブが並ぶので、フォルダの絵だけを出す（道は乗せたときに出す）。
-// 書庫の上に置き場所の無い物（作業机に映っていないワーカーブックなど）と、何も開いていないステージには出さない
+// 書庫の上に置き場所の無い物（作業机に映っていないワーカーブックなど）と、何も開いていないステージには出さない。
+// 作業しているワークルームの鳥を出すワーカーブックにも出さない（書庫へは鳥を押して飛ぶ。participant の WorkerBirds.tsx）
 
 import { useShallow } from "zustand/react/shallow"
 import { namingOf } from "../../../core/entries"
@@ -15,6 +16,7 @@ import { defineWidget } from "../../../ui/layout"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useBook, useOutsideBinder, usePage } from "../../../ui/view-hooks"
 import { kit } from "../kit"
+import { useWorkerBirds } from "../participant/WorkerBirds"
 import { FolderIcon } from "../utils/folder-icons"
 import { STAGE_SLOTS } from "../workspace/ui"
 import { useNameOf, useWorkdesks } from "./hooks"
@@ -33,6 +35,7 @@ function PagePlace() {
   const entry =
     book !== NO_BOOK ? book.id : binder !== NO_OUTSIDE_BINDER ? binder.id : page !== NO_PAGE ? page.id : undefined
   const tabbed = book !== NO_BOOK || binder !== NO_OUTSIDE_BINDER
+  const birds = useWorkerBirds(book === NO_BOOK ? undefined : book.id).length > 0
   const catalog = useCatalog().core
   const nameOf = useNameOf()
   const desks = useWorkdesks()
@@ -47,7 +50,7 @@ function PagePlace() {
     useShallow(s => path.map(id => folderTitleOf(s, id, namingOf(catalog, s.settings), desks))),
   )
   const place = path.map((id, i) => ({ id, title: titles[i] ?? "" }))
-  if (entry === undefined || place.length === 0 || !open.shown) return null
+  if (entry === undefined || place.length === 0 || !open.shown || birds) return null
   // 書庫ホームの名前は、書庫ホームに直に在るときだけ出す
   const names = (place.length > 1 ? place.slice(1) : place).map(nameOf)
   const whole = names.join(" › ")

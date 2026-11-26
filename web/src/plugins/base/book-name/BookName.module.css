@@ -1,5 +1,5 @@
 /* ブックの名前の枠。色の帯で行の頭と分かるようにする（左端の強調の線はカレントのステージだけ）。
-   中に、鍵・スロット book-name-head に置いた物・名前のボタンを、この順に並べる */
+   中に、鍵・スロット book-name-head に置いた物・名前のボタンを、この順に並べる（間は 4px） */
 .name {
   flex: none;
   position: relative;
@@ -20,7 +20,7 @@
 .name[data-open="true"] {
   background: color-mix(in srgb, var(--skin-accent) 28%, var(--skin-surface-strong));
 }
-/* 名前のボタン。枠の残りの幅を埋め、入り切らない名前は末尾を … で省く。
+/* 名前のボタン（押せる物に見せない。乗せるとフッタメニューが上がる）。枠の残りの幅を埋め、入り切らない名前は末尾を … で省く。
    inline に置くと、名前が空のとき下に文字の下がりの分がはみ出すので、inline にしない */
 .trigger {
   flex: 1 1 auto;
@@ -37,7 +37,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: pointer;
+  cursor: default;
 }
 .trigger:focus-visible {
   outline: 2px solid var(--skin-accent);
