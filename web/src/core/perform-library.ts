@@ -20,8 +20,8 @@ import {
 } from "./perform-checks"
 import { inputFor } from "./permission-input"
 import type { ItemPage } from "./placed"
-import { deadReferences } from "./references"
-import type { BinderEntry, Book } from "./schema/book"
+import { deadReferences, newReferencesHold } from "./references"
+import type { BinderEntry, Book, ReferenceEntry, StageLineup } from "./schema/book"
 
 // 書庫が対象のアクションの、行う前に問う相手: ブック book とその中の所 where か、ページそのもの（ブックの外のページか作るページ。core/inspect.ts の AskedPage）か、
 // 置き場所（書庫のフォルダに入れる・作る物。core/inspect.ts の AskedPlace）
@@ -281,7 +281,7 @@ export function placeChecksBetween(was: Library, now: Library): PlaceCheck[] {
 }
 
 // 書庫が対象のアクションが返した書庫 after の、変わったページ（ブックの中でも外でも）を 1 枚ずつ、行う前の書庫 was の同じページと比べて整え、
-// 残れなくなった参照エントリを外した書庫（どれかが整えられなければ null）
+// 残れなくなった参照エントリを外した書庫（どれかが整えられないか、新しく置いた参照エントリが置けない物なら null）
 export function normalizedLibrary(
   catalog: CoreCatalog,
   action: ActionDef,
@@ -297,12 +297,24 @@ export function normalizedLibrary(
     if (done !== row) tidied[id] = done as PageRow
   }
   const kept = Object.keys(tidied).length === 0 ? after : { ...after, pages: { ...after.pages, ...tidied } }
+  for (const row of Object.values(kept.folders)) {
+    if (row.folderRole !== "book" || row === was.folders[row.id]) continue
+    const prev = was.folders[row.id]
+    if (!newReferencesHold(kept, referencesIn(row.id, prev), referencesIn(row.id, row))) return null
+  }
   // 残れなくなった参照エントリ（指す先を完全に消した・指す先が置いたブックに入った）は、同じ書き込みで外す
   const dead = deadReferences(kept)
   const done = Object.keys(dead).length === 0 ? kept : { ...kept, folders: { ...kept.folders, ...dead } }
   const lost = rowsLosingOutermostSettings(catalog, was, done)
   if (Object.keys(lost.pages).length === 0 && Object.keys(lost.folders).length === 0) return done
   return { pages: { ...done.pages, ...lost.pages }, folders: { ...done.folders, ...lost.folders } }
+}
+
+// ブックのフォルダ folder（id の行。無いかブックでなければ空）の、参照エントリだけの並び（newReferencesHold に渡す）
+function referencesIn(id: string, folder: Folder | undefined): StageLineup {
+  const lineup =
+    folder?.folderRole === "book" ? folder.lineup.filter((r): r is ReferenceEntry => r.kind === "reference") : []
+  return { id, lineup }
 }
 
 // 書庫が was から after に変わる間に、ブックかバインダの中へ入って、ステージエントリが持つ設定の項目の値を失う行（並びが変わったブック・バインダの中のページと、ブックの中のバインダ。

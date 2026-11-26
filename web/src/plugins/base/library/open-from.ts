@@ -50,14 +50,18 @@ export function openSplitFromLibrary(ctx: ScreenCommandContext, a: CommandAction
 }
 
 export function openFromLibrary(ctx: ScreenCommandContext, a: CommandActions, to: OpenTo): void {
+  openAndLeave(ctx, a, to, stageBeside)
+}
+
+// to を、書庫の画面の場所から stageOf で選ぶステージに開き、書庫のスクリーンからなら書庫を離れて、開いたステージを見せる（開いたステージは残す）
+type StageOf = (screens: ReturnType<typeof screensOf>, value: unknown, here: string) => string
+function openAndLeave(ctx: ScreenCommandContext, a: CommandActions, to: OpenTo, stageOf: StageOf): void {
   const store = storeActionsOf(a)
   const here = calledScreenIdOf(ctx)
   const screens = screensOf(ctx)
   const value = arrangementValueIn(ctx)
-  const beside = stageBeside(screens, value, here)
-  const stage = store.openToStage(to, beside)
+  const stage = store.openToStage(to, stageOf(screens, value, here))
   if (stage === NO_STAGE || ctx.screen.def !== LIBRARY_SCREEN.id) return
-  // 開いたステージは残す
   leaveLibrary(store, screens, value, here)
   store.showStage(stage)
 }
@@ -87,15 +91,5 @@ export function placeChosen(
     a.showToast({ kind: "success", message: kit.message("Placed a reference in {book}"), params: { book } })
     return
   }
-  const store = storeActionsOf(a)
-  const here = calledScreenIdOf(ctx)
-  const screens = screensOf(ctx)
-  const value = arrangementValueIn(ctx)
-  const stage = store.openToStage(
-    { to: "book", book: chosen.book, reference: done.result.reference },
-    stageAboveLower(screens, value, here),
-  )
-  if (stage === NO_STAGE || ctx.screen.def !== LIBRARY_SCREEN.id) return
-  leaveLibrary(store, screens, value, here)
-  store.showStage(stage)
+  openAndLeave(ctx, a, { to: "book", book: chosen.book, reference: done.result.reference }, stageAboveLower)
 }

@@ -317,6 +317,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       seq: was.seq,
       by: "user",
       outermosts: [LIBRARY_HISTORY],
+      also: [],
       pages: keptRows(was.library.pages),
       folders: keptRows(was.library.folders),
     }
@@ -340,7 +341,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       seq,
       by: "user",
       outermosts: was.outermosts,
-      ...(also.length > 0 ? { also } : {}),
+      also,
       pages: kept(was.pages),
       folders: kept(was.folders),
     }
@@ -1018,7 +1019,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         done: [],
         after: [],
         outermosts: [...step.outermosts],
-        also: [...(step.also ?? [])],
+        also: [...step.also],
         pages: { ...step.pages },
         folders: { ...step.folders },
         continued: true,

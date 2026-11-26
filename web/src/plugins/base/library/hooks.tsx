@@ -11,7 +11,7 @@ import { usePluginState } from "../../../ui/plugin-state-hooks"
 import { useCatalog, useInstance, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import type { Workdesk } from "../participant/workdesks"
-import { type Choosing, choosingNow, chosenBy, type LibraryRow, NO_TITLE, rowsIn } from "./outline"
+import { type Choosing, chooseLookOf, choosingNow, type LibraryRow, NO_TITLE, rowsIn } from "./outline"
 import { LIBRARY_CHOOSING } from "./state"
 import { NO_DESKS, workdesksIn } from "./workdesk-rows"
 
@@ -79,12 +79,13 @@ export function useChooseOf(
 ): { choosing: Choosing; chosen: boolean; faded: boolean } | undefined {
   const choosing = useChoosing()
   const desks = useWorkdesks()
-  const chosen = useMatomezuState(
-    s => choosing !== undefined && chosenBy(s.folders, choosing, row.id, desks) !== undefined,
-  )
+  const look = useMatomezuState(s => {
+    if (choosing === undefined) return 0
+    const { chosen, enters } = chooseLookOf(s.folders, choosing, row.id, desks)
+    return chosen ? 1 : enters ? 2 : 3
+  })
   if (choosing === undefined) return undefined
-  const enters = row.kind === "folder" || (choosing.choose === "referred" && row.kind === "book")
-  return { choosing, chosen, faded: !chosen && !enters }
+  return { choosing, chosen: look === 1, faded: look === 3 }
 }
 
 // 作業机（ワークルームのフォルダの下に映す物。中身が同じなら同じ値のまま）

@@ -24,7 +24,13 @@ import {
 } from "../../../core/folders"
 import { atOutsidePagePlace, foldersOver, inTrash, systemFolderOf } from "../../../core/folders-tree"
 import type { UnreadableItem } from "../../../core/folders-unreadable"
-import { bookOfReference, inSight, referableIn, referenceLook } from "../../../core/references"
+import {
+  bookOfReference,
+  holdsNewReference,
+  referableIn,
+  referableTarget,
+  referenceLook,
+} from "../../../core/references"
 import type { ReferenceEntry } from "../../../core/schema/book"
 import type { MovedIfOff } from "../../../core/unreadable"
 import type { Workdesk } from "../participant/workdesks"
@@ -559,11 +565,24 @@ export type Choosing = { choose: "referred"; book: string } | { choose: "book"; 
 // 選ぶ形 choosing が今も続けられるか（置く先のブック・指す先が、書庫の見える所に在る）。続けられなければ undefined（選ぶ形の外と同じに扱う）
 export function choosingNow(folders: Folders, choosing: Choosing | undefined): Choosing | undefined {
   if (choosing === undefined) return undefined
-  if (choosing.choose === "referred")
-    return folders[choosing.book]?.folderRole === "book" && inSight(folders, choosing.book) ? choosing : undefined
-  return placeOf(folders, choosing.of.id)?.ref.kind === choosing.of.kind && inSight(folders, choosing.of.id)
-    ? choosing
-    : undefined
+  if (choosing.choose === "referred") return holdsNewReference(folders, choosing.book) ? choosing : undefined
+  return referableTarget(folders, choosing.of) ? choosing : undefined
+}
+
+// 選ぶ形 choosing での行 id の扱い: 選べるなら chosen に置き先と指す先。選べないとき、中へ入れる行なら enters（フォルダと、置く参照を選んでいるときのブック）。
+// どちらでもない行は薄く描き、押しても何もしない
+export function chooseLookOf(
+  folders: Folders,
+  choosing: Choosing,
+  id: string,
+  desks: readonly Workdesk[],
+): { chosen: { book: string; of: ReferenceEntry["of"] } | undefined; enters: boolean } {
+  const chosen = chosenBy(folders, choosing, id, desks)
+  const kind = placeOf(folders, realOf(desks, folders, id))?.ref.kind
+  return {
+    chosen,
+    enters: chosen === undefined && (kind === "folder" || (choosing.choose === "referred" && kind === "book")),
+  }
 }
 
 // 選ぶ形 choosing で、行 id を選べるか（作業机の下の行は実の物で）。選べるなら、置く参照エントリの置き先と指す先

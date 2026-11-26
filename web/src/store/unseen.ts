@@ -199,6 +199,7 @@ export function createUnseenChanges(deps: {
       seq: nextSeq(),
       by: change.by,
       outermosts: [LIBRARY_HISTORY],
+      also: [],
       pages: of(rows.pages, was.pages, to.pages),
       folders: of(rows.folders, was.folders, to.folders),
     }
@@ -272,7 +273,7 @@ export function createUnseenChanges(deps: {
       seq: nextSeq(),
       by: change.by,
       outermosts: [outermost],
-      ...(also.length > 0 ? { also } : {}),
+      also,
       ...rowChangesOf(was, changes),
     }
     const places = [...Object.keys(changes.pages), ...Object.keys(changes.folders)]

@@ -16,7 +16,7 @@ function setup() {
     const step = (state().history[book] ?? { undo: [] }).undo.at(-1)
     if (!step) return { ok: false as const }
     const done = perform("@matomezu/base:history-revert", {
-      outermosts: [...step.outermosts, ...(step.also ?? [])].map(id => ({ kind: "book" as const, id })),
+      outermosts: [...step.outermosts, ...step.also].map(id => ({ kind: "book" as const, id })),
       pages: patchesToward(step.pages, "before"),
       folders: patchesToward(step.folders, "before"),
     })

@@ -23,7 +23,7 @@ export interface HistoryStep {
   seq: number
   by: HistoryBy
   outermosts: readonly string[]
-  also?: readonly string[]
+  also: readonly string[]
   pages: Readonly<Record<string, RowChange<PageRow>>>
   folders: Readonly<Record<string, RowChange<Folder>>>
 }

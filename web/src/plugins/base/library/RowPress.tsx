@@ -41,16 +41,16 @@ export interface RowPress {
 
 // 行 row の押し方を children に渡して描く: ブックスクリーンに開く行（ページの在るブックと、ブックの中のページ）は、クリックで行を選ぶ物 click を行ってから
 // 「開く／分割で開く」、ダブルクリックで開く（open）。ほかの行は、クリックで click、ダブルクリックで open
-// chooseOnly: 選ぶ形の間だけ押し方を替える（選ぶ形の外では、クリックで click、ダブルクリックで open。検索の結果の名前の行）
+// noOpenChoice: 選ぶ形の外では「開く／分割で開く」の吹き出しを出さず、クリックで click、ダブルクリックで open（検索の結果の名前の行）。選ぶ形の間は、ほかの行と同じに押せる
 export function RowPressOf({
   row,
   click,
   open,
-  chooseOnly,
+  noOpenChoice,
   children,
 }: PressOptions & {
   row: Pick<LibraryRow, "id" | "kind" | "readable">
-  chooseOnly?: boolean
+  noOpenChoice?: boolean
   children: (p: RowPress) => ReactNode
 }) {
   const found = useBookOpenedFrom(row)
@@ -65,8 +65,8 @@ export function RowPressOf({
         {children}
       </ChoosePress>
     )
-  return found === undefined || choose !== undefined || chooseOnly ? (
-    <>{children({ onClick: () => click(), onDoubleClick: open, bubble: null, faded: choose?.faded ?? false })}</>
+  return found === undefined || choose !== undefined || noOpenChoice ? (
+    children({ onClick: () => click(), onDoubleClick: open, bubble: null, faded: choose?.faded ?? false })
   ) : (
     <BookPress opens={found.opens} beside={found.beside} click={click} open={open}>
       {children}

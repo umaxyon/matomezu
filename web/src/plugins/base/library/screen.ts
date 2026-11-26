@@ -5,6 +5,7 @@
 import { z } from "zod"
 import { NO_STATE } from "../../../core/def/plugin-state"
 import { UNREADABLE_ID } from "../../../core/folders"
+import { holdsNewReference } from "../../../core/references"
 import { type Actions, SCREEN_REFUSED } from "../../../store/actions"
 import {
   arrangementValueIn,
@@ -90,7 +91,7 @@ export const LIBRARY_REFERENCE_CHOOSE = kit.defineCommand({
   id: "library-reference-choose",
   title: "Reference…",
   run: (ctx, a) => {
-    if (ctx.book === NO_BOOK) return
+    if (ctx.book === NO_BOOK || !holdsNewReference(ctx.folders, ctx.book.id)) return
     const book = ctx.book.id
     const library = openLibrary(ctx, a)
     if (library === SCREEN_REFUSED) return
@@ -100,7 +101,7 @@ export const LIBRARY_REFERENCE_CHOOSE = kit.defineCommand({
     reset(library, LIBRARY_PICKED)
     reset(library, LIBRARY_QUERY)
   },
-  when: ctx => ctx.book !== NO_BOOK,
+  when: ctx => ctx.book !== NO_BOOK && holdsNewReference(ctx.folders, ctx.book.id),
 })
 
 // 選ぶ形をやめる（選ぶ形の帯の［取消］と、書庫の画面の中の Esc）。置く参照を選んでいた（ページタブの＋から始めた）なら、書庫のスクリーンも閉じる

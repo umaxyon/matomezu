@@ -77,7 +77,7 @@ export function FoundView({
             <RowPressOf
               key={row.id}
               row={row}
-              chooseOnly
+              noOpenChoice
               click={() => {
                 setPicked(row.id)
                 onPick(row)

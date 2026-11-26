@@ -6,6 +6,7 @@ import { type Folder, type Library, TRASH_ID } from "../../web/src/core/folders"
 import { bookOf, libraryOf } from "../../web/src/core/folders-books"
 import { withChanges } from "../../web/src/core/folders-changes"
 import { changesByCause } from "../../web/src/core/history"
+import { normalizedLibrary } from "../../web/src/core/perform-library"
 import { performIn, type World } from "../../web/src/core/perform-world"
 import {
   deadReferences,
@@ -223,4 +224,19 @@ test("画面の履歴の段の持ち主: 指す先を消されて参照エント
   const own = changesByCause(world, withChanges(world, both), both)
   expect(Object.keys(own).sort()).toEqual(["A", "B"])
   expect(own.A?.also).toEqual([])
+})
+
+test("書庫が対象のアクションが新しく置いた参照エントリも、置けない物なら perform が断る（もとから在る物は見ない）", () => {
+  const world = start()
+  const action = CORE_CATALOG.actions.get(base("library-reference-add"))!
+  const b = world.folders.B as Folder & { folderRole: "book" }
+  const withRef = (of: { kind: "page" | "binder"; id: string }) =>
+    ({
+      ...world,
+      folders: { ...world.folders, B: { ...b, lineup: [...b.lineup, { kind: "reference", id: "r1", of }] } },
+    }) as World
+  expect(normalizedLibrary(CORE_CATALOG, action, world, withRef({ kind: "page", id: "s1" }))).toBeNull()
+  expect(normalizedLibrary(CORE_CATALOG, action, world, withRef({ kind: "page", id: "a1" }))).not.toBeNull()
+  const odd = withRef({ kind: "page", id: "s1" })
+  expect(normalizedLibrary(CORE_CATALOG, action, odd, odd)).not.toBeNull()
 })

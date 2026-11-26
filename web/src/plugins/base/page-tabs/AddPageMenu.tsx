@@ -61,7 +61,7 @@ function useTypeRowLook(): (type: string) => Pick<ContextMenuRow, "label" | "ico
 }
 
 // メニュー add-page-menu の行: タイプごとに 1 行（そのタイプのページを作るコマンド page-new。タイプがページを足すアクションを外していれば出ず、認可ステップが止めるなら押せない）と、
-// 末尾に「参照…」（ブックを開いているときだけ出る）
+// 末尾に「参照…」（参照を置けるブックを開いているときだけ出る。ワーカーブックなどバックヤードの中のブックでは出ない）
 export function useAddPageRows({ first }: { first: string | null }): readonly ContextMenuRow[] {
   const t = useMessages(kit)
   const catalog = useCatalog().core

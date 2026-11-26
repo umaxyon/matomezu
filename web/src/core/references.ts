@@ -41,13 +41,13 @@ function targetOf({ pages, folders }: Library, ref: ReferenceEntry): Referred | 
 }
 
 // 参照エントリ ref が、ブック book の並びに残れるか: 指す先が書庫に在り（ゴミ箱の中なども）、そのブックの中に居ず、ページならバインダに入っていない
-function stays(library: Library, book: string, ref: ReferenceEntry): boolean {
-  const over = foldersOver(library.folders, ref.of.id)
-  return (
-    targetOf(library, ref) !== undefined &&
-    !over.some(f => f.id === book) &&
-    (ref.of.kind === "binder" || over[0]?.folderRole !== "binder")
-  )
+const stays = (library: Library, book: string, ref: ReferenceEntry): boolean =>
+  targetOf(library, ref) !== undefined && liesApart(library.folders, book, ref.of)
+
+// of が、ブック book の中に居ず、ページならバインダに入っていない（どこに居るかはフォルダの並びで見る）
+function liesApart(folders: Folders, book: string, of: ReferenceEntry["of"]): boolean {
+  const over = foldersOver(folders, of.id)
+  return !over.some(f => f.id === book) && (of.kind === "binder" || over[0]?.folderRole !== "binder")
 }
 
 // 書庫 library で、残れない参照エントリを並びから外したブックのフォルダの変わり（どのブックにも外す物が無ければ空）
@@ -62,7 +62,7 @@ export function deadReferences(library: Library): Readonly<Record<string, Folder
 }
 
 // ブック was を now に替えた書庫 library で、now が新しく置いた参照エントリが、どれも指す先を描ける（書庫に在り、ゴミ箱・読めない物のフォルダに無く、このブックの中に無く、
-// ページならバインダに入っていない）か。バックヤードの中のブックには置けず、バックヤードの中の物は指せない
+// ページならバインダに入っていない）か。置くブックも書庫の見える所に在る。バックヤードの中のブックには置けず、バックヤードの中の物は指せない
 export function newReferencesHold(library: Library, was: StageLineup, now: StageLineup): boolean {
   const before = new Set(referencesOf(was).map(r => r.id))
   return referencesOf(now).every(r => before.has(r.id) || placeable(library, now.id, r))
@@ -70,30 +70,36 @@ export function newReferencesHold(library: Library, was: StageLineup, now: Stage
 
 // ブック book に、ref を新しく置いて描けるか（newReferencesHold の 1 つ分）
 const placeable = (library: Library, book: string, ref: ReferenceEntry): boolean =>
-  referredOf(library, ref) !== UNSEEN &&
-  stays(library, book, ref) &&
-  !inBackyard(library.folders, book) &&
-  !inBackyard(library.folders, ref.of.id)
+  holdsNewReference(library.folders, book) &&
+  referableTarget(library.folders, ref.of) &&
+  liesApart(library.folders, book, ref.of) &&
+  targetOf(library, ref) !== undefined
 
-// ブック book に、of を指す参照エントリを置けるか: book が書庫の見える所に在るブックで、
-// of を指す参照エントリをまだ持たず、newReferencesHold が新しく置いた物に求める事を満たす
+// book が、参照エントリを新しく置けるブックか: 書庫の見える所に在り、バックヤードの外のブック（フォルダの表だけで読む）
+export function holdsNewReference(folders: Folders, book: string): boolean {
+  return folders[book]?.folderRole === "book" && inSight(folders, book) && !inBackyard(folders, book)
+}
+
+// of が、参照エントリで新しく指せる物か: フォルダの並びに of の種類で在り、書庫の見える所に居て、バックヤードの外に居て、
+// ページならバインダに入っていない（置くブックとの関係は見ない。フォルダの表だけで読む）
+export function referableTarget(folders: Folders, of: ReferenceEntry["of"]): boolean {
+  if (placeOf(folders, of.id)?.ref.kind !== of.kind || !inSight(folders, of.id) || inBackyard(folders, of.id))
+    return false
+  return of.kind === "binder" || foldersOver(folders, of.id)[0]?.folderRole !== "binder"
+}
+
+// ブック book に、of を指す参照エントリを置けるか: 新しく置いた物に newReferencesHold が求める事を満たし、of を指す参照エントリをまだ持たない
 export function referable(library: Library, book: string, of: ReferenceEntry["of"]): boolean {
-  const holder = library.folders[book]
-  if (holder?.folderRole !== "book" || !inSight(library.folders, book)) return false
-  if (holder.lineup.some(r => r.kind === "reference" && r.of.id === of.id)) return false
-  return placeable(library, book, { kind: "reference", id: "", of })
+  return referableIn(library.folders, book, of) && targetOf(library, { kind: "reference", id: "", of }) !== undefined
 }
 
 // referable を、フォルダの表だけで答える（書庫の画面のコマンドとビューが、選ぶ形で選べる行を決める。ページの行を持たないので、
 // ページはフォルダの並びに在れば在ると見る）
 export function referableIn(folders: Folders, book: string, of: ReferenceEntry["of"]): boolean {
   const holder = folders[book]
-  if (holder?.folderRole !== "book" || !inSight(folders, book) || inBackyard(folders, book)) return false
+  if (holder?.folderRole !== "book" || !holdsNewReference(folders, book)) return false
   if (holder.lineup.some(r => r.kind === "reference" && r.of.id === of.id)) return false
-  if (placeOf(folders, of.id)?.ref.kind !== of.kind || !inSight(folders, of.id) || inBackyard(folders, of.id))
-    return false
-  const over = foldersOver(folders, of.id)
-  return !over.some(f => f.id === book) && (of.kind === "binder" || over[0]?.folderRole !== "binder")
+  return referableTarget(folders, of) && liesApart(folders, book, of)
 }
 
 // 参照エントリ ref を開いて見せるページの id: ページを指すならそのページ、バインダを指すなら、選んだページ chosen（そのバインダに無ければ最初のページ）。

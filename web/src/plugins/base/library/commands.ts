@@ -9,12 +9,12 @@
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
 import { NO_STATE } from "../../../core/def/plugin-state"
-import { inBackyard, NO_NAME, namingOf, placeOf, rowTitle } from "../../../core/entries"
+import { NO_NAME, namingOf, placeOf, rowTitle } from "../../../core/entries"
 import type { Folders } from "../../../core/folders"
-import { foldersOver, isKeptSystemFolder, systemFolderOf } from "../../../core/folders-tree"
+import { isKeptSystemFolder, systemFolderOf } from "../../../core/folders-tree"
 import type { Point } from "../../../core/geom"
 import { LIBRARY_HISTORY } from "../../../core/history"
-import { bookOfReference, inSight } from "../../../core/references"
+import { bookOfReference, inSight, referableTarget } from "../../../core/references"
 import type { OpenTo } from "../../../store/actions"
 import {
   type CommandActions,
@@ -55,8 +55,8 @@ import {
   type BookOpened,
   bookOpenedFrom,
   type Choosing,
+  chooseLookOf,
   choosingNow,
-  chosenBy,
   NOT_OPENED,
   type OpenTarget,
   openedFolderOf,
@@ -250,26 +250,29 @@ export function choosingIn(ctx: ScreenCommandContext): Choosing | undefined {
   return choosingNow(ctx.folders, now === NO_STATE ? undefined : now)
 }
 
-// 選ぶ形 choosing で、扱う行を選んで置くときの置き先と指す先（選べない行なら undefined）
-function chosenIn(ctx: ScreenCommandContext, choosing: Choosing, named?: Named) {
+// 選ぶ形 choosing での、扱う行の扱い（chooseLookOf。行が無ければ undefined）
+function lookIn(ctx: ScreenCommandContext, choosing: Choosing, named?: Named) {
   const to = given(ctx, named)
   const entry = to && "folder" in to ? undefined : entryOf(ctx, named)
-  return entry === undefined ? undefined : chosenBy(ctx.folders, choosing, entry, desksIn(ctx))
+  return entry === undefined ? undefined : chooseLookOf(ctx.folders, choosing, entry, desksIn(ctx))
 }
 
-// 選ぶ形の間の開く: 選べる行は、選んで置く。選べないフォルダとブックは右の枠で中へ入る（窓には開かない）。ほかの行は何もしない
+// 選ぶ形 choosing で、扱う行を選んで置くときの置き先と指す先（選べない行なら undefined）
+const chosenIn = (ctx: ScreenCommandContext, choosing: Choosing, named?: Named) => lookIn(ctx, choosing, named)?.chosen
+
+// 選ぶ形の間の開く: 選べる行は、選んで置く。中へ入れる行（chooseLookOf）は右の枠で中へ入る（窓には開かない）。ほかの行は何もしない
 function openWhileChoosing(ctx: ScreenCommandContext, a: CommandActions, choosing: Choosing, named?: Named): void {
-  const chosen = chosenIn(ctx, choosing, named)
-  if (chosen) {
-    placeChosen(ctx, a, choosing, chosen)
+  const look = lookIn(ctx, choosing, named)
+  if (look?.chosen) {
+    placeChosen(ctx, a, choosing, look.chosen)
     return
   }
+  if (!look?.enters) return
   const found = openedRow(ctx, named)
   const target = found === undefined ? NOT_OPENED : openTargetOf(ctx.folders, found.row, found.desks)
   if (target === NOT_OPENED) return
   if (target.to === "folder") goTo(ctx, a, { id: target.folder, holder: target.folder, holds: true })
-  else if (target.to === "book" && found?.row.kind === "book")
-    goTo(ctx, a, { id: target.book, holder: target.book, holds: true })
+  else if (target.to === "book") goTo(ctx, a, { id: target.book, holder: target.book, holds: true })
 }
 
 // 選ぶ形の間に、選べる行を選んで置く（その行の吹き出しの［参照を置く］・［ここに置く］）。選べない行・選ぶ形の外では何もしない
@@ -288,7 +291,7 @@ export const LIBRARY_CHOOSE_PLACE = kit.defineScreenCommand({
     const chosen = choosing && chosenIn(ctx, choosing, named)
     return chosen ? [{ action: LIBRARY_REFERENCE_ADD.id, args: chosen }] : []
   },
-  when: () => true,
+  when: ctx => choosingIn(ctx) !== undefined,
 })
 
 // 参照を置く…（書庫の右クリックのメニュー）が指す物: 受け取った行の実の物が、書庫の見える所の、バインダの外のページかバインダのとき（選ぶ形の間は出さない）
@@ -300,9 +303,7 @@ function puttable(ctx: ScreenCommandContext, named?: Named): Choosing | undefine
   const real = realOf(desksIn(ctx), ctx.folders, entry)
   const kind = placeOf(ctx.folders, real)?.ref.kind
   if (kind !== "page" && kind !== "binder") return undefined
-  if (!inSight(ctx.folders, real) || inBackyard(ctx.folders, real)) return undefined
-  if (kind === "page" && foldersOver(ctx.folders, real)[0]?.folderRole === "binder") return undefined
-  return { choose: "book", of: { kind, id: real } }
+  return referableTarget(ctx.folders, { kind, id: real }) ? { choose: "book", of: { kind, id: real } } : undefined
 }
 
 // 参照を置く…: 受け取ったページかバインダを指す参照を置くブックを、書庫で選ぶ形にする（選んでいる行は外す。書庫は開いたまま）

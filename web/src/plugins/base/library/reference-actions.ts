@@ -1,5 +1,5 @@
 // 書庫から参照エントリを置く・消す: 書庫の画面のコマンドが行う（書庫の画面のコマンドは、ブックが対象のアクションを行えない）。置く・消す中身は、ブックが対象の
-// reference-add・reference-remove と同じ（core/book.ts）。置けるか（指す先が描ける・同じ先を指す物がまだ無い）は referable で確かめる（書庫が対象の書き込みは、土台が確かめない）
+// reference-add・reference-remove と同じ（core/book.ts）。置けるか（指す先が描ける・同じ先を指す物がまだ無い）は referable で確かめる（土台の perform も、新しく置いた物が描けるかを確かめ直す）
 import { z } from "zod"
 import { addReference, findReference, lineupOf, removeReference } from "../../../core/book"
 import { CREATES_NOTHING, type LibraryTargets } from "../../../core/def/action"
