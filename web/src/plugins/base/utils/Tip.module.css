@@ -3,7 +3,7 @@
   position: relative;
   display: flex;
 }
-/* 吹き出し: 押す物の下に、右端をそろえて出す。流れの外なので押す物の大きさを変えず、ポインタも受けない。題とキーを 1 行に並べる */
+/* 吹き出し: 押す物の下に、右端をそろえて出す。流れの外なので押す物の大きさを変えず、ポインタも受けない。題の右にキーを並べる */
 .bubble {
   position: absolute;
   display: flex;
@@ -35,8 +35,13 @@
   color: var(--skin-text-muted);
   font: inherit;
 }
-/* 文字: 長い題は 1 行で省略する（尾をはみ出して描くので、省略は吹き出しでなく文字の箱で行う） */
+/* 文字: 題の改行で分けた行を縦に積む */
 .text {
+  display: block;
+  min-width: 0;
+}
+/* 行: 長い行は 1 行で省略する（尾をはみ出して描くので、省略は吹き出しでなく行の箱で行う） */
+.line {
   display: block;
   overflow: hidden;
   white-space: nowrap;

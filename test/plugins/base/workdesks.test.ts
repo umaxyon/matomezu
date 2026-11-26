@@ -5,9 +5,11 @@ import { backyardIdOf, type Folder, type Folders, HOME_ID } from "../../../web/s
 import { readerOf, sourceOf } from "../../../web/src/core/record-source"
 import type { Records } from "../../../web/src/core/records"
 import { TICKETS_HISTORY } from "../../../web/src/plugins/base/library/backyards"
+import { entryPlaceOf } from "../../../web/src/plugins/base/library/outline"
+import { LIBRARY_PLACE_OPEN } from "../../../web/src/plugins/base/library/screen"
 import { LIBRARY_APPEARANCE, LIBRARY_FOLDER, LIBRARY_UNFOLDED } from "../../../web/src/plugins/base/library/state"
 import { WORKROOMS } from "../../../web/src/plugins/base/library/system-folders"
-import { deskBookRowId } from "../../../web/src/plugins/base/library/workdesk-rows"
+import { deskBookRowId, deskRowId, workdesksIn } from "../../../web/src/plugins/base/library/workdesk-rows"
 import { ADMIN_MARK, PARTICIPANT } from "../../../web/src/plugins/base/participant"
 import {
   ownBookPagesOf,
@@ -163,4 +165,45 @@ test("ワーカーブックの鳥: ワークルーム自身のブックはその
   expect(names("wt", [desk("r1", "wt")])).toEqual(["r1"])
   expect(names("wt", [desk("r1", "wt"), desk("r3", "x"), desk("r4", "wt")])).toEqual(["r1", "r4"])
   expect(names("plain", [desk("r1", "plain")])).toEqual([])
+})
+
+test("置き場所を書庫で開く（library-place-open）: ワーカーブックは映している作業机の下へ行く。バックヤードの外の物では作業机を出さない（レコードを読まない）", () => {
+  // 書庫ホームにブック nb。バックヤードに wb2
+  const library = {
+    ...folders,
+    [HOME_ID]: { folderRole: "home", id: HOME_ID, lineup: [{ kind: "book", id: "nb" }] },
+    nb: { folderRole: "book", id: "nb", title: "ふつう", lineup: [] },
+    wb2: { folderRole: "book", id: "wb2", title: "二", lineup: [] },
+  } as unknown as Folders
+  const read = readerOf(CORE_CATALOG, sourceOf(records()), LIBRARY_PLACE_OPEN.readsSubjects?.(CORE_CATALOG) ?? [])
+  const subjects: string[] = []
+  const counted = {
+    record: (subject: string, id: string) => {
+      subjects.push(subject)
+      return read.record(subject, id)
+    },
+    find: (subject: string, where: Parameters<typeof read.find>[1]) => {
+      subjects.push(subject)
+      return read.find(subject, where)
+    },
+  }
+  const accepts = (entry: string) =>
+    LIBRARY_PLACE_OPEN.accepts?.({ catalog: CORE_CATALOG, read: counted, folders: library } as never, { entry })
+  expect(accepts("nb")).toBe(true)
+  expect(subjects).toEqual([])
+  expect(accepts("wb2")).toBe(true)
+  expect(subjects).toContain(PARTICIPANT.id)
+  expect(entryPlaceOf(library, "wb2", () => desks(records()))).toMatchObject({
+    folder: deskRowId("r2"),
+    picked: deskBookRowId("r2"),
+  })
+})
+
+test("書庫の画面の作業机（workdesksIn）: 同じレコードと書庫の表からは出し直さず同じ並びを返し、レコードが変われば出し直す", () => {
+  const rs = records()
+  const first = workdesksIn(CORE_CATALOG, { records: rs, folders })
+  expect(workdesksIn(CORE_CATALOG, { records: rs, folders })).toBe(first)
+  const next = workdesksIn(CORE_CATALOG, { records: records("r1"), folders })
+  expect(next).not.toBe(first)
+  expect(next.map(d => d.room)).toEqual(["r1", "r2", "r3"])
 })

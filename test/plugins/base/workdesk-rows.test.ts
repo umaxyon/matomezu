@@ -191,11 +191,11 @@ test("作業机の下の行の id は書庫の表に当たらないので、掴�
 
 test("ワーカーブックの書庫の上の置き場所は、それを映している作業机（2 つあれば先頭）の下のブックの行。作業机に映っていないワーカーブックには無い", () => {
   const f = folders()
-  expect(entryPlaceOf(f, "wb", DESKS)).toEqual({
+  expect(entryPlaceOf(f, "wb", () => DESKS)).toEqual({
     folder: deskRowId("r1"),
     picked: deskBookRowId("r1"),
     path: [HOME_ID, "wr", deskRowId("r1")],
   })
-  expect(entryPlaceOf(f, "wc", DESKS)).toBe(NO_LIBRARY_PLACE)
-  expect(entryPlaceOf(f, "wb", NO_DESKS)).toBe(NO_LIBRARY_PLACE)
+  expect(entryPlaceOf(f, "wc", () => DESKS)).toBe(NO_LIBRARY_PLACE)
+  expect(entryPlaceOf(f, "wb", () => NO_DESKS)).toBe(NO_LIBRARY_PLACE)
 })

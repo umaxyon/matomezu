@@ -54,7 +54,7 @@ export const ticketText = (ticket: TicketLike & { id: string; name: string }, pr
   `${ticketLabel(project?.prefix ?? "", ticket.number)} "${ticket.name}" (${ticket.id})`
 
 // カレントチケットの無いワークルーム workroom の AI に、担当で作業中のレーンにあるチケット（except を除く）を並べ、どれにするかを利用者に聞くように言う文（無ければ空）。
-// 常駐メッセージ（notices.ts）と、参加の文・作業机（workroomWork の forAi）に出す
+// 常駐メッセージ（notices.ts）と、参加の文・作業机（aiWorkroomIdle）に出す
 export function waitingLineOf(
   workroom: string,
   tickets: readonly (TicketLike & { id: string; name: string })[],
@@ -142,6 +142,7 @@ export const CURRENT_WORK = kit.defineSubject({
   },
   aiBrief: w => w.ticket,
   workroomWorkReads: [CURRENT_WORK_ID, TICKET.id, PROJECT.id],
+  aiWorkroomIdleReads: [TICKET.id, PROJECT.id],
   workroomWorkSubjects: [TICKET.id],
   // 参加者リストの並びとセッション名・作業の資料のブック: カレントチケットがあれば作業中で、レコードはチケット（名前はチケットの定義の workRecordName）
   workroomWork: (workroom, read) => {
@@ -151,14 +152,15 @@ export const CURRENT_WORK = kit.defineSubject({
       id => parsed(TICKET.record, read.record(TICKET.id, id)),
       id => parsed(PROJECT.record, read.record(PROJECT.id, id)),
     )
-    if (current) return { kind: "working", key: { subject: TICKET.id, id: current.ticket.id } }
-    // 空きでも、担当で作業中のレーンにあるチケットが残っていれば、それを AI に知らせる
+    return current ? { kind: "working", key: { subject: TICKET.id, id: current.ticket.id } } : { kind: "idle" }
+  },
+  // カレントチケットの無いワークルームの AI に、担当で作業中のレーンにあるチケットが残っていれば、それを知らせる
+  aiWorkroomIdle: (workroom, read) => {
     const tickets = read.find(TICKET.id, ASSIGNED).flatMap(r => {
       const t = parsed(TICKET.record, r)
       return t ? [t] : []
     })
-    const forAi = waitingLineOf(workroom, tickets, id => parsed(PROJECT.record, read.record(PROJECT.id, id)))
-    return forAi ? { kind: "idle", forAi } : { kind: "idle" }
+    return waitingLineOf(workroom, tickets, id => parsed(PROJECT.record, read.record(PROJECT.id, id))) || undefined
   },
 })
 

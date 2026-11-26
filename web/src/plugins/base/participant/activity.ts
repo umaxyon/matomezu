@@ -24,8 +24,8 @@ function narrowed(reader: RecordReader, subjects: Iterable<string>): RecordReade
   }
 }
 
-// 作業中なら、取り組んでいるレコード key（種類と id）。空きなら、そのワークルームの AI に参加の文と作業机で添える英語の文 forAi（答える種類が決める。次に取り組む物など）
-export type WorkroomWork = { kind: "working"; key: WorkKey } | { kind: "idle"; forAi?: string }
+// 作業中なら、取り組んでいるレコード key（種類と id）。空きなら、取り組んでいるレコードは無い
+export type WorkroomWork = { kind: "working"; key: WorkKey } | { kind: "idle" }
 export type WorkroomActivity = WorkroomWork["kind"]
 
 declare module "../../../core/catalog" {
@@ -35,6 +35,11 @@ declare module "../../../core/catalog" {
     workroomWork?(workroom: string, read: RecordReader): WorkroomWork
     // workroomWork が読む種類（読む id が読んだ中身で決まるので、種類ごと宣言する）
     workroomWorkReads?: readonly string[]
+    // 作業のレコードが無いワークルーム workroom の AI に、参加の文と作業机（read_folder）で添える英語の文（次に取り組む物など。無ければ undefined）。
+    // read はレコードの読み口で、読めるのは aiWorkroomIdleReads に書いた種類だけ（ほかは none と空）
+    aiWorkroomIdle?(workroom: string, read: RecordReader): string | undefined
+    // aiWorkroomIdle が読む種類
+    aiWorkroomIdleReads?: readonly string[]
     // workroomWork が答える作業のレコードの種類（key の種類）。どれも completesWork と workRecordName を持つ（台帳アセンブルが確かめる。E133）。
     // ここに無い種類を答えたら、その作業のワーカーブックは作らず、ワークルーム自身のブックを使う
     workroomWorkSubjects?: readonly string[]
@@ -77,21 +82,32 @@ export const workroomWorkReadsOf = (catalog: CoreCatalog): readonly string[] => 
 ]
 
 // レコードの読み口 read から、ワークルーム workroom の作業を答える: 答える種類のうち、機能台帳の並びで最初に作業中と答えた物。
-// 答える種類があってどれも作業中でなければ空き（forAi は答えた種類の物を並びの順につなぐ）、答える種類が無ければ unknown。
-// どの種類にも、その workroomWorkReads の種類だけを読ませる
+// 答える種類があってどれも作業中でなければ空き、答える種類が無ければ unknown。どの種類にも、その workroomWorkReads の種類だけを読ませる
 export function workroomWorkIn(catalog: CoreCatalog, read: RecordReader, workroom: string): WorkroomWork | "unknown" {
   let answered = false
-  const forAi: string[] = []
   for (const s of catalog.subjects.values()) {
     if (!s.workroomWork) continue
     answered = true
     const work = s.workroomWork(workroom, narrowed(read, s.workroomWorkReads ?? []))
     if (work.kind === "working") return work
-    if (work.forAi) forAi.push(work.forAi)
   }
-  if (!answered) return "unknown"
-  return forAi.length > 0 ? { kind: "idle", forAi: forAi.join(" ") } : { kind: "idle" }
+  return answered ? { kind: "idle" } : "unknown"
 }
+
+// 機能台帳 catalog で、作業のレコードが無いワークルームの AI に添える文を答えるのに読む種類（どの種類の aiWorkroomIdleReads も合わせた物）
+export const aiWorkroomIdleReadsOf = (catalog: CoreCatalog): readonly string[] => [
+  ...new Set([...catalog.subjects.values()].flatMap(s => (s.aiWorkroomIdle ? (s.aiWorkroomIdleReads ?? []) : []))),
+]
+
+// 読み口 read から、作業のレコードが無いワークルーム workroom の AI に添える文: aiWorkroomIdle を書いた種類の答えを、機能台帳の並びの順につなぐ（無ければ空）。
+// 作業中かは問わない（呼ぶ側が workroomWorkIn で空きと確かめてから呼ぶ）。どの種類にも、その aiWorkroomIdleReads の種類だけを読ませる
+export const aiWorkroomIdleIn = (catalog: CoreCatalog, read: RecordReader, workroom: string): string =>
+  [...catalog.subjects.values()]
+    .flatMap(s => {
+      const text = s.aiWorkroomIdle?.(workroom, narrowed(read, s.aiWorkroomIdleReads ?? []))
+      return text ? [text] : []
+    })
+    .join(" ")
 
 // 読み口 source から、ワークルーム workroom の作業を答える（workroomWorkIn。読むのは workroomWorkReads に書いた種類だけ）
 export const workroomWorkFrom = (

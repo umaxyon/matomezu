@@ -2,11 +2,24 @@
 // - 描き方: 箱 100・200・300 と線のブックを置き（JSON を PUT）、開くまで・パン（ホイール）・箱のドラッグ・〇から線を引く・左右に同じブックを開いてのパンを測る。
 //   ツリー（節 100・200・300）とディレクトリ構成図（中身 100・200・300）も、開くまで・パン・左右でのパンを測る
 // - アクション: AI の入口から item-place と line-connect を 300 まで重ね、1 回の perform の時間を 100 ずつに分けて測る
+// - 書庫から開く: 参加者の AI（用意の口が置く 1 人）と、その担当のチケット 0・200・400 枚、書庫ホームにブック 20 冊を置き、コントロールセンターの書庫でブックを 2 回押して開くまでの
+//   操作の応答（INP が見る、押してから次の絵が出るまで）と長い処理を測る（書庫の行ごとに出す作業机の計算が、担当のチケットの数で重くならないか）
 // - マークダウン: 原文 1000・3000・5000 行のページを左右に並べて開き直すまで・ソースのペインの末尾と先頭に書く・ソースのペインをホイールでスクロールする（描いた文書が付いて行く）のを測る
 import { execSync } from "node:child_process"
 import { mkdirSync, writeFileSync } from "node:fs"
-import { BOOK_SCREEN_URL, bookScreenUrl, expect, joinedAiAuth, type Page, stagesUrl, test } from "../fixtures"
-import { BOX_SIZE, boxAt, dirBook, gridBook, markdownBook, PAGE, treeBook } from "./books"
+import {
+  BOOK_SCREEN_URL,
+  bookScreenUrl,
+  CONTROL_CENTER_URL,
+  expect,
+  joinedAiAuth,
+  type Page,
+  stagesUrl,
+  test,
+  urlStages,
+} from "../fixtures"
+import { storedRecords } from "../helpers/stored"
+import { BOX_SIZE, boxAt, dirBook, gridBook, markdownBook, namedGridBook, PAGE, treeBook } from "./books"
 import { awaitItems, installProbe, readyAt, startRecording, stopRecording } from "./probe"
 
 // 測るブックだけを置く（見本のブックは置かない）
@@ -30,6 +43,7 @@ function summary(values: number[]) {
 type Recorded = Awaited<ReturnType<typeof stopRecording>>
 const measured = (rec: Recorded) => ({
   frame: summary(rec.frames),
+  interactions: rec.interactions.map(Math.round),
   longTasks: { count: rec.longTasks.length, total: Math.round(rec.longTasks.reduce((a, t) => a + t.duration, 0)) },
   commits: rec.commits,
   renders: rec.renders,
@@ -39,11 +53,15 @@ const measured = (rec: Recorded) => ({
 const MARKDOWN_LINES = [1000, 3000, 5000]
 const TYPED = "書き足した字 abc def ghi" // ソースのペインに 1 字ずつ打つ字
 
+const LIBRARY_TICKETS = [0, 200, 400] // 参加者の AI のワークルームが担当のチケットの数（前の段に足して増やす）
+const LIBRARY_BOOKS = 20 // 書庫ホームに並べるブックの数
+
 const results: {
   drawing: Record<string, unknown>[]
   actions: Record<string, unknown>[]
+  library: Record<string, unknown>[]
   markdown: Record<string, unknown>[]
-} = { drawing: [], actions: [], markdown: [] }
+} = { drawing: [], actions: [], library: [], markdown: [] }
 
 // 開いて、図の要素が want 個そろうまでの時間（ページを開き始めてから）
 async function open(page: Page, url: string, want: number) {
@@ -235,6 +253,62 @@ test("アクション: AI の入口から箱と線を 300 まで足す", async (
   }
 })
 
+test("書庫から開く: 参加者の AI の担当のチケットを増やしながら、書庫でブックを 2 回押して開く", async ({
+  page: setup,
+  newPage,
+  request,
+}) => {
+  // 置いた物を読む口は画面 cookie を要るので、開いた窓の口で読む
+  await setup.goto(CONTROL_CENTER_URL)
+  for (let i = 0; i < LIBRARY_BOOKS; i++) {
+    const id = `perf-library-${i}`
+    const put = await request.put(`/api/books-for-test/${id}`, {
+      data: { book: namedGridBook(id, `書庫の本 ${i + 1}`, `${id}-p`, 10), base: 0 },
+    })
+    expect(put.ok()).toBe(true)
+  }
+  const headers = await joinedAiAuth()
+  const room = (
+    await storedRecords<{ workroom?: string; state: string }>(setup.request, "@matomezu/base:participant")
+  ).find(p => p.state === "joined")!.workroom!
+  const perform = async (body: Record<string, unknown>) => {
+    const res = await request.post("/api/ai/perform", { headers, data: body })
+    const json = await res.json()
+    expect(json, JSON.stringify(body)).toMatchObject({ ok: true })
+    return json.result
+  }
+  type Project = { id: string; lanes: { kind: string; id?: string; working?: true }[] }
+  if ((await storedRecords<Project>(setup.request, "@matomezu/taskboard:project")).length === 0)
+    await perform({ action: "@matomezu/taskboard:project-add", args: {} })
+  const project = (await storedRecords<Project>(setup.request, "@matomezu/taskboard:project"))[0]!
+  // 作業中でないレーンに置く（担当のワークルームは空きのまま）
+  const lane = project.lanes.find(l => l.kind === "lane" && l.working !== true)!.id!
+  let made = 0
+  for (const tickets of LIBRARY_TICKETS) {
+    for (; made < tickets; made++)
+      await perform({
+        action: "@matomezu/taskboard:ticket-add",
+        args: { project: project.id, name: `チケット ${made + 1}`, lane, assignees: [room] },
+      })
+    const page = await newPage()
+    await installProbe(page)
+    await page.goto(CONTROL_CENTER_URL)
+    await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+    const row = page.getByRole("list", { name: "書庫 の中身" }).getByRole("button", { name: "書庫の本 1", exact: true })
+    await expect(row).toBeVisible()
+    await page.evaluate(() => document.fonts.ready)
+    await page.waitForTimeout(500)
+    const since = await startRecording(page)
+    await row.dblclick()
+    await expect.poll(() => urlStages(page)[0]?.b).toBe("perf-library-0")
+    await expect(page.locator("[data-stage]")).toHaveCount(1)
+    await page.waitForTimeout(1000)
+    const opened = measured(await stopRecording(page, since))
+    await page.close()
+    results.library.push({ tickets, books: LIBRARY_BOOKS, open: opened })
+  }
+})
+
 for (const n of MARKDOWN_LINES) {
   test(`マークダウン: 原文 ${n} 行`, async ({ newPage, request }) => {
     const id = `perf-markdown-${n}`
@@ -342,6 +416,21 @@ test.afterAll(({ browserName }) => {
       results.actions.map(a => {
         const r = a as { range: string; itemPlace: M["frame"]; lineConnect: M["frame"] }
         return { 何個目: r.range, "item-place": f(r.itemPlace), "line-connect": f(r.lineConnect) }
+      }),
+    )
+  }
+  if (results.library.length > 0) {
+    console.log(`\n書庫から開く（参加者の AI 1 人・書庫ホームのブック ${LIBRARY_BOOKS} 冊。2 回押して開く）`)
+    console.table(
+      results.library.map(d => {
+        const r = d as { tickets: number; open: M }
+        return {
+          チケット: r.tickets,
+          "操作の応答 ms（押すごと）": r.open.interactions.join(" / "),
+          "長い処理 回/ms": `${r.open.longTasks.count}/${r.open.longTasks.total}`,
+          コミット: r.open.commits,
+          描き直したコンポーネント: r.open.renders,
+        }
       }),
     )
   }

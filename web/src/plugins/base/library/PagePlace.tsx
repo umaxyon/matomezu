@@ -36,7 +36,7 @@ export function useOpenedPlace() {
   const open = useCommand(LIBRARY_PLACE_OPEN.id, entry === undefined ? undefined : { entry })
   const path = useMatomezuState(
     useShallow(s => {
-      const place = entry === undefined ? NO_LIBRARY_PLACE : entryPlaceOf(s.folders, entry, desks)
+      const place = entry === undefined ? NO_LIBRARY_PLACE : entryPlaceOf(s.folders, entry, () => desks)
       return place === NO_LIBRARY_PLACE ? NO_PATH : place.path
     }),
   )

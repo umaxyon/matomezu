@@ -1,8 +1,6 @@
 // チケットカードの右上の、担当のワークルームの鳥: このチケットをカレントチケットにしているワークルーム（working）の鳥ははっきり、担当に入っているだけの鳥は薄く。
-// はっきりした鳥を前に並べ、2 羽以上なら重ね、4 羽目からは見せない。乗せると人数を吹き出しで出す
-import { useMessages } from "../../../plugin-api/ui"
+// はっきりした鳥を前に並べ、2 羽以上なら重ね、4 羽目からは見せない。乗せると担当のワークルームの名前を鳥と同じ順に 1 行ずつ吹き出しで出す
 import { BirdFaceView, Tip } from "../../base/ui"
-import { kit } from "../kit"
 import styles from "./AssigneeStack.module.css"
 import type { WorkroomRecord } from "./shown"
 
@@ -10,7 +8,6 @@ const STACK_SHOWN = 3 // 重ねるときに見せる羽数
 const BIRD_SIZE = 18
 
 export function AssigneeStack({ rooms, working }: { rooms: readonly WorkroomRecord[]; working: ReadonlySet<string> }) {
-  const t = useMessages(kit)
   if (rooms.length === 0) return null
   const stacked = rooms.length > 1
   const ordered = [...rooms.filter(r => working.has(r.id)), ...rooms.filter(r => !working.has(r.id))]
@@ -29,5 +26,5 @@ export function AssigneeStack({ rooms, working }: { rooms: readonly WorkroomReco
       ))}
     </span>
   )
-  return <Tip text={t("{n} assignees", { n: rooms.length })}>{birds}</Tip>
+  return <Tip text={ordered.map(r => r.name).join("\n")}>{birds}</Tip>
 }

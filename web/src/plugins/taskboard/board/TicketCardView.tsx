@@ -3,6 +3,7 @@
 // タグはプロジェクトの順で、入らない分は「+N」
 // 押すとチケットスクリーンを開く（上下に分けて見せていれば閉じる。開き方は useOpenTicket の card）。上下に分けて見せているチケットのカードは色を付ける（data-open）。
 // チケットカードには data-card（チケットの id）を付ける
+import { memo } from "react"
 import { NO_STATE } from "../../../plugin-api"
 import { useMessages, usePluginState } from "../../../plugin-api/ui"
 import { useWorkingOn } from "../current-ticket/useCurrentTickets"
@@ -28,7 +29,8 @@ const weightSize = (volume: (typeof VOLUMES)[number]) => 4 + VOLUMES.indexOf(vol
 // 分銅の下の段の名前の字の高さ（px）。SVG の字にして、ブラウザの最小の文字サイズに掛からないようにする
 const VOLUME_TEXT = 8
 
-export function TicketCardView({
+// ボードが描き直しても、渡す値が同じカードは描き直さない（ボードはチケットの数だけカードを持つ）
+export const TicketCardView = memo(function TicketCardView({
   size,
   shows,
   ticket,
@@ -90,6 +92,16 @@ export function TicketCardView({
       )}
     </div>
   )
+}, sameProps)
+
+// 渡す値が同じか: 並び（タグ・担当）は 1 つずつ、ほかはそのものを比べる（ボードは描くたびに並びを作り直す）
+function sameProps(a: Readonly<Record<string, unknown>>, b: Readonly<Record<string, unknown>>): boolean {
+  return Object.keys(a).every(k => {
+    const x = a[k]
+    const y = b[k]
+    if (Array.isArray(x) && Array.isArray(y)) return x.length === y.length && x.every((v, i) => v === y[i])
+    return x === y
+  })
 }
 
 // 優先度の印: 段の名前と、段の数だけ色が付く 5 本の棒（名前の長さで棒の位置がずれないよう、棒を右端に置く。棒の下と字の下をそろえ、行ではタグのバッヂの下ともそろえる）
