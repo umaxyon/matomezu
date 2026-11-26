@@ -171,6 +171,11 @@ func (o Options) screen(h http.HandlerFunc) http.Handler {
 	return sameOrigin(o.withCookie(h))
 }
 
+// screenBytes は screen の、本文にバイト列（application/octet-stream）を受ける物
+func (o Options) screenBytes(h http.HandlerFunc) http.Handler {
+	return sameOriginWith("application/octet-stream", o.withCookie(h))
+}
+
 // giveCookie は GET /cookie?code=…。コードを受け付けて鍵を cookie に置き、画面へ戻す
 func (o Options) giveCookie(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")

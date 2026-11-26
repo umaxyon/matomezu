@@ -150,6 +150,8 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/plugins", o.auth(o.linkPlugin))
 	mux.Handle("POST /api/plugins/remove", o.auth(o.unlinkPlugin))
 	mux.Handle("POST /api/perform", o.screen(o.perform))
+	mux.Handle("POST /api/assets", o.screenBytes(o.importAsset))
+	mux.Handle("GET /api/assets/{id}", o.screen(o.serveAsset))
 	mux.Handle("POST /api/view", o.screen(o.view))
 	mux.Handle("POST /api/warnings", o.screen(o.warnings))
 	mux.Handle("POST /api/log", o.screen(o.windowLog))
@@ -194,6 +196,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/ai/talked", o.ai(o.aiTalked))
 	mux.Handle("POST /api/ai/work-title", o.ai(o.aiWorkTitle))
 	mux.Handle("POST /api/ai/model", o.ai(o.aiModel))
+	mux.Handle("POST /api/ai/assets", o.ai(o.importAsset))
 	routesForTest(mux, o)
 	routesForDev(mux, o)
 	mux.Handle("GET /api/ai/settings", o.ai(func(w http.ResponseWriter, _ *http.Request) {
@@ -239,7 +242,10 @@ func writeJSON(w http.ResponseWriter, v any) {
 
 // sameOrigin は、この常駐の画面からの頼みだけを通す。宛先（Host）が手元の名前で、
 // Origin があればその宛先と同じ（ほかのサイトのページからは Origin が違う）。書く頼みは JSON の本文に限る（ほかのサイトのフォームからは送れない）
-func sameOrigin(h http.HandlerFunc) http.Handler {
+func sameOrigin(h http.HandlerFunc) http.Handler { return sameOriginWith("application/json", h) }
+
+// sameOriginWith は sameOrigin の、書く頼みの本文の種類を media に限る物（バイト列を受ける口は application/octet-stream。これもほかのサイトのフォームからは送れない）
+func sameOriginWith(media string, h http.HandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		host, _, err := net.SplitHostPort(r.Host)
 		local := err == nil && (host == "localhost" || net.ParseIP(host) != nil && net.ParseIP(host).IsLoopback())
@@ -249,8 +255,8 @@ func sameOrigin(h http.HandlerFunc) http.Handler {
 			return
 		}
 		if r.Method != http.MethodGet {
-			if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt != "application/json" {
-				http.Error(w, "the body must be JSON", http.StatusUnsupportedMediaType)
+			if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt != media {
+				http.Error(w, "the body must be "+media, http.StatusUnsupportedMediaType)
 				return
 			}
 		}
