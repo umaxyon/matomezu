@@ -13,10 +13,9 @@ type claudeSession struct {
 }
 
 // ChatThread は、プロセス id host の Claude Code がセッション session で動いているときの、チャットスレッドの id（無ければ空）。
-// Claude Desktop は会話 1 つを CLI で動かし、/clear や --resume で CLI ごと起動し直すが、CLI が起動するときに書く sessions/<プロセス id>.json の
-// hostSessionId（Desktop の会話の id）は替わらない。このファイルは CLI の起動の時点で書かれ、最初の UserPromptSubmit のフックより前にある
-// （会話の記録のファイルは、そのフックの後に作られるので、/clear の後の最初のターンでは読めない）。
-// Desktop の会話の中で立てた子の CLI（claude -p）には hostSessionId が無い。Desktop の会話の記録（AppData）は MSIX で置き場が変わるので読まない。
+// Claude Desktop は、チャットスレッドを /clear や --resume で CLI ごと起動し直すが、CLI が起動するときに書く sessions/<プロセス id>.json の
+// hostSessionId（Desktop のチャットスレッドの id）は替わらない。このファイルは CLI の起動の時点で書かれ、最初の UserPromptSubmit のフックより前にある。
+// Desktop のチャットスレッドの中で立てた子の CLI（claude -p）には hostSessionId が無い。
 // 設定のフォルダは CLAUDE_CONFIG_DIR、無ければ ~/.claude。セッション id が違う・読めないときは空
 func ChatThread(host, session string) string {
 	if host == "" || session == "" {

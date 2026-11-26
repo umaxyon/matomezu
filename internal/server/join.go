@@ -333,7 +333,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 				continue
 			}
 			if s.State != stateRequested {
-				// 同じセッション名の参加者の会話が終わっていれば（/clear で前の会話の印が読めなかったときなど）、退室させて頼み直しにする。
+				// 同じセッション名の参加者の会話が終わっていれば（チャットスレッドが分からない AI のプログラムで、/clear のあと join し直したときなど）、退室させて頼み直しにする。
 				// 「参加済み」と答えると、頼んだ会話は参加の id を受け取れず、前の参加者も使えないまま止まる
 				if h.sessionEnded(s.ID) {
 					if err := h.leaveEnded(s.ID); err != nil {
