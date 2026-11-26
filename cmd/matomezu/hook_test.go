@@ -80,6 +80,40 @@ func TestTalkedBindsTheSessionAndWelcomes(t *testing.T) {
 	}
 }
 
+// チャットスレッドの id を読む物があれば、ターンの始まりの知らせにも、会話の記録から結ばせる知らせにも、読んだ id を添える（読めなければ添えない）。常駐が返す AI にだけの文は additionalContext に入る
+func TestTalkedSendsTheChatThread(t *testing.T) {
+	var bodies []map[string]any
+	api := func(body []byte) ([]byte, error) {
+		var m map[string]any
+		_ = json.Unmarshal(body, &m)
+		bodies = append(bodies, m)
+		if m["candidates"] == nil {
+			return []byte(`{"welcomes":[],"forAi":"CARRIED","unbound":true}`), nil
+		}
+		return []byte(`{"welcomes":[]}`), nil
+	}
+	transcript := filepath.Join(t.TempDir(), "t.jsonl")
+	if err := os.WriteFile(transcript, []byte(`{"link":"11111111-2222-3333-4444-555555555555"}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	thread := func(host, session string) string {
+		if host != "300" || session != "S2" {
+			t.Fatalf("read %q %q", host, session)
+		}
+		return "T1"
+	}
+	talked(&out, hookInput{SessionID: "S2", Host: "300", TranscriptPath: transcript, Thread: thread}, "", formatHook, api)
+	if len(bodies) != 2 || bodies[0]["chatThread"] != "T1" || bodies[1]["chatThread"] != "T1" || !strings.Contains(out.String(), `"additionalContext":"CARRIED"`) || strings.Contains(out.String(), "systemMessage") {
+		t.Fatalf("calls = %v, out = %s", bodies, out.String())
+	}
+	bodies = nil
+	talked(&out, hookInput{SessionID: "S2", Thread: func(string, string) string { return "" }}, "", formatHook, api)
+	if len(bodies) != 1 || bodies[0]["chatThread"] != nil {
+		t.Fatalf("calls = %v", bodies)
+	}
+}
+
 // 常駐が無いときと、伝えることが無いときは、渡された文だけを書く（文も無ければ何も書かない）
 func TestTalkedWithoutNewsPrintsTheContextOnly(t *testing.T) {
 	var out bytes.Buffer
