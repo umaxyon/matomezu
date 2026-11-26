@@ -22,7 +22,7 @@ export const WRITE_IN_WORKER_BOOK =
 
 export const WORKER_PAGE_ADD = kit.defineAction({
   id: "worker-page-add",
-  aiDescription: `Add a page at the end of your worker book (read_folder with folder "${MY_WORKDESK}" shows it). The same arguments as page-add (without index). The book is made with its first page when it does not exist yet. The book's name is the short name of your current work (such as the ticket's number), or your workroom's name while you have no current work; a page whose name starts with the ticket's number is refused (worker-page-title). Returns the book's id and what page-add returns. Write down the page's id to find it again. Refused (worker-book) when workroom names another workroom.`,
+  aiDescription: `Add a page at the end of your worker book (read_folder with folder "${MY_WORKDESK}" shows it). The same arguments as page-add (without index). The book is made with its first page when it does not exist yet. A page whose name starts with the book's name is refused (worker-page-title). Returns the book's id and what page-add returns. Write down the page's id to find it again. Refused (worker-book) when workroom names another workroom.`,
   title: "Add a page to the worker book",
   target: "library",
   permissionScope: "unknown",

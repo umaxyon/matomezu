@@ -266,7 +266,7 @@ test("チケットのワーカーブックのページの名前を、チケッ�
   const dialog = page.getByRole("dialog", { name: "ページの設定" })
   await dialog.getByLabel("名前").fill("N-0001 メモ")
   await dialog.getByRole("button", { name: "確定" }).click()
-  await expect(page.getByText("ページの名前がブックの名前で始まっています")).toBeVisible()
+  await expect(page.getByText("ページ名をブック名で始めることは出来ません")).toBeVisible()
   await expect(dialog).toBeVisible()
   await dialog.getByLabel("名前").fill("[N-0001] メモ")
   await dialog.getByRole("button", { name: "確定" }).click()

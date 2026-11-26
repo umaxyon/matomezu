@@ -34,7 +34,7 @@ function keeps(c: PermissionCheck, input: PermissionInput): boolean {
 
 export const WORKER_PAGE_TITLE = kit.definePermission({
   id: "worker-page-title",
-  title: "The page name starts with the book's name",
+  title: "A page's name cannot start with the book's name",
   aiDescription:
     "the page's name starts with the name of its worker book (the short name of the work, such as the ticket's number); the book's name shows it already, so name the page without it",
   readsSubjects: workRecordNameReadsOf,

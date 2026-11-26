@@ -93,8 +93,8 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   "Cancel a join request": { en: "Cancel a join request", ja: "参加要求をキャンセルする" },
   "Add a page to the worker book": { en: "Add a page to the worker book", ja: "ワーカーブックにページを足す" },
   "Another workroom's worker book": { en: "Another workroom's worker book", ja: "ほかのワークルームのワーカーブック" },
-  "The page name starts with the book's name": {
-    en: "The page name starts with the book's name",
-    ja: "ページの名前がブックの名前で始まっています",
+  "A page's name cannot start with the book's name": {
+    en: "A page's name cannot start with the book's name",
+    ja: "ページ名をブック名で始めることは出来ません",
   },
 })
