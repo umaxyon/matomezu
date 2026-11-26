@@ -1,8 +1,7 @@
-/* 作業しているワークルームの鳥: ブックの名前のすぐ左に、顔を詰めて並べる */
+/* 作業しているワークルームの鳥: ブックの名前の枠の中、名前の前に、顔を詰めて並べる */
 .birds {
   flex: none;
   display: flex;
   align-items: center;
   gap: 2px;
-  margin-left: 4px;
 }

@@ -426,6 +426,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-layers": Record<string, never>
     "@matomezu/base:sheet-layers": PrintSheetProps // 印刷区画 1 つの中のレイヤー
     "@matomezu/base:stage-bottom": Record<string, never>
+    "@matomezu/base:book-name-head": Record<string, never> // ブックの名前の枠の中、名前のボタンの前
     "@matomezu/base:stage-corner": Record<string, never>
     "@matomezu/base:footer-menu-map": Record<string, never>
     "@matomezu/base:footer-menu-history": Record<string, never>

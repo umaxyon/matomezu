@@ -16,9 +16,13 @@ import { workerBookOf, workerBookReadsOf } from "./worker-book"
 const PAGE_ARGS = NEW_PAGE_ARGS.omit({ index: true })
 const ARGS = PAGE_ARGS.extend({ workroom: z.string().min(1).optional() })
 
+// 今の作業について利用者に書く（相談・質問）ならワーカーブックへ、と AI に伝える文
+export const WRITE_IN_WORKER_BOOK =
+  "To write to the user about your current work (to consult or to ask), add a page to your worker book with worker-page-add instead of making a book with book-create."
+
 export const WORKER_PAGE_ADD = kit.defineAction({
   id: "worker-page-add",
-  aiDescription: `Add a page at the end of your worker book (read_folder with folder "${MY_WORKDESK}" shows it). The same arguments as page-add (without index). The book is made with its first page when it does not exist yet. Returns the book's id and what page-add returns. Write down the page's id to find it again. Refused (worker-book) when workroom names another workroom.`,
+  aiDescription: `Add a page at the end of your worker book (read_folder with folder "${MY_WORKDESK}" shows it). The same arguments as page-add (without index). The book is made with its first page when it does not exist yet. A page whose name starts with the book's name is refused (worker-page-title). Returns the book's id and what page-add returns. Write down the page's id to find it again. Refused (worker-book) when workroom names another workroom.`,
   title: "Add a page to the worker book",
   target: "library",
   permissionScope: "unknown",

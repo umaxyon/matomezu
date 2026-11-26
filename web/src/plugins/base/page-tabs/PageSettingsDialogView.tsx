@@ -39,6 +39,7 @@ import { changeWithLock } from "../utils/lock"
 import { showsPageDelete } from "./opened-lineup"
 import { PageProblemsView } from "./PageProblems"
 import { usePagePaperControls } from "./PaperControls"
+import { useToastDenied } from "./useToastDenied"
 
 export interface PageSettingsDialogViewProps {
   page: string // 設定を変えるページの id（開いている物の中のページ）
@@ -68,6 +69,7 @@ export function PageSettingsDialogView({ page: id, onClose, children, fields, dr
   const paper = usePagePaperControls(page)
   const { previewDialog } = useActions()
   const perform = usePerform()
+  const denied = useToastDenied()
   const pageId = page?.id
   const changed = Object.keys(settings.patch).length > 0
   useEffect(() => {
@@ -89,8 +91,8 @@ export function PageSettingsDialogView({ page: id, onClose, children, fields, dr
       locked,
       () => perform(PAGE_LOCK.id, {}, { page: page.id }).ok,
       () => perform(PAGE_UNLOCK.id, {}, { page: page.id }).ok,
-      () =>
-        perform(
+      () => {
+        const updated = perform(
           PAGE_UPDATE.id,
           {
             title,
@@ -99,7 +101,10 @@ export function PageSettingsDialogView({ page: id, onClose, children, fields, dr
             ...(fields ? { fields } : {}),
           },
           { page: page.id },
-        ).ok,
+        )
+        if (!updated.ok) denied(updated)
+        return updated.ok
+      },
     )
     if (done) onClose()
   }

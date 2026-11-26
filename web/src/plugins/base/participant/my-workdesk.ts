@@ -6,7 +6,7 @@ import { type RecordReader, type RecordSource, readerOf } from "../../../core/re
 import { MY_WORKDESK, WORKROOMS } from "../library/system-folders"
 import { workroomWorkIn } from "./activity"
 import { type FoundWorkerBook, foundWorkerBookOf, NO_WORKER_BOOK, workerBookOf, workerBookReadsOf } from "./worker-book"
-import { WORKER_PAGE_ADD } from "./worker-page-add"
+import { WORKER_PAGE_ADD, WRITE_IN_WORKER_BOOK } from "./worker-page-add"
 
 // ワークルーム room のワーカーブックの名前 title と、在るワーカーブック found（まだ無ければ NO_WORKER_BOOK）。read は workerBookReadsOf の種類を読める読み口
 export function workerBookIn(
@@ -45,6 +45,6 @@ export function myWorkdeskIn(catalog: CoreCatalog, source: RecordSource, folders
     workrooms,
     book,
     pages,
-    forAi: `${where}${idle} It changes when your current work changes, so do not keep the book's id: write down the ids of pages. read_folder with folder "${MY_WORKDESK}" shows it.`,
+    forAi: `${where}${idle} It changes when your current work changes, so do not keep the book's id: write down the ids of pages. read_folder with folder "${MY_WORKDESK}" shows it. ${WRITE_IN_WORKER_BOOK}`,
   }
 }

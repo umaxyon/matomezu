@@ -48,12 +48,11 @@ export interface FollowOut {
 }
 
 // バックヤード backyard の中の、workKey が key のブックに行う事: そのブックを完全に消す（purge。ゴミ箱にも元に戻すにも入れない）か、
-// そのブックのページのアノテーションを全部消す（clear-annotations）。そのブックが無ければ何もしない
-export interface BackyardFollow {
-  backyard: string
-  key: WorkKey
-  does: "purge" | "clear-annotations"
-}
+// そのブックのページのアノテーションを全部消す（clear-annotations）か、そのブックの名前を title にする（retitle。1 字以上。今と同じなら変えない）。
+// そのブックが無ければ何もしない
+export type BackyardFollow =
+  | { backyard: string; key: WorkKey; does: "purge" | "clear-annotations" }
+  | { backyard: string; key: WorkKey; does: "retitle"; title: string }
 
 // 常駐メッセージ 1 通: 宛先のワークルームの id と文（AI に見せる英語）。送り手は常駐で、行った者に関わらず送る。
 // 常駐は、アクションバルクが通ったときだけ送り、宛先に参加の確定した参加者がいないときと、宛先が行った参加者のワークルームのときは送らない

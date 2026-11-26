@@ -109,8 +109,9 @@ export { workroomActivitiesFrom } from "./activity"
 export { myWorkdeskIn } from "./my-workdesk"
 export { SESSION_RENAME, workTitleIn } from "./work-title"
 export { type FoundWorkerBook, NO_WORKER_BOOK, WORKER_BOOK } from "./worker-book"
-export { FOLLOW_WORK_ENDED, FOLLOW_WORKROOM_GONE, WORK_SUBJECTS_CHECK } from "./worker-book-follow"
+export { FOLLOW_WORK_ENDED, FOLLOW_WORK_RENAMED, FOLLOW_WORKROOM_BOOK, WORK_SUBJECTS_CHECK } from "./worker-book-follow"
 export { WORKER_PAGE_ADD } from "./worker-page-add"
+export { WORKER_PAGE_TITLE } from "./worker-page-title"
 
 // データの型（画面の見た目は、ここから読む）
 export type Participant = z.output<typeof PARTICIPANT.record>
