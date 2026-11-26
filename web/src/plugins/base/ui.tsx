@@ -164,7 +164,7 @@ export {
   LIBRARY_CONTEXT_MENUS,
   LibraryView,
   NO_FOLDER,
-  useCreateAsking,
+  useCreatePageAsking,
   useFolderEntries,
 } from "./library/ui"
 export { LockToggle } from "./lock/ui"

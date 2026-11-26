@@ -19,7 +19,7 @@ interface Asking {
   done(made: boolean): void
 }
 
-export function useCreateAsking(folder: string): {
+export function useCreatePageAsking(folder: string): {
   create(args: CreatePageArgs & { title: string }): Promise<boolean> // 作れたか（やめた・断られたら false）
   confirm: ReactNode
 } {

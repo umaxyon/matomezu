@@ -1,11 +1,11 @@
 // 画像を取り込むダイアログ: 開くとすぐに OS のファイルを選ぶ窓を開き（いくつも選べる）、選んだファイルを 1 枚 1 ページで、受けたフォルダに取り込む。
 // 1 枚ずつ、バイト列をホストのアセットの置き場に置いてから（アクションの外）、そのアセットを指す画像のページを base の page-create で作る。
-// 名前はファイル名から拡張子を取った物で、同じ名前の物がフォルダに在れば、1 件ずつ名前が重なったときの確かめを出す（base の useCreateAsking）。
+// 名前はファイル名から拡張子を取った物で、同じ名前の物がフォルダに在れば、1 件ずつ名前が重なったときの確かめを出す（base の useCreatePageAsking）。
 // 向きは画像の縦横（横長なら横、ほかは縦）。受けない画像は、ファイルごとに訳をトーストに出して飛ばす。選ぶのをやめたら閉じる
 import { useEffect, useRef } from "react"
 import type { NewPageDialogArgs } from "../../../../plugin-api"
 import { type DialogProps, useActions, useMessages } from "../../../../plugin-api/ui"
-import { useCreateAsking, useImportAsset } from "../../../base/ui"
+import { useCreatePageAsking, useImportAsset } from "../../../base/ui"
 import { IMAGE } from "../image"
 import { kit } from "../kit"
 
@@ -21,7 +21,7 @@ export function ImportImagesDialog({ args, onClose }: DialogProps<NewPageDialogA
   const t = useMessages(kit)
   const put = useImportAsset()
   const { showToast } = useActions()
-  const { create, confirm } = useCreateAsking(args.folder ?? "")
+  const { create, confirm } = useCreatePageAsking(args.folder ?? "")
   useEffect(() => {
     const el = input.current
     el?.addEventListener("cancel", onClose)

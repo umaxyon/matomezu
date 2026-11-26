@@ -504,7 +504,7 @@ test("matomezu/ui が出す名前", () => {
     "useControlCenterMaximized",
     "useCopyText",
     "useCoreCatalog",
-    "useCreateAsking",
+    "useCreatePageAsking",
     "useDrawnMinimap",
     "useEditLock",
     "useElapsed",
