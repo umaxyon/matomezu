@@ -23,16 +23,15 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
-// maxAsset は、アセット 1 つの大きさの上限
-const maxAsset = 25 << 20
-
-// 受けない理由（画面と AI に返す。名前空間を付けない土台の言葉）
+// アセット 1 つの大きさの上限と、受けない理由（画面と AI に返す。名前空間を付けない土台の言葉。MCP と同じ値なので aiwire に置く）
 const (
-	assetTooLarge = "too-large" // 上限を超える
-	assetNotImage = "not-image" // 受ける種類の画像として読めない
+	maxAsset      = aiwire.MaxAsset
+	assetTooLarge = aiwire.AssetTooLarge
+	assetNotImage = aiwire.AssetNotImage
 )
 
 // assetIDPattern は、アセットの id の形（sha256 の 16 進）

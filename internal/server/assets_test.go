@@ -207,3 +207,18 @@ func TestDropUnusedAssetsAtStart(t *testing.T) {
 		t.Fatalf("assets = %v, %v (kept %s)", ids, err, used.Asset)
 	}
 }
+
+// AI の口も、同じアセットの置き場に、合言葉で置ける（合言葉が無ければ受けない）
+func TestAIImportsAnAsset(t *testing.T) {
+	_, s := hubAt(t, filepath.Join(t.TempDir(), "data.db"))
+	svg := `<svg xmlns="http://www.w3.org/2000/svg" width="8" height="4"/>`
+	octet := map[string]string{"Content-Type": "application/octet-stream", "Cookie": ""}
+	if code, _ := send(t, "POST", s.URL+"/api/ai/assets", svg, octet); code == 200 {
+		t.Fatalf("taken without the token")
+	}
+	octet["Authorization"] = "Bearer secret"
+	code, body := send(t, "POST", s.URL+"/api/ai/assets", svg, octet)
+	if code != 200 || !strings.Contains(body, `"ok":true`) || !strings.Contains(body, `"width":8`) {
+		t.Fatalf("/api/ai/assets = %d %s", code, body)
+	}
+}
