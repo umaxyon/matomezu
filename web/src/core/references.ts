@@ -69,6 +69,15 @@ export function newReferencesHold(library: Library, was: StageLineup, now: Stage
   return referencesOf(now).every(r => before.has(r.id) || placeable(library, now.id, r))
 }
 
+// ブック was を now に替えた書庫 library で、now が新しく置いた参照エントリのうち、指す先の行が library に無い物の、指す先の id
+// （常駐は渡していない行を足して行い直す。足せなければ断る）
+export function unreadTargets(library: Library, was: StageLineup, now: StageLineup): readonly string[] {
+  const before = new Set(referencesOf(was).map(r => r.id))
+  return referencesOf(now)
+    .filter(r => !before.has(r.id) && !(r.of.id in library.pages) && !(r.of.id in library.folders))
+    .map(r => r.of.id)
+}
+
 // ブック book に、ref を新しく置いて描けるか（newReferencesHold の 1 つ分）
 const placeable = (library: Library, book: string, ref: ReferenceEntry): boolean =>
   holdsNewReference(library.folders, book) &&

@@ -81,7 +81,7 @@ type Output =
       systemFolder?: string // 名前が重なる断り（title-taken）で、重なった相手がシステムフォルダのときの、その印
       detail?: string
       at?: number
-      needs?: readonly string[] // needs-rows のとき、常駐が行を足して行い直すブックの id
+      needs?: readonly string[] // needs-rows のとき、常駐が行を足して行い直す物の id（ブックか、参照エントリの指す先）
     } // at は断られたアクションが何番目か
 
 declare const crypto: { randomUUID(): string }

@@ -73,10 +73,13 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	in.Watched = h.watched()
 	in.WatchedRecords = h.watchedRecords()
 	out, err := h.engine.PerformWith(in, recordSource{h})
-	// フォローステップがバックヤードの中に行う事の先のブックを渡していなければ、そのブックの行とアノテーションを足して行い直す
-	// （応じる事はアクションのあとに決まるので、先には渡せない。1 回ごとに足りないブックが減るので、ブックの数で止まる）
+	// フォローステップがバックヤードの中に行う事の先のブックか、ブックが新しく置いた参照エントリの指す先を渡していなければ、その行を足して行い直す
+	// （どちらもアクションのあとに決まるので、先には渡せない。1 回ごとに足りない物が減るので、ブックの数で止まる）。足せる行が無ければ断る
 	for tries := 0; err == nil && !out.OK && out.Reason == "needs-rows" && tries < len(h.books)+1; tries++ {
-		h.addBookInputs(&in, out.Needs)
+		if !h.addNeededInputs(&in, out.Needs) {
+			out = engine.Output{OK: false, Reason: "refused", At: out.At}
+			break
+		}
 		out, err = h.engine.PerformWith(in, recordSource{h})
 	}
 	if err != nil {
@@ -158,9 +161,6 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	return done, nil
 }
 
-// referenceAdd は、参照エントリを置くアクションの id（指す物の行も渡す）
-const referenceAdd = "@matomezu/base:reference-add"
-
 // performInputs は、バルク in.Actions を行う前に、エンジンへ渡すページ・フォルダ・アノテーション・レコード・番号の表を in に入れる（h.mu を持って呼ぶ）。
 // アクションごとに要るブック（レコードが対象なら引数から答えた読むだけのブック、宛先があればそのブック）の和と、そのアノテーションと、それらのブックから書庫の一番上までのフォルダを渡す。
 // 宛先がブックに入っていないページなら、そのページ（バインダの中なら、そのバインダと中のページの全部）と、そのアノテーションと、そこから書庫ホームまでのフォルダを渡す。
@@ -199,21 +199,6 @@ func (h *Hub) performInputs(in *engine.Input) error {
 			// 置き場所に無い宛先は、前のアクションが作った物でありうるので全部のブック。0 番目のアクションの宛先は前のアクションが作った物ではないので、何も足さない
 			book := h.bookOn(step.On)
 			_, known := h.pages[step.On.Page]
-			// 参照エントリを置くなら、指す物の行も（在るか・どこに居るかを確かめるため）
-			if step.Action == referenceAdd {
-				var args struct {
-					Of struct {
-						ID string `json:"id"`
-					} `json:"of"`
-				}
-				if json.Unmarshal(step.Args, &args) == nil {
-					if e, isBook := h.referredEntry(args.Of.ID); isBook {
-						add(e)
-					} else if e != "" && !slices.Contains(entries, e) {
-						entries = append(entries, e)
-					}
-				}
-			}
 			switch {
 			case book != "" && (step.On.Page != "" || h.hasBook(book)):
 				add(book)
@@ -304,6 +289,34 @@ func (h *Hub) actorOfHeld(p Perform) *engine.Actor {
 		return h.actorOfParticipantHeld(p.Participant)
 	}
 	return nil
+}
+
+// addNeededInputs は、エンジンが needs-rows で答えた物 ids（ブックか、参照エントリの指す先）の行を in に足す（指す先は referredEntry で決めた物）。
+// 1 つも足せなければ偽（h.mu を持って呼ぶ）
+func (h *Hub) addNeededInputs(in *engine.Input, ids []string) bool {
+	books := []string{}
+	entries := []string{}
+	for _, id := range ids {
+		e, isBook := id, h.hasBook(id)
+		if !isBook {
+			e, isBook = h.referredEntry(id)
+		}
+		switch {
+		case e == "" || h.inUnreadable(e):
+		case isBook:
+			books = append(books, e)
+		default:
+			entries = append(entries, e)
+		}
+	}
+	if len(books) == 0 && len(entries) == 0 {
+		return false
+	}
+	h.addBookInputs(in, books)
+	pages, folders := h.rowsOf(entries)
+	in.Pages = append(in.Pages, pages...)
+	in.Folders = append(in.Folders, folders...)
+	return true
 }
 
 // addBookInputs は、エンジンに渡す in に、ブック books の行（中の物も）とそのページのアノテーションを足す（h.mu を持って呼ぶ）

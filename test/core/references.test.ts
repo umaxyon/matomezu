@@ -240,3 +240,13 @@ test("書庫が対象のアクションが新しく置いた参照エントリ�
   const odd = withRef({ kind: "page", id: "s1" })
   expect(normalizedLibrary(CORE_CATALOG, action, odd, odd)).not.toBeNull()
 })
+
+test("新しく置いた参照エントリの指す先の行が世界に無ければ、needs-rows でその id を名指す（常駐が行を足して行い直す）", () => {
+  expect(performIn(start(), base("reference-add"), { of: { kind: "page", id: "zz" } }, { book: "B" }, ctxOf())).toEqual(
+    {
+      ok: false,
+      reason: "needs-rows",
+      books: ["zz"],
+    },
+  )
+})

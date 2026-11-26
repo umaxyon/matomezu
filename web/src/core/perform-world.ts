@@ -40,7 +40,7 @@ import { FOLDERS, type WithFolders } from "./permission-input"
 import type { ItemPage } from "./placed"
 import { type RecordSource, readerOf, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, REMOVED, type RecordChange, type Records } from "./records"
-import { deadReferences, newReferencesHold } from "./references"
+import { deadReferences, newReferencesHold, unreadTargets } from "./references"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import { langChosen, type Settings } from "./settings"
@@ -75,7 +75,8 @@ export type PerformedIn =
       hostMessages?: readonly HostMessage[] // フォローステップが返した、送る常駐メッセージの並び（常駐がバルクの書き込みと一緒に送る）
     }
   | Refused
-  // フォローステップがバックヤードの中に行う事の、ブックの行が世界に無い（常駐が、そのブックの行を足して行い直す。画面は全部を持つので起きない）
+  // 要る行が世界に無い（常駐が、その行を足して行い直す。画面は全部を持つので起きない）。books は、フォローステップがバックヤードの中に行う事の先のブックか、
+  // ブックが新しく置いた参照エントリの指す先の id
   | { ok: false; reason: "needs-rows"; books: readonly string[] }
   | { ok: false; reason: "no-book" }
   | { ok: false; reason: "no-record"; detail: string }
@@ -235,6 +236,8 @@ function changedBook(naming: Naming, world: World, book: Book, done: ReturnType<
   const own = changesBetween([book], [next])
   if (collides(world, [book], own)) return { ok: false, reason: "refused" }
   const after = withChanges(world, own)
+  const unread = unreadTargets(after, book, next)
+  if (unread.length > 0) return { ok: false, reason: "needs-rows", books: unread }
   if (!newReferencesHold(after, book, next)) return { ok: false, reason: "refused" }
   // ページやバインダを消して・入れ替えて、ほかのブックの参照エントリが残れなくなったら、同じ書き込みで外す
   // （残れなくなるのはフォルダの並びが変わったときだけなので、ページの中身だけの変わりでは確かめない）

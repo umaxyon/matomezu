@@ -95,6 +95,21 @@ func TestReferencesThroughTheHost(t *testing.T) {
 	}
 }
 
+// 書庫に無い物を指す参照エントリは、足せる行が無いので、行い直さずに断られる（常駐の道）
+func TestAReferenceToNothingIsRefusedThroughTheHost(t *testing.T) {
+	other := `{"id":"b2","title":"U","lineup":[]}`
+	hub, _, c := bulkHub(t, other)
+	added, err := hub.Perform(Perform{Actions: []engine.BulkAction{
+		step("@matomezu/base:reference-add", `{"of":{"kind":"page","id":"nowhere"}}`, &engine.On{Book: "b2"}, "r1"),
+	}, Client: c.id, Seq: 1})
+	if err != nil || added.OK || added.Reason != "refused" {
+		t.Fatalf("reference-add = %+v, %v", added, err)
+	}
+	if lineup := lineupOf(hub.Book("b2").Body); len(lineup) != 0 {
+		t.Fatalf("b2 = %s", hub.Book("b2").Body)
+	}
+}
+
 // 指す先のブックをゴミ箱に入れても参照エントリは残り、ゴミ箱から完全に消すと、同じ書き込みで消える（常駐の道）
 func TestReferencesGoWithAPurgedBook(t *testing.T) {
 	other := `{"id":"b2","title":"U","lineup":[{"kind":"page","id":"q1","type":"@matomezu/drawing:drawing","title":"Q","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
