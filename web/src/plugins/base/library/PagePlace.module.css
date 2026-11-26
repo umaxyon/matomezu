@@ -51,7 +51,9 @@
 /* ブック・ブックの外のバインダ: フォルダの絵だけ（右にページのタブが並ぶため）。名前の枠のすぐ右に、余白を詰めて置く */
 .icon {
   flex: none;
-  margin-left: 0;
+  align-self: flex-start;
+  height: 25px; /* ページのタブ（PageTabs.module.css の .tab）と同じ高さと上の位置にして、絵をタブの縦の中央にそろえる */
+  margin: -1px -8px 0 0; /* 右はタブの並びの左の余白（8px）に重ね、絵とタブの間を、名前の枠と絵の間（3px）とそろえる */
   padding: 0 3px;
 }
 .icon:hover svg {

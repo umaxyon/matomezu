@@ -176,8 +176,15 @@ test("分割して右で同じブックを開くと右にもタブがあり、�
   expect(place.x).toBeGreaterThanOrEqual(stage.x + close.width + 156)
   expect(place.x).toBeLessThan(stage.x + close.width + 156 + 2)
   expect(place.width).toBeLessThan(24)
-  expect(bar.x).toBeGreaterThanOrEqual(place.x + place.width)
-  expect(bar.x).toBeLessThan(place.x + place.width + 24)
+  // フォルダの絵の左（名前の枠から）と右（タブから）の余白はそろい、絵はタブの縦の中央に在る
+  const svg = (await page
+    .getByRole("button", { name: /^置き場所: / })
+    .nth(1)
+    .locator("svg")
+    .boundingBox())!
+  const tab = (await lists.nth(1).getByRole("tab").first().boundingBox())!
+  expect(Math.abs(svg.x - place.x - (tab.x - (svg.x + svg.width)))).toBeLessThanOrEqual(1)
+  expect(Math.abs(svg.y + svg.height / 2 - (tab.y + tab.height / 2))).toBeLessThanOrEqual(1)
 })
 
 test("在るブックと同じ名前では作れず、ダイアログの中に「同じ名前があります」が出て、名前を変えると作れる", async ({
