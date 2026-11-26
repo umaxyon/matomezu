@@ -384,15 +384,15 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 		Candidates []string `json:"candidates"`
 		Woken      bool     `json:"woken"`  // 裏の知らせで始まったターン（利用者トリガートークでない）
 		Prompt     string   `json:"prompt"` // ターンの入力
-		// PreviousSessions は、この会話が置き換えた前の会話のセッション id（/clear など。AI の側の部品が会話の記録から読む）。この会話が誰にも結ばれていないときだけ使う
-		PreviousSessions []string `json:"previousSessions"`
+		// ChatThread は、この会話を動かすチャットスレッドの id（AI の側の部品が読む。分からなければ空）
+		ChatThread string `json:"chatThread"`
 	}
 	if r.ContentLength != 0 && !readJSON(w, r, &req) {
 		return
 	}
 	lent := false
 	if len(req.Candidates) == 0 {
-		if err := o.Hub.CarrySession(req.SessionID, req.Host, req.PreviousSessions); err != nil {
+		if err := o.Hub.CarrySession(req.SessionID, req.Host, req.ChatThread); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -407,6 +407,10 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	}
 	done, err := o.Hub.TalkedBy(req.SessionID, req.Host, req.Candidates)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := o.Hub.NoteChatThread(req.SessionID, req.ChatThread); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -7,8 +7,9 @@ package server
 // host（AI のプログラムのプロセス id）が添えてあれば、先に、同じプロセス id の参加者にそのセッション id を結び直す（Claude Code の /clear のあと、
 // 会話のセッション id は変わるが、MCP とフックの親の Claude Code のプロセスは変わらない。新しい会話の記録には link が無いので、記録からは結べない）。
 //
-//	POST /api/ai/talked  {"sessionId", "host", "candidates", "woken", "prompt", "previousSessions"}
-//	  candidates が無い: ターンが始まった。先に参加者をこのセッションへ移し（CarrySession。previousSessions は、この会話が置き換えた前の会話のセッション id）、
+//	POST /api/ai/talked  {"sessionId", "host", "candidates", "woken", "prompt", "chatThread"}
+//	  chatThread は、この会話を動かすチャットスレッドの id（分かる AI だけ。どちらの形でも、結ばれた参加者に覚える。NoteChatThread）
+//	  candidates が無い: ターンが始まった。先に参加者をこのセッションへ移し（CarrySession）、
 //	  woken でなければ利用者トリガートークのときに行うアクションを行い、{"welcomes", "unbound", "forAi", "workTitle"} を返す（workTitle は作業名。WorkTitle）
 //	  （forAi は、前の会話から移した参加者を伝える文（carriedText）と、prompt が通り道に貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）のときの wokenText）
 //	  candidates が有る: 記録から拾った uuid の形の文字列。行うアクションは行わず、link が合う参加者にセッション id を結んで、同じ形を返す

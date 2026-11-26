@@ -10,7 +10,7 @@ import (
 )
 
 // claudeIn は、プロセス id host のプログラムが会話 session で MCP を立てた AI（Claude Code の形: join はセッション id を運ばず、フックが link で結ぶ）として参加を頼み、
-// 名前 room のワークルームに受け入れ、フックで参加を伝え終えた参加の id を返す
+// 名前 room のワークルームに受け入れ、フックで参加を伝え終えた参加の id を返す（フックはチャットスレッドの id "TH-"+link を添える）
 func claudeIn(t *testing.T, srv, link, host, session, room string) string {
 	t.Helper()
 	got, _ := call(t, "POST", srv+"/api/ai/join", `{"ai":"claude","model":"opus","env":"windows","link":"`+link+`"}`,
@@ -22,7 +22,7 @@ func claudeIn(t *testing.T, srv, link, host, session, room string) string {
 	if out := acceptIn(t, srv, joined.Participant, makeRoom(t, srv, room)); !strings.Contains(out, `"ok":true`) {
 		t.Fatalf("accept = %s", out)
 	}
-	if out := talkedAs(t, srv, `{"sessionId":"`+session+`","host":"`+host+`","candidates":["`+link+`"]}`); len(out.Welcomes) != 1 {
+	if out := talkedAs(t, srv, `{"sessionId":"`+session+`","host":"`+host+`","candidates":["`+link+`"],"chatThread":"TH-`+link+`"}`); len(out.Welcomes) != 1 {
 		t.Fatalf("not told: %+v", out)
 	}
 	return joined.Participant
@@ -39,7 +39,7 @@ func talkedAs(t *testing.T, srv, body string) SessionTalk {
 	return out
 }
 
-// Desktop の /clear（CLI ごと替わる）: 新しい会話のフックが前の会話のセッション id を添えると、その参加者が新しい会話に移り、起こす知らせの宛て先も新しい CLI に移る
+// Desktop の /clear（CLI ごと替わる）: 新しい会話のフックが同じチャットスレッドの id を添えると、その参加者が新しい会話に移り、起こす知らせの宛て先も新しい CLI に移る
 // （古い CLI の退室の見張りの印は消える）。溜まっていた知らせは新しい CLI の通り道に流れ、移したことは AI にだけ 1 度伝わる（利用者に見せる文は無い）
 func TestClearCarriesTheParticipantToANewProgram(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
@@ -49,7 +49,7 @@ func TestClearCarriesTheParticipantToANewProgram(t *testing.T) {
 	if sent, _ := sendMessage(t, s.URL, a, "すずめ", "起きて"); !sent.OK {
 		t.Fatalf("sent = %+v", sent)
 	}
-	out := talkedAs(t, s.URL, `{"sessionId":"S2","host":"300","previousSessions":["S1"]}`)
+	out := talkedAs(t, s.URL, `{"sessionId":"S2","host":"300","chatThread":"TH-LB"}`)
 	n := noteOf(hub, b)
 	if n.SessionID != "S2" || n.Host != "300" || n.WakeHost != "300" || n.WakeSession != "S2" || n.SessionPid != "" || n.Carried {
 		t.Fatalf("carried = %+v", n)
@@ -57,7 +57,7 @@ func TestClearCarriesTheParticipantToANewProgram(t *testing.T) {
 	if !strings.HasPrefix(out.ForAI, carriedText) || !strings.Contains(out.ForAI, "Workroom name: すずめ") || len(out.Welcomes) != 0 {
 		t.Fatalf("talked = %+v", out)
 	}
-	if again := talkedAs(t, s.URL, `{"sessionId":"S2","host":"300","previousSessions":["S1"]}`); again.ForAI != "" {
+	if again := talkedAs(t, s.URL, `{"sessionId":"S2","host":"300","chatThread":"TH-LB"}`); again.ForAI != "" {
 		t.Fatalf("told twice: %+v", again)
 	}
 	if got := wakes(hub, hub.OpenWakesWith("300", "S2", WakeLimits{})); len(got) != 1 || !strings.Contains(got[0], "起きて") {
@@ -90,29 +90,38 @@ func TestClearInTheSameProgramKeepsTheWakeTarget(t *testing.T) {
 	}
 }
 
-// 移さない・移すとき: 新しい会話に誰かが結ばれていれば移さない。前の会話を知らない・添えないなら移さない。join でセッション id を運んだ参加者は移さない。
-// 前の会話に結ばれた参加者は、要求中の者も含めて全員移る
-func TestClearCarriesOnlyFromThePreviousSession(t *testing.T) {
+// 移さない・移すとき: 新しい会話に誰かが結ばれていれば移さない。チャットスレッドが違う・添えないなら移さない。join でセッション id を運んだ参加者は移さない。
+// 前の参加者に今も届く通り道があれば（前の会話がまだ動いている）移さない。同じチャットスレッドの参加者は、要求中の者も含めて全員移る
+func TestClearCarriesOnlyFromTheSameChatThread(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	codex := joinedIn(t, s.URL, "LC", "100", "SC", "ひよこ")
+	talkedAs(t, s.URL, `{"sessionId":"SC","host":"100","chatThread":"TH-C"}`)
 	b := claudeIn(t, s.URL, "LB", "200", "S1", "すずめ")
 	other := claudeIn(t, s.URL, "LO", "400", "S9", "つばめ")
-	if out := talkedAs(t, s.URL, `{"sessionId":"S9","host":"500","previousSessions":["S1"]}`); out.ForAI != "" || noteOf(hub, b).SessionID != "S1" {
+	if out := talkedAs(t, s.URL, `{"sessionId":"S9","host":"500","chatThread":"TH-LB"}`); out.ForAI != "" || noteOf(hub, b).SessionID != "S1" {
 		t.Fatalf("moved into a bound session: %+v, %+v", out, noteOf(hub, b))
 	}
-	if out := talkedAs(t, s.URL, `{"sessionId":"S2","host":"501","previousSessions":["SX"]}`); out.ForAI != "" || noteOf(hub, b).SessionID != "S1" {
-		t.Fatalf("moved from an unknown session: %+v", out)
+	talkedAs(t, s.URL, `{"sessionId":"S9","host":"400","chatThread":"TH-LO"}`) // 添えた id を覚え直す
+	for _, body := range []string{`{"sessionId":"S2","host":"501","chatThread":"TH-X"}`, `{"sessionId":"S2","host":"501"}`} {
+		if out := talkedAs(t, s.URL, body); out.ForAI != "" || noteOf(hub, b).SessionID != "S1" {
+			t.Fatalf("moved by %s: %+v", body, out)
+		}
 	}
-	talkedAs(t, s.URL, `{"sessionId":"S3","host":"502","previousSessions":["SC"]}`)
+	talkedAs(t, s.URL, `{"sessionId":"S3","host":"502","chatThread":"TH-C"}`)
 	if n := noteOf(hub, codex); n.SessionID != "SC" {
 		t.Fatalf("the participant whose join carried the session moved: %+v", n)
 	}
-	// 要求中（受け入れ前）の参加者も、同じ前の会話に結ばれていれば一緒に移る
+	line := hub.OpenWakesWith("200", "S1", WakeLimits{})
+	if talkedAs(t, s.URL, `{"sessionId":"S5","host":"503","chatThread":"TH-LB"}`); noteOf(hub, b).SessionID != "S1" {
+		t.Fatalf("moved while the line reaches it: %+v", noteOf(hub, b))
+	}
+	hub.CloseWakes(line)
+	// 要求中（受け入れ前）の参加者も、同じチャットスレッドの会話に結ばれていれば一緒に移る
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"windows","link":"LR"}`, nil)
 	var asked Joined
 	_ = json.Unmarshal([]byte(got), &asked)
-	talkedAs(t, s.URL, `{"sessionId":"S1","host":"200","candidates":["LR"]}`)
-	talkedAs(t, s.URL, `{"sessionId":"S4","host":"600","previousSessions":["S1"]}`)
+	talkedAs(t, s.URL, `{"sessionId":"S1","host":"200","candidates":["LR"],"chatThread":"TH-LB"}`)
+	talkedAs(t, s.URL, `{"sessionId":"S4","host":"600","chatThread":"TH-LB"}`)
 	if noteOf(hub, b).SessionID != "S4" || noteOf(hub, asked.Participant).SessionID != "S4" || noteOf(hub, other).SessionID != "S9" {
 		t.Fatalf("b = %+v, asked = %+v, other = %+v", noteOf(hub, b), noteOf(hub, asked.Participant), noteOf(hub, other))
 	}
