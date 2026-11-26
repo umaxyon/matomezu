@@ -9,6 +9,7 @@ import type { Records } from "../../../web/src/core/records"
 import { withCounters, withRecords } from "../../../web/src/core/records"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { workroomActivityOf, workroomWorkIn, workroomWorkOf } from "../../../web/src/plugins/base/participant/activity"
+import { myWorkdeskIn } from "../../../web/src/plugins/base/participant/my-workdesk"
 import { workTitleIn } from "../../../web/src/plugins/base/participant/work-title"
 import { workerBookOf, workerBookReadsOf } from "../../../web/src/plugins/base/participant/worker-book"
 import { CURRENT_WORK, currentTicketOf } from "../../../web/src/plugins/taskboard/current-work"
@@ -499,14 +500,39 @@ test("作業中の印を外すと、ほかのレーンで担当の作業中の�
   expect(work(a)).toBe(t2)
 })
 
-test("空きのワークルームに担当で作業中の物が残っていれば、ワークルームの作業の forAi がそれを並べる", () => {
+test("空きのワークルームに担当で作業中の物が残っていれば、AI の作業机の文（参加の文・read_folder）がそれを並べる。作業中のワークルームには並べない", () => {
   const { act, room, doing, add, world } = board()
   const a = room("あ")
-  const records = () => world().records as Record<string, Record<string, unknown>>
+  const b = room("い")
+  const records = () => world().records as Records
+  const t1 = add({ lane: doing, assignees: [a] })
+  add({ lane: doing, assignees: [a] })
+  add({ lane: doing, assignees: [a] })
+  add({ lane: doing, assignees: [b] })
+  act(ai(a), "ticket-leave", { unassign: true }, { record: t1 })
+  const desk = (r: string) => myWorkdeskIn(CORE_CATALOG, sourceOf(records()), {}, r).forAi
+  expect(workroomWorkOf(CORE_CATALOG, records(), a)).toEqual({ kind: "idle" })
+  expect(desk(a)).toContain("Ask the user which one")
+  expect(workroomWorkOf(CORE_CATALOG, records(), b)).toMatchObject({ kind: "working" })
+  expect(desk(b)).not.toContain("Ask the user which one")
+})
+
+test("ワークルームの作業を答えるとき、空きのワークルームでも担当のチケットを探さない（AI に添える文は aiWorkroomIdle が作る）", () => {
+  const { act, room, doing, add, world } = board()
+  const a = room("あ")
   const t1 = add({ lane: doing, assignees: [a] })
   add({ lane: doing, assignees: [a] })
   add({ lane: doing, assignees: [a] })
   act(ai(a), "ticket-leave", { unassign: true }, { record: t1 })
-  const work = workroomWorkOf(CORE_CATALOG, records(), a)
-  expect(work).toMatchObject({ kind: "idle", forAi: expect.stringContaining("Ask the user which one") })
+  const read = readerOf(CORE_CATALOG, sourceOf(world().records as Records), workerBookReadsOf(CORE_CATALOG))
+  const found: string[] = []
+  const counted = {
+    ...read,
+    find: (subject: string, where: Parameters<typeof read.find>[1]) => {
+      found.push(subject)
+      return read.find(subject, where)
+    },
+  }
+  expect(workroomWorkIn(CORE_CATALOG, counted, a)).toEqual({ kind: "idle" })
+  expect(found).not.toContain(TICKET.id)
 })

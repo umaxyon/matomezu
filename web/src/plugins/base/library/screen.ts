@@ -73,7 +73,7 @@ const placeArgs = z.strictObject({ entry: z.string().min(1) })
 const placeOf = (ctx: ScreenCommandContext, args: unknown): LibraryPlace | typeof NO_LIBRARY_PLACE => {
   const parsed = placeArgs.safeParse(args)
   return parsed.success
-    ? entryPlaceOf(ctx.folders, parsed.data.entry, workdesksOf(ctx.catalog, ctx.read, ctx.folders))
+    ? entryPlaceOf(ctx.folders, parsed.data.entry, () => workdesksOf(ctx.catalog, ctx.read, ctx.folders))
     : NO_LIBRARY_PLACE
 }
 

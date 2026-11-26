@@ -394,7 +394,7 @@ function outsideBinderOver(folders: Folders, page: string): Folder | undefined {
 
 // 開いている物 entry（ブック・ブックの外のバインダ・ブックの外のページ）の、書庫の画面の上の置き場所: 右の枠に出すフォルダ folder（作業机とその下の行の id も）、
 // そこで選ぶ行 picked、パンくず path（folder までの id の列）。ブックの外のバインダの中のページは、そのバインダの行。
-// ワーカーブックは、それを映している作業机（2 つあれば desks の先頭）の下のブックの行。作業机に映っていないバックヤードの中の物・ゴミ箱の中の物・書庫の表に無い物は NO_LIBRARY_PLACE
+// ワーカーブックは、それを映している作業机（desksOf が出す。2 つあれば先頭）の下のブックの行。作業机に映っていないバックヤードの中の物・ゴミ箱の中の物・書庫の表に無い物は NO_LIBRARY_PLACE
 export interface LibraryPlace {
   folder: string
   picked: string
@@ -405,8 +405,10 @@ export const NO_LIBRARY_PLACE = "none"
 export function entryPlaceOf(
   folders: Folders,
   entry: string,
-  desks: readonly Workdesk[],
+  desksOf: () => readonly Workdesk[],
 ): LibraryPlace | typeof NO_LIBRARY_PLACE {
+  // 作業机に映るワーカーブックはバックヤードの中にあるので、作業机はバックヤードの中の物のときだけ出す
+  const desks = inBackyard(folders, entry) ? desksOf() : NO_DESKS
   const desk = desks.find(d => d.book === entry)
   if (desk !== undefined) {
     const folder = deskRowId(desk.room)
