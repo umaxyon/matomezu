@@ -3,7 +3,7 @@
 //   ツリー（節 100・200・300）とディレクトリ構成図（中身 100・200・300）も、開くまで・パン・左右でのパンを測る
 // - アクション: AI の入口から item-place と line-connect を 300 まで重ね、1 回の perform の時間を 100 ずつに分けて測る
 // - 書庫から開く: 参加者の AI（用意の口が置く 1 人）と、その担当のチケット 0・200・400 枚、書庫ホームにブック 20 冊を置き、コントロールセンターの書庫でブックを 2 回押して開くまでの
-//   操作の応答（INP が見る、押してから次の絵が出るまで）と長い処理を測る（書庫の行ごとに作業机を出す計算がチケットと参加者の数で重くなる。M-0239）
+//   操作の応答（INP が見る、押してから次の絵が出るまで）と長い処理を測る（書庫の行ごとに出す作業机の計算が、担当のチケットの数で重くならないか）
 // - マークダウン: 原文 1000・3000・5000 行のページを左右に並べて開き直すまで・ソースのペインの末尾と先頭に書く・ソースのペインをホイールでスクロールする（描いた文書が付いて行く）のを測る
 import { execSync } from "node:child_process"
 import { mkdirSync, writeFileSync } from "node:fs"
@@ -281,7 +281,7 @@ test("書庫から開く: 参加者の AI の担当のチケットを増やし�
   if ((await storedRecords<Project>(setup.request, "@matomezu/taskboard:project")).length === 0)
     await perform({ action: "@matomezu/taskboard:project-add", args: {} })
   const project = (await storedRecords<Project>(setup.request, "@matomezu/taskboard:project"))[0]!
-  // 作業中でないレーンに置く（担当のワークルームは空きのまま。空きのワークルームの作業机は、担当のチケットを全部読む）
+  // 作業中でないレーンに置く（担当のワークルームは空きのまま）
   const lane = project.lanes.find(l => l.kind === "lane" && l.working !== true)!.id!
   let made = 0
   for (const tickets of LIBRARY_TICKETS) {
