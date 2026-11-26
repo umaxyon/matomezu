@@ -17,9 +17,17 @@ const IN = "/e/"
 
 export const NO_DESKS: readonly Workdesk[] = []
 
+// 最後に出した作業机と、出した元（書庫の行ごとに同じ状態から出すので、元が同じなら出し直さない）
+let lastDesks: { catalog: CoreCatalog; records: Records; folders: Folders; desks: readonly Workdesk[] } | undefined
+
 // 持っているレコード records と書庫の表 folders から出す作業机（読むのは workdesksReadsOf の種類だけ）
-export const workdesksIn = (catalog: CoreCatalog, s: { records: Records; folders: Folders }): readonly Workdesk[] =>
-  workdesksOf(catalog, readerOf(catalog, sourceOf(s.records), workdesksReadsOf(catalog)), s.folders)
+export function workdesksIn(catalog: CoreCatalog, s: { records: Records; folders: Folders }): readonly Workdesk[] {
+  const was = lastDesks
+  if (was?.catalog === catalog && was.records === s.records && was.folders === s.folders) return was.desks
+  const desks = workdesksOf(catalog, readerOf(catalog, sourceOf(s.records), workdesksReadsOf(catalog)), s.folders)
+  lastDesks = { catalog, records: s.records, folders: s.folders, desks }
+  return desks
+}
 
 export const deskRowId = (room: string): string => `${PREFIX}${encodeURIComponent(room)}`
 export const deskBookRowId = (room: string): string => `${deskRowId(room)}${BOOK}`

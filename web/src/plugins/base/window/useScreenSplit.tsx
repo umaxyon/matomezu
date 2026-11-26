@@ -80,18 +80,23 @@ export function useScreenSplit(): ScreenSplit {
   const inside = useScreenContext()
   // 窓の全部は、操作するときに読む（描き直すのは、分けた並びと、それに入っている物・起点が変わったときだけ）
   const read = useReadState()
-  const currentId = useMatomezuState(s => currentScreen(s.window).id)
-  const currentDef = useMatomezuState(s => currentScreen(s.window).def)
+  // スクリーンの中では起点が決まっているので、カレントスクリーンが変わっても描き直さない
+  const currentId = useMatomezuState(s => (inside !== NO_SCREEN ? inside.id : currentScreen(s.window).id))
+  const currentDef = useMatomezuState(s => (inside !== NO_SCREEN ? inside.def : currentScreen(s.window).def))
   const split = useMatomezuState(useShallow(s => splitIn(s.window)))
   const wideHere = useMatomezuState(
     s => wideIn(s.window) === (inside !== NO_SCREEN ? inside.id : currentScreen(s.window).id),
   )
-  const behindHere = useMatomezuState(s => recentPlainScreen(s.window)?.id)
   const members = useMatomezuState(useShallow(s => split.map(id => s.window.screens.find(x => x.id === id) ?? null)))
   const tall = useTallEnough()
   const actions = useStoreActions()
   const flash = useUpdatePluginState(kit, SCREEN_FLASH)
   const here = inside !== NO_SCREEN ? { id: inside.id, def: inside.def } : { id: currentId, def: currentDef }
+  // 後ろのステージを並べないスクリーンが起点のほかにあるか（そのスクリーンの id は、分けるときに読む）
+  const behindOther = useMatomezuState(s => {
+    const behind = recentPlainScreen(s.window)?.id
+    return behind !== undefined && behind !== here.id
+  })
   const shownHere = useMemo(() => ({ def: here.def }), [here.def])
   const apply = useCallback((plan: SplitPlan) => applySplitFrom(actions, plan), [actions])
   const find = useCallback(
@@ -156,9 +161,10 @@ export function useScreenSplit(): ScreenSplit {
       actions.setScreenArrangement(SPLIT_ROWS.id, withWide(read().window.arrangementValue, undefined))
       actions.makeScreenCurrent(here.id)
     },
-    rowsShown: tall && !split.includes(here.id) && !wideHere && behindHere !== undefined && behindHere !== here.id,
+    rowsShown: tall && !split.includes(here.id) && !wideHere && behindOther,
     toRows: () => {
-      if (behindHere === undefined || !tallNow()) return
+      const behindHere = recentPlainScreen(read().window)?.id
+      if (behindHere === undefined || behindHere === here.id || !tallNow()) return
       apply(planOpen([], here.id, behindHere, "before", 2))
       actions.makeScreenCurrent(here.id)
     },
