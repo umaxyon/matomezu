@@ -284,17 +284,32 @@ function permitted(c: Called, state: MatomezuState, given: Given): boolean {
   )
 }
 
+// 行うアクションが使え、そのどれかを認可ステップが止めないか（押せるかのうち、アクションの所だけ）
+const allowed = (c: Called, state: MatomezuState, given: Given): boolean =>
+  performable(c, given[0]) && permitted(c, state, given)
+
 // 押せるか: 出していて、行うアクションのどれかを認可ステップが止めず、enabled が押せるとするとき
 export function isEnabled(defs: Assembled, state: MatomezuState, at: string, id: CommandId, ...given: Given): boolean {
   const c = called(defs, state, at, id)
   return (
     c !== null &&
-    performable(c, given[0]) &&
     ask(c, "when") === true &&
     accepted(c, given) &&
-    permitted(c, state, given) &&
+    allowed(c, state, given) &&
     (ask(c, "enabled") ?? true)
   )
+}
+
+// 行うアクションを、開いているページのタイプなどの許可スコープの所で使えるか（認可ステップは見ない）
+export function isPerformable(defs: Assembled, state: MatomezuState, at: string, id: CommandId): boolean {
+  const c = called(defs, state, at, id)
+  return c !== null && performable(c)
+}
+
+// 行うアクションの所では押せるか（when・accepts・enabled は見ない）。押す前の状態を作るボタン（置こうとするボタンなど）が、その先のコマンドを押せる所かを問う
+export function isPermitted(defs: Assembled, state: MatomezuState, at: string, id: CommandId): boolean {
+  const c = called(defs, state, at, id)
+  return c !== null && allowed(c, state, [])
 }
 
 export function isActive(defs: Assembled, state: MatomezuState, at: string, id: CommandId): boolean {

@@ -36,6 +36,7 @@ export const SLIDE_PUT = kit.defineCommand({
   id: "slide-put",
   performs: [PLACE],
   permissionScope: "opened-page",
+  placesItem: true,
   title: "Place on slide",
   run: (ctx, a, args: { item: ItemId; rect: Rect; props: Record<string, unknown> }) => {
     if (!hasOpenedPage(ctx)) return

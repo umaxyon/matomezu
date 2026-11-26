@@ -3,6 +3,9 @@
 import { type CoreCatalog, type ItemId, pageType } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import { type EditList, type PageTypeDef, placeableOf, slideIsBackground } from "../../../core/def/page-type"
+import { type CommandId, isPerformable, isPermitted } from "../../../store/commands"
+import type { Assembled } from "../../../store/plugin"
+import type { MatomezuState } from "../../../store/state"
 
 // ツールボックスに出すか（定義オブジェクトの拡張ポイントに書き足す）。true はボタンで出し、"panel" はシェイプパネルに並べる。
 // 出さない形（false）は、ほかの操作で置く。つなぐものは出さない（形どうしを結ぶ操作で引く）
@@ -12,6 +15,10 @@ declare module "../../../core/catalog" {
   }
   interface ConnectorItemExtras<D extends ConnectorData = ConnectorData> {
     toolbox: false
+  }
+  // 置こうとしているアイテムを置くコマンドの印（そのコマンドを持つプラグインが書く）
+  interface CommandExtras {
+    placesItem?: true
   }
 }
 
@@ -30,3 +37,13 @@ export const toolboxOf = (catalog: CoreCatalog, type: string, edits: EditList): 
 // シェイプパネルに並べるアイテム
 export const panelOf = (catalog: CoreCatalog, type: string, edits: EditList): readonly ItemId[] =>
   placedBy(catalog, type, "panel", edits)
+
+// ステージ at で置けるか: 置くコマンド（placesItem）のうち、開いているページのタイプで行うアクションを使える物のどれかを、認可ステップが止めないか。
+// 使える置くコマンドが無ければ止めない（置けるかは置くときに決まる）
+export function canPlace(defs: Assembled, state: MatomezuState, at: string): boolean {
+  const places = [...defs.catalog.store.commands]
+    .filter(([, def]) => def.placesItem === true)
+    .map(([id]) => id as CommandId)
+  const usable = places.filter(id => isPerformable(defs, state, at, id))
+  return usable.length === 0 || usable.some(id => isPermitted(defs, state, at, id))
+}

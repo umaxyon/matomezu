@@ -47,6 +47,7 @@ export const PAPER_PLACE = kit.defineCommand({
   id: "paper-place",
   performs: [ITEM_PLACE.id],
   permissionScope: "opened-page",
+  placesItem: true,
   title: "Place item",
   run: (ctx, a, pointer: Point) => {
     const { stage } = ctx
