@@ -3,7 +3,7 @@
 import type { LibraryPageRows } from "./changes"
 import type { CoreCatalog } from "./core-catalog"
 import type { ActionContext, ActionDef, EntryWhere, LibraryTargets, Where } from "./def/action"
-import type { PlaceEntry, PlaceFolder, PlacePermissionCheck } from "./def/permission"
+import type { PlaceEntry, PlaceEntryKind, PlaceFolder, PlacePermissionCheck } from "./def/permission"
 import { binnedBetween, type EntryKind, isWithin } from "./entries"
 import { type Folder, type Folders, isOpenRole, type Library, type PageRow } from "./folders"
 import { libraryOf } from "./folders-books"
@@ -55,14 +55,22 @@ function entryKindOf(library: Library, id: string): EntryKind | undefined {
   return role === "book" ? "book" : role === "binder" ? "binder" : role === "folder" ? "folder" : undefined
 }
 
+// 書庫 library のエントリ id の、置き場所の問いと確かめに見せる種類（ページならタイプも。表に無ければ undefined）
+function placeKindOf(library: Library, id: string): PlaceEntryKind | undefined {
+  const page = library.pages[id]
+  if (page) return { kind: "page", pageType: page.type }
+  const kind = entryKindOf(library, id)
+  return kind === undefined || kind === "page" ? undefined : { kind }
+}
+
 // 名指したエントリ entry の、置き場所の問い: 動かす（place）なら動かす先 into（今の直の入れ物と同じなら問わない）、写す（copy）なら今の直の入れ物
 function entryPlaceAsks(library: Library, entry: string, how: EntryWhere, into?: string): EntryAsk[] {
-  const kind = entryKindOf(library, entry)
+  const kind = placeKindOf(library, entry)
   if (kind === undefined) return []
   const holder = holderOf(library.folders, entry)
-  if (how === "copy") return holder === undefined ? [] : placeAsk(library, holder, { kind, made: "new" })
+  if (how === "copy") return holder === undefined ? [] : placeAsk(library, holder, { ...kind, made: "new" })
   if (how !== "place" || into === undefined || into === holder) return []
-  return placeAsk(library, into, { kind, id: entry })
+  return placeAsk(library, into, { ...kind, id: entry })
 }
 
 // 書庫 library のブックの外のページ id を、エントリの変え方 how で問う相手（表に無いページには問わない）
@@ -144,7 +152,8 @@ export function libraryAsksOf(catalog: CoreCatalog, library: Library, targets: L
           : bookIdOf(library.folders, p.into)
     if (into !== undefined) return [{ book: into, where: { creates: p.creates } }]
     const made = newPageOf(catalog, p.creates)
-    const placed = p.into === undefined ? [] : placeAsk(library, p.into, { kind: "page", made: "new" })
+    const placed =
+      p.into === undefined ? [] : placeAsk(library, p.into, { kind: "page", pageType: p.creates, made: "new" })
     return made ? [{ page: { page: made, folders: [] } }, ...placed] : placed
   })
   const named: EntryAsk[] = [
@@ -272,11 +281,11 @@ export function placeChecksBetween(was: Library, now: Library): PlaceCheck[] {
   return [...ids].flatMap(id => {
     const from = holderOf(was.folders, id)
     const to = holderOf(now.folders, id)
-    const kind = entryKindOf(now, id) ?? entryKindOf(was, id)
+    const kind = placeKindOf(now, id) ?? placeKindOf(was, id)
     if (from === to || kind === undefined) return []
     const before = from === undefined ? "none" : placeFoldersOf(was.folders, from)
     const after = to === undefined ? "none" : placeFoldersOf(now.folders, to)
-    return before === "none" && after === "none" ? [] : [{ entry: { kind, id }, before, after }]
+    return before === "none" && after === "none" ? [] : [{ entry: { ...kind, id }, before, after }]
   })
 }
 
