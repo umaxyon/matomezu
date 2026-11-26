@@ -45,6 +45,7 @@
 //	                         （undone と failed と removed は、渡したら、次の利用者トリガートークのときに消える）
 //	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine&maxNotice&gap&breaks]  SSE。そのプロセス id かセッション id の AI を起こす知らせ（event: wake、data: {"line", "id", "session", "text"}。参加の要求が受け入れられた・断られた、AI 間メッセージ。watch.go）
 //	POST /api/ai/work-title {"sessionId"} そのセッションの作業名 {"workTitle"}（読むだけ。ターンの終わりのフックが読む。書かないなら空。talk_session.go の WorkTitle）
+//	POST /api/ai/work-shift {"sessionId"} ターンの終わりの、そのセッションの作業の替わり目 {"ask"}（替わっていなければ ask は null。今の作業の印を覚え直す。AI のプログラムの部品が、利用者に聞く問いを読む。talk_session.go の WorkShift）
 //	POST /api/ai/watch/ack   {"line", "id", "result"} 通り道に流した知らせを渡せたか（delivered・absent・failed）。{} を返す（watch.go）
 //	POST /api/ai/talked      {"sessionId", "host", "candidates", "woken", "prompt"} AI のターンが始まった（AI のフックが知らせる）。candidates が無く woken でなければ、利用者トリガートークのときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
 //	                         woken は、利用者トリガートークでなく、裏の知らせ（watch の 1 行など）で始まったターンのフック（結びつけと「参加しました」の知らせだけを行う）。prompt（ターンの入力）が通り道に貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）でも同じ。
@@ -193,6 +194,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/ai/search", o.ai(o.search(false)))
 	mux.Handle("POST /api/ai/talked", o.ai(o.aiTalked))
 	mux.Handle("POST /api/ai/work-title", o.ai(o.aiWorkTitle))
+	mux.Handle("POST /api/ai/work-shift", o.ai(o.aiWorkShift))
 	mux.Handle("POST /api/ai/model", o.ai(o.aiModel))
 	routesForTest(mux, o)
 	routesForDev(mux, o)

@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
@@ -202,38 +203,43 @@ func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk
 	return SessionTalk{Welcomes: told, Unbound: unbound, ForAI: strings.Join(carried, "\n"), WorkTitle: h.WorkTitle(sessionID)}, nil
 }
 
-// WorkTitle は、セッション sessionID の作業名: そのセッションに結ばれた、受け入れ済みでワークルームに入っている参加者がちょうど 1 人なら、
-// そのワークルームの名前と作業から作った名前（エンジンの WorkTitle）。そうでない・利用者の設定が書くのを止めている・作れないなら空（フックは名前を書かない。
-// 利用者が付けたセッション名を消さないため）
-func (h *Hub) WorkTitle(sessionID string) string {
+// soleWorkerHeld は、セッション sessionID に結ばれた、受け入れ済みでワークルームに入っている参加者がちょうど 1 人なら、その参加者の id とワークルームの id と名前（h.mu を持って呼ぶ）
+func (h *Hub) soleWorkerHeld(sessionID string) (participant, room, name string, ok bool) {
 	if sessionID == "" {
-		return ""
+		return "", "", "", false
 	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
 	records, err := h.participantsHeld()
 	if err != nil {
-		return ""
+		return "", "", "", false
 	}
-	room := ""
 	for _, s := range records {
 		if s.State != stateJoined || h.participantNotes[s.ID].SessionID != sessionID {
 			continue
 		}
 		if room != "" {
-			return ""
+			return "", "", "", false
 		}
-		room = s.Workroom
+		participant, room = s.ID, s.Workroom
 	}
 	if room == "" {
-		return ""
+		return "", "", "", false
 	}
 	rooms, err := h.workroomsHeld()
 	if err != nil {
-		return ""
+		return "", "", "", false
 	}
-	name := roomName(rooms, room)
-	if name == "" {
+	name = roomName(rooms, room)
+	return participant, room, name, name != ""
+}
+
+// WorkTitle は、セッション sessionID の作業名: そのセッションに結ばれた、受け入れ済みでワークルームに入っている参加者がちょうど 1 人なら、
+// そのワークルームの名前と作業から作った名前（エンジンの WorkTitle）。そうでない・利用者の設定が書くのを止めている・作れないなら空（フックは名前を書かない。
+// 利用者が付けたセッション名を消さないため）
+func (h *Hub) WorkTitle(sessionID string) string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	_, room, name, ok := h.soleWorkerHeld(sessionID)
+	if !ok {
 		return ""
 	}
 	title, ok, err := h.engine.WorkTitle(h.settings, room, name, recordSource{h})
@@ -241,4 +247,29 @@ func (h *Hub) WorkTitle(sessionID string) string {
 		return ""
 	}
 	return title
+}
+
+// WorkShift は、セッション sessionID のターンの終わりの作業の替わり目: そのセッションに結ばれた、ワークルームに入っている参加者がちょうど 1 人なら、
+// その参加者に覚えた前のターンの終わりの印と今の作業を比べ、替わっていれば利用者に聞く問いを返す（nil なら聞かない）。今の印を覚え直すので、1 つの替わりには 1 度だけ答える。
+// 初めてのターンの終わりは、覚えるだけで聞かない。問いを出す・会話を空にするのは AI のプログラムの部品が行う
+func (h *Hub) WorkShift(sessionID string) (*engine.WorkShiftAsk, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	participant, room, _, ok := h.soleWorkerHeld(sessionID)
+	if !ok {
+		return nil, nil
+	}
+	n := h.participantNotes[participant]
+	shift, err := h.engine.WorkShift(h.settings, room, n.Work, recordSource{h})
+	if err != nil {
+		return nil, err
+	}
+	if shift.Mark != n.Work {
+		n.Work = shift.Mark
+		h.participantNotes[participant] = n
+		if err := h.putParticipantNotes(); err != nil {
+			return nil, err
+		}
+	}
+	return shift.Ask, nil
 }

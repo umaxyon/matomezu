@@ -377,6 +377,23 @@ func (o Options) aiWorkTitle(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"workTitle": o.Hub.WorkTitle(req.SessionID)})
 }
 
+// aiWorkShift は、ターンの終わりに、セッションの作業の替わり目を答える（AI のプログラムの部品が、利用者に聞く問いを読む。{"sessionId"} → {"ask"}。ask が無ければ聞かない。
+// 今の作業の印を覚え直すので、読むだけでない）
+func (o Options) aiWorkShift(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		SessionID string `json:"sessionId"`
+	}
+	if r.ContentLength != 0 && !readJSON(w, r, &req) {
+		return
+	}
+	ask, err := o.Hub.WorkShift(req.SessionID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"ask": ask})
+}
+
 func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SessionID  string   `json:"sessionId"`

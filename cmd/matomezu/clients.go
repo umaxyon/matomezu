@@ -37,9 +37,10 @@ func selfExecutable() string {
 
 // claudeCodeCmd は、Claude Code のプラグインが呼ぶコマンドの組
 type claudeCodeCmd struct {
-	MCP   claudeMCPCmd   `cmd:"" name:"mcp" help:"Serve the MCP tools for Claude Code (with the development server when the project is the matomezu repository)."`
-	Hook  claudeHookCmd  `cmd:"" help:"Claude Code's hooks."`
-	Watch claudeWatchCmd `cmd:"" help:"Claude Code's monitor: print one line for each thing that should wake this session (with --via mod, for the plugin's mod in Claude Desktop, which submits each line as a prompt)."`
+	MCP       claudeMCPCmd       `cmd:"" name:"mcp" help:"Serve the MCP tools for Claude Code (with the development server when the project is the matomezu repository)."`
+	Hook      claudeHookCmd      `cmd:"" help:"Claude Code's hooks."`
+	Watch     claudeWatchCmd     `cmd:"" help:"Claude Code's monitor: print one line for each thing that should wake this session (with --via mod, for the plugin's mod in Claude Desktop, which submits each line as a prompt)."`
+	WorkShift claudeWorkShiftCmd `cmd:"" name:"work-shift" help:"For the plugin's mod at the end of a turn: print the question to ask the user when the current work of the session changed since the last turn ended (JSON), or nothing."`
 }
 
 // claudeDev は、Claude Code が開いているプロジェクトが matomezu のリポジトリなら、開発の常駐を使い（起動し直すことがある）、その根を返す。
@@ -152,6 +153,17 @@ func (c claudeWatchCmd) Run() error {
 		return nil
 	}
 	return w.Run()
+}
+
+type claudeWorkShiftCmd struct {
+	Session string `required:"" help:"The session id."`
+}
+
+// Run は、ターンの終わりに、セッションの作業の替わり目を常駐に訊き、利用者に聞く問いがあればその JSON を 1 行出す（無い・常駐が立っていなければ何も出さない）
+func (c claudeWorkShiftCmd) Run() error {
+	claudeDev()
+	workShift(os.Stdout, c.Session, runningAPI("api/ai/work-shift"))
+	return nil
 }
 
 // codexCmd は、Codex のプラグインが呼ぶコマンドの組

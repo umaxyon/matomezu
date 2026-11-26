@@ -310,3 +310,20 @@ func workTitle(hook hookInput, api hookAPI) {
 	}
 	hook.Rename(hook.Cwd, reply.WorkTitle)
 }
+
+// workShift は、ターンの終わりに、セッション session の作業の替わり目を常駐に訊き、利用者に聞く問いがあればその JSON（question・choices・read）を 1 行書く。
+// 無い・常駐が立っていない・読めなければ何も書かない
+func workShift(out io.Writer, session string, api hookAPI) {
+	if api == nil || session == "" {
+		return
+	}
+	body, _ := json.Marshal(map[string]any{"sessionId": session})
+	got, err := api(body)
+	var reply struct {
+		Ask json.RawMessage `json:"ask"`
+	}
+	if err != nil || json.Unmarshal(got, &reply) != nil || len(reply.Ask) == 0 || string(reply.Ask) == "null" {
+		return
+	}
+	_, _ = fmt.Fprintln(out, string(reply.Ask))
+}

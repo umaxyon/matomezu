@@ -9,6 +9,7 @@ import type { Records } from "../../../web/src/core/records"
 import { withCounters, withRecords } from "../../../web/src/core/records"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { workroomActivityOf, workroomWorkIn, workroomWorkOf } from "../../../web/src/plugins/base/participant/activity"
+import { workShiftIn } from "../../../web/src/plugins/base/participant/work-shift"
 import { workTitleIn } from "../../../web/src/plugins/base/participant/work-title"
 import { workerBookOf, workerBookReadsOf } from "../../../web/src/plugins/base/participant/worker-book"
 import { CURRENT_WORK, currentTicketOf } from "../../../web/src/plugins/taskboard/current-work"
@@ -354,6 +355,52 @@ test("作業名: 作業中なら題名とワークルームの名前、空きな
   const noAnswer = { ...CORE_CATALOG, subjects: new Map() } as CoreCatalog
   expect(title(noAnswer, ja)).toEqual({ kind: "title", title: "ひよこ" })
   expect(title(CORE_CATALOG, { ...ja, "@matomezu/base:session-rename": false })).toEqual({ kind: "off" })
+})
+
+test("作業の替わり目: 覚えていない・替わっていなければ聞かない。替わった・新しく振られたら 4 つ、終わったら 2 つの選べる事で 1 度だけ聞く", () => {
+  const { user, room, doing, add, world } = board()
+  const a = room("ひよこ")
+  const ja = { "@matomezu/base:lang": "matomezu:ja" }
+  let mark = ""
+  // ターンの終わり 1 回分: 覚えた印を進め、問いを返す
+  const turnEnd = (catalog: CoreCatalog = CORE_CATALOG) => {
+    const shift = workShiftIn(catalog, ja, sourceOf(world().records as Records), a, mark)
+    mark = shift.mark
+    return shift.ask
+  }
+  // 初めてのターンの終わりは覚えるだけ
+  expect(turnEnd()).toBeUndefined()
+  expect(turnEnd()).toBeUndefined()
+  // 空きから新しく振られた
+  const t1 = add({ name: "一", lane: doing, assignees: [a] })
+  const started = turnEnd()
+  expect(started?.question).toBe("今の作業が T-0001 になりました。どうしますか？")
+  expect(started?.choices.map(c => [c.clear, c.read])).toEqual([
+    [true, true],
+    [true, false],
+    [false, true],
+    [false, false],
+  ])
+  expect(started?.read).toContain('read_folder with folder "my-workdesk"')
+  // 1 つの替わりには 1 度だけ
+  expect(turnEnd()).toBeUndefined()
+  // 完了して、担当で作業中のチケットが次の作業になった
+  add({ name: "二", lane: doing, assignees: [a] })
+  user("ticket-complete", {}, { record: t1 })
+  expect(turnEnd()?.question).toBe("今の作業が T-0001 から T-0002 に替わりました。どうしますか？")
+  // 終わって作業が無くなった
+  const t2 = Object.keys(world().records[TICKET.id] ?? {}).find(id => id !== t1) as string
+  user("ticket-complete", {}, { record: t2 })
+  const ended = turnEnd()
+  expect(ended?.question).toBe("T-0002 が終わりました。会話を空にしますか？")
+  expect(ended?.choices.map(c => [c.label, c.clear, c.read])).toEqual([
+    ["はい", true, false],
+    ["いいえ", false, false],
+  ])
+  // 作業を答える種類が無ければ、印を作らず聞かない
+  const none = { ...CORE_CATALOG, subjects: new Map() } as CoreCatalog
+  expect(turnEnd(none)).toBeUndefined()
+  expect(mark).toBe("")
 })
 
 test("ワークルームの作業は、答える種類のうち機能台帳の並びで最初に作業中と答えた物。どれも作業中でなければ空き", () => {
