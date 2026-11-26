@@ -10,6 +10,7 @@ package server
 //   - セッション id（join のときに MCP が添えるか、UserPromptSubmit のフックが結ぶ。置き場所に残す）と、それを結んだ所（join の MCP か、UserPromptSubmit のフックか）
 //   - 参加を伝えたかの印（置き場所に残す。伝えたのは、参加者が決まった呼び出しへの返事のヘッダ、または UserPromptSubmit のフック）
 //   - 前の会話（/clear などで置き換えた会話）から移したことを、新しい会話の AI にまだ伝えていない印（置き場所に残す。伝えるのは UserPromptSubmit のフック。join_session.go の CarrySession）
+//   - チャットスレッドの id（フックが talked に添える。置き場所に残す。AI のプログラムごと替わった新しい会話へ参加者を移すのに使う。join_session.go の rebindByThread）
 //   - モデル（AI のフックが知らせる〈model.go〉か、MCP が X-Matomezu-Model ヘッダで添える〈Codex など、呼び出しがモデルを運ぶ AI〉。あとに届いた方を使う。置き場所に残し、変わったら窓に知らせる）
 //   - git のブランチ（MCP が呼び出しのたびに X-Matomezu-Branch ヘッダで添える。変わったら置き場所に書いて窓に知らせる）
 //   - AI のプログラム（Claude Code など）のプロセス id（MCP が X-Matomezu-Host ヘッダで、フックが host で添える。置き場所に残す。
@@ -52,6 +53,7 @@ type participantNote struct {
 	BoundBy         string `json:"boundBy,omitempty"`         // セッション id を結んだ所（boundByJoin か boundByHook。空は boundByHook と同じ）
 	Told            bool   `json:"told,omitempty"`            // 参加（joined）を AI に伝えた
 	Carried         bool   `json:"carried,omitempty"`         // 前の会話（/clear などで置き換えた会話）から移したことを、新しい会話の AI にまだ伝えていない
+	ChatThread      string `json:"chatThread,omitempty"`      // 結んだ会話を動かすチャットスレッドの id（フックが添える。中身は AI の事情で、常駐は照らすだけ）
 	Called          string `json:"called,omitempty"`          // 最後に呼ばれた時点（置き場所に残す。生きているかも、この時刻で決める。書くのは窓に知らせ直すときだけ）
 	Model           string `json:"model,omitempty"`           // AI のフックが知らせたか、MCP が添えたモデル（あとに届いた方）
 	Branch          string `json:"branch,omitempty"`          // MCP が添えた git のブランチ

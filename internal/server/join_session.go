@@ -96,11 +96,11 @@ func (h *Hub) rebindByHost(records []participantRecord, sessionID, host string) 
 	return changed
 }
 
-// rebindByPrevious は、まだ誰にも結ばれていないセッション sessionID が置き換えた前の会話のセッション id previous のどれかに結ばれた、参加（要求）中の参加者を、
-// セッション sessionID に移す（Claude Desktop の /clear のように、AI のプログラムも替わるとき。前の会話は AI の側の部品が会話の記録から読む）。
-// join でセッション id を運んだ参加者は移さない（rebindByHost と同じ）。移したか（置き場所には書かない。h.mu を持って呼ぶ）
-func (h *Hub) rebindByPrevious(records []participantRecord, sessionID, host string, previous []string) bool {
-	if sessionID == "" || len(previous) == 0 {
+// rebindByThread は、まだ誰にも結ばれていないセッション sessionID と同じチャットスレッド thread の、ほかのセッションに結ばれた参加（要求）中の参加者を、
+// セッション sessionID に移す（Claude Desktop の /clear のように、AI のプログラムごと替わるとき）。
+// join でセッション id を運んだ参加者と、今も届く通り道がある参加者（前の会話がまだ動いている）は移さない。移したか（置き場所には書かない。h.mu を持って呼ぶ）
+func (h *Hub) rebindByThread(records []participantRecord, sessionID, host, thread string) bool {
+	if sessionID == "" || thread == "" {
 		return false
 	}
 	for _, s := range records {
@@ -111,7 +111,7 @@ func (h *Hub) rebindByPrevious(records []participantRecord, sessionID, host stri
 	changed := false
 	for _, s := range records {
 		n := h.participantNotes[s.ID]
-		if s.sitting() && n.SessionID != "" && n.BoundBy != boundByJoin && slices.Contains(previous, n.SessionID) {
+		if s.sitting() && n.ChatThread == thread && n.SessionID != "" && n.BoundBy != boundByJoin && h.wakeReachLocked(s.ID) != engine.WakeReaches {
 			h.carrySession(s.ID, sessionID, host)
 			changed = true
 		}
@@ -167,10 +167,10 @@ func (h *Hub) followHosts(records []participantRecord, sessionID, host string) b
 	return changed
 }
 
-// CarrySession は、ターンの始まりに、会話のセッション sessionID（AI のプログラムのプロセス id host）へ参加者を移す: 同じプロセスの参加者（rebindByHost）と、
-// 誰にも結ばれていなければ、前の会話 previous の参加者（rebindByPrevious）。結ばれた参加者の起こす知らせの宛て先も host に移す（followHosts）。
+// CarrySession は、ターンの始まりに、会話のセッション sessionID（AI のプログラムのプロセス id host、チャットスレッドの id thread）へ参加者を移す: 同じプロセスの参加者（rebindByHost）と、
+// 誰にも結ばれていなければ、同じチャットスレッドの参加者（rebindByThread）。結ばれた参加者の起こす知らせの宛て先も host に移す（followHosts）。
 // 利用者トリガートークの数え直し（UserTalkedIn）より前に呼ぶ（移した参加者のラリーも数え直す）
-func (h *Hub) CarrySession(sessionID, host string, previous []string) error {
+func (h *Hub) CarrySession(sessionID, host, thread string) error {
 	if sessionID == "" {
 		return nil
 	}
@@ -181,12 +181,38 @@ func (h *Hub) CarrySession(sessionID, host string, previous []string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	changed := h.rebindByHost(records, sessionID, host)
-	changed = h.rebindByPrevious(records, sessionID, host, previous) || changed
+	changed = h.rebindByThread(records, sessionID, host, thread) || changed
 	changed = h.followHosts(records, sessionID, host) || changed
 	if !changed {
 		return nil
 	}
 	h.noteWakesLocked()
+	return h.putParticipantNotes()
+}
+
+// NoteChatThread は、セッション sessionID に結ばれた参加（要求）中の参加者に、チャットスレッドの id thread を覚えさせる（空なら何もしない。変われば置き場所に書く）
+func (h *Hub) NoteChatThread(sessionID, thread string) error {
+	if sessionID == "" || thread == "" {
+		return nil
+	}
+	records, err := h.records()
+	if err != nil {
+		return err
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	changed := false
+	for _, s := range records {
+		n := h.participantNotes[s.ID]
+		if s.sitting() && n.SessionID == sessionID && n.ChatThread != thread {
+			n.ChatThread = thread
+			h.participantNotes[s.ID] = n
+			changed = true
+		}
+	}
+	if !changed {
+		return nil
+	}
 	return h.putParticipantNotes()
 }
 
