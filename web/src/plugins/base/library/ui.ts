@@ -1,4 +1,4 @@
-// 書庫の見た目: 書庫のスクリーンとビュー、ダイアログ、コマンドのアイコンと右クリックのメニュー、フォルダの中身を読むフック
+// 書庫の見た目: 書庫のスクリーンとビュー、ダイアログ、コマンドのアイコンと右クリックのメニュー、フォルダの中身を読むフック、名前が重なれば聞いてページを作るフック
 
 export { BOOK_PLACE } from "./BookPlace"
 export { LIBRARY_CONTEXT_MENUS } from "./commands"
@@ -17,3 +17,4 @@ export { LibraryNewFolderDialog, LibraryRenameDialog } from "./NameDialogs"
 export { PAGE_PLACE } from "./PagePlace"
 export { LIBRARY_SCREEN_VIEW } from "./screen-ui"
 export { UNREADABLE_NOTICE } from "./UnreadableNotice"
+export { useCreateAsking } from "./useCreateAsking"

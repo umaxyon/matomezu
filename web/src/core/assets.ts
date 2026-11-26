@@ -5,6 +5,15 @@
 import type { CoreCatalog } from "./core-catalog"
 import type { Page } from "./schema/book"
 
+// 画面がホストに画像のバイト列を渡した答え: 置けたら、そのアセットの id と種類・幅・高さ（px）。置けなければ訳
+// （too-large は上限 25MB を超えた、not-image は受ける種類の画像として読めない。常駐の internal/server/assets.go）
+// アセットの中身を読む URL が無いとき（ホストの無い窓。画像は「画像がありません」と描く）
+export const NO_ASSET_URL = ""
+
+export type AssetPut =
+  | { ok: true; asset: string; mime: string; width: number; height: number }
+  | { ok: false; reason: "too-large" | "not-image" }
+
 export interface AssetsInUse {
   ids: readonly string[]
   sure: boolean

@@ -41,8 +41,8 @@ func documentsRef(t *testing.T, h *Hub) string {
 	return refs
 }
 
-// baseSystemFolders は、base が定義するシステムフォルダの数（ドキュメントとワークルーム）
-const baseSystemFolders = 2
+// baseSystemFolders は、ビルトインが定義するシステムフォルダの数（base のドキュメントとワークルーム、画像のプラグインの画像）
+const baseSystemFolders = 3
 
 // systemFolderRow は、/api/data の folders の、システムフォルダの行 1 つ（中身の無い物）
 var systemFolderRow = regexp.MustCompile(`\{"id":"([^"]+)","folder":\{"folderRole":"folder","id":"[^"]+","systemFolder":"[^"]+","lineup":\[\]\},"version":\d+\},?`)

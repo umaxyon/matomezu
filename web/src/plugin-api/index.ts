@@ -99,8 +99,8 @@ export { enumValuesOf } from "../core/enum"
 export type { BackyardEntry, BinderFolder, BookFolder, EntryRef, Folder, WorkKey } from "../core/folders"
 // 書庫ホームとゴミ箱の id（どのマシンでも同じ）
 export { HOME_ID, TRASH_ID } from "../core/folders"
-// ステージエントリが無いときの値（useOutermostOf）
-export { NO_OUTERMOST } from "../core/folders-tree"
+// ステージエントリが無いときの値（useOutermostOf）・エントリを入れているフォルダの列
+export { foldersOver, NO_OUTERMOST } from "../core/folders-tree"
 export type { Point, Rect, Size } from "../core/geom"
 export { translate } from "../core/i18n/i18n"
 export { defineMessages } from "../core/i18n/messages"

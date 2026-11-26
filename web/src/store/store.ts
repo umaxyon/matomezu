@@ -5,6 +5,7 @@ import { createStore } from "zustand/vanilla"
 import { USER } from "../core/actor"
 import { addressOf, keepPlace, placeAt } from "../core/address"
 import { restoreAllAnnotations, withAnnotations } from "../core/annotation"
+import { NO_ASSET_URL } from "../core/assets"
 import { findReference, readLibrary } from "../core/book"
 import { bulkActionOf, entersLibraryHistory, laterThan, localDateOf, performBulk } from "../core/bulk"
 import type { CoreCatalog } from "../core/core-catalog"
@@ -1141,6 +1142,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (!options.copyText) fail("E404")
       await options.copyText(text)
     },
+    putAsset: async bytes => {
+      if (!options.assetsHost) fail("E416")
+      return await options.assetsHost.put(bytes)
+    },
+    assetUrl: id => options.assetsHost?.url(id) ?? NO_ASSET_URL,
     command: options.command ?? "matomezu",
     purgeUnreadable: async id => {
       if (!options.unreadableHost) fail("E406")

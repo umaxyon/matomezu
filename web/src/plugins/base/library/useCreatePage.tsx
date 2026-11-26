@@ -16,7 +16,10 @@ import { PAGE_CREATE } from "./page-create"
 import { LIBRARY_FOLDER, LIBRARY_PICKED } from "./state"
 import { NO_DESKS } from "./workdesk-rows"
 
-export function useCreatePage(): (folder: string, args: ArgsOf<typeof PAGE_ADD.id>) => boolean {
+// replaces は、書庫ホーム・フォルダの直下で同じ名前の物を上書きするとき、消えると利用者が確かめた物の id（page-create の replaces）
+export type CreatePageArgs = ArgsOf<typeof PAGE_ADD.id> & { replaces?: string }
+
+export function useCreatePage(): (folder: string, args: CreatePageArgs) => boolean {
   const { perform, showToast } = useActions()
   const catalog = useCatalog().core
   const read = useReadState()

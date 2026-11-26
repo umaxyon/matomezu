@@ -174,3 +174,36 @@ func TestServeAsset(t *testing.T) {
 		t.Errorf("served without the screen cookie")
 	}
 }
+
+// imagesFolder は、画像のシステムフォルダの id
+func imagesFolder(t *testing.T, h *Hub) string {
+	t.Helper()
+	for id, f := range h.folders {
+		if strings.Contains(string(f.body), `"systemFolder":"@matomezu/image:images"`) {
+			return id
+		}
+	}
+	t.Fatal("no images folder")
+	return ""
+}
+
+func TestDropUnusedAssetsAtStart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	h, _ := hubAt(t, path)
+	used, err := h.ImportAsset(rasterBytes(t, "png", 3, 3))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.ImportAsset(rasterBytes(t, "png", 5, 5)); err != nil {
+		t.Fatal(err)
+	}
+	args, _ := json.Marshal(map[string]any{"folder": imagesFolder(t, h), "type": "@matomezu/image:image", "fields": map[string]string{"asset": used.Asset}})
+	if out, err := h.Perform(performOne("@matomezu/base:page-create", args, nil)); err != nil || !out.OK {
+		t.Fatalf("page-create: %v %+v", err, out)
+	}
+	again, _ := hubAt(t, path)
+	ids, err := again.store.AssetIDs()
+	if err != nil || len(ids) != 1 || ids[0] != used.Asset {
+		t.Fatalf("assets = %v, %v (kept %s)", ids, err, used.Asset)
+	}
+}

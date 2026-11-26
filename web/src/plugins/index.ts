@@ -13,6 +13,7 @@ import { NETWORK_PLUGIN } from "./network"
 import { DIR_PLUGIN } from "./page-types/dir"
 import { DRAWING_PLUGIN } from "./page-types/drawing"
 import { FLOWCHART_PLUGIN } from "./page-types/flowchart"
+import { IMAGE_PLUGIN } from "./page-types/image"
 import { MARKDOWN_PLUGIN } from "./page-types/markdown"
 import { SLIDE_PAGE_PLUGIN } from "./page-types/slide-page"
 import { TREE_PLUGIN } from "./page-types/tree"
@@ -37,6 +38,7 @@ export const BUILTIN = [
   DIR_PLUGIN,
   MARKDOWN_PLUGIN,
   SLIDE_PAGE_PLUGIN,
+  IMAGE_PLUGIN,
   TASKBOARD_PLUGIN,
   NETWORK_PLUGIN,
 ] as const
