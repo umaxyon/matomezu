@@ -5,11 +5,13 @@
 //   コミットのたびに、描き直したコンポーネントの数と、図の要素（アイテム [data-item]・ツリーの節とディレクトリ構成図の中身 [data-node]）を
 //   描き直した数をステージごとに数える
 // - 開くまでの時間: 図の要素が want 個そろった時点（ページを開き始めてからの ms）
+// - 操作の応答: 利用者の操作（Event Timing の interactionId を持つ物）ごとの、押してから次の絵が出るまでの時間（INP が見る値）
 import type { Page } from "@playwright/test"
 
 export interface Probe {
   frames: number[] // 記録している間の 1 コマの時間（ms）
   longTasks: { start: number; duration: number }[]
+  interactions: Record<number, number> // 記録している間の操作ごとの、押してから次の絵が出るまでの時間（ms）
   commits: number
   renders: number // 描き直したコンポーネント
   itemRedraws: Record<string, number> // ステージ（data-stage）ごとの、図の要素を描き直した数
@@ -25,6 +27,7 @@ function install() {
   const perf: Probe = {
     frames: [],
     longTasks: [],
+    interactions: {},
     commits: 0,
     renders: 0,
     itemRedraws: {},
@@ -44,6 +47,12 @@ function install() {
   new PerformanceObserver(list => {
     for (const e of list.getEntries()) perf.longTasks.push({ start: e.startTime, duration: e.duration })
   }).observe({ type: "longtask", buffered: true })
+  new PerformanceObserver(list => {
+    if (!perf.recording) return
+    for (const e of list.getEntries() as (PerformanceEntry & { interactionId?: number })[])
+      if (e.interactionId)
+        perf.interactions[e.interactionId] = Math.max(perf.interactions[e.interactionId] ?? 0, e.duration)
+  }).observe({ type: "event", durationThreshold: 16 } as PerformanceObserverInit)
 
   // React の Fiber の印（react-reconciler の値）
   const PERFORMED_WORK = 1
@@ -109,6 +118,7 @@ export const startRecording = (page: Page) =>
     const p = (window as unknown as ProbeWindow).__perf
     p.frames = []
     p.longTasks = []
+    p.interactions = {}
     p.commits = 0
     p.renders = 0
     p.itemRedraws = Object.fromEntries(
@@ -126,6 +136,7 @@ export const stopRecording = (page: Page, since: number) =>
     return {
       frames: p.frames,
       longTasks: p.longTasks.filter(t => t.start >= since),
+      interactions: Object.values(p.interactions),
       commits: p.commits,
       renders: p.renders,
       itemRedraws: p.itemRedraws,

@@ -4,7 +4,7 @@ import type { Folders } from "../../../core/folders"
 import { systemFolderOf } from "../../../core/folders-tree"
 import { type RecordReader, type RecordSource, readerOf } from "../../../core/record-source"
 import { MY_WORKDESK, WORKROOMS } from "../library/system-folders"
-import { workroomWorkIn } from "./activity"
+import { aiWorkroomIdleIn, aiWorkroomIdleReadsOf, workroomWorkIn } from "./activity"
 import { type FoundWorkerBook, foundWorkerBookOf, NO_WORKER_BOOK, workerBookOf, workerBookReadsOf } from "./worker-book"
 import { WORKER_PAGE_ADD, WRITE_IN_WORKER_BOOK } from "./worker-page-add"
 
@@ -20,7 +20,7 @@ export function workerBookIn(
 }
 
 // 呼んだ AI のワークルーム room の作業机（ホストのエンジンが読む。AI の read_folder と参加の文に出す）:
-// ワークルームのフォルダの id（無ければ undefined）、ワーカーブックの id（まだ無ければ undefined）とそのページの数、参加の文に足す英語の文 forAi（空きのワークルームなら、作業を答える種類の forAi も）
+// ワークルームのフォルダの id（無ければ undefined）、ワーカーブックの id（まだ無ければ undefined）とそのページの数、参加の文に足す英語の文 forAi（空きのワークルームなら、aiWorkroomIdle の文も）
 export interface MyWorkdesk {
   workrooms: string | undefined
   book: string | undefined
@@ -30,7 +30,7 @@ export interface MyWorkdesk {
 
 // 常駐の読み口 source と書庫の表 folders から、ワークルーム room の MyWorkdesk
 export function myWorkdeskIn(catalog: CoreCatalog, source: RecordSource, folders: Folders, room: string): MyWorkdesk {
-  const read = readerOf(catalog, source, workerBookReadsOf(catalog))
+  const read = readerOf(catalog, source, [...workerBookReadsOf(catalog), ...aiWorkroomIdleReadsOf(catalog)])
   const { found } = workerBookIn(catalog, read, folders, room)
   const workrooms = Object.values(folders).find(f => systemFolderOf(f) === WORKROOMS.id)?.id
   const book = found === NO_WORKER_BOOK ? undefined : found.book
@@ -40,7 +40,8 @@ export function myWorkdeskIn(catalog: CoreCatalog, source: RecordSource, folders
       ? `Your worker book has no pages yet: add one with ${WORKER_PAGE_ADD.id}.`
       : `Your worker book (the book of your current work) is ${book}, with ${pages} page${pages === 1 ? "" : "s"}: read it with read_book.`
   const work = workroomWorkIn(catalog, read, room)
-  const idle = work !== "unknown" && work.kind === "idle" && work.forAi ? ` ${work.forAi}` : ""
+  const idleText = work !== "unknown" && work.kind === "idle" ? aiWorkroomIdleIn(catalog, read, room) : ""
+  const idle = idleText ? ` ${idleText}` : ""
   return {
     workrooms,
     book,

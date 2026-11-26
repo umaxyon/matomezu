@@ -1,5 +1,6 @@
 // 呼んだ AI の作業机（participant/my-workdesk.ts）: ワークルームのフォルダとワーカーブックを引き、ページの数はバインダの中も数え、参加の文はページの数で言い分ける
 import { expect, test } from "bun:test"
+import type { CoreCatalog } from "../../../web/src/core/core-catalog"
 import { backyardIdOf, type Folder, type Folders } from "../../../web/src/core/folders"
 import { sourceOf } from "../../../web/src/core/record-source"
 import type { Records } from "../../../web/src/core/records"
@@ -62,4 +63,37 @@ test("参加の文は、ページが 1 枚なら単数で、ブックが無け�
   expect(deskOf("r3").forAi).toContain(`read_folder with folder "${MY_WORKDESK}"`)
   // 今の作業の相談はワーカーブックへ、と伝える
   expect(deskOf("r3").forAi).toContain(WRITE_IN_WORKER_BOOK)
+})
+
+test("作業のレコードが無いワークルームには、aiWorkroomIdle の文を添える（その aiWorkroomIdleReads の種類を読める。作業を答える種類が読まない種類でも）。作業中なら添えない", () => {
+  // 種類 s は、レコード w（id はワークルーム）が working なら作業中と答え、作業のレコードが無ければ、レコード n（id はワークルーム）の text を添える
+  const catalog = {
+    ...CORE_CATALOG,
+    subjects: new Map<string, unknown>([
+      ...CORE_CATALOG.subjects,
+      ["w", {}],
+      ["n", {}],
+      [
+        "s",
+        {
+          workroomWorkReads: ["w"],
+          workroomWork: (room: string, read: { record(s: string, id: string): unknown }) =>
+            (read.record("w", room) as { working?: boolean } | undefined)?.working
+              ? { kind: "working", key: { subject: "w", id: room } }
+              : { kind: "idle" },
+          aiWorkroomIdleReads: ["n"],
+          aiWorkroomIdle: (room: string, read: { record(s: string, id: string): unknown }) =>
+            (read.record("n", room) as { text?: string } | undefined)?.text,
+        },
+      ],
+    ]),
+  } as unknown as CoreCatalog
+  const withIdle = {
+    ...records,
+    w: { r2: { working: true } },
+    n: { r1: { text: "NEXT ONE." }, r2: { text: "NEXT TWO." } },
+  } as unknown as Records
+  const desk = (room: string) => myWorkdeskIn(catalog, sourceOf(withIdle), folders, room).forAi
+  expect(desk("r1")).toContain("NEXT ONE.")
+  expect(desk("r2")).not.toContain("NEXT TWO.")
 })

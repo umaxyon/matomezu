@@ -35,6 +35,12 @@ export function gridBook(id: string, n: number) {
   return testBook(id, `箱 ${n}`, [drawingPage(PAGE, { paper: "@matomezu/base:a3", items: [...boxes, ...lines] })])
 }
 
+// 書庫に並べるブック: 箱 n 個と線 n - 1 本のページ（id はページの id。ページの id はブックをまたいで重ならない）1 枚の、名前 title のブック
+export const namedGridBook = (id: string, title: string, page: string, n: number) => {
+  const book = gridBook(id, n)
+  return { ...book, title, lineup: book.lineup.map(p => ({ ...p, id: page })) }
+}
+
 // 根の下に 10 の枝、残りの節を枝へ順に配った木（節は根を入れて n 個）
 export function treeBook(id: string, n: number) {
   const branches = Array.from({ length: 10 }, (_, b) => ({
