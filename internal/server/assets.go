@@ -9,14 +9,18 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
 	"net/http"
+	"os"
 	"regexp"
+	"slices"
 	"strconv"
 
 	"github.com/umaxyon/matomezu/internal/storage"
@@ -175,4 +179,36 @@ func (o Options) serveAsset(w http.ResponseWriter, r *http.Request) {
 	head.Set("X-Content-Type-Options", "nosniff")
 	head.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
 	_, _ = w.Write(a.Bytes)
+}
+
+// dropUnusedAssets は、どのページ（ゴミ箱・読めない物のフォルダ・バックヤードの中も）からも指されないアセットを消す（起動したときに 1 度。h.mu を持って呼ぶ）。
+// 数えきれないとき（読めない物のフォルダに物が在る・書庫を整えられていない・答えられないページが在る・エンジンが答えない）は消さない
+func (h *Hub) dropUnusedAssets() {
+	if h.unreadableWarning != "" || h.settleWarning != "" {
+		return
+	}
+	bodies := make([]json.RawMessage, 0, len(h.pages))
+	for _, p := range h.pages {
+		bodies = append(bodies, p.body)
+	}
+	used, err := h.engine.AssetsInUse(bodies)
+	if err != nil || !used.Sure {
+		return
+	}
+	ids, err := h.store.AssetIDs()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "the assets cannot be read:", err)
+		return
+	}
+	kept := map[string]bool{}
+	for _, id := range used.IDs {
+		kept[id] = true
+	}
+	unused := slices.DeleteFunc(ids, func(id string) bool { return kept[id] })
+	if len(unused) == 0 {
+		return
+	}
+	if err := h.store.RemoveAssets(unused); err != nil {
+		fmt.Fprintln(os.Stderr, "the unused assets cannot be removed:", err)
+	}
 }

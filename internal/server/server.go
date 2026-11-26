@@ -150,7 +150,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/plugins", o.auth(o.linkPlugin))
 	mux.Handle("POST /api/plugins/remove", o.auth(o.unlinkPlugin))
 	mux.Handle("POST /api/perform", o.screen(o.perform))
-	mux.Handle("POST /api/assets", o.screenBytes(o.importAsset))
+	mux.Handle("POST /api/assets", o.screen(o.importAsset, octetStream))
 	mux.Handle("GET /api/assets/{id}", o.screen(o.serveAsset))
 	mux.Handle("POST /api/view", o.screen(o.view))
 	mux.Handle("POST /api/warnings", o.screen(o.warnings))

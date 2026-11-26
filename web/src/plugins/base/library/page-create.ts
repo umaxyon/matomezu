@@ -9,34 +9,38 @@ import { isMoveRefusal, placedMade, titlesIn } from "../../../core/entries"
 import { HOME_ID, type HomeOrFolder, type Library } from "../../../core/folders"
 import { bookOf, withBinderEntry, withBook } from "../../../core/folders-books"
 import { outsideBinderIn, pinnedCount } from "../../../core/folders-tree"
+import type { StageLineup } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { describeNewPage, NEW_PAGE_ARGS, PAGE_ADD, untitledAmong, withNewPage } from "../pages/page-add"
 import { withDateFolder } from "./date-folder"
-import { holdsEntries, placedOutsideTrash, typeLets } from "./entries"
+import { holdsEntries, isNotOverwritten, overwritten, placedOutsideTrash, typeLets } from "./entries"
 
-// 入れるフォルダを言わないときは、位置 index も言えない（日付フォルダが、まだ無いかもしれない）
+// 入れるフォルダを言わないときは、位置 index も言えない（日付フォルダが、まだ無いかもしれない）。
+// replaces は、書庫ホーム・フォルダの直下で、同じ名前の物を上書きする（中身ごと消し、ゴミ箱に入れない）とき、消えると利用者が確かめた物の id（今 同じ名前で在る物がそれと違えば断る）
 const withFolder = <T extends typeof NEW_PAGE_ARGS>(args: T) =>
   args
-    .extend({ folder: z.string().min(1).optional() })
+    .extend({ folder: z.string().min(1).optional(), replaces: z.string().min(1).optional() })
     .refine(a => a.folder !== undefined || a.index === undefined, { path: ["index"], message: "index needs folder" })
 const PAGE_CREATE_ARGS = withFolder(NEW_PAGE_ARGS)
 
 export const PAGE_CREATE = kit.defineAction({
   id: "page-create",
   aiDescription:
-    "Create a page in the library: folder is the id of a book, of a folder, of the library home or of a binder that is not in a book (see read_folder). Without folder the page goes into the folder named today's date (YYYY-MM-DD) in the documents folder, made when missing (at its end; index is not taken). The other arguments are those of page-add. In a book it does what page-add does. In a folder or the library home the page is made outside books: index is the position among the entries of that folder (the end without it; not before the system folders of the library home), and a page of a type that goes in a binder takes into {newBinder} only (a new binder holding that page is put in the folder). In a binder that is not in a book the page is added to that binder (leave into out; index is the position in the binder). Returns what page-add returns, and folder: the id of what the new entry was put in (the book, the binder that is not in a book, or the folder). Refused for a folder in the trash, for a title another entry of the folder has, for a page type that leaves page-add out, and as page-add refuses.",
+    "Create a page in the library: folder is the id of a book, of a folder, of the library home or of a binder that is not in a book (see read_folder). Without folder the page goes into the folder named today's date (YYYY-MM-DD) in the documents folder, made when missing (at its end; index is not taken). The other arguments are those of page-add. In a book it does what page-add does. In a folder or the library home the page is made outside books: index is the position among the entries of that folder (the end without it; not before the system folders of the library home), and a page of a type that goes in a binder takes into {newBinder} only (a new binder holding that page is put in the folder). In a binder that is not in a book the page is added to that binder (leave into out; index is the position in the binder). replaces (only in a folder or the library home) is the id of the entry of that folder with the same title, to delete it with everything in it (it does not go to the trash) and put the new page in its place in the lineup; refused when that entry is not the one with the title. Returns what page-add returns, and folder: the id of what the new entry was put in (the book, the binder that is not in a book, or the folder). Refused for a folder in the trash, for a title another entry of the folder has, for a page type that leaves page-add out, and as page-add refuses.",
   title: "New page",
   target: "library",
-  // 作るページのタイプと入れるフォルダで問う（core が、ブックならそのブックに、ほかなら空のページで問う）
-  permissionScope: (args: { folder?: string | undefined; type: string }) => ({
+  // 作るページのタイプと入れるフォルダで問う（core が、ブックならそのブックに、ほかなら空のページで問う）。上書きで消える物も、中身ごと変える物として名乗る
+  permissionScope: (args: { folder?: string | undefined; type: string; replaces?: string | undefined }) => ({
     books: [],
     pages: [{ creates: args.type, ...(args.folder === undefined ? {} : { into: args.folder }) }],
+    ...(args.replaces === undefined ? {} : { entries: [{ entry: args.replaces, where: "all-pages" as const }] }),
     creates: CREATES_NOTHING,
   }),
   args: PAGE_CREATE_ARGS,
   describeArgs: catalog => withFolder(describeNewPage(catalog) as typeof NEW_PAGE_ARGS),
-  run: (library, { folder: named, ...args }, ctx) => {
+  run: (library, { folder: named, replaces, ...args }, ctx) => {
     if (!typeLets(ctx.catalog, PAGE_ADD.id, args.type)) return null
+    if (replaces !== undefined && (named === undefined || !holdsEntries(library.folders, named))) return null
     if (named === undefined) return createdInDateFolder(library, args, ctx)
     const folder = named
     const holder = library.folders[folder]
@@ -65,8 +69,14 @@ export const PAGE_CREATE = kit.defineAction({
     const { index, ...rest } = args
     if (index !== undefined && folder === HOME_ID && index < pinnedCount(library.folders)) return null
     const made = madeOutside(library, holder, rest, ctx)
-    const next = made && placedMade(library, made.entry, folder, index)
-    return !made || !next || isMoveRefusal(next) ? null : { next, result: { ...made.result, folder } }
+    const at = index ?? (replaces === undefined ? undefined : indexIn(holder, replaces))
+    if (!made) return null
+    const { entry } = made
+    const placed = placedMade(library, entry, folder, at)
+    if (isMoveRefusal(placed)) return null
+    const kind = entry.kind === "binder" ? "binder" : "page"
+    const next = replaces === undefined ? placed : overwritten(placed, kind, entry.id, folder, replaces, ctx.naming)
+    return isNotOverwritten(next) ? null : { next, result: { ...made.result, folder } }
   },
 })
 
@@ -78,7 +88,8 @@ type Ctx = ActionContext
 function madeOutside(library: Library, holder: HomeOrFolder, args: Omit<Args, "index">, ctx: Ctx) {
   const title =
     args.title ?? (args.into ? undefined : untitledAmong(ctx.catalog, ctx.lang, titlesIn(library, holder, ctx.naming)))
-  const done = withNewPage(ctx.catalog, { id: holder.id, lineup: [] }, { ...args, ...(title ? { title } : {}) }, ctx)
+  const empty: StageLineup = { id: holder.id, lineup: [] }
+  const done = withNewPage(ctx.catalog, empty, { ...args, ...(title ? { title } : {}) }, ctx)
   const [entry] = done?.book.lineup ?? []
   return done && entry ? { entry, result: done.result } : null
 }
@@ -92,4 +103,10 @@ function createdInDateFolder(library: Library, args: Args, ctx: Ctx) {
   const made = madeOutside(placed.library, holder, args, ctx)
   const next = made && placedMade(placed.library, made.entry, placed.folder)
   return !made || !next || isMoveRefusal(next) ? null : { next, result: { ...made.result, folder: placed.folder } }
+}
+
+// フォルダ holder の直下の並びでの、エントリ id の位置（無ければ undefined で、末尾に入れる）
+function indexIn(holder: HomeOrFolder, id: string): number | undefined {
+  const at = holder.lineup.findIndex(r => r.id === id)
+  return at < 0 ? undefined : at
 }
