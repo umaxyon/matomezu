@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -77,6 +78,33 @@ func TestTalkedBindsTheSessionAndWelcomes(t *testing.T) {
 	talked(&out, hookInput{SessionID: "S1", TranscriptPath: path}, "NOTE", formatHook, f.api)
 	if out.String() != "NOTE\n" || len(f.bodies) != 1 {
 		t.Fatalf("after: %q, calls %v", out.String(), f.bodies)
+	}
+}
+
+// 前の会話を読む物があれば、ターンの始まりの最初の知らせに、読んだ前の会話のセッション id を添える（読めなければ添えない）。常駐が返す AI にだけの文は additionalContext に入る
+func TestTalkedSendsThePreviousSessions(t *testing.T) {
+	var bodies []map[string]any
+	api := func(body []byte) ([]byte, error) {
+		var m map[string]any
+		_ = json.Unmarshal(body, &m)
+		bodies = append(bodies, m)
+		return []byte(`{"welcomes":[],"forAi":"CARRIED"}`), nil
+	}
+	var out bytes.Buffer
+	previous := func(transcript, session string) []string {
+		if transcript != "T" || session != "S2" {
+			t.Fatalf("read %q %q", transcript, session)
+		}
+		return []string{"S1"}
+	}
+	talked(&out, hookInput{SessionID: "S2", TranscriptPath: "T", Previous: previous}, "", formatHook, api)
+	if len(bodies) != 1 || fmt.Sprint(bodies[0]["previousSessions"]) != "[S1]" || !strings.Contains(out.String(), `"additionalContext":"CARRIED"`) || strings.Contains(out.String(), "systemMessage") {
+		t.Fatalf("calls = %v, out = %s", bodies, out.String())
+	}
+	bodies = nil
+	talked(&out, hookInput{SessionID: "S2", TranscriptPath: "T", Previous: func(string, string) []string { return nil }}, "", formatHook, api)
+	if len(bodies) != 1 || bodies[0]["previousSessions"] != nil {
+		t.Fatalf("calls = %v", bodies)
 	}
 }
 

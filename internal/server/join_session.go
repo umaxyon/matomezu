@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"slices"
+
+	"github.com/umaxyon/matomezu/internal/engine"
 )
 
 // noteJoinHost は参加者 id の常駐だけが持つ参加者の記録に、join の頼みに MCP が添えた AI のプログラムのプロセス id と、それが MCP を立てたときのセッション id を、
@@ -76,9 +78,9 @@ func (h *Hub) bindSession(id, sessionID, by, host string) {
 	}
 }
 
-// rebindByHost は、AI のプログラムのプロセス id が host で、セッション id が sessionID でない、参加（要求）中の参加者に、セッション id sessionID を結び直す
-// （AI のプログラムが同じまま、会話のセッションだけが変わったとき。Claude Code の /clear など）。join でセッション id を運んだ参加者は結び直さない。結んだ所と伝えた印は変えない。
-// host か sessionID が空なら何もしない。結び直したか（置き場所には書かない。h.mu を持って呼ぶ）
+// rebindByHost は、AI のプログラムのプロセス id が host で、セッション id が sessionID でない、参加（要求）中の参加者を、セッション sessionID に移す
+// （AI のプログラムが同じまま、会話のセッションだけが変わったとき。Claude Code の /clear など）。join でセッション id を運んだ参加者は移さない。
+// host か sessionID が空なら何もしない。移したか（置き場所には書かない。h.mu を持って呼ぶ）
 func (h *Hub) rebindByHost(records []participantRecord, sessionID, host string) bool {
 	if sessionID == "" || host == "" {
 		return false
@@ -87,11 +89,105 @@ func (h *Hub) rebindByHost(records []participantRecord, sessionID, host string) 
 	for _, s := range records {
 		n := h.participantNotes[s.ID]
 		if s.sitting() && n.Host == host && n.SessionID != sessionID && n.BoundBy != boundByJoin {
-			h.bindSession(s.ID, sessionID, n.BoundBy, host)
+			h.carrySession(s.ID, sessionID, host)
 			changed = true
 		}
 	}
 	return changed
+}
+
+// rebindByPrevious は、まだ誰にも結ばれていないセッション sessionID が置き換えた前の会話のセッション id previous のどれかに結ばれた、参加（要求）中の参加者を、
+// セッション sessionID に移す（Claude Desktop の /clear のように、AI のプログラムも替わるとき。前の会話は AI の側の部品が会話の記録から読む）。
+// join でセッション id を運んだ参加者は移さない（rebindByHost と同じ）。移したか（置き場所には書かない。h.mu を持って呼ぶ）
+func (h *Hub) rebindByPrevious(records []participantRecord, sessionID, host string, previous []string) bool {
+	if sessionID == "" || len(previous) == 0 {
+		return false
+	}
+	for _, s := range records {
+		if s.sitting() && h.participantNotes[s.ID].SessionID == sessionID {
+			return false
+		}
+	}
+	changed := false
+	for _, s := range records {
+		n := h.participantNotes[s.ID]
+		if s.sitting() && n.SessionID != "" && n.BoundBy != boundByJoin && slices.Contains(previous, n.SessionID) {
+			h.carrySession(s.ID, sessionID, host)
+			changed = true
+		}
+	}
+	return changed
+}
+
+// carrySession は、参加者 id を前の会話からセッション sessionID に移す（host は AI のプログラムのプロセス id、分からなければ空）。
+// 結んだ所は変えず、移したことを新しい会話の AI に伝える印を付ける。AI のプログラムが替わっていれば、起こす知らせの宛先も移す（followHost。h.mu を持って呼ぶ）
+func (h *Hub) carrySession(id, sessionID, host string) {
+	n := h.participantNotes[id]
+	h.bindSession(id, sessionID, n.BoundBy, host)
+	n = h.participantNotes[id]
+	n.Carried = true
+	h.participantNotes[id] = n
+	logWake("participant %s moved to session %q (host %q)", id, sessionID, host)
+	h.followHost(id, sessionID, host, true)
+}
+
+// followHost は、セッション sessionID に結ばれた参加者 id の起こす知らせの宛先を、そのセッションを動かす AI のプログラムのプロセス id host に移す
+// （Claude Desktop は、会話の途中で CLI を --resume で起動し直し、/clear でも CLI ごと替える。どちらもプロセス id が変わる）。
+// 移すのは、host が分かって今の宛先と違い、今その参加者に届く通り道が無く、宛先のセッションが sessionID か空か、前の会話から移したところ（moved）のときだけ
+// （端末の /clear は同じプロセスのまま、通り道は AI のプログラムを立てたときのセッション id で開いているので、移すと届かなくなる）。
+// 移すときは、古いプロセスで退室の見張りをしないよう、セッションと同じだけ生きるプロセスの印を消す（次の MCP の呼び出しが名乗り直す）。h.mu を持って呼ぶ
+func (h *Hub) followHost(id, sessionID, host string, moved bool) {
+	n := h.participantNotes[id]
+	if host == "" || host == n.WakeHost || (!moved && n.WakeSession != "" && n.WakeSession != sessionID) || h.wakeReachLocked(id) == engine.WakeReaches {
+		return
+	}
+	n.Host = host
+	n.WakeHost, n.WakeSession = host, sessionID
+	n.SessionPid, n.SessionPidSpace = "", ""
+	h.participantNotes[id] = n
+	logWake("participant %s is reached at host %q, session %q (hook)", id, host, sessionID)
+	h.noteWakesLocked()
+	h.signalWakes(id)
+}
+
+// followHosts は、セッション sessionID に結ばれた参加（要求）中の参加者の起こす知らせの宛先を、host に移す（followHost）。移したか（置き場所には書かない。h.mu を持って呼ぶ）
+func (h *Hub) followHosts(records []participantRecord, sessionID, host string) bool {
+	if sessionID == "" || host == "" {
+		return false
+	}
+	changed := false
+	for _, s := range records {
+		if !s.sitting() || h.participantNotes[s.ID].SessionID != sessionID {
+			continue
+		}
+		before := h.participantNotes[s.ID].WakeHost
+		h.followHost(s.ID, sessionID, host, false)
+		changed = changed || h.participantNotes[s.ID].WakeHost != before
+	}
+	return changed
+}
+
+// CarrySession は、ターンの始まりに、会話のセッション sessionID（AI のプログラムのプロセス id host）へ参加者を移す: 同じプロセスの参加者（rebindByHost）と、
+// 誰にも結ばれていなければ、前の会話 previous の参加者（rebindByPrevious）。結ばれた参加者の起こす知らせの宛先も host に移す（followHosts）。
+// 利用者トリガートークの数え直し（UserTalkedIn）より前に呼ぶ（移した参加者のラリーも数え直す）
+func (h *Hub) CarrySession(sessionID, host string, previous []string) error {
+	if sessionID == "" {
+		return nil
+	}
+	records, err := h.records()
+	if err != nil {
+		return err
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	changed := h.rebindByHost(records, sessionID, host)
+	changed = h.rebindByPrevious(records, sessionID, host, previous) || changed
+	changed = h.followHosts(records, sessionID, host) || changed
+	if !changed {
+		return nil
+	}
+	h.noteWakesLocked()
+	return h.putParticipantNotes()
 }
 
 // ParticipantReady は、準備中でない参加者の id（窓が、受け入れ済みの参加者の準備中を見分ける）

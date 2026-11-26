@@ -4,10 +4,12 @@ package server
 // 参加を頼むと、参加者を作るアクションを行う（どのアクションかは、アクションの定義が runsWhenAIJoins で名乗る）。受け入れ済みの参加者が頼み直したら、頼み直しを書くアクション（役 rejoin-participant）を、利用者としてその参加者のレコードに行う（何を書き換えるかはアクションが決める）。利用者は、要求中の参加者を画面のしおりで見る。
 // 同じ AI（参加の id・link・ai と env と sessionName が同じ）の要求が答えを待っている間は、頼み直しを断る（already-requested）。ただし、その要求のセッションが終わっていれば、
 // 知らせずに要求を消して（セッションが終わったときに行うアクション。runsWhenAIEnds）、新しい要求を受ける。
+// 同じ ai・env・sessionName の受け入れ済みの参加者がいれば、その参加者を使う（already-participating）。ただし、その参加者のセッションが終わっていれば、退室させて新しい要求を受ける。
 // 参加者・ワークルームはアクションの結果（レコード）が持つ。ここが持つ常駐だけが持つ参加者の記録はアクションを通さない記録で、参加者の id ごとに
 //   - 最後に呼ばれた時刻（参加者が決まった /api/ai の呼び出しのたびに更新。前に窓に知らせてから callsAnnounceGap 以上たっていたときだけ、置き場所に書いて窓に知らせる）
 //   - セッション id（join のときに MCP が添えるか、UserPromptSubmit のフックが結ぶ。置き場所に残す）と、それを結んだ所（join の MCP か、UserPromptSubmit のフックか）
 //   - 参加を伝えたかの印（置き場所に残す。伝えたのは、参加者が決まった呼び出しへの返事のヘッダ、または UserPromptSubmit のフック）
+//   - 前の会話（/clear などで置き換えた会話）から移したことを、新しい会話の AI にまだ伝えていない印（置き場所に残す。伝えるのは UserPromptSubmit のフック。join_session.go の CarrySession）
 //   - モデル（AI のフックが知らせる〈model.go〉か、MCP が X-Matomezu-Model ヘッダで添える〈Codex など、呼び出しがモデルを運ぶ AI〉。あとに届いた方を使う。置き場所に残し、変わったら窓に知らせる）
 //   - git のブランチ（MCP が呼び出しのたびに X-Matomezu-Branch ヘッダで添える。変わったら置き場所に書いて窓に知らせる）
 //   - AI のプログラム（Claude Code など）のプロセス id（MCP が X-Matomezu-Host ヘッダで、フックが host で添える。置き場所に残す。
@@ -48,6 +50,7 @@ type participantNote struct {
 	SessionID       string `json:"sessionId,omitempty"`       // セッション id（join のときに MCP が添えたか、UserPromptSubmit のフックが結んだ）
 	BoundBy         string `json:"boundBy,omitempty"`         // セッション id を結んだ所（boundByJoin か boundByHook。空は boundByHook と同じ）
 	Told            bool   `json:"told,omitempty"`            // 参加（joined）を AI に伝えた
+	Carried         bool   `json:"carried,omitempty"`         // 前の会話（/clear などで置き換えた会話）から移したことを、新しい会話の AI にまだ伝えていない
 	Called          string `json:"called,omitempty"`          // 最後に呼ばれた時点（置き場所に残す。生きているかも、この時刻で決める。書くのは窓に知らせ直すときだけ）
 	Model           string `json:"model,omitempty"`           // AI のフックが知らせたか、MCP が添えたモデル（あとに届いた方）
 	Branch          string `json:"branch,omitempty"`          // MCP が添えた git のブランチ
@@ -327,6 +330,14 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 				continue
 			}
 			if s.State != stateRequested {
+				// 同じセッション名の参加者の会話が終わっていれば（/clear で前の会話の印が読めなかったときなど）、退室させて頼み直しにする。
+				// 「参加済み」と答えると、頼んだ会話は参加の id を受け取れず、前の参加者も使えないまま止まる
+				if h.sessionEnded(s.ID) {
+					if err := h.leaveEnded(s.ID); err != nil {
+						return Joined{}, err
+					}
+					continue
+				}
 				return alreadyJoined(s), nil
 			}
 			if waiting, err := h.dropIfEnded(s); err != nil || waiting {

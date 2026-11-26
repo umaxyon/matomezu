@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/umaxyon/matomezu/internal/engine"
@@ -383,12 +384,18 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 		Candidates []string `json:"candidates"`
 		Woken      bool     `json:"woken"`  // 裏の知らせで始まったターン（利用者トリガートークでない）
 		Prompt     string   `json:"prompt"` // ターンの入力
+		// PreviousSessions は、この会話が置き換えた前の会話のセッション id（/clear など。AI の側の部品が会話の記録から読む）。この会話が誰にも結ばれていないときだけ使う
+		PreviousSessions []string `json:"previousSessions"`
 	}
 	if r.ContentLength != 0 && !readJSON(w, r, &req) {
 		return
 	}
 	lent := false
 	if len(req.Candidates) == 0 {
+		if err := o.Hub.CarrySession(req.SessionID, req.Host, req.PreviousSessions); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		lent = o.Hub.WokenBy(req.Prompt)
 		if !req.Woken && !lent {
 			o.Hub.UserTalkedIn(req.SessionID)
@@ -404,7 +411,7 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if lent {
-		done.ForAI = wokenText
+		done.ForAI = strings.TrimSpace(wokenText + "\n" + done.ForAI)
 	}
 	writeJSON(w, done)
 }

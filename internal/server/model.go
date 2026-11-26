@@ -26,7 +26,7 @@ const (
 )
 
 // HeardModel は、セッション sessionID のモデルが model だと、時点 now にフックが知らせたことを受ける。
-// sessionID が空なら何もしない。model が空なら、AI のプログラムのプロセス id での結び直しだけを行う
+// sessionID が空なら何もしない。model が空なら、AI のプログラムのプロセス id での結び直しと、起こす知らせの宛先の移し（followHosts）だけを行う
 func (h *Hub) HeardModel(sessionID, model, host string, now time.Time) error {
 	if sessionID == "" {
 		return nil
@@ -38,6 +38,7 @@ func (h *Hub) HeardModel(sessionID, model, host string, now time.Time) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	changed := h.rebindByHost(records, sessionID, host)
+	changed = h.followHosts(records, sessionID, host) || changed
 	if model != "" {
 		bound := false
 		for id, n := range h.participantNotes {
