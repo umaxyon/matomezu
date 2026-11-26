@@ -13,7 +13,7 @@ export function Tip({
   command,
   children,
 }: {
-  text: string
+  text: string // 改行で行を分ける
   side?: "below" | "above"
   align?: "end" | "start"
   command?: CommandId
@@ -23,7 +23,14 @@ export function Tip({
     <span className={styles.tip} data-side={side} data-align={align}>
       {children}
       <span className={styles.bubble} aria-hidden="true">
-        <span className={styles.text}>{text}</span>
+        <span className={styles.text}>
+          {text.split("\n").map((line, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 行は題から作り直すだけで、並べ替えない
+            <span key={i} className={styles.line}>
+              {line}
+            </span>
+          ))}
+        </span>
         {command ? <TipKey command={command} /> : null}
       </span>
     </span>
