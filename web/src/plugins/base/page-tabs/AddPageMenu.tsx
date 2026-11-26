@@ -1,21 +1,18 @@
 // ページタブの＋: 押すとページのタイプの一覧のメニュー（add-page-menu）を＋の上に開く（開いている間に押すと閉じるだけ）。
 // メニューの行（useAddPageRows。メニューが自分で出す行）は、開いているページのタイプを先頭に、ほかは機能台帳の順。
-// 選んだタイプのページを作るダイアログを開く（コマンド page-new）。末尾の「参照…」は、書庫で選んでこのブックに参照を置く（書庫のコマンド library-reference-choose）
+// 選んだタイプのページを作るダイアログを開く（コマンド page-new）。UI マッピングが末尾に置く「参照…」は、書庫で選んでこのブックに参照エントリを置く（書庫のコマンド library-reference-choose）
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { useCommand } from "../../../ui/commands"
 import { useToggledMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
-import { SEPARATOR } from "../../../ui/layout"
 import type { ContextMenuRow } from "../../../ui/plugin"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { pageFolderFor, typeLets } from "../library/entries"
-import { LIBRARY_REFERENCE_CHOOSE } from "../library/screen"
 import { PAGE_ADD } from "../pages/page-add"
 import { ADD_PAGE_MENU, PAGE_NEW, PAGE_NEW_IN_FOLDER } from "."
 import { FileIcon } from "./FileIcon"
 import styles from "./PageTabs.module.css"
-import { ReferenceIcon } from "./ReferenceIcon"
 
 // メニューに並べるタイプの id: 開いているページのタイプ first を先頭に、ほかは機能台帳の順
 export function typesToAdd(catalog: CoreCatalog, first: string | null): string[] {
@@ -61,25 +58,12 @@ function useTypeRowLook(): (type: string) => Pick<ContextMenuRow, "label" | "ico
   }
 }
 
-// メニュー add-page-menu の行: タイプごとに 1 行（そのタイプのページを作るコマンド page-new。タイプがページを足すアクションを外していれば出ず、認可ステップが止めるなら押せない）と、
-// 区切り線の下に「参照…」（参照を置けるブックを開いているときだけ出る。ワーカーブックなどバックヤードの中のブックでは出ない）
-export function useAddPageRows({ first }: { first: string | null }): readonly (ContextMenuRow | typeof SEPARATOR)[] {
-  const t = useMessages(kit)
+// メニュー add-page-menu の行: タイプごとに 1 行（そのタイプのページを作るコマンド page-new。タイプがページを足すアクションを外していれば出ず、認可ステップが止めるなら押せない）。
+// 区切り線の下の「参照…」は、UI マッピングが置く（コマンド library-reference-choose）
+export function useAddPageRows({ first }: { first: string | null }): readonly ContextMenuRow[] {
   const catalog = useCatalog().core
   const look = useTypeRowLook()
-  const reference = useCommand(LIBRARY_REFERENCE_CHOOSE.id)
-  const types = typesToAdd(catalog, first).map(type => ({ ...look(type), command: PAGE_NEW.id, args: { type } }))
-  if (!reference.shown) return types
-  return [
-    ...types,
-    SEPARATOR,
-    {
-      label: t(LIBRARY_REFERENCE_CHOOSE.title),
-      icon: <ReferenceIcon icon={<FileIcon />} />,
-      iconLook: "picture",
-      command: LIBRARY_REFERENCE_CHOOSE.id,
-    },
-  ]
+  return typesToAdd(catalog, first).map(type => ({ ...look(type), command: PAGE_NEW.id, args: { type } }))
 }
 
 // 書庫の画面のメニュー library-add-page-menu の行: タイプごとに 1 行（そのタイプのページを、フォルダ folder に作るコマンド page-new-in-folder）。

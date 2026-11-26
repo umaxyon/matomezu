@@ -107,22 +107,11 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
 }
 
 // メニューが自分で出す行: メニューの持ち主のフック rows が、開いたときに受け取った物から出す
-function OwnRows({
-  rows,
-  menu,
-}: {
-  rows: (target: never) => readonly (ContextMenuRow | typeof SEPARATOR)[]
-  menu: OpenedContextMenu
-}) {
-  return rows(menu.target as never).map((row, i) =>
-    row === SEPARATOR ? (
-      // biome-ignore lint/suspicious/noArrayIndexKey: 区切り線は id を持たず、並びの位置で見分ける
-      <hr key={i} className={styles.separator} />
-    ) : (
-      // biome-ignore lint/suspicious/noArrayIndexKey: 行は id を持たず、並びの位置で見分ける
-      <OwnRow key={i} row={row} />
-    ),
-  )
+function OwnRows({ rows, menu }: { rows: (target: never) => readonly ContextMenuRow[]; menu: OpenedContextMenu }) {
+  return rows(menu.target as never).map((row, i) => (
+    // biome-ignore lint/suspicious/noArrayIndexKey: 行は id を持たず、並びの位置で見分ける
+    <OwnRow key={i} row={row} />
+  ))
 }
 
 // 行 row: その引数でコマンドを出さないなら出さず、押せないなら出したまま押せなくする。押すと閉じてからコマンドを呼ぶ
@@ -146,13 +135,16 @@ function OwnRow({ row }: { row: ContextMenuRow }) {
 
 function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMenuCommandId<ContextMenuId> }) {
   const command = useCommand(id, menu.target as never)
-  const icon = useUiCatalog().commandIcons.get(id)
+  const catalog = useUiCatalog()
+  const icon = catalog.commandIcons.get(id)
+  const look = catalog.commandIconLooks.get(id)
   const key = useKeyLabel(id)
   const { closeContextMenu } = useStoreActions()
   const t = useMessages(kit)
   return (
     <MenuRow
       icon={icon}
+      {...(look ? { iconLook: look } : {})}
       label={t(command.title)}
       keyLabel={key}
       disabled={!command.enabled}

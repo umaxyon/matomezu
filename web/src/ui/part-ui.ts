@@ -38,7 +38,7 @@ export const PART_UI = {
   papers: { views: [], define: ["definePaper"] },
   textColors: { views: [], define: ["defineTextColor"] },
   skins: { views: [], define: ["defineSkin"] },
-  commands: { views: ["commandIcons"], define: ["defineCommand", "defineScreenCommand"] },
+  commands: { views: ["commandIcons", "commandIconLooks"], define: ["defineCommand", "defineScreenCommand"] },
   dialogs: { views: ["dialogViews"], define: ["defineDialog", "defineDialogWith"] },
   keyScopes: { views: [], define: ["defineKeyScope"] },
   pluginStates: { views: [], define: ["definePluginState", "definePluginStateOf"] },

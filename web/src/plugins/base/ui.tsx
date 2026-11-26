@@ -16,6 +16,7 @@ import { EDIT_LOCK } from "./edit-lock/ui"
 import { FOOTER_MENU_MINIMAP, HISTORY_BUTTONS, STAGE_MENU_BUTTONS } from "./footer-menu/ui"
 import { HISTORY_ICONS } from "./history/ui"
 import {
+  LIBRARY_COMMAND_ICON_LOOKS,
   LIBRARY_COMMAND_ICONS,
   LIBRARY_NEW_BOOK_DIALOG,
   LIBRARY_NEW_FOLDER_DIALOG,
@@ -405,6 +406,7 @@ export const BASE_UI = definePluginUi(BASE, {
     ...SETTINGS_ICONS,
     ...WINDOW_ICONS,
   },
+  commandIconLooks: LIBRARY_COMMAND_ICON_LOOKS,
   toolIcons: TOOL_ICONS,
 })
 

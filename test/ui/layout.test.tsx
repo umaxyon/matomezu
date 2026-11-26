@@ -121,6 +121,7 @@ describe("UI マッピング", () => {
       "E213 layout no-stages: context menu @matomezu/base:library-entry-context is not opened by any placed widget or book view",
       "E213 layout no-stages: context menu @matomezu/base:library-reference-context is not opened by any placed widget or book view",
       "E213 layout no-stages: context menu @matomezu/base:library-folder-context is not opened by any placed widget or book view",
+      "E213 layout no-stages: context menu @matomezu/base:add-page-menu is not opened by any placed widget or book view",
       "E213 layout no-stages: context menu @matomezu/base:page-context is not opened by any placed widget or book view",
       "E213 layout no-stages: context menu @matomezu/base:binder-context is not opened by any placed widget or book view",
       "E213 layout no-stages: context menu @matomezu/base:reference-context is not opened by any placed widget or book view",

@@ -252,8 +252,8 @@ export const DEFAULT_LAYOUT = defineLayout({
     ],
     // 行は、メニューが自分で並べる（ページのタイプの一覧）
     "@matomezu/base:library-add-page-menu": [],
-    // 行は、メニューが自分で並べる（ページのタイプの一覧）
-    "@matomezu/base:add-page-menu": [],
+    // ページのタイプの一覧は、メニューが自分で並べる（その下に、区切り線を挟んで並ぶ）
+    "@matomezu/base:add-page-menu": ["@matomezu/base:library-reference-choose"],
     "@matomezu/base:page-context": [
       "@matomezu/base:page-duplicate",
       "@matomezu/base:scrap-cut",
