@@ -144,7 +144,7 @@ export function ChoiceText({ children }: { children: ReactNode }) {
   return <span className={styles.choiceText}>{children}</span>
 }
 
-// 継承できる設定の、選択肢から 1 つを選ぶボタンの並び（ページの設定がブックの設定を継承するときなど）。左端に継承のボタン
+// 継承できる設定の、選択肢から 1 つを選ぶボタンの並び（レーンのチケットサイズがプロジェクトの値を継承するときなど）。左端に継承のボタン
 // （文字で inherit.label、ポインタを乗せた名前は inherit.title。選ぶと値は undefined）を置き、続けて選択肢を Choices と同じに並べる
 export function InheritChoices<V extends string>({
   label,

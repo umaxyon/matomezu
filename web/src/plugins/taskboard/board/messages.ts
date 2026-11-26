@@ -17,6 +17,5 @@ export const BOARD_MESSAGES = defineMessages({
   "Direction of {name}": { en: "Direction of {name}", ja: "{name}の向き" },
   "Priority {name}": { en: "Priority {name}", ja: "優先度 {name}" },
   "Volume {name}": { en: "Volume {name}", ja: "規模 {name}" },
-  "{n} assignees": { en: "{n} assignees", ja: "{n}人" },
   "shown projects": { en: "Shown projects", ja: "出しているプロジェクト" },
 })
