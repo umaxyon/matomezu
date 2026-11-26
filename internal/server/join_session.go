@@ -11,7 +11,7 @@ import (
 )
 
 // noteJoinHost は参加者 id の常駐だけが持つ参加者の記録に、join の頼みに MCP が添えた AI のプログラムのプロセス id と、それが MCP を立てたときのセッション id を、
-// 起こす知らせの宛て先として書く（どれも空なら書かない）。要求中の間も残す（受け入れ・断りの知らせの宛て先。watch.go）。セッション id の結び直し（Host）には使わない。
+// 起こす知らせの宛て先として書く（どれも空なら書かない。プロセスが替わるとフックが移す。followHost）。要求中の間も残す（受け入れ・断りの知らせの宛て先。watch.go）。セッション id の結び直し（Host）には使わない。
 // MCP がセッションのプロセスを名乗っていれば、退室の見張りの宛てとしてその id と範囲の印も書く
 func (h *Hub) noteJoinHost(id string, req JoinRequest) {
 	if req.Host == "" && req.HostSession == "" && req.SessionPid == "" {
@@ -120,7 +120,7 @@ func (h *Hub) rebindByPrevious(records []participantRecord, sessionID, host stri
 }
 
 // carrySession は、参加者 id を前の会話からセッション sessionID に移す（host は AI のプログラムのプロセス id、分からなければ空）。
-// 結んだ所は変えず、移したことを新しい会話の AI に伝える印を付ける。AI のプログラムが替わっていれば、起こす知らせの宛先も移す（followHost。h.mu を持って呼ぶ）
+// 結んだ所は変えず、移したことを新しい会話の AI に伝える印を付ける。AI のプログラムが替わっていれば、起こす知らせの宛て先も移す（followHost。h.mu を持って呼ぶ）
 func (h *Hub) carrySession(id, sessionID, host string) {
 	n := h.participantNotes[id]
 	h.bindSession(id, sessionID, n.BoundBy, host)
@@ -131,9 +131,9 @@ func (h *Hub) carrySession(id, sessionID, host string) {
 	h.followHost(id, sessionID, host, true)
 }
 
-// followHost は、セッション sessionID に結ばれた参加者 id の起こす知らせの宛先を、そのセッションを動かす AI のプログラムのプロセス id host に移す
+// followHost は、セッション sessionID に結ばれた参加者 id の起こす知らせの宛て先を、そのセッションを動かす AI のプログラムのプロセス id host に移す
 // （Claude Desktop は、会話の途中で CLI を --resume で起動し直し、/clear でも CLI ごと替える。どちらもプロセス id が変わる）。
-// 移すのは、host が分かって今の宛先と違い、今その参加者に届く通り道が無く、宛先のセッションが sessionID か空か、前の会話から移したところ（moved）のときだけ
+// 移すのは、host が分かって今の宛て先と違い、今その参加者に届く通り道が無く、宛て先のセッションが sessionID か空か、前の会話から移したところ（moved）のときだけ
 // （端末の /clear は同じプロセスのまま、通り道は AI のプログラムを立てたときのセッション id で開いているので、移すと届かなくなる）。
 // 移すときは、古いプロセスで退室の見張りをしないよう、セッションと同じだけ生きるプロセスの印を消す（次の MCP の呼び出しが名乗り直す）。h.mu を持って呼ぶ
 func (h *Hub) followHost(id, sessionID, host string, moved bool) {
@@ -150,7 +150,7 @@ func (h *Hub) followHost(id, sessionID, host string, moved bool) {
 	h.signalWakes(id)
 }
 
-// followHosts は、セッション sessionID に結ばれた参加（要求）中の参加者の起こす知らせの宛先を、host に移す（followHost）。移したか（置き場所には書かない。h.mu を持って呼ぶ）
+// followHosts は、セッション sessionID に結ばれた参加（要求）中の参加者の起こす知らせの宛て先を、host に移す（followHost）。移したか（置き場所には書かない。h.mu を持って呼ぶ）
 func (h *Hub) followHosts(records []participantRecord, sessionID, host string) bool {
 	if sessionID == "" || host == "" {
 		return false
@@ -168,7 +168,7 @@ func (h *Hub) followHosts(records []participantRecord, sessionID, host string) b
 }
 
 // CarrySession は、ターンの始まりに、会話のセッション sessionID（AI のプログラムのプロセス id host）へ参加者を移す: 同じプロセスの参加者（rebindByHost）と、
-// 誰にも結ばれていなければ、前の会話 previous の参加者（rebindByPrevious）。結ばれた参加者の起こす知らせの宛先も host に移す（followHosts）。
+// 誰にも結ばれていなければ、前の会話 previous の参加者（rebindByPrevious）。結ばれた参加者の起こす知らせの宛て先も host に移す（followHosts）。
 // 利用者トリガートークの数え直し（UserTalkedIn）より前に呼ぶ（移した参加者のラリーも数え直す）
 func (h *Hub) CarrySession(sessionID, host string, previous []string) error {
 	if sessionID == "" {

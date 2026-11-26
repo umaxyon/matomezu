@@ -14,6 +14,7 @@ package server
 //   - git のブランチ（MCP が呼び出しのたびに X-Matomezu-Branch ヘッダで添える。変わったら置き場所に書いて窓に知らせる）
 //   - AI のプログラム（Claude Code など）のプロセス id（MCP が X-Matomezu-Host ヘッダで、フックが host で添える。置き場所に残す。
 //     セッション id が変わったとき（Claude Code の /clear など）に、同じプロセス id の参加者へ新しいセッション id を結び直すのに使う。
+//     セッションの AI のプログラムが替わったとき（Claude Desktop の --resume・/clear）は、フックの添えたプロセス id へ起こす知らせの宛て先を移す（join_session.go の followHost）。
 //     join でセッション id を運んだ参加者は結び直さない。呼び出しがセッション id を運ぶ AI〈Codex〉は、会話が変わると MCP も作り直され、
 //     プロセス id は、ほかの会話〈Codex の app-server では、マシンの全部の会話〉と同じになりうるため）
 //
@@ -55,9 +56,9 @@ type participantNote struct {
 	Model           string `json:"model,omitempty"`           // AI のフックが知らせたか、MCP が添えたモデル（あとに届いた方）
 	Branch          string `json:"branch,omitempty"`          // MCP が添えた git のブランチ
 	Host            string `json:"host,omitempty"`            // AI のプログラム（Claude Code など）のプロセス id（MCP とフックが添える）
-	WakeHost        string `json:"wakeHost,omitempty"`        // join の頼みに MCP が添えた AI のプログラムのプロセス id（起こす知らせの宛て先だけに使う。結び直しには使わない。watch.go）
-	WakeSession     string `json:"wakeSession,omitempty"`     // join の頼みに MCP が添えた、AI のプログラムが MCP を立てたときのセッション id（起こす知らせの宛て先。watch.go）
-	SessionPid      string `json:"sessionPid,omitempty"`      // セッションと同じだけ生きるプロセスだと MCP が名乗ったプロセス id（居なくなったら退室。名乗った呼び出しだけが書く）
+	WakeHost        string `json:"wakeHost,omitempty"`        // 起こす知らせの宛て先の AI のプログラムのプロセス id（join の頼みに MCP が添え、プロセスが替わるとフックが移す。followHost。結び直しには使わない。watch.go）
+	WakeSession     string `json:"wakeSession,omitempty"`     // 起こす知らせの宛て先のセッション id（join の頼みに MCP が添えた、AI のプログラムが MCP を立てたときの物。プロセスが替わるとフックが移す。followHost。watch.go）
+	SessionPid      string `json:"sessionPid,omitempty"`      // セッションと同じだけ生きるプロセスだと MCP が名乗ったプロセス id（居なくなったら退室。名乗った呼び出しが書き、起こす知らせの宛て先を移すときに消す）
 	SessionPidSpace string `json:"sessionPidSpace,omitempty"` // そのプロセス id が通じる範囲の印（常駐の印と同じときだけ、居るかを確かめる）
 }
 

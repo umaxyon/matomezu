@@ -45,7 +45,7 @@ const wokenText = "This turn was started by a matomezu notice, not typed by the 
 
 // carriedText は、前の会話（/clear などで置き換えた会話）の参加者を新しい会話に移したとき、新しい会話の AI にだけ伝える文の頭（参加を伝える文が続く）。
 // 利用者には見せない（途切れずに続ける）
-const carriedText = "This conversation continues one that was cleared, and matomezu kept you as its participant (nothing to join again):"
+const carriedText = "This conversation continues an earlier one it replaced, and matomezu kept you as its participant (nothing to join again):"
 
 // candidatesMax は、1 度に受ける候補の数の上限
 const candidatesMax = 1000

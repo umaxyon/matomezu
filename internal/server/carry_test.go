@@ -39,7 +39,7 @@ func talkedAs(t *testing.T, srv, body string) SessionTalk {
 	return out
 }
 
-// Desktop の /clear（CLI ごと替わる）: 新しい会話のフックが前の会話のセッション id を添えると、その参加者が新しい会話に移り、起こす知らせの宛先も新しい CLI に移る
+// Desktop の /clear（CLI ごと替わる）: 新しい会話のフックが前の会話のセッション id を添えると、その参加者が新しい会話に移り、起こす知らせの宛て先も新しい CLI に移る
 // （古い CLI の退室の見張りの印は消える）。溜まっていた知らせは新しい CLI の通り道に流れ、移したことは AI にだけ 1 度伝わる（利用者に見せる文は無い）
 func TestClearCarriesTheParticipantToANewProgram(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
@@ -68,7 +68,7 @@ func TestClearCarriesTheParticipantToANewProgram(t *testing.T) {
 	}
 }
 
-// 端末の /clear（同じプロセスのまま）: プロセス id で移り、AI にだけ伝わる。通り道は AI のプログラムを立てたときのセッション id で開いているので、宛先は変えずに届き続ける
+// 端末の /clear（同じプロセスのまま）: プロセス id で移り、AI にだけ伝わる。通り道は AI のプログラムを立てたときのセッション id で開いているので、宛て先は変えずに届き続ける
 func TestClearInTheSameProgramKeepsTheWakeTarget(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	b := claudeIn(t, s.URL, "LB", "200", "S1", "すずめ")
@@ -118,7 +118,7 @@ func TestClearCarriesOnlyFromThePreviousSession(t *testing.T) {
 	}
 }
 
-// Desktop の --resume（同じ会話を別の CLI で起動し直す）: 届く通り道が無ければ宛先が新しい CLI に移り、退室の見張りの印は消える。届く通り道があれば変えない
+// Desktop の --resume（同じ会話を別の CLI で起動し直す）: 届く通り道が無ければ宛て先が新しい CLI に移り、退室の見張りの印は消える。届く通り道があれば変えない
 func TestResumeFollowsTheNewProgram(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	b := claudeIn(t, s.URL, "LB", "200", "S1", "すずめ")

@@ -28,9 +28,9 @@ type derivedFrom struct {
 
 // ClearedFrom は、会話の記録 transcriptPath のセッション session が、/clear で置き換えた前の会話のセッション id（無ければ空）。
 // Claude Code は、/clear で始まった会話の記録の頭（1 行目とは限らない）に derived-from の行を書き、sessions に via が clear の前の会話を並べる
-// （CLI 2.1.330 の記録で確かめた。Desktop は /clear で CLI ごと起動し直すので、フックの source は startup で来る）。
+// （Desktop は /clear で CLI ごと起動し直すので、フックの source は startup で来て、前の会話はこの行からしか分からない）。
 // via が launch（起動した物）・subprocess（この CLI を立てた親の会話）・compact（自分）の物は取らない（親の会話の参加者を取り違える）。
-// 形が違う・読めないときは空（常駐は、今までどおり結び直さない）
+// 形が違う・読めないときは空（常駐は、前の会話からは結び直さない）
 func ClearedFrom(transcriptPath, session string) []string {
 	if transcriptPath == "" || session == "" {
 		return nil
