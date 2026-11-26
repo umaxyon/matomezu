@@ -1,4 +1,5 @@
 import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
+import { expectHeadAligned } from "./helpers/book-name"
 import { browserMenuStopped } from "./helpers/browser-menu"
 import { stillBox } from "./helpers/motion"
 import { addFromTabs, openNewBookDialog } from "./helpers/new-book"
@@ -164,27 +165,17 @@ test("分割して右で同じブックを開くと右にもタブがあり、�
     .click()
   await expect(lists.nth(0).getByRole("tab", { selected: true })).toHaveText("ページ 1")
   await expect(lists.nth(1).getByRole("tab", { selected: true })).toHaveText("ページ 2")
-  // 右のタブは、右のステージの真下で、閉じるとブックの名前の枠（156px）と置き場所のフォルダの絵の右にある。フォルダの絵は名前の枠のすぐ右に詰めて置く
+  // 右のタブは、右のステージの真下で、閉じるとブックの名前の枠（156px）のすぐ右にある。
+  // ブックの置き場所の印（本の絵）は名前の枠の中の名前の前に在り、左（枠の左端の強調の線から）と右（名前との間）の余白がそろい、縦は名前の字の中央に在る
   const bar = (await lists.nth(1).boundingBox())!
   const stage = (await right.boundingBox())!
   const close = (await page.locator("[data-footer-close]").nth(1).boundingBox())!
-  const place = (await page
-    .getByRole("button", { name: /^置き場所: / })
-    .nth(1)
-    .boundingBox())!
+  const frame = page.locator("[data-book-name]").nth(1)
   expect(bar.y).toBeGreaterThanOrEqual(stage.y + stage.height - 1)
-  expect(place.x).toBeGreaterThanOrEqual(stage.x + close.width + 156)
-  expect(place.x).toBeLessThan(stage.x + close.width + 156 + 2)
-  expect(place.width).toBeLessThan(24)
-  // フォルダの絵の左（名前の枠から）と右（タブから）の余白はそろい、絵はタブの縦の中央に在る
-  const svg = (await page
-    .getByRole("button", { name: /^置き場所: / })
-    .nth(1)
-    .locator("svg")
-    .boundingBox())!
-  const tab = (await lists.nth(1).getByRole("tab").first().boundingBox())!
-  expect(Math.abs(svg.x - place.x - (tab.x - (svg.x + svg.width)))).toBeLessThanOrEqual(1)
-  expect(Math.abs(svg.y + svg.height / 2 - (tab.y + tab.height / 2))).toBeLessThanOrEqual(1)
+  expect(bar.x).toBeGreaterThanOrEqual(stage.x + close.width + 156)
+  expect(bar.x).toBeLessThan(stage.x + close.width + 156 + 2)
+  await expect(page.locator("[data-book-place]")).toHaveCount(2)
+  await expectHeadAligned(frame, frame.locator("[data-book-place]"))
 })
 
 test("在るブックと同じ名前では作れず、ダイアログの中に「同じ名前があります」が出て、名前を変えると作れる", async ({

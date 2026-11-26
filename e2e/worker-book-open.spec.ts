@@ -3,6 +3,7 @@
 // 窓が低いと、番号の行のクリックで全画面で開く。書庫の行はクリックで 2 択を出す。「作業ブック」はクリックで右を本文からページの一覧に替え（もう一度押しても閉じない）、ダブルクリックで全画面で開く
 import { aiAuth, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
+import { expectHeadAligned } from "./helpers/book-name"
 import { onPaper } from "./helpers/paper"
 
 const NOW = "2026-11-23T00:00:00.000Z"
@@ -213,7 +214,7 @@ test("書庫の検索は、チケットの番号と名前・ページの名前�
   await expect(page.getByText("見つける絵").first()).toBeVisible()
 })
 
-test("ワーカーブックの下の行は、名前の枠の中の名前の前に作業しているワークルームの鳥を出し、フォルダの絵は出さない。鳥を押すと書庫でその作業机を開いてワーカーブックを選ぶ。指になるのは鳥だけ", async ({
+test("ワーカーブックの下の行は、名前の枠の中の名前の前に作業しているワークルームの鳥を出し、置き場所の本の絵は出さない。鳥を押すと書庫でその作業机を開いてワーカーブックを選ぶ。指になるのは鳥だけ", async ({
   page,
 }) => {
   await page.goto(CONTROL_CENTER_URL)
@@ -233,14 +234,8 @@ test("ワーカーブックの下の行は、名前の枠の中の名前の前�
   const cursor = (l: typeof birds) => l.evaluate(e => getComputedStyle(e).cursor)
   expect(await cursor(birds)).toBe("pointer")
   expect(await cursor(page.locator("[data-book-name] button[aria-haspopup]"))).toBe("default")
-  // 鳥の左（枠の左端の強調の線から）と右（名前との間）の余白はそろう
-  const [frame, face, name] = await Promise.all(
-    [page.locator("[data-book-name]"), birds, page.locator("[data-book-name] button[aria-haspopup]")].map(l =>
-      l.boundingBox(),
-    ),
-  )
-  expect(Math.abs(face!.x - (frame!.x + 3) - (name!.x - (face!.x + face!.width)))).toBeLessThanOrEqual(1)
-  expect(Math.abs(face!.y + face!.height / 2 - (frame!.y + frame!.height / 2))).toBeLessThanOrEqual(1)
+  await expectHeadAligned(page.locator("[data-book-name]"), birds)
+  await expect(page.locator("[data-book-place]")).toHaveCount(0)
   await birds.click()
   const desk = page.getByRole("list", { name: "とり の中身" })
   await expect(desk.getByRole("button")).toHaveAttribute("aria-pressed", "true")
