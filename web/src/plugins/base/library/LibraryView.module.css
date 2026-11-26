@@ -506,14 +506,14 @@
 .entry[data-drop="after"]::after {
   right: -5px;
 }
-/* 選ぶ形の間の書庫の画面: 上に選ぶ形の帯、その下に書庫の画面 */
+/* 参照を選んでいる間の書庫の画面: 上に選んでいる間の帯、その下に書庫の画面 */
 .chooser {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
 }
-/* 選ぶ形の帯: 何を選んでいるかと［取消］（書庫のスクリーンの帯と同じ高さ） */
+/* 選んでいる間の帯: 何を選んでいるかと［取消］（書庫のスクリーンの帯と同じ高さ） */
 .chooseBand {
   display: flex;
   flex: none;
@@ -534,7 +534,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* 選ぶ形の間の、選べず中へも入らない行 */
+/* 参照を選んでいる間の、選べず中へも入らない行 */
 [data-unchoosable] {
   opacity: 0.4;
 }

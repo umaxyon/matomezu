@@ -85,7 +85,7 @@ export const LIBRARY_PLACE_OPEN = kit.defineCommand({
   when: ctx => hasOpenedPage(ctx) && outsidePagePlaceOf(ctx.folders, ctx.page.id).length > 0,
 })
 
-// 参照…（ページタブの＋のメニュー）: 書庫を開き（書庫を開くと同じ所に出す）、開いているブックに置く参照の指す先を選ぶ形にする（検索していればやめ、選んでいる行は外す）。
+// 参照…（ページタブの＋のメニュー）: 書庫を開き（書庫を開くと同じ所に出す）、開いているブックに置く参照の指す先を選び始める（検索していればやめ、選んでいる行は外す）。
 // 選んで置くと、書庫のスクリーンを閉じて置いた参照を開く（open-from.ts の placeChosen）
 export const LIBRARY_REFERENCE_CHOOSE = kit.defineCommand({
   id: "library-reference-choose",
@@ -104,7 +104,7 @@ export const LIBRARY_REFERENCE_CHOOSE = kit.defineCommand({
   when: ctx => ctx.book !== NO_BOOK && holdsNewReference(ctx.folders, ctx.book.id),
 })
 
-// 選ぶ形をやめる（選ぶ形の帯の［取消］と、書庫の画面の中の Esc）。置く参照を選んでいた（ページタブの＋から始めた）なら、書庫のスクリーンも閉じる
+// 選ぶのをやめる（選んでいる間の帯の［取消］と、書庫の画面の中の Esc）。置く参照を選んでいた（ページタブの＋から始めた）なら、書庫のスクリーンも閉じる
 export const LIBRARY_CHOOSE_CANCEL = kit.defineScreenCommand({
   id: "library-choose-cancel",
   title: "Cancel choosing",

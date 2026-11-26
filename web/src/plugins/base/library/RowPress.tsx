@@ -1,6 +1,6 @@
 // 書庫の行の押し方: ブックスクリーンに開く行（ページの在るブックと、ブックの中のページ）は、クリックで「開く／分割で開く」の吹き出し、
 // ダブルクリックで開く。ほかの行は、クリックで行う事とダブルクリックで開く事だけ（書庫の右の枠・ツリー・検索の結果が共に使う）。
-// 選ぶ形の間は、選べる行はクリックで［参照を置く］か［ここに置く］の吹き出し、ダブルクリックで置く。ほかの行は、クリックで行う事とダブルクリック（中へ入る物は入る）だけで、
+// 参照を選んでいる間は、選べる行はクリックで［参照を置く］か［ここに置く］の吹き出し、ダブルクリックで置く。ほかの行は、クリックで行う事とダブルクリック（中へ入る物は入る）だけで、
 // 選べず中へも入らない行は薄く描く（faded）
 import { type MouseEvent, type ReactNode, useCallback, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
@@ -31,7 +31,7 @@ function useBookOpenedFrom(
   return useMemo(() => (opens === undefined ? undefined : { opens, beside }), [opens, beside])
 }
 
-// 行の押し方 press（クリック・ダブルクリック・「開く／分割で開く」か選ぶ形の吹き出し・薄く描くか）
+// 行の押し方 press（クリック・ダブルクリック・「開く／分割で開く」か選んでいる間の吹き出し・薄く描くか）
 export interface RowPress {
   onClick: (e: MouseEvent<HTMLElement>) => void
   onDoubleClick: (() => void) | undefined
@@ -41,7 +41,7 @@ export interface RowPress {
 
 // 行 row の押し方を children に渡して描く: ブックスクリーンに開く行（ページの在るブックと、ブックの中のページ）は、クリックで行を選ぶ物 click を行ってから
 // 「開く／分割で開く」、ダブルクリックで開く（open）。ほかの行は、クリックで click、ダブルクリックで open
-// noOpenChoice: 選ぶ形の外では「開く／分割で開く」の吹き出しを出さず、クリックで click、ダブルクリックで open（検索の結果の名前の行）。選ぶ形の間は、ほかの行と同じに押せる
+// noOpenChoice: 参照を選んでいない間は「開く／分割で開く」の吹き出しを出さず、クリックで click、ダブルクリックで open（検索の結果の名前の行）。参照を選んでいる間は、ほかの行と同じに押せる
 export function RowPressOf({
   row,
   click,
@@ -95,7 +95,7 @@ function BookPress({
   return <>{children({ onClick: choice.onClick, onDoubleClick: undefined, bubble: choice.bubble, faded: false })}</>
 }
 
-// 選ぶ形の間の、選べる行 row の押し方: クリックで行を選ぶ物 click を行ってから、置くボタン（文言 place）だけの吹き出し。ダブルクリックで置く
+// 参照を選んでいる間の、選べる行 row の押し方: クリックで行を選ぶ物 click を行ってから、置くボタン（文言 place）だけの吹き出し。ダブルクリックで置く
 function ChoosePress({
   row,
   place,

@@ -5,6 +5,7 @@ import type { CoreCatalog } from "../../../core/core-catalog"
 import { useCommand } from "../../../ui/commands"
 import { useToggledMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
+import { SEPARATOR } from "../../../ui/layout"
 import type { ContextMenuRow } from "../../../ui/plugin"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
@@ -61,13 +62,17 @@ function useTypeRowLook(): (type: string) => Pick<ContextMenuRow, "label" | "ico
 }
 
 // メニュー add-page-menu の行: タイプごとに 1 行（そのタイプのページを作るコマンド page-new。タイプがページを足すアクションを外していれば出ず、認可ステップが止めるなら押せない）と、
-// 末尾に「参照…」（参照を置けるブックを開いているときだけ出る。ワーカーブックなどバックヤードの中のブックでは出ない）
-export function useAddPageRows({ first }: { first: string | null }): readonly ContextMenuRow[] {
+// 区切り線の下に「参照…」（参照を置けるブックを開いているときだけ出る。ワーカーブックなどバックヤードの中のブックでは出ない）
+export function useAddPageRows({ first }: { first: string | null }): readonly (ContextMenuRow | typeof SEPARATOR)[] {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const look = useTypeRowLook()
+  const reference = useCommand(LIBRARY_REFERENCE_CHOOSE.id)
+  const types = typesToAdd(catalog, first).map(type => ({ ...look(type), command: PAGE_NEW.id, args: { type } }))
+  if (!reference.shown) return types
   return [
-    ...typesToAdd(catalog, first).map(type => ({ ...look(type), command: PAGE_NEW.id, args: { type } })),
+    ...types,
+    SEPARATOR,
     {
       label: t(LIBRARY_REFERENCE_CHOOSE.title),
       icon: <ReferenceIcon icon={<FileIcon />} />,

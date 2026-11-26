@@ -2,7 +2,7 @@
 // ブックスクリーンと上下に並べている間（「画面を分割」で下に出したとき）は、帯に「→ 閉じる」と「広げる」を出し（チケットスクリーンと同じ）、
 // 書庫のスクリーンの外を押す・焦点がその外へ移ると閉じる（ブックスクリーンの編集と、書庫の画面から開く操作を同時にさせない。書庫の画面が開いたダイアログ・メニュー・トーストは内に数える。
 // 窓ごと焦点を失ったときは閉じない）。窓いっぱいのときは、帯に名前と閉じるボタン。閉じる・広げるは screen.ts のコマンドを通る。
-// 選ぶ形の間は帯を出さない（書庫の画面が選ぶ形の帯を出す）
+// 参照を選んでいる間は帯を出さない（書庫の画面が選んでいる間の帯を出す）
 import { useEffect, useRef } from "react"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
@@ -27,7 +27,7 @@ export function LibraryScreen() {
   const closing = useCommand(LIBRARY_SCREEN_CLOSE.id)
   const expanding = useCommand(LIBRARY_SCREEN_EXPAND.id)
   const root = useRef<HTMLDivElement>(null)
-  // 選ぶ形の間は、帯を書庫の画面の選ぶ形の帯に替える
+  // 参照を選んでいる間は、帯を書庫の画面の選んでいる間の帯に替える
   const choosing = useChoosing() !== undefined
   const close = () => closing.run()
   const expand = () => expanding.run()

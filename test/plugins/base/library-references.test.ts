@@ -131,7 +131,7 @@ const CHOOSING = "@matomezu/base:library-choosing"
 const choosingAt = (store: ReturnType<typeof setup>["store"], screen: string) =>
   (store.state.getState().pluginValues.screens[screen] as Record<string, unknown> | undefined)?.[CHOOSING]
 
-test("書庫の右クリックの「参照を置く…」で置くブックを選ぶ形になり、選べるブックに置くと、選ぶ形をやめて書庫のままトーストで知らせる", () => {
+test("書庫の右クリックの「参照を置く…」で置くブックを選び始め、選べるブックに置くと、選ぶのをやめて書庫のままトーストで知らせる", () => {
   const { state, run, center, store, lineup } = setup()
   const page = lineup("b2")?.[0] as string
   run("library-reference-place", { entry: page })
@@ -141,7 +141,7 @@ test("書庫の右クリックの「参照を置く…」で置くブックを�
   // 指す先の入っているブックは選べず、ほかのブックは選べる
   expect(chosenBy(state.getState().folders, choosing, "b2", NO_DESKS)).toBeUndefined()
   expect(chosenBy(state.getState().folders, choosing, "b1", NO_DESKS)).toEqual({ book: "b1", of })
-  // 選べないブックを開いても、窓には開かず、中へも入らない（置くブックを選ぶ形では、ブックの中に選べる物が無い）
+  // 選べないブックを開いても、窓には開かず、中へも入らない（置くブックを選んでいる間は、ブックの中に選べる物が無い）
   const screens = state.getState().window.screens.length
   run("library-entry-open", { entry: "b2" })
   expect(state.getState().window.screens.length).toBe(screens)
@@ -157,7 +157,7 @@ test("書庫の右クリックの「参照を置く…」で置くブックを�
   })
 })
 
-test("置く参照を選ぶ形の間の開く（Enter・ダブルクリック）: 選べるページは置き、フォルダとブックは中へ入り、選べないページは何もしない", () => {
+test("置く参照を選んでいる間の開く（Enter・ダブルクリック）: 選べるページは置き、フォルダとブックは中へ入り、選べないページは何もしない", () => {
   const { state, store, lineup, perform } = setup()
   const made = perform("@matomezu/base:folder-create", { title: "箱", into: HOME_ID })
   const box = (made.result as { folder: string }).folder
@@ -182,7 +182,7 @@ test("置く参照を選ぶ形の間の開く（Enter・ダブルクリック）
   expect(state.getState().folders.b1?.lineup.at(-1)).toMatchObject({ kind: "reference" })
 })
 
-test("選ぶ形が続けられなくなったら（置く先のブックをゴミ箱に入れた）、選ぶ形の外と同じに開く", () => {
+test("選ぶ事が続けられなくなったら（置く先のブックをゴミ箱に入れた）、参照を選んでいない間と同じに開く", () => {
   const { state, run, center, store, perform } = setup()
   store.setPluginState(CHOOSING, center, { choose: "referred", book: "b1" })
   expect(perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(true)
@@ -191,7 +191,7 @@ test("選ぶ形が続けられなくなったら（置く先のブックをゴ�
   expect(state.getState().window.screens.length).toBeGreaterThan(screens)
 })
 
-test("選ぶ形の間は、開く・分割で開く・参照元へ移動・参照を置く…を右クリックのメニューに出さず、［取消］でやめる。参照を置く…は参照エントリの行に出さない", () => {
+test("参照を選んでいる間は、開く・分割で開く・参照元へ移動・参照を置く…・新しいブック…を出さず、［取消］でやめる。参照を置く…は参照エントリの行に出さない", () => {
   const { state, run, center, store, lineup, ref } = setup()
   const page = lineup("b2")?.[0] as string
   const shown = (id: string, menu: string, target: unknown) => {
@@ -203,7 +203,11 @@ test("選ぶ形の間は、開く・分割で開く・参照元へ移動・参�
   expect(menu("p1")).toEqual(rows)
   expect(shown("library-reference-place", "library-entry-context", { entry: ref })).toBe(false)
   store.actions.closeContextMenu()
+  const bookNew = () => isShown(store, state.getState(), center, "@matomezu/base:library-book-new" as CommandId)
+  expect(bookNew()).toBe(true)
   run("library-reference-place", { entry: page })
+  // 新しいブック…（書庫の画面のボタンと、右クリックのメニュー）も出さない
+  expect(bookNew()).toBe(false)
   expect(menu("p1")).toEqual([])
   expect(shown("library-reference-source", "library-reference-context", { reference: ref })).toBe(false)
   store.actions.closeContextMenu()
@@ -212,7 +216,7 @@ test("選ぶ形の間は、開く・分割で開く・参照元へ移動・参�
   expect(menu("p1")).toEqual(rows)
 })
 
-test("ページタブの＋の「参照…」で書庫を開いて置く参照を選ぶ形になり、選べるページを選んで置くと、書庫を閉じてブックの置いた参照を開く。［取消］は書庫を閉じる", () => {
+test("ページタブの＋の「参照…」で書庫を開いて置く参照を選び始め、選べるページを選んで置くと、書庫を閉じてブックの置いた参照を開く。［取消］は書庫を閉じる", () => {
   const { state, store, lineup } = setup()
   const command = store.actions.command as (at: string, id: string, ...args: unknown[]) => boolean
   const libraryScreen = () => state.getState().window.screens.find(s => s.def === LIBRARY_SCREEN.id)?.id

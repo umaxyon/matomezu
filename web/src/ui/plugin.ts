@@ -23,7 +23,7 @@ import type { NO_PAGE } from "../core/stage"
 import type { DialogArgsOf, DialogDef } from "../store/dialogs"
 import { type IdsOf, type Plugin, withoutParts } from "../store/plugin"
 import type { ConnectorUi } from "./connector"
-import type { AnyWidgetDef } from "./layout"
+import type { AnyWidgetDef, SEPARATOR } from "./layout"
 
 // プレゼンテーションのビューが受け取る物は無い（描くページと操作は、フックが描いている場所から引く。ui/scope.tsx）
 export type PresentationViewProps = Record<string, never>
@@ -178,10 +178,10 @@ export interface ContextMenuRow {
   iconLook?: "line" | "picture" // アイコンの見せ方（line は線の絵でスキンの色、picture は絵の元の色。書かなければ line）
 }
 
-// メニュー M の行を、開いたときに受け取った物 target から出すフック（中で文言や機能台帳のフックを使える）
+// メニュー M の行を、開いたときに受け取った物 target から出すフック（中で文言や機能台帳のフックを使える）。行の間の区切り線は SEPARATOR
 export type ContextMenuRows<M extends ContextMenuId = ContextMenuId> = (
   target: ContextMenuTable[M],
-) => readonly ContextMenuRow[]
+) => readonly (ContextMenuRow | typeof SEPARATOR)[]
 export type PluginUi<P extends Plugin> = P & { ui: UiParts<P> }
 // 見た目を結んだプラグインのどれか
 export type AnyPluginUi = Plugin & { ui: object }
@@ -204,7 +204,7 @@ export interface UiCatalog {
   toolIcons: ReadonlyMap<string, ReactNode>
   pageTypeIcons: ReadonlyMap<string, ReactNode>
   enumValueIcons: ReadonlyMap<string, EnumValueIcon>
-  contextMenuRows: ReadonlyMap<string, (target: never) => readonly ContextMenuRow[]>
+  contextMenuRows: ReadonlyMap<string, (target: never) => readonly (ContextMenuRow | typeof SEPARATOR)[]>
 }
 
 interface LooseUi {
@@ -219,7 +219,7 @@ interface LooseUi {
   toolIcons?: Record<string, ReactNode>
   pageTypeIcons?: Record<string, ReactNode>
   enumValueIcons?: Record<string, EnumValueIcon>
-  contextMenuRows?: Record<string, (target: never) => readonly ContextMenuRow[]>
+  contextMenuRows?: Record<string, (target: never) => readonly (ContextMenuRow | typeof SEPARATOR)[]>
   overrides?: {
     presentationViews?: Record<string, PresentationViewDef>
     dialogViews?: Record<string, AnyDialogView>
@@ -247,7 +247,7 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
   const dialogViews = new Map<string, AnyDialogView>()
   const widgets = new Map<string, AnyWidgetDef>()
   const commandIcons = new Map<string, ReactNode>()
-  const contextMenuRows = new Map<string, (target: never) => readonly ContextMenuRow[]>()
+  const contextMenuRows = new Map<string, (target: never) => readonly (ContextMenuRow | typeof SEPARATOR)[]>()
   const toolIcons = new Map<string, ReactNode>()
   const pageTypeIcons = new Map<string, ReactNode>()
   const enumValueIcons = new Map<string, EnumValueIcon>()

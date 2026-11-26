@@ -66,14 +66,14 @@ export function useLibraryRows<R>(
   })
 }
 
-// この書庫の画面の選ぶ形（選ぶ形でない・続けられなければ undefined）
+// この書庫の画面で選んでいる物（選んでいない・続けられなければ undefined）
 export function useChoosing(): Choosing | undefined {
   const now = usePluginState(kit, LIBRARY_CHOOSING)
   return useMatomezuState(s => choosingNow(s.folders, now === NO_STATE ? undefined : now))
 }
 
-// 選ぶ形の間の、行 row の選ばれ方: 選べるか（chosen）と、薄く描くか（faded。選べず、中へも入らない行。置く参照を選ぶ間はブックとフォルダ、
-// 置くブックを選ぶ間はフォルダが中へ入る）。選ぶ形でなければ undefined
+// 参照を選んでいる間の、行 row の選ばれ方: 選べるか（chosen）と、薄く描くか（faded。選べず、中へも入らない行。置く参照を選ぶ間はブックとフォルダ、
+// 置くブックを選ぶ間はフォルダが中へ入る）。選んでいなければ undefined
 export function useChooseOf(
   row: Pick<LibraryRow, "id" | "kind">,
 ): { choosing: Choosing; chosen: boolean; faded: boolean } | undefined {

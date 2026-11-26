@@ -559,17 +559,17 @@ export function treeCurrentOf(
   return holds ? opened : picked
 }
 
-// 書庫で選ぶ形: ブック book に置く参照の指す先を選ぶ（referred。ページタブの＋の「参照…」から）か、of を指す参照を置くブックを選ぶ（book。書庫の右クリックの「参照を置く…」から）
+// 書庫で参照を選んでいる間の物: ブック book に置く参照の指す先を選ぶ（referred。ページタブの＋の「参照…」から）か、of を指す参照を置くブックを選ぶ（book。書庫の右クリックの「参照を置く…」から）
 export type Choosing = { choose: "referred"; book: string } | { choose: "book"; of: ReferenceEntry["of"] }
 
-// 選ぶ形 choosing が今も続けられるか（置く先のブック・指す先が、書庫の見える所に在る）。続けられなければ undefined（選ぶ形の外と同じに扱う）
+// 選んでいる物 choosing が今も続けられるか（置く先のブック・指す先が、書庫の見える所に在る）。続けられなければ undefined（参照を選んでいない間と同じに扱う）
 export function choosingNow(folders: Folders, choosing: Choosing | undefined): Choosing | undefined {
   if (choosing === undefined) return undefined
   if (choosing.choose === "referred") return holdsNewReference(folders, choosing.book) ? choosing : undefined
   return referableTarget(folders, choosing.of) ? choosing : undefined
 }
 
-// 選ぶ形 choosing での行 id の扱い: 選べるなら chosen に置き先と指す先。選べないとき、中へ入れる行なら enters（フォルダと、置く参照を選んでいるときのブック）。
+// 選んでいる物 choosing での行 id の扱い: 選べるなら chosen に置き先と指す先。選べないとき、中へ入れる行なら enters（フォルダと、置く参照を選んでいるときのブック）。
 // どちらでもない行は薄く描き、押しても何もしない
 export function chooseLookOf(
   folders: Folders,
@@ -585,7 +585,7 @@ export function chooseLookOf(
   }
 }
 
-// 選ぶ形 choosing で、行 id を選べるか（作業机の下の行は実の物で）。選べるなら、置く参照エントリの置き先と指す先
+// 選んでいる物 choosing で、行 id を選べるか（作業机の下の行は実の物で）。選べるなら、置く参照エントリの置き先と指す先
 export function chosenBy(
   folders: Folders,
   choosing: Choosing,

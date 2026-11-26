@@ -93,7 +93,7 @@ export function referable(library: Library, book: string, of: ReferenceEntry["of
   return referableIn(library.folders, book, of) && targetOf(library, { kind: "reference", id: "", of }) !== undefined
 }
 
-// referable を、フォルダの表だけで答える（書庫の画面のコマンドとビューが、選ぶ形で選べる行を決める。ページの行を持たないので、
+// referable を、フォルダの表だけで答える（書庫の画面のコマンドとビューが、参照を選んでいる間に選べる行を決める。ページの行を持たないので、
 // ページはフォルダの並びに在れば在ると見る）
 export function referableIn(folders: Folders, book: string, of: ReferenceEntry["of"]): boolean {
   const holder = folders[book]

@@ -193,7 +193,7 @@ test.describe("書庫で選んで参照を置く", () => {
   const tree = (page: Page) => page.getByRole("navigation", { name: "フォルダ" })
   const band = (page: Page) => page.getByRole("status").filter({ hasText: "を選ぶ" })
 
-  test("右クリックの「参照を置く…」で置くブックを選ぶ帯が出て、選べるブックの［ここに置く］で置き、書庫のまま知らせる。Esc は選ぶ形だけやめる", async ({
+  test("右クリックの「参照を置く…」で置くブックを選ぶ帯が出て、選べるブックの［ここに置く］で置き、書庫のまま知らせる。Esc は選ぶのだけやめる", async ({
     page,
   }) => {
     await page.goto("/")
@@ -204,9 +204,11 @@ test.describe("書庫で選んで参照を置く", () => {
     await inside.getByRole("button", { name: "全体図" }).click({ button: "right" })
     await page.getByRole("menuitem", { name: "参照を置く…" }).click()
     await expect(band(page)).toHaveText(/全体図 の参照を置くブックを選ぶ/)
+    // 選んでいる間は、ブックを作るボタンを出さない
+    await expect(page.getByRole("button", { name: "ブック新規作成" })).toHaveCount(0)
     // 選べない物は薄い
     await expect(inside.getByRole("button", { name: "全体図" })).toHaveAttribute("data-unchoosable", "true")
-    // Esc で選ぶ形だけやめる（書庫は開いたまま）
+    // Esc で選ぶのだけやめる（書庫は開いたまま）
     await inside.getByRole("button", { name: "全体図" }).focus()
     await page.keyboard.press("Escape")
     await expect(band(page)).toHaveCount(0)
@@ -239,13 +241,17 @@ test.describe("書庫で選んで参照を置く", () => {
       await page.getByRole("menuitem", { name: "参照…" }).click()
       await expect(band(page)).toHaveText(/置くブック に置く参照を選ぶ/)
     }
+    // ＋のメニューの「参照…」は、ページの種類の行と区切り線で分ける
+    await page.getByRole("button", { name: "ページを足す" }).click()
+    await expect(page.getByRole("menu").locator("hr + [role=menuitem]")).toHaveText(/参照…/)
+    await page.keyboard.press("Escape")
     await choose()
-    // 書庫のスクリーンの帯（→ 閉じる・広げる）は、選ぶ形の帯に替わる
+    // 書庫のスクリーンの帯（→ 閉じる・広げる）は、選んでいる間の帯に替わる
     await expect(page.getByRole("button", { name: "広げる", exact: true })).toHaveCount(0)
     await page.getByRole("button", { name: "取消" }).click()
     await expect(band(page)).toHaveCount(0)
     await expect(tree(page)).toHaveCount(0)
-    // 外を押して閉じても、選ぶ形は残らない（次に開いた書庫は、いつもの帯）
+    // 外を押して閉じても、選んでいた事は残らない（次に開いた書庫は、いつもの帯）
     await choose()
     await page.getByRole("tab", { name: "設計" }).click()
     await expect(tree(page)).toHaveCount(0)
