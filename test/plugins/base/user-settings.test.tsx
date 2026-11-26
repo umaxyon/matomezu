@@ -177,3 +177,25 @@ test("追加プラグインは設定カテゴリを足せる（置いてほし�
   const on = within(own).getByRole("switch", { name: "入り" })
   expect(mode.compareDocumentPosition(on) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })
+
+test("「文字の色」は名前の右の「？」を押すと説明の吹き出しを出し、もう一度押すか、Esc か、外を押すと閉じる（Esc で設定画面は閉じない）", () => {
+  const { general } = renderGeneral()
+  const help = within(general).getByRole("button", { name: "文字の色" })
+  const text = "マルチ入力ボックスで変更可能な文字色の指定。図面ボックスの本文などで使用"
+  expect(help.getAttribute("aria-expanded")).toBe("false")
+  fireEvent.click(help)
+  expect(screen.getByRole("note").textContent).toBe(text)
+  expect(help.getAttribute("aria-expanded")).toBe("true")
+  fireEvent.pointerDown(help)
+  fireEvent.click(help)
+  expect(screen.queryByRole("note")).toBeNull()
+  fireEvent.click(help)
+  fireEvent.keyDown(help, { key: "Escape" })
+  expect(screen.queryByRole("note")).toBeNull()
+  expect(screen.getByRole("tabpanel", { name: "全体" })).toBeTruthy()
+  fireEvent.click(help)
+  fireEvent.pointerDown(document.body)
+  expect(screen.queryByRole("note")).toBeNull()
+  // 色の丸は横に並び、名前を押しても丸と同じ所を指す
+  expect(within(general).getByLabelText("注意").getAttribute("aria-haspopup")).toBe("dialog")
+})

@@ -28,6 +28,7 @@ import type {
   HostStatus,
   MatomezuInstance,
   ParticipantLive,
+  PendingMessage,
   UpdateStatus,
 } from "../store/state"
 import type { HostClient, Loaded } from "./client"
@@ -43,11 +44,13 @@ import {
   HelloSchema,
   HostPeersSchema,
   HostStatusSchema,
+  MESSAGE_ANSWER,
   MOVED_IF_OFF_ANSWER,
   NoticeSchema,
   ParticipantCallSchema,
   ParticipantLiveSchema,
   ParticipantReadySchema,
+  PENDING_MESSAGES,
   PluginsSchema,
   PURGE_ANSWER,
   SCREEN_PLUGINS_REMOVED,
@@ -142,10 +145,18 @@ const browserNet: Net = {
   now: () => Date.now(),
 }
 
-// 参加者の様子のうち、空でない物（モデルもブランチも無ければ undefined）
-const liveOf = (v: { model?: string | undefined; branch?: string | undefined }): ParticipantLive | undefined =>
-  v.model || v.branch
-    ? { ...(v.model ? { model: v.model } : {}), ...(v.branch ? { branch: v.branch } : {}) }
+// 参加者の様子のうち、空でない物（モデルもブランチも無く、起こす知らせを渡せる matomezu watch もつながっていなければ undefined）
+const liveOf = (v: {
+  model?: string | undefined
+  branch?: string | undefined
+  wake?: "reaches" | undefined
+}): ParticipantLive | undefined =>
+  v.model || v.branch || v.wake
+    ? {
+        ...(v.model ? { model: v.model } : {}),
+        ...(v.branch ? { branch: v.branch } : {}),
+        ...(v.wake ? { wake: v.wake } : {}),
+      }
     : undefined
 
 // 読み直す前の窓が運んだ知らせ carried（形に合わなければ無い）
@@ -169,6 +180,7 @@ export function serverClient(net: Net = browserNet): HostClient {
   let counters: unknown = {} // 番号を振る種類の、区切りごとの次の番号
   let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
   let participantCalls: Record<string, string> = {} // 参加者の id → 最後に呼ばれた時刻
+  let pendingMessages: readonly PendingMessage[] | undefined // 承認待ちの AI 間メッセージ（知らされた物。つなぐときに入れる）
   let updateStatus: UpdateStatus | undefined // 新しい版の確かめの結果（読んだか知らされた物）
   let hostStatus: HostStatus | undefined // ホストどうしの入口の様子（読んだか知らされた物）
   let hostPeers: HostPeers | undefined // ほかのホストの様子（読んだか知らされた物）
@@ -377,19 +389,26 @@ export function serverClient(net: Net = browserNet): HostClient {
       const hello = HelloSchema.parse(JSON.parse(data))
       client = hello.client
       watch.opened()
+      // 承認待ちは常駐がつないだ直後に、あるときだけ送り直す。持っている物は捨てる（常駐を起動し直したら、前の承認待ちは消えている）
+      if (pendingMessages?.length) {
+        pendingMessages = []
+        instance?.setPendingMessages(pendingMessages)
+      }
       if (first) {
         build = hello.build
         first.resolve()
         first = null
         return
       }
-      // 常駐が別の版に替わった: 読み込み直すよう促す。データの形も違えば、まだ確かめられていないアクションを送らずに捨て、知らせも聞かない（古い画面で新しい形を読まない）
+      // 常駐が別の版に替わったか、配る画面が変わった（画面の印は両方にあるときだけ比べる）: 読み込み直すよう促す。
+      // データの形も違えば、まだ確かめられていないアクションを送らずに捨て、知らせも聞かない（古い画面で新しい形を読まない）
       const now = hello.build
-      if (build && now && (build.version !== now.version || build.dataVersion !== now.dataVersion)) {
+      const webChanged = build?.web !== undefined && now?.web !== undefined && build.web !== now.web
+      if (build && now && (build.version !== now.version || build.dataVersion !== now.dataVersion || webChanged)) {
         const formChanged = build.dataVersion !== now.dataVersion
         const dropped = formChanged ? queue.discard() : 0
         logLine(
-          `the server is now ${now.version} (data ${now.dataVersion}); this window has ${build.version} (data ${build.dataVersion})`,
+          `the server is now ${now.version} (data ${now.dataVersion}, web ${now.web ?? "-"}); this window has ${build.version} (data ${build.dataVersion}, web ${build.web ?? "-"})`,
         )
         instance?.setStaleBuild({ from: build, to: now, dropped })
         if (formChanged) {
@@ -457,6 +476,10 @@ export function serverClient(net: Net = browserNet): HostClient {
     on("host-status", data => {
       hostStatus = HostStatusSchema.parse(JSON.parse(data))
       instance?.setHostStatus(hostStatus)
+    })
+    on("pending-messages", data => {
+      pendingMessages = PENDING_MESSAGES.parse(JSON.parse(data))
+      instance?.setPendingMessages(pendingMessages)
     })
     on("host-peers", data => {
       hostPeers = HostPeersSchema.parse(JSON.parse(data))
@@ -611,6 +634,17 @@ export function serverClient(net: Net = browserNet): HostClient {
         .catch(() => null)
       if (!res?.ok) fail("E413", { request: kind, status: res ? `${res.status}` : "no answer" })
     },
+    answerMessage: async (id, answer) => {
+      const res = await net
+        .fetch(`api/message/${answer}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        })
+        .catch(() => null)
+      if (!res?.ok) fail("E415", { id, answer, status: res ? `${res.status}` : "no answer" })
+      MESSAGE_ANSWER.parse(await res.json())
+    },
     purgeUnreadable: async id => {
       const res = await sendWrite("api/unreadable/purge", { id })
       if (!res?.ok) fail("E407", { id, status: res ? `${res.status}` : "no answer" })
@@ -641,6 +675,7 @@ export function serverClient(net: Net = browserNet): HostClient {
       if (updateStatus) next.setUpdateStatus(updateStatus)
       if (hostStatus) next.setHostStatus(hostStatus)
       if (hostPeers) next.setHostPeers(hostPeers)
+      if (pendingMessages) next.setPendingMessages(pendingMessages)
       let told = ""
       let viewSeq = 0 // 知らせの番号（届く順が入れ替わっても、常駐が古い方を捨てられるように増やす）
       // 見ているものと、利用者が直している物（どちらかが変わったときと、フォーカスされたときに知らせる）

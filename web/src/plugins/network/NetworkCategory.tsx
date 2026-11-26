@@ -1,6 +1,6 @@
 // 設定カテゴリ「ネットワーク」: ホスト名とほかのホストとつなぐかの項目。つなぐが入なら、待っている所（番地ごとに［コピー］）とこのホストの鍵の印か、
 // 入口を開けなかった理由の 1 行（覚えたポートが使われていれば［別のポートにする］。確かめのダイアログを開く）。その下に、AI 用ホストリストに載せるこのホストのワークルーム
-// （全部か 5 件。つなぐが切でも出す）。そのうえ WSL で動いているときは、ほかのマシンから届かせる設定の案内の 1 行と、開くと出る手引き
+// （全部か 5 件。つなぐが切でも出す）。そのうえ WSL で動いているときは、このホストから相手の待っている所を入れてつなぐ案内と、開くと出る、相手からも見つけられるようにする手引き
 import { useEffect, useState } from "react"
 import { type LISTED_WORKROOMS, NOT_SET } from "../../plugin-api"
 import { type UserSettingControlProps, useActions, useMessages, useSettings } from "../../plugin-api/ui"
@@ -101,16 +101,18 @@ function Address({ text }: { text: string }) {
 
 const COPY_LABELS = { none: "Copy", done: "Copied", failed: "Could not copy" } as const
 
-// WSL の案内: ほかのマシンから届かせるには、WSL のネットワークをミラーにし、Hyper-V のファイアウォールにポートを通す（matomezu は自動では設定しない。
+// WSL の案内: NAT の WSL は mDNS で見つからず、相手から届かない。このホストからつなげば、リバース接続で相手の頼みも届く。
+// 相手からも見つけてつなげるようにするには、WSL のネットワークをミラーにし、Hyper-V のファイアウォールにポートを通す（matomezu は自動では設定しない。
 // 効かせるのに WSL の起動し直しが要り、AI のセッションごと止まるため）
 function WslGuide({ port }: { port: number }) {
   const t = useMessages(kit)
   const rule = `New-NetFirewallHyperVRule -Name matomezu -DisplayName matomezu -Direction Inbound -VMCreatorId '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -Protocol TCP -LocalPorts ${port}`
   return (
     <div className={styles.note}>
-      <p>{t("On WSL, other machines cannot reach this host until WSL is set up for it")}</p>
+      <p>{t("On WSL, other machines cannot find this host")}</p>
+      <p>{t("Pair from this host by typing where the other host listens, and both can use it")}</p>
       <details>
-        <summary>{t("How to set up")}</summary>
+        <summary>{t("To let other machines find this host too")}</summary>
         <ol className={styles.steps}>
           <li>{t("In .wslconfig in your Windows user folder, add networkingMode=mirrored under [wsl2]")}</li>
           <li>

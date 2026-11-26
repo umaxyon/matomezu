@@ -15,13 +15,13 @@ export interface CommandHandle<Id extends CommandId> {
   run(...args: CommandArgs<Id>): void
 }
 
-// arg は、押す前から分かっている引数（右クリックしたページのように、押せるかが引数で決まるコマンドのとき）
-export function useCommand<Id extends CommandId>(id: Id, arg?: CommandArgs<Id>[0]): CommandHandle<Id> {
+// given は、押す前から分かっている引数（右クリックしたページのように、押せるかが引数で決まるコマンドのとき。書かなければ、分からない）
+export function useCommand<Id extends CommandId>(id: Id, ...given: [arg?: CommandArgs<Id>[0]]): CommandHandle<Id> {
   const defs = useInstance()
   const at = useAt()
   const def = commandDef(defs, id)
-  const shown = useMatomezuState(s => at !== null && isShown(defs, s, at, id, arg))
-  const enabled = useMatomezuState(s => at !== null && isEnabled(defs, s, at, id, arg))
+  const shown = useMatomezuState(s => at !== null && isShown(defs, s, at, id, ...given))
+  const enabled = useMatomezuState(s => at !== null && isEnabled(defs, s, at, id, ...given))
   const active = useMatomezuState(s => at !== null && isActive(defs, s, at, id))
   const { command } = useStoreActions()
   return {

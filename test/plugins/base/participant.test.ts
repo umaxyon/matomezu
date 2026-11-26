@@ -14,6 +14,7 @@ import { BUILTIN_PARTS, CORE_CATALOG, newStore } from "../../support"
 const PARTICIPANT = "@matomezu/base:participant"
 const WORKROOM = "@matomezu/base:workroom"
 const REQUEST = "@matomezu/base:participant-request"
+const REJOIN = "@matomezu/base:participant-rejoin"
 const ACCEPT = "@matomezu/base:participant-accept"
 const DECLINE = "@matomezu/base:participant-decline"
 const REMOVE = "@matomezu/base:participant-remove"
@@ -180,16 +181,16 @@ test("管理者の印は 1 件（id は admin）。ワークルームか none �
   expect(perform(ADMIN_SET, { workroom: "nope" }).ok).toBe(false)
   expect(perform(ADMIN_SET, { workroom: room }).ok).toBe(true)
   expect(store.state.getState().records["@matomezu/base:admin-mark"]).toEqual({
-    admin: { id: "admin", workroom: room },
+    admin: { id: "admin", workroom: room, by: "user" },
   })
   expect(perform(ADMIN_SET, { workroom: "none" }, { record: "admin" }).ok).toBe(true)
 })
 
 test("AI が参加を頼むときに行うアクションと、要求をキャンセルとして終えるアクションは、定義が役を名乗る", () => {
-  expect(joinActions(CORE_CATALOG)).toEqual({ participant: REQUEST, cancel: CANCEL })
+  expect(joinActions(CORE_CATALOG)).toEqual({ participant: REQUEST, rejoin: REJOIN, cancel: CANCEL })
 })
 
-test("要求をキャンセルとして終える役（cancelsJoinRequest）は、1 つのアクションだけが名乗る（2 つ目は E067）。名乗る物が無ければ、参加を頼むアクションだけを返す", () => {
+test("要求をキャンセルとして終える役（cancelsJoinRequest）は、1 つのアクションだけが名乗る（2 つ目は E067）。名乗る物が無ければ、参加を頼むときのアクション（作る・頼み直しを書く）だけを返す", () => {
   const canceller = BUILTIN_PARTS.actions.find(a => a.cancelsJoinRequest)
   if (!canceller) throw new Error("cancelsJoinRequest が無い")
   const codes = checkCoreCatalog({
@@ -198,7 +199,7 @@ test("要求をキャンセルとして終える役（cancelsJoinRequest）は�
   }).map(p => p.code)
   expect(codes).toContain("E067")
   const withoutCancel = { ...CORE_CATALOG, actions: new Map([...CORE_CATALOG.actions].filter(([id]) => id !== CANCEL)) }
-  expect(joinActions(withoutCancel)).toEqual({ participant: REQUEST })
+  expect(joinActions(withoutCancel)).toEqual({ participant: REQUEST, rejoin: REJOIN })
 })
 
 test.each([DECLINE, CANCEL])(
@@ -235,14 +236,17 @@ test("セッションが終わったときのアクション（participant-remov
   expect(people()).toHaveLength(0)
 })
 
-test("AI が参加を頼むときの役（runsWhenAIJoins）は、1 つの役を 1 つのアクションだけが名乗る（2 つ目は E044）", () => {
-  const maker = BUILTIN_PARTS.actions.find(a => a.runsWhenAIJoins === "make-participant")
-  if (!maker) throw new Error("make-participant が無い")
-  const codes = checkCoreCatalog({
-    ...BUILTIN_PARTS,
-    actions: [...BUILTIN_PARTS.actions, { ...maker, id: "@ex/j:maker" }],
-  }).map(p => p.code)
-  expect(codes).toContain("E044")
+test("AI が参加を頼むときの役（runsWhenAIJoins）は、役ごとに 1 つのアクションだけが名乗る（2 つ目は E044。役が違えば並べてよい）", () => {
+  expect(checkCoreCatalog(BUILTIN_PARTS).map(p => p.code)).not.toContain("E044")
+  for (const role of ["make-participant", "rejoin-participant"]) {
+    const named = BUILTIN_PARTS.actions.find(a => a.runsWhenAIJoins === role)
+    if (!named) throw new Error(`${role} が無い`)
+    const codes = checkCoreCatalog({
+      ...BUILTIN_PARTS,
+      actions: [...BUILTIN_PARTS.actions, { ...named, id: "@ex/j:again" }],
+    }).map(p => p.code)
+    expect(codes).toContain("E044")
+  }
 })
 
 test("役 participants の種類の state は、常駐が読む値（requested・joined・visitor）をちょうど受ける（足りなくても多くても E130）", () => {
@@ -417,4 +421,29 @@ test("管理者がいなければ、受け入れたワーカーのワークル�
   ) as Done & { result: { workroom: string } }
   expect(made.ok).toBe(true)
   expect(adminOf(d.store)).toBe(made.result.workroom)
+})
+
+test("頼み直しを書く（participant-rejoin）: 受け入れ済みの参加者の環境・セッション名・AI の UI を届いた物にし、届かなかったセッション名と AI の UI は残す。要求中には行えず、AI は行えない（利用者だけ）", () => {
+  const { people, request, addRoom, perform } = ready()
+  const id = request({ ...WHO, aiUi: "terminal" }).result.participant
+  expect(perform(REJOIN, { ...WHO, env: "windows" }, { record: id }).ok).toBe(false)
+  const room = addRoom("A").result.workroom
+  expect(perform(ACCEPT, { workroom: room }, { record: id }).ok).toBe(true)
+  expect(perform(REJOIN, { ...WHO, env: "windows", sessionName: "desk", aiUi: "desktop" }, { record: id }).ok).toBe(
+    true,
+  )
+  expect(people()[0]).toMatchObject({
+    state: "joined",
+    workroom: room,
+    env: "windows",
+    sessionName: "desk",
+    aiUi: "desktop",
+  })
+  const { sessionName: _, ...withoutName } = WHO
+  expect(perform(REJOIN, { ...withoutName, env: "wsl" }, { record: id }).ok).toBe(true)
+  expect(people()[0]).toMatchObject({ env: "wsl", sessionName: "desk", aiUi: "desktop" })
+  // 知らない AI の UI も断らずに残す
+  expect(perform(REJOIN, { ...WHO, aiUi: "phone" }, { record: id }).ok).toBe(true)
+  expect(people()[0]).toMatchObject({ aiUi: "phone" })
+  expect(CORE_CATALOG.actions.get(REJOIN)?.userOnly).toBe(true)
 })

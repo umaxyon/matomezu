@@ -4,12 +4,13 @@
 import { z } from "zod"
 import { rowsLibraryOf } from "../core/folders-tree"
 import { translate } from "../core/i18n/i18n"
-import { sourceOf } from "../core/record-source"
+import { readerOf, sourceOf } from "../core/record-source"
 import { langOf, restoreSettings } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import {
   JOINED_MESSAGE,
   myWorkdeskIn,
+  READS_ADMIN,
   VISITOR_JOINED_MESSAGE,
   workroomActivitiesFrom,
   workTitleIn,
@@ -34,6 +35,17 @@ export function visitorJoinedText(of: Assembled, settings: string): string {
     langOf(of.catalog.core, restoreSettings(JSON.parse(settings)), "en"),
     VISITOR_JOINED_MESSAGE,
   )
+}
+
+// engine.ts の matomezuIsAdminWorkroom の中身: ワークルーム（id）が、このホストの管理者のワークルームか（レコードはホストの読み口から引く）
+export function isAdminWorkroom(of: Assembled, workroom: string): boolean {
+  const source = hostSource({}) ?? sourceOf({})
+  return readerOf(of.catalog.core, source, [READS_ADMIN.subject])
+    .find(READS_ADMIN.subject, [])
+    .some(m => {
+      const mark = m as { workroom?: unknown; by?: unknown }
+      return mark.workroom === workroom && mark.by === "user"
+    })
 }
 
 // engine.ts の matomezuWorkTitle の中身: ワークルーム（id と名前）に参加しているセッションの作業名（WorkTitle の JSON）。レコードはホストの読み口から引く

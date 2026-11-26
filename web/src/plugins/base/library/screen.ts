@@ -21,10 +21,10 @@ import {
 } from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
 import { kit } from "../kit"
-import { hasOpenedPage } from "../utils/opened-page"
+import { workdesksOf, workdesksReadsOf } from "../participant/workdesks"
 import { closeInLowerRow, expandLowerRow, openInLowerRow, stageAboveLower } from "../window/lower-row"
 import { splitOf } from "../window/split"
-import { choosingNow, outsidePagePlaceOf } from "./outline"
+import { choosingNow, entryPlaceOf, type LibraryPlace, NO_LIBRARY_PLACE } from "./outline"
 import { LIBRARY_APPEARANCE, LIBRARY_CHOOSING, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY } from "./state"
 
 export const LIBRARY_SCREEN = kit.defineScreen({
@@ -66,23 +66,33 @@ export const LIBRARY_UNREADABLE_OPEN = kit.defineScreenCommand({
   when: () => true,
 })
 
-// 開いているブックの外のページの置き場所を、書庫で開く: 書庫を開き（書庫を開くと同じ所に出す。ステージは開いたまま）、右の枠にそのページの入っているフォルダを出す
-// （検索していればやめ、選んでいる行は外す）。ステージの下の行の、置き場所の表示が呼ぶ
-export const LIBRARY_PLACE_OPEN = kit.defineCommand({
+// 開いている物の置き場所を、書庫で開く: 書庫を開き（書庫を開くと同じ所に出す。ステージは開いたまま）、右の枠にその物の入っているフォルダ（ワーカーブックなら、
+// それを映している作業机）を出して、その物の行を選ぶ（検索していればやめる）。引数 entry は開いている物（ブック・ブックの外のバインダ・ブックの外のページ）の id。
+// ステージの下の行の、置き場所の表示が呼ぶ。書庫の上に置き場所の無い物（entryPlaceOf）には出さない
+const placeArgs = z.strictObject({ entry: z.string().min(1) })
+const placeOf = (ctx: ScreenCommandContext, args: unknown): LibraryPlace | typeof NO_LIBRARY_PLACE => {
+  const parsed = placeArgs.safeParse(args)
+  return parsed.success
+    ? entryPlaceOf(ctx.folders, parsed.data.entry, workdesksOf(ctx.catalog, ctx.read, ctx.folders))
+    : NO_LIBRARY_PLACE
+}
+
+export const LIBRARY_PLACE_OPEN = kit.defineScreenCommand({
   id: "library-place-open",
+  readsSubjects: workdesksReadsOf,
   title: "Open the folder in the library",
-  run: (ctx, a) => {
-    const holder = hasOpenedPage(ctx) ? outsidePagePlaceOf(ctx.folders, ctx.page.id).at(-1) : undefined
-    if (holder === undefined) return
+  run: (ctx, a, args: z.infer<typeof placeArgs>) => {
+    const place = placeOf(ctx, args)
+    if (place === NO_LIBRARY_PLACE) return
     const library = openLibrary(ctx, a)
     if (library === SCREEN_REFUSED) return
     const write = updatePluginStateAtOf(a)
-    write(library, LIBRARY_FOLDER, () => holder)
-    const reset = resetPluginStateAtOf(a)
-    reset(library, LIBRARY_PICKED)
-    reset(library, LIBRARY_QUERY)
+    write(library, LIBRARY_FOLDER, () => place.folder)
+    write(library, LIBRARY_PICKED, () => place.picked)
+    resetPluginStateAtOf(a)(library, LIBRARY_QUERY)
   },
-  when: ctx => hasOpenedPage(ctx) && outsidePagePlaceOf(ctx.folders, ctx.page.id).length > 0,
+  when: () => true,
+  accepts: (ctx, args) => placeOf(ctx, args) !== NO_LIBRARY_PLACE,
 })
 
 // 参照…（ページタブの＋のメニュー）: 書庫を開き（書庫を開くと同じ所に出す）、開いているブックに置く参照エントリの指す先を選び始める（検索していればやめ、選んでいる行は外す）。

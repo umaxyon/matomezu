@@ -20,8 +20,10 @@ test("待っている所を手で入れて頼み、届かなければ「つな�
   await connectHosts(page)
   await page.getByRole("button", { name: "ホストをつなぐ" }).click()
   const dialog = page.getByRole("dialog", { name: "ホストをつなぐ" })
-  await dialog.getByText("一覧に出ないときは、待っている所を入れる").click()
-  await dialog.getByRole("textbox", { name: "待っている所" }).fill("127.0.0.1:1")
+  const addr = dialog.getByRole("textbox", { name: "待っている所" })
+  // WSL で動く常駐なら、待っている所を入れる所は開いて出る
+  if (!(await addr.isVisible())) await dialog.getByText("一覧に出ないときは、待っている所を入れる").click()
+  await addr.fill("127.0.0.1:1")
   await dialog.getByRole("button", { name: "つなぐ" }).click()
   await expect(dialog.getByText("つながりません")).toBeVisible({ timeout: 15000 })
   await dialog.getByRole("button", { name: "やり直す" }).click()

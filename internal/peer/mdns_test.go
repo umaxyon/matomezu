@@ -1,6 +1,7 @@
 package peer
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -55,8 +56,11 @@ func TestALongNameIsCutAtACharacter(t *testing.T) {
 	}
 }
 
-// 同じマシンの 2 つの Beacon が、マルチキャストの折り返しで互いを見つけ、閉じると「いなくなる」が届く
+// 同じマシンの 2 つの Beacon が、マルチキャストの折り返しで互いを見つけ、閉じると「いなくなる」が届く（LAN に出るので MATOMEZU_TEST_LAN=1 のときだけ）
 func TestTwoBeaconsFindEachOther(t *testing.T) {
+	if os.Getenv("MATOMEZU_TEST_LAN") != "1" {
+		t.Skip("goes out to the LAN: set MATOMEZU_TEST_LAN=1")
+	}
 	if len(multicastInterfaces()) == 0 {
 		t.Skip("no multicast interface")
 	}
@@ -89,13 +93,22 @@ func TestTwoBeaconsFindEachOther(t *testing.T) {
 			}
 		}
 	}
+	// 同じ LAN で入口を開いている本物の常駐も見えるので、テストのホストだけを見る
+	ours := func() (f []Sighting) {
+		for _, s := range b.Found() {
+			if s.HostID == strings.Repeat("a", 64) {
+				f = append(f, s)
+			}
+		}
+		return f
+	}
 	wait(func(e event) bool { return e.s.HostID == strings.Repeat("a", 64) && !e.gone && e.s.Port == 1 })
-	if f := b.Found(); len(f) != 1 || f[0].Name != "a" {
+	if f := ours(); len(f) != 1 || f[0].Name != "a" {
 		t.Fatalf("found %+v", f)
 	}
 	a.Close()
 	wait(func(e event) bool { return e.s.HostID == strings.Repeat("a", 64) && e.gone })
-	if f := b.Found(); len(f) != 0 {
+	if f := ours(); len(f) != 0 {
 		t.Fatalf("found after goodbye %+v", f)
 	}
 }

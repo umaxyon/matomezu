@@ -35,7 +35,6 @@ import { commandContext, commandDef } from "../web/src/store/commands"
 import type { CalledScreen, CommandContext, ScreenCommandContext } from "../web/src/store/commands/def"
 import { NO_BOOK, NO_PAGE } from "../web/src/store/commands/def"
 import type { OpenedContextMenu } from "../web/src/store/context-menus"
-import { NO_CONTEXT_MENU } from "../web/src/store/context-menus"
 import type { OpenedDialog } from "../web/src/store/dialogs"
 import { NO_DIALOG } from "../web/src/store/dialogs"
 import * as testing from "../web/src/testing"
@@ -53,7 +52,6 @@ const names = (m: object) => Object.keys(m).sort()
 
 test("matomezu が出す名前", () => {
   expect(names(api)).toEqual([
-    "AI_UI_LABELS",
     "AlignSchema",
     "AnchorsArg",
     "BACKGROUND_PRINT",
@@ -90,7 +88,6 @@ test("matomezu が出す名前", () => {
     "NO_BOOK",
     "NO_BRANCH",
     "NO_CATEGORY",
-    "NO_CONTEXT_MENU",
     "NO_CONTROL_CENTER",
     "NO_DIALOG",
     "NO_DIALOG_PREVIEW",
@@ -124,7 +121,6 @@ test("matomezu が出す名前", () => {
     "NO_WORKROOM",
     "PAGE_ITSELF",
     "PAGE_PAPER_COLOR",
-    "PAGE_TEXT_COLORS",
     "PAGE_THEME",
     "PAIRED_HOST_LISTED",
     "PAIRED_HOST_RALLY_LIMIT",
@@ -147,6 +143,7 @@ test("matomezu が出す名前", () => {
     "adminWorkroom",
     "aiPlacedOf",
     "aiPlacedOfPage",
+    "aiUiText",
     "alignPadding",
     "allRectsOf",
     "allowedItems",
@@ -358,6 +355,7 @@ test("matomezu/ui が出す名前", () => {
     "Form",
     "GearIcon",
     "GhostArea",
+    "HelpButton",
     "IconButton",
     "InheritChoices",
     "KEEP_ALL",
@@ -387,6 +385,7 @@ test("matomezu/ui が出す名前", () => {
     "NO_CHOICE",
     "NO_COLOR",
     "NO_FOLDER",
+    "NO_HELP",
     "NO_HOST_PEERS",
     "NO_HOST_STATUS",
     "NO_HOVER",
@@ -415,6 +414,7 @@ test("matomezu/ui が出す名前", () => {
     "PageSettingsDialogView",
     "Panel",
     "PaperFrame",
+    "PendingBalloon",
     "Problem",
     "RIGHT_SIDE_PANEL",
     "RichBar",
@@ -478,6 +478,7 @@ test("matomezu/ui が出す名前", () => {
     "themeVars",
     "useActions",
     "useAligns",
+    "useAliveNow",
     "useAllowed",
     "useAllowedOn",
     "useAnchorRef",
@@ -917,7 +918,7 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
     "arrangement",
     "book",
     "catalog",
-    "contextMenu",
+    "contextMenuOpen",
     "controlCenter",
     "dialog",
     "folders",
@@ -955,7 +956,7 @@ test("何も開いていないステージのコマンドの文脈は、開い�
   expect(ctx.stage.opened).toBe(NOTHING_OPENED)
   expect([ctx.stage.placing, ctx.stage.tool]).toEqual([NO_PLACING, NO_TOOL])
   expect([ctx.book, ctx.page]).toEqual([NO_BOOK, NO_PAGE])
-  expect([ctx.dialog, ctx.contextMenu]).toEqual([NO_DIALOG, NO_CONTEXT_MENU])
+  expect([ctx.dialog, ctx.contextMenuOpen]).toEqual([NO_DIALOG, false])
   expect(ctx.controlCenter).toBe(NO_CONTROL_CENTER)
   expect(ctx.toPaper({ x: 0, y: 0 })).toBe(NO_PAPER)
 })

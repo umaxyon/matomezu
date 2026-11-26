@@ -7,7 +7,7 @@ package server
 //
 // /api/events のイベント（data は JSON）:
 //
-//	hello     {"client", "build"} この接続の id と、常駐の版とデータの形（{"version", "dataVersion"}。SetBuild の前は無い）。窓はアクションバルクにこの id と、自分で振った順の番号 seq を添えて送る
+//	hello     {"client", "build"} この接続の id と、常駐の版とデータの形と配る画面の印（{"version", "dataVersion", "web"?}。SetBuild の前は無い）。窓はアクションバルクにこの id と、自分で振った順の番号 seq を添えて送る
 //	changed   {"pages": [{"id", "page"（消したなら "removed": true）, "version"}], "folders": [{"id", "folder"（同じ）, "version"}], "books", "library"?, "client", "seq", "by", "act", "actions",
 //	          "settings"?, "annotations", "records": [{"subject", "id", "record"（消したなら "removed"）, "version"（消したなら 0）}], "counters"?, "window"}
 //	          1 回の Perform が変えた物の全部（何か変わったときだけ 1 つ）。pages・folders は変えた・足した・消したページとフォルダ（書庫ホームとフォルダも）、
@@ -25,11 +25,15 @@ package server
 //	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
 //	update-status {"state", "version", "latest"?, "checkedAt"?, "askedAt"?} 新しい版の確かめの結果が変わった（update.go）
 //	host-status {"hostId", "name", "osHostName", "open", "port"?, "addrs"?, "wsl"?, "failed"?} ホストどうしの入口の様子が変わった（hosts.go）
+//	pending-messages [PendingMessage...] 承認待ちの並びが変わった（届いた・承認・キャンセル・消えた。pending_message.go）。窓がつながったときに、あれば 1 度送る（窓は hello で空にする）
 //	keep      {} keepAlive ごとに送る。窓は、これも含めて知らせが QUIET_MS（host-client/server.ts）届かなければ、黙って切れたとみてつなぎ直す
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"maps"
 	"os"
 	"slices"
@@ -89,7 +93,7 @@ type Hub struct {
 	update           UpdateStatus                 // 新しい版の確かめの結果（update.go）
 	latest           LatestFunc                   // 新しい版を聞く口（無ければ確かめない）
 	entrance         atomic.Pointer[hostEntrance] // ホストどうしの入口（hosts.go。SetHostEntrance の前は nil）
-	build            *Build                       // 常駐の版とデータの形（hello で窓に知らせる。SetBuild）
+	build            *Build                       // 常駐の版とデータの形と配る画面の印（hello で窓に知らせる。SetBuild）
 	command          atomic.Pointer[string]       // 利用者が端末で打つ matomezu の名前（command.go）
 	store            storage.Storage
 	engine           *engine.Engine
@@ -110,16 +114,19 @@ type Hub struct {
 	gone             map[string]goneState              // 表に無い参加の id の、断り・キャンセルの伝え方（join_calls.go・watch.go。残さない）
 	heardModels      map[string]heardModel             // セッション id → 誰にも結ばれていないうちにフックが知らせたモデル（model.go。残さない）
 	clients          map[string]*client
-	wakeLines        map[*wakeLine]struct{} // AI を起こす知らせの通り道（watch.go）
-	wakeQueue        map[string][]wakeItem  // 参加者の id → 受け取られるまで持つ、起こす知らせの行列（watch.go）
-	wakeSeq          int64                  // 起こす知らせの番号の最後（watch.go）
-	wakeLineSeq      int64                  // 起こす知らせの通り道の番号の最後（watch.go）
-	lentWakes        []string               // 通り道に貸した知らせの文の、新しい物（watch.go の WokenBy が照らす）
-	seenEnvelopes    map[string]bool        // 行列に入れた AI 間メッセージの封筒の id（message.go。二度入れない）
-	seenOrder        []string               // seenEnvelopes に入れた順（古い物から忘れる）
-	rallies          map[rallyKey]int       // AI ラリーの向き → 利用者トリガートークの後に起こした数（rally.go）
-	ralliesStopped   map[rallyKey]bool      // 上限で止め、宛て先に知らせた AI ラリーの向き（rally.go）
-	ralliesSent      map[rallySentKey]int   // ほかのホストへ送った向き → 送り手の利用者トリガートークの後に送った数（rally.go）
+	wakeLines        map[*wakeLine]struct{}    // AI を起こす知らせの通り道（watch.go）
+	wakeQueue        map[string][]wakeItem     // 参加者の id → 受け取られるまで持つ、起こす知らせの行列（watch.go）
+	wakeSeq          int64                     // 起こす知らせの番号の最後（watch.go）
+	wakeLineSeq      int64                     // 起こす知らせの通り道の番号の最後（watch.go）
+	wakeAbsent       map[string]map[int64]bool // 参加者の id → その会話が無い（absent）と答えた通り道の番号の集まり（watch.go。その通り道で次に渡せたら・切れたら・届かなくなったら消す）
+	wakeShown        map[string]bool           // 窓に知らせた、起こす知らせを渡せる通り道がつながっている参加者の id（watch.go）
+	lentWakes        []string                  // 通り道に貸した知らせの文の、新しい物（watch.go の WokenBy が照らす）
+	seenEnvelopes    map[string]bool           // 行列に入れた AI 間メッセージの封筒の id（message.go。二度入れない）
+	seenOrder        []string                  // seenEnvelopes に入れた順（古い物から忘れる）
+	rallies          map[rallyKey]int          // AI ラリーの向き → 利用者トリガートークの後に起こした数（rally.go）
+	ralliesStopped   map[rallyKey]bool         // 上限で止め、宛て先に知らせた AI ラリーの向き（rally.go）
+	ralliesSent      map[rallySentKey]int      // ほかのホストへ送った向き → 送り手の利用者トリガートークの後に送った数（rally.go）
+	pending          []pendingMessage          // 承認待ちの AI 間メッセージ（届いた順。メモリだけ。pending_message.go）
 	next             int
 	actionNow        time.Time        // 前に、時点の無いアクションに入れた時点（Perform。時計が後ろへ戻っても、これより後にする）
 	ticks            int64            // フォーカスの順を振る数
@@ -157,13 +164,24 @@ type Hub struct {
 	systemFolderTitles map[string]string
 }
 
-// Build は、常駐の版と、書くデータの形の番号。窓は開いたときの物と、つなぎ直したときの物を比べ、違えば読み直しを促す
+// Build は、常駐の版と、書くデータの形の番号と、配る画面の印（WebPrint。無ければ空）。窓は開いたときの物と、つなぎ直したときの物を比べ、違えば読み直しを促す
 type Build struct {
 	Version     string `json:"version"`
 	DataVersion int    `json:"dataVersion"`
+	Web         string `json:"web,omitempty"`
 }
 
-// SetBuild は、hello で窓に知らせる常駐の版とデータの形を入れる
+// WebPrint は、配る画面の印: index.html の sha256 の頭 12 桁（画面をビルドし直せば、中で読む js・css の名前が変わるので変わる）。index.html が無ければ空
+func WebPrint(web fs.FS) string {
+	index, err := fs.ReadFile(web, "index.html")
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(index)
+	return hex.EncodeToString(sum[:])[:12]
+}
+
+// SetBuild は、hello で窓に知らせる常駐の版とデータの形と配る画面の印を入れる
 func (h *Hub) SetBuild(b Build) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

@@ -8,9 +8,8 @@ import { askedOutermostOf, openedEntry, shownPageId } from "../../web/src/core/s
 import { toolUsable } from "../../web/src/core/tools"
 import { stageIn } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
-import { outsidePagePlaceOf } from "../../web/src/plugins/base/library/outline"
 import { LIBRARY_SCREEN } from "../../web/src/plugins/base/library/screen"
-import { LIBRARY_FOLDER } from "../../web/src/plugins/base/library/state"
+import { LIBRARY_FOLDER, LIBRARY_PICKED } from "../../web/src/plugins/base/library/state"
 import { addPageIn } from "../../web/src/plugins/base/pages/add-page"
 import { SEARCH_STATE } from "../../web/src/plugins/base/search/state"
 import { isEnabled, isShown } from "../../web/src/store/commands"
@@ -231,20 +230,27 @@ test("ブックの全部を探していたステージにブックの外のペ�
   expect(search().scope).toBe("page")
 })
 
-test("開いているブックの外のページの置き場所を書庫で開くと、ステージは開いたまま、書庫のスクリーンがそのページの入っているフォルダを出す。ブックを開いているステージでは出さない", () => {
+test("開いている物の置き場所を書庫で開くと、ステージは開いたまま、書庫のスクリーンがその物の入っているフォルダを出して、その物を選ぶ。置き場所の無い物には出さない", () => {
   const store = withOutside()
-  expect(isShown(store, store.state.getState(), "s1", "@matomezu/base:library-place-open")).toBe(false)
+  const place = "@matomezu/base:library-place-open"
+  const book = Object.values(store.state.getState().books)[0]!.id
+  expect(isShown(store, store.state.getState(), "s1", place, { entry: book })).toBe(true)
+  expect(isShown(store, store.state.getState(), "s1", place, { entry: "nothing" })).toBe(false)
   const made = store.actions.perform("@matomezu/base:folder-create", { title: "企画", into: HOME_ID })
   const folder = (made as { result: { folder: string } }).result.folder
   expect(store.actions.perform("@matomezu/base:entry-move", { entry: "o1", into: folder }).ok).toBe(true)
-  expect(outsidePagePlaceOf(store.state.getState().folders, "o1")).toEqual([HOME_ID, folder])
-  expect(outsidePagePlaceOf(store.state.getState().folders, "nothing")).toEqual([])
   const stage = store.actions.showOutsidePageStage("o1")
-  expect(store.actions.command(stage, "@matomezu/base:library-place-open")).toBe(true)
-  const { window, pluginValues } = store.state.getState()
-  const library = window.screens.find(s => s.def === LIBRARY_SCREEN.id)?.id as string
-  expect(pluginValueOf(pluginValues, library, LIBRARY_FOLDER)).toBe(folder)
+  expect(store.actions.command(stage, place, { entry: "o1" })).toBe(true)
+  const library = () => store.state.getState().window.screens.find(s => s.def === LIBRARY_SCREEN.id)?.id as string
+  const value = (state: typeof LIBRARY_FOLDER | typeof LIBRARY_PICKED) =>
+    pluginValueOf(store.state.getState().pluginValues, library(), state)
+  expect(value(LIBRARY_FOLDER)).toBe(folder)
+  expect(value(LIBRARY_PICKED)).toBe("o1")
   expect(openedIn(store, stage)).toEqual({ book: "o1", page: "o1" })
+  // ブックを開いているステージから: 書庫ホームを出して、そのブックを選ぶ
+  expect(store.actions.command("s1", place, { entry: book })).toBe(true)
+  expect(value(LIBRARY_FOLDER)).toBe(HOME_ID)
+  expect(value(LIBRARY_PICKED)).toBe(book)
 })
 
 test("ブックの外のページを開いたステージでは、マーク・伝言・スクラップの切り抜きを出し、「新しいブック」は出さない", () => {

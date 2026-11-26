@@ -2,7 +2,8 @@
 // 押すとそのアイテムを置こうとし（もう一度押すと取り消す）、置こうとしているものは押されている見た目にする。
 // シェイプパネルに並べるアイテムがあれば、最後に「形」のボタンを 1 つ出す。押すと、その上に形のアイコンの格子（パネル）を開き、
 // 形を押すとその形を置こうとして、パネルを閉じる（フッタメニューの中ならフッタメニューも下げる）。パネルの外を押すか Escape でも閉じる。
-// シェイプパネルのどれかを置こうとしている間は、「形」のボタンを押されている見た目にする
+// シェイプパネルのどれかを置こうとしている間は、「形」のボタンを押されている見た目にする。
+// 置くコマンドを認可ステップが止める間（ロック中など）は、ボタンを押せなくする（置こうとしているボタンは、取り消せるように押せるまま。「形」のボタンも同じ）
 
 import { useEffect, useRef, useState } from "react"
 import type { ItemId } from "../../../core/core-catalog"
@@ -15,12 +16,14 @@ import { useCloseFooterMenu } from "../footer-menu/footer-menu-context"
 import { kit } from "../kit"
 import styles from "./ToolboxView.module.css"
 import { panelOf, toolboxOf } from "./toolbox"
+import { useCanPlace } from "./use-can-place"
 
 export function ToolboxView() {
   const placing = useStageHere(st => (st && st.placing !== NO_PLACING ? st.placing.item : null))
   const { togglePlacing } = useActions()
   const t = useMessages(kit)
   const catalog = useCatalog().core
+  const canPlace = useCanPlace()
   const stage = useStage()
   const edits = stage === NO_STAGE ? "items" : stage.edits
   const type = shownType(stage === NO_STAGE ? NOTHING_OPENED : stage.opened) // 開いているページのタイプ（ページを開いていなければ、何も出さない）
@@ -35,6 +38,7 @@ export function ToolboxView() {
           id={id}
           className={styles.tool}
           pressed={placing === id}
+          disabled={!canPlace && placing !== id}
           onClick={() => togglePlacing(id)}
         />
       ))}
@@ -42,6 +46,7 @@ export function ToolboxView() {
         <ShapePanel
           items={panel}
           placing={placing}
+          canPlace={canPlace}
           onPick={id => {
             if (placing !== id) togglePlacing(id)
           }}
@@ -56,11 +61,13 @@ function ToolButton({
   id,
   className,
   pressed,
+  disabled,
   onClick,
 }: {
   id: ItemId
   className: string | undefined
   pressed: boolean
+  disabled: boolean
   onClick: () => void
 }) {
   const t = useMessages(kit)
@@ -74,6 +81,7 @@ function ToolButton({
       aria-label={title}
       title={title}
       aria-pressed={pressed}
+      disabled={disabled}
       onClick={onClick}
     >
       {icon}
@@ -85,10 +93,12 @@ function ToolButton({
 function ShapePanel({
   items,
   placing,
+  canPlace,
   onPick,
 }: {
   items: readonly ItemId[]
   placing: string | null
+  canPlace: boolean
   onPick: (id: ItemId) => void
 }) {
   const t = useMessages(kit)
@@ -124,6 +134,7 @@ function ShapePanel({
         aria-haspopup="true"
         aria-expanded={open}
         aria-pressed={placingHere}
+        disabled={!canPlace && !placingHere}
         onClick={() => setOpen(o => !o)}
       >
         <ShapesIcon />
@@ -136,6 +147,7 @@ function ShapePanel({
               id={id}
               className={styles.cell}
               pressed={placing === id}
+              disabled={!canPlace && placing !== id}
               onClick={() => {
                 onPick(id)
                 setOpen(false)

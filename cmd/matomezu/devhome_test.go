@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/umaxyon/matomezu/internal/home"
 )
 
 // 開発の常駐: .git のフォルダでも、作業ツリーの .git のファイル（gitdir と commondir）でも、共通のフォルダの隣の .dev-home を見つける。
@@ -85,7 +87,7 @@ func TestDevRootOnlyInTheDevelopmentBuild(t *testing.T) {
 	}
 }
 
-// 配る版が、開発の常駐のあるリポジトリの中で呼ばれたら知らせる（開発の版・リポジトリの外では知らせない）
+// 配る版が、開発の常駐のあるリポジトリの中で呼ばれたら知らせる（開発の版・リポジトリの外・MATOMEZU_HOME があるときは知らせない）
 func TestDevNotUsedNote(t *testing.T) {
 	repo := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
@@ -103,9 +105,16 @@ func TestDevNotUsedNote(t *testing.T) {
 	saved := version
 	t.Cleanup(func() { version = saved })
 	version = "1.2.3"
+	t.Setenv(home.EnvHome, "")
 	if got := devNotUsedNote(repo); !strings.Contains(got, repo) || !strings.Contains(got, "1.2.3") {
 		t.Errorf("released build in the repository: %q", got)
 	}
+	// MATOMEZU_HOME があれば、それが保管庫を決める（開発の常駐を指していることもある）ので知らせない
+	t.Setenv(home.EnvHome, filepath.Join(repo, devHomeDir))
+	if got := devNotUsedNote(repo); got != "" {
+		t.Errorf("with MATOMEZU_HOME: %q", got)
+	}
+	t.Setenv(home.EnvHome, "")
 	if got := devNotUsedNote(t.TempDir()); got != "" {
 		t.Errorf("outside a repository: %q", got)
 	}

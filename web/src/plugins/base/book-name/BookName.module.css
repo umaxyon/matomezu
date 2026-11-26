@@ -1,20 +1,35 @@
-/* ブックの名前のボタン。色の帯で行の頭と分かるようにする（左端の強調の線はカレントのステージだけ） */
+/* ブックの名前の枠。色の帯で行の頭と分かるようにする（左端の強調の線はカレントのステージだけ）。
+   中に、鍵・スロット book-name-head に置いた物・名前のボタンを、この順に並べる（間は 4px） */
 .name {
   flex: none;
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   width: 156px;
-}
-/* 行の中の inline に置くと、名前が空のとき下に文字の下がりの分がはみ出すので block にする */
-.trigger {
-  display: block;
-  width: 100%;
-  height: 100%;
-  padding: 0 10px 0 12px;
-  border: 0;
+  padding-left: 12px;
   border-right: 1px solid var(--skin-border);
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--skin-accent) 22%, transparent), transparent 85%),
     var(--skin-surface-strong);
+  overflow: hidden;
+}
+.name[data-current="true"] {
+  box-shadow: inset 3px 0 0 var(--skin-accent);
+}
+.name[data-open="true"] {
+  background: color-mix(in srgb, var(--skin-accent) 28%, var(--skin-surface-strong));
+}
+/* 名前のボタン（押せる物に見せない。乗せるとフッタメニューが上がる）。枠の残りの幅を埋め、入り切らない名前は末尾を … で省く。
+   inline に置くと、名前が空のとき下に文字の下がりの分がはみ出すので、inline にしない */
+.trigger {
+  flex: 1 1 auto;
+  display: block;
+  min-width: 0;
+  height: 100%;
+  padding: 0 10px 0 0;
+  border: 0;
+  background: transparent;
   color: var(--skin-text);
   font: inherit;
   font-weight: 600;
@@ -22,36 +37,20 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: pointer;
-}
-.trigger[data-locked="true"] {
-  padding-left: 28px;
-}
-/* ロック中の鍵（印だけ）。名前のボタンの左の余白に重ね、押すのは名前のボタンが受ける */
-.lock {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: grid;
-  place-items: center;
-  width: 14px;
-  height: 14px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--skin-text-muted);
-  pointer-events: none;
-}
-.trigger[data-current="true"] {
-  box-shadow: inset 3px 0 0 var(--skin-accent);
-}
-.trigger[aria-expanded="true"] {
-  background: color-mix(in srgb, var(--skin-accent) 28%, var(--skin-surface-strong));
+  cursor: default;
 }
 .trigger:focus-visible {
   outline: 2px solid var(--skin-accent);
   outline-offset: -2px;
+}
+/* ロック中の鍵（印だけ） */
+.lock {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  color: var(--skin-text-muted);
 }
 /* 下から上がるフッタメニュー。下の行の真上に、行の幅いっぱいの行（高さは下の行の 1.3 倍）を出す。中の物は行の上へはみ出してよい（地図の台）。
    中身は下の行の後ろから上がってくる（下の行より下は切る。フッタメニューの外の紙は押せるまま） */

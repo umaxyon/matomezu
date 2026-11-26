@@ -1,7 +1,7 @@
 // 参加要求の中身の文（参加要求のダイアログに見せる行）
 import type { MessageKey } from "../../../core/i18n/i18n"
 import { kit } from "../kit"
-import { AI_UI_LABELS, type Participant } from "."
+import { aiUiText, type Participant } from "."
 
 export function requestLines(p: Participant, t: (key: MessageKey) => string): string {
   return [
@@ -12,7 +12,7 @@ export function requestLines(p: Participant, t: (key: MessageKey) => string): st
     `${t(kit.message("AI"))}: ${p.ai}`,
     `${t(kit.message("Model"))}: ${p.model}`,
     `${t(kit.message("Environment"))}: ${p.env}`,
-    ...(p.aiUi ? [`${t(kit.message("Interface"))}: ${t(AI_UI_LABELS[p.aiUi])}`] : []),
+    ...(p.aiUi ? [`${t(kit.message("Interface"))}: ${aiUiText(p.aiUi, t)}`] : []),
     ...(p.adeWorkspace ? [`${t(kit.message("Workspace"))}: ${p.adeWorkspace}`] : []),
     ...(p.sessionName ? [`${t(kit.message("Session"))}: ${p.sessionName}`] : []),
   ].join("\n")

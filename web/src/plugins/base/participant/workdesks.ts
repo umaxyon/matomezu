@@ -1,9 +1,11 @@
 // 作業机: 書庫の画面が、ワークルームのフォルダの下に映す、今参加者がいるワークルームごとの行。その下にワーカーブック（workerBookOf が引く、tickets-history の中の実のブック）を映す。
 // データには書かない（書庫の画面が、ワークルームと参加者のレコードと書庫の表から出す）
 import type { CoreCatalog } from "../../../core/core-catalog"
+import { backyardEntryOf } from "../../../core/entries"
 import type { Folders } from "../../../core/folders"
 import type { RecordReader } from "../../../core/record-source"
 import type { Bird } from "../birds"
+import { TICKETS_HISTORY } from "../library/backyards"
 import { ADMIN_MARK, PARTICIPANT, type Workroom } from "."
 import { originalPalette } from "./birds"
 import { workerBookIn } from "./my-workdesk"
@@ -61,4 +63,24 @@ export function workdesksOf(catalog: CoreCatalog, read: RecordReader, folders: F
 export function ownBookPagesOf(folders: Folders, room: string): number {
   const found = foundWorkerBookOf(folders, { subject: WORKROOM.id, id: room })
   return found === NO_WORKER_BOOK ? 0 : found.pages.length
+}
+
+// ブック book を今の作業にしているワークルームの鳥（ブックスクリーンの下の行のタイトルの頭に出す）: ワークルーム自身のワーカーブックなら、そのワークルーム
+// （参加者がいなくても、ワークルームのレコード rooms から）。ほかのワーカーブックなら、それを映している作業机 desks のワークルーム（desks の順）。
+// ワーカーブックでなければ空
+export type WorkerBird = Pick<Workdesk, "room" | "title" | "bird" | "palette">
+
+export function workerBirdsOf(
+  folders: Folders,
+  book: string,
+  desks: readonly Workdesk[],
+  rooms: readonly Workroom[],
+): readonly WorkerBird[] {
+  const key = backyardEntryOf(folders, book)
+  if (key?.backyard !== TICKETS_HISTORY.id || key.workKey === undefined) return []
+  if (key.workKey.subject !== WORKROOM.id) return desks.filter(d => d.book === book)
+  const room = rooms.find(r => r.id === key.workKey?.id)
+  return room === undefined
+    ? []
+    : [{ room: room.id, title: room.name, bird: room.bird, palette: room.palette ?? originalPalette(room.bird) }]
 }

@@ -78,7 +78,7 @@ func (lim WakeLimits) fits(line string) bool {
 type wakeItem struct {
 	seq         int64     // 行列の中で見分ける番号
 	participant string    // 宛て先の参加者の id
-	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage・wakeUpdate・wakeHost・wakeRally
+	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage・wakeUpdate・wakeHost・wakeRally・wakeMessageApproved・wakeMessageCancelled
 	line        string    // 流す 1 行
 	head        string    // AI 間メッセージの、送り手を名乗る頭（messageHead・remoteMessageHead）
 	peer        string    // ほかのホストから届いた AI 間メッセージの、送り手のホスト id
@@ -107,7 +107,13 @@ const (
 	wakeUpdate    = "update"    // 利用者が、matomezu の版を上げるよう頼んだ（update.go）
 	wakeHost      = "host"      // 常駐メッセージ（フォローステップが返した、常駐からの知らせ。message.go）
 	wakeRally     = "rally"     // AI ラリーを上限で止め、宛て先に届けなかったという知らせ（rally.go）
+
+	wakeMessageApproved  = "message-approved"  // 承認待ちの AI 間メッセージを利用者が承認した（受け手に、利用者の頼みとして。pending_message.go）
+	wakeMessageCancelled = "message-cancelled" // 承認待ちの AI 間メッセージを利用者がキャンセルした（送り手と受け手に。pending_message.go）
 )
+
+// asUserMark は、利用者の頼みと扱ってよい知らせの行の、頭に付ける印（requests が as-user のホストから届いた行と、利用者が画面で押した頼みの行）
+const asUserMark = "(as your user's request)"
 
 // logWake は、起こす知らせが通り道に届いたかを調べるための 1 行を常駐のログに書く
 func logWake(format string, args ...any) {
@@ -151,6 +157,7 @@ func (h *Hub) OpenWakesWith(host, session string, limits WakeLimits) *wakeLine {
 	h.wakeLines[w] = struct{}{}
 	w.ready <- struct{}{}
 	logWake("line %d opened: host %q, session %q", w.id, host, session)
+	h.noteWakesLocked()
 	return w
 }
 
@@ -168,12 +175,35 @@ func (h *Hub) closeWakesLocked(w *wakeLine) {
 	delete(h.wakeLines, w)
 	close(w.closed)
 	logWake("line %d closed", w.id)
+	for _, lines := range h.wakeAbsent {
+		delete(lines, w.id)
+	}
+	defer h.noteWakesLocked()
 	for id, q := range h.wakeQueue {
 		for i := range q {
 			if q[i].lentTo == w.id {
 				q[i].lentTo = 0
 				h.signalWakes(id)
 			}
+		}
+	}
+}
+
+// dropStaleAbsentLocked は、absent の印のうち、参加者が消えた物と、通り道がその参加者に届かなくなった物を消す（h.mu を持って呼ぶ）
+func (h *Hub) dropStaleAbsentLocked() {
+	reaching := map[int64]*wakeLine{}
+	for l := range h.wakeLines {
+		reaching[l.id] = l
+	}
+	for id, lines := range h.wakeAbsent {
+		n, ok := h.participantNotes[id]
+		for line := range lines {
+			if l := reaching[line]; !ok || l == nil || !l.reaches(n) {
+				delete(lines, line)
+			}
+		}
+		if len(lines) == 0 {
+			delete(h.wakeAbsent, id)
 		}
 	}
 }
@@ -186,6 +216,52 @@ func (l *wakeLine) reaches(n participantNote) bool {
 	hostOK := l.host == "" || n.WakeHost == "" || host
 	sessionOK := l.session == "" || n.WakeSession == "" || session
 	return (host || session) && hostOK && sessionOK
+}
+
+// wakeReachLocked は、参加者 id に、起こす知らせを渡せる通り道がつながっているか（engine.WakeReaches・engine.WakeNone）。
+// 準備中の参加者と、その会話が無い（absent）と答えた通り道は数えない（h.mu を持って呼ぶ）
+func (h *Hub) wakeReachLocked(id string) string {
+	n := h.participantNotes[id]
+	if !n.ready() {
+		return engine.WakeNone
+	}
+	for l := range h.wakeLines {
+		if l.reaches(n) && !h.wakeAbsent[id][l.id] {
+			return engine.WakeReaches
+		}
+	}
+	return engine.WakeNone
+}
+
+// noteWakesLocked は、起こす知らせを渡せる通り道がつながっているかの変わった参加者を窓に知らせ（participant-live）、自分のワークルームの一覧を作り直させる。
+// 消えた参加者と、届かなくなった（起こす先を結び直した）通り道の absent の印は消す（h.mu を持って呼ぶ）
+func (h *Hub) noteWakesLocked() {
+	h.dropStaleAbsentLocked()
+	changed := false
+	for id := range h.participantNotes {
+		reaches := h.wakeReachLocked(id) == engine.WakeReaches
+		if reaches == h.wakeShown[id] {
+			continue
+		}
+		if h.wakeShown == nil {
+			h.wakeShown = map[string]bool{}
+		}
+		if reaches {
+			h.wakeShown[id] = true
+		} else {
+			delete(h.wakeShown, id)
+		}
+		h.announceLive(id)
+		changed = true
+	}
+	for id := range h.wakeShown {
+		if _, ok := h.participantNotes[id]; !ok {
+			delete(h.wakeShown, id)
+		}
+	}
+	if changed {
+		h.kickRooms()
+	}
 }
 
 // signalWakes は、参加者 participant に届く通り道に、流せる知らせがあるかもしれないと合図する（h.mu を持って呼ぶ）
@@ -332,6 +408,10 @@ func (h *Hub) AckWake(line int64, id, result string, now time.Time) {
 			it.lentTo = 0
 			switch result {
 			case WakeDelivered:
+				if h.wakeAbsent[participant][line] {
+					delete(h.wakeAbsent[participant], line)
+					defer h.noteWakesLocked()
+				}
 				if it.lentPointer {
 					it.pointed = true
 				} else {
@@ -339,6 +419,14 @@ func (h *Hub) AckWake(line int64, id, result string, now time.Time) {
 				}
 			case WakeAbsent:
 				it.replyOnly = true
+				if h.wakeAbsent == nil {
+					h.wakeAbsent = map[string]map[int64]bool{}
+				}
+				if h.wakeAbsent[participant] == nil {
+					h.wakeAbsent[participant] = map[int64]bool{}
+				}
+				h.wakeAbsent[participant][line] = true
+				defer h.noteWakesLocked()
 			default:
 				it.notBefore = now.Add(wakeRetry)
 				time.AfterFunc(wakeRetry, func() {
@@ -421,7 +509,8 @@ func lentCover(prompt string, lent []string, used map[int]bool) map[int]bool {
 	return nil
 }
 
-// takeCallLines は、参加者 id の行列から、呼び出しの返事で渡す行（AI 間メッセージと常駐メッセージと更新の頼みと AI ラリーを止めた知らせ）を取り出す。通り道に貸している物は残す（結果を待つ）。
+// takeCallLines は、参加者 id の行列から、呼び出しの返事で渡す行（参加の知らせのほか全部: AI 間メッセージ・常駐メッセージ・更新の頼み・AI ラリーの知らせ・
+// 承認待ちの承認とキャンセルの知らせ）を取り出す。通り道に貸している物は残す（結果を待つ）。
 // 参加の知らせは、呼び出しの返事の「参加しました」が兼ねるので捨てる（h.mu を持って呼ぶ）
 func (h *Hub) takeCallLines(id string) []string {
 	var lines []string
@@ -430,7 +519,7 @@ func (h *Hub) takeCallLines(id string) []string {
 		switch {
 		case it.lentTo != 0:
 			kept = append(kept, it)
-		case it.kind == wakeMessage || it.kind == wakeUpdate || it.kind == wakeHost || it.kind == wakeRally:
+		case it.kind != wakeAccepted && it.kind != wakeDeclined && it.kind != wakeCancelled:
 			lines = append(lines, it.line)
 		}
 	}
@@ -481,7 +570,7 @@ func (h *Hub) cancelledIn(actions []engine.BulkAction) map[string]bool {
 	return out
 }
 
-// wakeOnParticipants は、窓のアクションの前に要求中だった参加者 before のうち、受け入れられた・断られた・キャンセルされた（cancelled）参加者に知らせる（h.mu を持って呼ぶ）
+// wakeOnParticipants は、窓のアクションの前に要求中だった参加者か、合言葉の join で受け入れた参加者（joinByPass） before のうち、受け入れられた・断られた・キャンセルされた（cancelled）参加者に知らせる（h.mu を持って呼ぶ）
 func (h *Hub) wakeOnParticipants(before, cancelled map[string]bool) {
 	if len(before) == 0 {
 		return

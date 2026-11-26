@@ -196,7 +196,7 @@ test("参照エントリを置くために選んでいる間は、開く・分�
   const page = lineup("b2")?.[0] as string
   const shown = (id: string, menu: string, target: unknown) => {
     store.actions.openContextMenu(center, `@matomezu/base:${menu}`, target, { x: 0, y: 0 })
-    return isShown(store, state.getState(), center, `@matomezu/base:${id}` as CommandId)
+    return isShown(store, state.getState(), center, `@matomezu/base:${id}` as CommandId, target as never)
   }
   const rows = ["library-entry-open", "library-entry-open-split", "library-reference-place"]
   const menu = (entry: string) => rows.filter(id => shown(id, "library-entry-context", { entry }))

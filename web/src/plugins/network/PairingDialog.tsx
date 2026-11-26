@@ -1,5 +1,6 @@
 // ホストをつなぐ（このホストからペアリングを頼む）: 頼んでいる様子（常駐が持つ。読み直しても［＋］で開けば今の様子から出す）で見え方が決まる。
 // 頼んでいなければ、見つかったホスト（mDNS。開いたときに問い直す。見つかった分から足される）から 1 つ選ぶか、待っている所を手で入れて［つなぐ］。
+// WSL で動いているときは、ほかのマシンが一覧に出ない（mDNS が NAT を越えない）ことを 1 行で言い、待っている所を入れる所を開いて出す。
 // 待っている間は、相手のホスト名と接続確認コードと［やめる］。受け入れられたらダイアログを閉じ、そのホストの行を選ぶ。うまくいかなければ理由の 1 行と［やり直す］。
 // × と Esc は［やめる］と同じ（頼みを取り下げる。閉じたあとの頼みを見る所が無いため）。どの閉じ方でも、終わった様子を常駐から消す
 import { type FormEvent, useEffect, useId, useState } from "react"
@@ -10,10 +11,12 @@ import {
   type FoundHost,
   type HostPairing,
   NO_HOST_PEERS,
+  NO_HOST_STATUS,
   NO_PAIRING,
   NOT_TOLD,
   useAskHosts,
   useHostPeers,
+  useHostStatus,
 } from "../base/ui"
 import { CONTROL_CENTER_SCREEN, PICKED_STATE } from "./control-center-ids"
 import { ipOf } from "./hosts"
@@ -47,8 +50,10 @@ function Choose({ onCancel }: { onCancel: () => void }) {
   const peers = useHostPeers()
   const found = peers === NO_HOST_PEERS ? [] : peers.found
   const [chosen, setChosen] = useState<string | undefined>(undefined)
+  const status = useHostStatus()
+  const wsl = status !== NO_HOST_STATUS && status.wsl === true
   const [manual, setManual] = useState("")
-  const [typing, setTyping] = useState(false)
+  const [typing, setTyping] = useState(wsl)
   const [failed, setFailed] = useState(false)
   const formId = useId()
   useEffect(() => {
@@ -81,6 +86,7 @@ function Choose({ onCancel }: { onCancel: () => void }) {
         ))}
       </ul>
       <p className={styles.muted}>{t("Paired hosts and this host are not listed")}</p>
+      {wsl ? <p className={styles.muted}>{t("On WSL, other machines are not listed")}</p> : null}
       <details className={styles.manual} open={typing} onToggle={e => setTyping(e.currentTarget.open)}>
         <summary>{t("If the host is not listed, type where it listens")}</summary>
         <input

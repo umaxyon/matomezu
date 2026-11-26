@@ -232,7 +232,8 @@ func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 	}
 	_, h := call(t, "GET", s.URL+"/api/ai/books", "", id)
 	if text, _ := url.QueryUnescape(h.Get(aiwire.NoticeHeader)); text != "You joined matomezu. Workroom name: ひよこ\n"+joinedAllowText+"\n"+
-		`Your worker book has no pages yet: add one with @matomezu/base:worker-page-add. It changes when your current work changes, so do not keep the book's id: write down the ids of pages. read_folder with folder "my-workdesk" shows it.` {
+		`Your worker book has no pages yet: add one with @matomezu/base:worker-page-add. It changes when your current work changes, so do not keep the book's id: write down the ids of pages. read_folder with folder "my-workdesk" shows it. ` +
+		`To write to the user about your current work (to consult or to ask), add a page to your worker book with worker-page-add instead of making a book with book-create.` {
 		t.Fatalf("notice = %q", text)
 	}
 	hub.mu.Lock()
@@ -761,32 +762,47 @@ func TestSweepDropsRequestsOfEndedSessions(t *testing.T) {
 	}
 }
 
-// AI の UI は MCP が join に添え、参加の要求のアクションが値の組を確かめる（組の外は断る）。受け入れても残り（ADE のワークスペースは消える）、
-// このホストの list_workrooms の行に添えて答える
-func TestJoinKeepsTheAiUiAndListWorkroomsTellsIt(t *testing.T) {
+// AI の UI は MCP が join に添え、値の組を閉じずに残す（知らない値も断らない）。受け入れても残り（ADE のワークスペースは消える）、
+// このホストの list_workrooms の行に添えて答える。受け入れ済みの参加者が頼み直すと（同じ会話を別の端末や Desktop で続けたときなど）、
+// 頼み直しを書くアクションで、環境・セッション名・AI の UI が届いた物になる（届かなかったセッション名と AI の UI は前のまま）
+func TestJoinKeepsTheAiUiAndARejoinRenewsIt(t *testing.T) {
 	s, _ := joinWorld(t, joinStore(t))
-	if got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L0", "work", `,"aiUi":"phone"`), nil); strings.Contains(got, `"ok":true`) {
-		t.Fatalf("join with an unknown aiUi = %s", got)
-	}
-	if rows := table(t, s.URL); len(rows) != 0 {
-		t.Fatalf("a refused join changed participants: %+v", rows)
-	}
-	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "work", `,"sessionId":"S1","aiUi":"desktop","adeWorkspace":"W1"`), nil)
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "work", `,"sessionId":"S1","aiUi":"phone","adeWorkspace":"W1"`), nil)
 	var joined Joined
 	if json.Unmarshal([]byte(got), &joined) != nil || !joined.OK {
 		t.Fatalf("join = %s", got)
 	}
 	acceptRoom(t, s.URL, joined.Participant, "ひよこ")
 	data, _ := call(t, "GET", s.URL+"/api/data", "", nil)
-	if !strings.Contains(data, `"aiUi":"desktop"`) || strings.Contains(data, `"adeWorkspace"`) {
+	if !strings.Contains(data, `"aiUi":"phone"`) || strings.Contains(data, `"adeWorkspace"`) {
 		t.Fatalf("the accepted participant = %s", data)
 	}
-	rooms, _ := call(t, "GET", s.URL+"/api/ai/workrooms", "", map[string]string{aiwire.ParticipantHeader: joined.Participant})
-	if !strings.Contains(rooms, `"name":"ひよこ"`) || !strings.Contains(rooms, `"aiUi":"desktop"`) {
-		t.Fatalf("workrooms = %s", rooms)
+	rooms := func() string {
+		t.Helper()
+		out, _ := call(t, "GET", s.URL+"/api/ai/workrooms?name="+url.QueryEscape("ひよこ"), "", map[string]string{aiwire.ParticipantHeader: joined.Participant})
+		return out
 	}
-	found, _ := call(t, "GET", s.URL+"/api/ai/workrooms?name="+url.QueryEscape("ひよこ"), "", map[string]string{aiwire.ParticipantHeader: joined.Participant})
-	if !strings.Contains(found, `"aiUi":"desktop"`) {
+	if found := rooms(); !strings.Contains(found, `"aiUi":"phone"`) {
 		t.Fatalf("workrooms by name = %s", found)
+	}
+	// 同じ link で、別の環境・セッション名・AI の UI を添えて頼み直す
+	again, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"windows","sessionName":"desk","link":"L1","sessionId":"S1","aiUi":"desktop"}`, nil)
+	if !strings.Contains(again, `"participant":"`+joined.Participant+`"`) {
+		t.Fatalf("join again = %s", again)
+	}
+	rows := table(t, s.URL)
+	data, _ = call(t, "GET", s.URL+"/api/data", "", nil)
+	if len(rows) != 1 || rows[0].State != "joined" || !strings.Contains(data, `"env":"windows"`) || !strings.Contains(data, `"sessionName":"desk"`) || !strings.Contains(data, `"aiUi":"desktop"`) {
+		t.Fatalf("after joining again: participants = %+v, data = %s", rows, data)
+	}
+	all, _ := call(t, "GET", s.URL+"/api/ai/workrooms", "", map[string]string{aiwire.ParticipantHeader: joined.Participant})
+	if !strings.Contains(all, `"aiUi":"desktop"`) {
+		t.Fatalf("workrooms = %s", all)
+	}
+	// セッション名と AI の UI を添えずに頼み直しても、前の物が残る
+	call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"L1","sessionId":"S1"}`, nil)
+	data, _ = call(t, "GET", s.URL+"/api/data", "", nil)
+	if !strings.Contains(data, `"env":"wsl-linux"`) || !strings.Contains(data, `"sessionName":"desk"`) || !strings.Contains(data, `"aiUi":"desktop"`) {
+		t.Fatalf("after joining again without them: %s", data)
 	}
 }

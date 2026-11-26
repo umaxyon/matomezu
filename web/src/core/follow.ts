@@ -76,6 +76,8 @@ export function followChanges(
       for (const b of done.backyard ?? []) {
         if (!(step.backyards ?? []).includes(b.backyard))
           return refused(`writes in the backyard ${b.backyard}, which it does not write in`)
+        if (b.does === "retitle" && b.title === "")
+          return refused(`names a book in the backyard ${b.backyard} with an empty name`)
         backyard.push(b)
       }
       hostMessages.push(...(done.hostMessages ?? []))

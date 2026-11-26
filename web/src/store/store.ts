@@ -1229,6 +1229,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     setUpdateStatus: updateStatus => setState({ updateStatus }),
     setHostStatus: hostStatus => setState({ hostStatus }),
     setHostPeers: hostPeers => setState({ hostPeers }),
+    setPendingMessages: pendingMessages => setState({ pendingMessages }),
+    answerMessage: async (id, answer) => {
+      if (!options.messageHost) fail("E414")
+      await options.messageHost.answer(id, answer)
+    },
     askHosts: async request => {
       if (!options.hostsHost) fail("E412")
       await options.hostsHost.ask(request)

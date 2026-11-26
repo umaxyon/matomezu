@@ -9,6 +9,7 @@ import (
 // JoinActions は、AI が参加を頼むときに行うアクションの id（参加者を作る Participant）と、要求をキャンセルとして終えるアクションの id（Cancel。無ければ空）
 type JoinActions struct {
 	Participant string `json:"participant"`
+	Rejoin      string `json:"rejoin,omitempty"` // 受け入れ済みの参加者が参加を頼み直したときに、その参加者のレコードに行う（無ければ空）
 	Cancel      string `json:"cancel,omitempty"`
 }
 
@@ -73,8 +74,9 @@ func (e *Engine) VisitorJoinedText(settings json.RawMessage) (text string, err e
 	return e.visitorMsg(string(settings)), nil
 }
 
-// ParticipantAlive は、参加者が時点 now で生きているか（最後に呼ばれた時刻 calledAt は RFC 3339 の文字。空なら呼ばれていない。利用者の設定 settings の参加の有効時間で決まる）
-func (e *Engine) ParticipantAlive(settings json.RawMessage, calledAt string, now time.Time) (alive bool, err error) {
+// ParticipantAlive は、参加者が時点 now で生きているか（最後に呼ばれた時刻 calledAt は RFC 3339 の文字。空なら呼ばれていない。
+// wake は、起こす知らせを渡せる matomezu watch がつながっているか（WakeReaches・WakeNone）。利用者の設定 settings の参加の有効時間で決まる）
+func (e *Engine) ParticipantAlive(settings json.RawMessage, calledAt, wake string, now time.Time) (alive bool, err error) {
 	if len(settings) == 0 {
 		settings = json.RawMessage("null")
 	}
@@ -85,8 +87,33 @@ func (e *Engine) ParticipantAlive(settings json.RawMessage, calledAt string, now
 			err = fmt.Errorf("engine: %v", r)
 		}
 	}()
-	return e.alive(string(settings), calledAt, float64(now.UnixMilli())), nil
+	return e.alive(string(settings), calledAt, wake, float64(now.UnixMilli())), nil
 }
+
+// ParticipantLapsesAt は、最後に呼ばれた時刻 calledAt から参加の有効時間が過ぎる時点（呼ばれていないか読めない時刻なら ok が false）
+func (e *Engine) ParticipantLapsesAt(settings json.RawMessage, calledAt string) (at time.Time, ok bool, err error) {
+	if len(settings) == 0 {
+		settings = json.RawMessage("null")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	ms := e.lapsesAt(string(settings), calledAt)
+	if ms <= 0 {
+		return time.Time{}, false, nil
+	}
+	return time.UnixMilli(int64(ms)), true, nil
+}
+
+// 起こす知らせを渡せる matomezu watch がつながっているか（core/settings.ts の WAKE_REACH）
+const (
+	WakeReaches = "reaches"
+	WakeNone    = "none"
+)
 
 // WorkTitle は、ワークルーム（id と名前 name）に参加している AI のセッションに書く名前。利用者の設定 settings が書き換えを止めていれば、書かない（ok が false）。
 // ワークルームの作業はレコードから決まるので、レコードを引く口 src を渡す
@@ -156,4 +183,19 @@ func (e *Engine) MyWorkdesk(workroom string, folders []json.RawMessage, src Sour
 	}()
 	err = json.Unmarshal([]byte(e.myWorkdesk(workroom, string(f))), &out)
 	return out, err
+}
+
+// IsAdminWorkroom は、ワークルーム（id）が、このホストの管理者のワークルームか（管理者の印が指す）。同じホストの管理者の AI 間メッセージに、利用者の頼みの印を付けるかを決める。
+// 管理者の印はレコードから決まるので、レコードを引く口 src を渡す
+func (e *Engine) IsAdminWorkroom(workroom string, src Source) (admin bool, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.source = src
+	defer func() { e.source = nil }()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return e.isAdmin(workroom), nil
 }

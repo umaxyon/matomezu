@@ -1,4 +1,4 @@
-// base の文字の色: 本文の一部に付ける、意味の役割の色（成功・情報・注意・誤り）。テーマ（textColors）とページの設定（page-text-colors）で変えられる
+// base の文字の色: 本文の一部に付ける、意味の役割の色（成功・情報・注意・誤り）。テーマ（textColors）と利用者の設定（text-colors）で変えられる
 import { kit } from "../kit"
 
 export const TEXT_SUCCESS = kit.defineTextColor({

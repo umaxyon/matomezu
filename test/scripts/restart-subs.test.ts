@@ -3,12 +3,15 @@ import {
   joinedSince,
   lastAssistantText,
   lastModel,
+  launchArgs,
+  launchedWith,
   NG_MARK,
   parseTarget,
   projectDir,
   READY_MARK,
   readiness,
   rejoinPrompt,
+  toldJoinedSince,
   workroomOf,
 } from "../../scripts/restart-subs"
 
@@ -126,4 +129,28 @@ test("参加しているワークルームは、フックが足した知らせ�
       ].join("\n"),
     ),
   ).toBe("sub2_work")
+})
+
+test("起動した claude の cmdline が、送った引数だけを受けたかを見る", () => {
+  const args = launchArgs("claude-opus-5-5")
+  expect(args).toEqual(["--model", "claude-opus-5-5"])
+  expect(launchedWith("claude\0--model\0claude-opus-5-5\0", args)).toBe(true)
+  expect(launchedWith("claude\0--model\0claude-opus-5-535\0", args)).toBe(false)
+  expect(launchedWith("claude\0--model\0claude-opus-5-5\x0035\0", args)).toBe(false)
+})
+
+test("フックが参加を伝えたかは、since より後に足した知らせだけで見る", () => {
+  const told = (at: string, text: string) =>
+    JSON.stringify({
+      type: "attachment",
+      timestamp: at,
+      attachment: { type: "hook_additional_context", content: [`${text}\nThe user lets you exchange messages`] },
+    })
+  const since = Date.parse("2026-11-25T14:00:00Z")
+  const old = told("2026-11-25T13:00:00Z", "You joined matomezu. Workroom name: sub4_work")
+  expect(toldJoinedSince(old, since)).toBe(false)
+  const other = told("2026-11-25T14:00:05Z", "matomezu: some other notice")
+  expect(toldJoinedSince([old, other].join("\n"), since)).toBe(false)
+  const now = told("2026-11-25T14:00:06Z", "You joined matomezu. Workroom name: sub4_work")
+  expect(toldJoinedSince([old, other, now].join("\n"), since)).toBe(true)
 })

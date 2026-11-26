@@ -1,0 +1,26 @@
+/* ブック・バインダの置き場所の印: ブックの名前の枠の中、名前の前の、絵だけのボタン。
+   枠の頭に在れば、左の余白（枠の左端の強調の線 3px から）を、名前との間（枠の gap 4px）とそろえる（枠の左の余白 12px から 5px 詰める） */
+.place {
+  flex: none;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--skin-text-muted);
+  cursor: pointer;
+}
+.place:first-child {
+  margin-left: -5px;
+}
+.place > svg {
+  width: 14px;
+  height: 14px;
+}
+.place:focus-visible {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: 1px;
+}

@@ -228,9 +228,8 @@ test("追加と編集のダイアログを持たない形は、押した所に�
   store.actions.command("s1", "@matomezu/paper:paper-place", pointerFor(store as never, { x: 100, y: 50 }))
   expect(store.state.getState().dialog).toBeNull()
   expect(page(store as never).items).toMatchObject([{ id: "n1", item: "@matomezu/box:shape-nest-box", x: 100, y: 50 }])
-  store.actions.openContextMenu("s1", "@matomezu/paper:item-context", { item: "n1" }, { x: 0, y: 0 })
-  expect(isShown(store, store.state.getState(), "s1", "@matomezu/paper:paper-edit")).toBe(false)
-  expect(isShown(store, store.state.getState(), "s1", "@matomezu/paper:paper-delete")).toBe(true)
+  expect(isShown(store, store.state.getState(), "s1", "@matomezu/paper:paper-edit", { item: "n1" })).toBe(false)
+  expect(isShown(store, store.state.getState(), "s1", "@matomezu/paper:paper-delete", { item: "n1" })).toBe(true)
 })
 
 test("選んでいるアイテムを消すと選択も外れる。選んでいなければ消すコマンドは出ない。無いアイテムは消さない", () => {

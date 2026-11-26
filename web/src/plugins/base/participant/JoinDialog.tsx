@@ -21,14 +21,7 @@ import { PARTICIPANT_ACCEPT, PARTICIPANT_CANCEL, WORKROOM_NAME_MAX, type Workroo
 import { BirdFaceView } from "./BirdFaceView"
 import { asBird, originalPalette } from "./birds"
 import { PARTICIPANT_WELCOME_DIALOG } from "./dialogs"
-import {
-  useIsAlive,
-  useOwnBookPages,
-  useParticipantCalls,
-  useParticipantLive,
-  useParticipants,
-  useWorkrooms,
-} from "./hooks"
+import { useIsAlive, useOwnBookPages, useParticipantLive, useParticipants, usePresenceOf, useWorkrooms } from "./hooks"
 import { shownModel } from "./live"
 import styles from "./Participant.module.css"
 import { nameInUse, occupantOf, takeable } from "./workroom"
@@ -72,14 +65,14 @@ function JoinForm({
   const { perform, showToast, openDialog } = useActions()
   const participants = useParticipants()
   const rooms = useWorkrooms()
-  const calls = useParticipantCalls()
   const live = useParticipantLive()
   const isAlive = useIsAlive()
   const nowMs = useNow(30_000) // 生きているかは時が経つと変わる
   const first = participants.find(p => p.id === participant)
   const askedVisitor = first?.as === "visitor"
   const form = useId()
-  const quiet = takeable(rooms, participants, calls, isAlive, nowMs)
+  const presenceOf = usePresenceOf()
+  const quiet = takeable(rooms, participants, presenceOf, isAlive, nowMs)
   const asked = quiet.find(r => r.name === first?.wantedName)
   const [mode, setMode] = useState<Mode>(asked ? "takeover" : "new")
   const [pick, setPick] = useState<string | undefined>(asked?.id)

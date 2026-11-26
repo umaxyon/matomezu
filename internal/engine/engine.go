@@ -44,7 +44,8 @@ type Engine struct {
 	join         func() string
 	end          func() string
 	hosts        func() string
-	alive        func(string, string, float64) bool
+	alive        func(string, string, string, float64) bool
+	lapsesAt     func(string, string) float64
 	updateCheck  func(string) bool
 	hostSettings func(string) string
 	needs        func(string, string) string
@@ -61,6 +62,7 @@ type Engine struct {
 	joinedMsg    func(string, string) string
 	visitorMsg   func(string) string
 	workTitle    func(string, string, string) string
+	isAdmin      func(string) bool
 	myWorkdesk   func(string, string) string
 	activities   func(string) string
 	live         func(string, string, string, string) string
@@ -148,6 +150,7 @@ func New() (*Engine, error) {
 		{"matomezuEndActions", &e.end},
 		{"matomezuHostActions", &e.hosts},
 		{"matomezuParticipantAlive", &e.alive},
+		{"matomezuParticipantLapsesAt", &e.lapsesAt},
 		{"matomezuUpdateCheck", &e.updateCheck},
 		{"matomezuHostSettings", &e.hostSettings},
 		{"matomezuCheckRecords", &e.records},
@@ -164,6 +167,7 @@ func New() (*Engine, error) {
 		{"matomezuJoinedText", &e.joinedMsg},
 		{"matomezuVisitorJoinedText", &e.visitorMsg},
 		{"matomezuWorkTitle", &e.workTitle},
+		{"matomezuIsAdminWorkroom", &e.isAdmin},
 		{"matomezuMyWorkdesk", &e.myWorkdesk},
 		{"matomezuWorkroomActivities", &e.activities},
 		{"matomezuUnexpired", &e.live},

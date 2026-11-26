@@ -208,7 +208,8 @@ import {
   ADMIN_MARK,
   ADMIN_SET,
   FOLLOW_WORK_ENDED,
-  FOLLOW_WORKROOM_GONE,
+  FOLLOW_WORK_RENAMED,
+  FOLLOW_WORKROOM_BOOK,
   JOIN_REQUEST_DIALOG,
   PARTICIPANT,
   PARTICIPANT_ACCEPT,
@@ -216,13 +217,16 @@ import {
   PARTICIPANT_CANCEL,
   PARTICIPANT_DECLINE,
   PARTICIPANT_JOIN_DIALOG,
+  PARTICIPANT_REJOIN,
   PARTICIPANT_REMOVE,
   PARTICIPANT_REQUEST,
   PARTICIPANT_WELCOME_DIALOG,
+  PENDING_MESSAGE_DIALOG,
   SESSION_RENAME,
   WORK_SUBJECTS_CHECK,
   WORKER_BOOK,
   WORKER_PAGE_ADD,
+  WORKER_PAGE_TITLE,
   WORKROOM,
   WORKROOM_ADD,
   WORKROOM_REMOVE,
@@ -309,7 +313,7 @@ import {
   type WIDE_STAGE,
 } from "./stage"
 import { REVEAL_REQUEST_STATES, type REVEALING_STATE } from "./stand"
-import { PAGE_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
+import { TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_CLOSE, TOOL_PICKER_HOLD, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { HAND_TOOL, SELECT_TOOL, TOOL_NEXT } from "./tool-switch"
 // 拡張ポイントに書き足したフィールド toolbox の型（toolbox.ts の declare module）
@@ -375,9 +379,8 @@ export { itemMinimapMarks, type MinimapMark, NOT_DRAWN } from "./minimap"
 export type { PageProblem } from "./pages"
 export { addPageIn, type PageFieldsWay, pageFieldsWay } from "./pages"
 export {
-  AI_UI_LABELS,
-  type AiUi,
   adminWorkroom,
+  aiUiText,
   type FoundWorkerBook,
   isAdminActor,
   JOINED_MESSAGE,
@@ -391,6 +394,7 @@ export {
   NOT_CALLED,
   NOT_REQUESTED,
   type ParticipantCategory,
+  type Presence,
   participantCategory,
   READS_ADMIN,
   READS_WORKROOM_KEYS,
@@ -497,7 +501,6 @@ export {
   clampLines,
   clampRich,
   FULL_WIDTH,
-  PAGE_TEXT_COLORS,
   PLACE_LINES,
   parseRich,
   plainOf,
@@ -579,6 +582,7 @@ export const BASE = defineBuiltin(
       MARK_REMOVE,
       PRINT_PREVIEW_UPDATE,
       PARTICIPANT_REQUEST,
+      PARTICIPANT_REJOIN,
       PARTICIPANT_ACCEPT,
       PARTICIPANT_DECLINE,
       PARTICIPANT_CANCEL,
@@ -591,7 +595,6 @@ export const BASE = defineBuiltin(
     settings: [
       PAGE_THEME,
       PAGE_PAPER_COLOR,
-      PAGE_TEXT_COLORS,
       PRINT_PREVIEW_FLOW,
       PRINT_PREVIEW_ORDER,
       PRINT_PREVIEW_SHEET_NUMBERS,
@@ -621,11 +624,11 @@ export const BASE = defineBuiltin(
     textColors: TEXT_COLORS,
     skins: [DARK, LIGHT, MATOMEZU_LIGHT_SKIN, MATOMEZU_DARK_SKIN],
     tools: [SELECT_TOOL, HAND_TOOL],
-    permissions: [LOCK, WORKER_BOOK, IN_WORKROOMS],
+    permissions: [LOCK, WORKER_BOOK, WORKER_PAGE_TITLE, IN_WORKROOMS],
     annotations: [NOTE, MARK],
     systemFolders: [DOCUMENTS, WORKROOMS],
     backyards: [TICKETS_HISTORY],
-    followSteps: [FOLLOW_WORKROOM_GONE, FOLLOW_WORK_ENDED],
+    followSteps: [FOLLOW_WORKROOM_BOOK, FOLLOW_WORK_ENDED, FOLLOW_WORK_RENAMED],
     mails: [MAIL_LETTER, MAIL_PROPOSAL],
     subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL, SCRAP],
     screens: [BOOK_SCREEN_DEF, LIBRARY_SCREEN, MAILBOX_SCREEN],
@@ -751,6 +754,7 @@ export const BASE = defineBuiltin(
       JOIN_REQUEST_DIALOG,
       PARTICIPANT_JOIN_DIALOG,
       PARTICIPANT_WELCOME_DIALOG,
+      PENDING_MESSAGE_DIALOG,
     ],
     libraryAppearances: [LIBRARY_APPEARANCE],
     pluginStates: [
@@ -821,7 +825,6 @@ declare module "../../core/catalog" {
   interface SettingTable {
     "@matomezu/base:page-theme": typeof PAGE_THEME
     "@matomezu/base:page-paper-color": typeof PAGE_PAPER_COLOR
-    "@matomezu/base:page-text-colors": typeof PAGE_TEXT_COLORS
     "@matomezu/base:print-preview-flow": typeof PRINT_PREVIEW_FLOW
     "@matomezu/base:background-print": typeof BACKGROUND_PRINT
     "@matomezu/base:print-preview-order": typeof PRINT_PREVIEW_ORDER
@@ -902,6 +905,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:mark-remove": typeof MARK_REMOVE
     "@matomezu/base:print-preview-update": typeof PRINT_PREVIEW_UPDATE
     "@matomezu/base:participant-request": typeof PARTICIPANT_REQUEST
+    "@matomezu/base:participant-rejoin": typeof PARTICIPANT_REJOIN
     "@matomezu/base:participant-accept": typeof PARTICIPANT_ACCEPT
     "@matomezu/base:participant-decline": typeof PARTICIPANT_DECLINE
     "@matomezu/base:participant-cancel": typeof PARTICIPANT_CANCEL
@@ -920,6 +924,7 @@ declare module "../../core/catalog" {
   interface PermissionTable {
     "@matomezu/base:lock": typeof LOCK
     "@matomezu/base:worker-book": typeof WORKER_BOOK
+    "@matomezu/base:worker-page-title": typeof WORKER_PAGE_TITLE
     "@matomezu/base:in-workrooms": typeof IN_WORKROOMS
   }
   interface AnnotationTable {
@@ -1133,6 +1138,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:join-request": typeof JOIN_REQUEST_DIALOG
     "@matomezu/base:participant-join": typeof PARTICIPANT_JOIN_DIALOG
     "@matomezu/base:participant-welcome": typeof PARTICIPANT_WELCOME_DIALOG
+    "@matomezu/base:pending-message": typeof PENDING_MESSAGE_DIALOG
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG
     "@matomezu/base:library-book-new": typeof LIBRARY_NEW_BOOK_DIALOG
     "@matomezu/base:library-folder-new": typeof LIBRARY_NEW_FOLDER_DIALOG

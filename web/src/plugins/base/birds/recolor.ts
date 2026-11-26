@@ -58,3 +58,70 @@ export function recolorFace(
   }
   return out
 }
+
+// 顔の絵の目を探す範囲（行。一辺 FACE_SIZE の絵の）と、目とみなす固定色の画素の明るさ（R・G・B の和）の上限
+const EYE_ROWS = [20, 30] as const
+const EYE_LIGHTNESS_MAX = 400
+const EDGE_LIGHTNESS_MAX = 690 // 目と一緒に埋める、目に接する縁の画素の明るさの上限
+
+// 塗った顔の絵 face（一辺 size。fixed はその固定色の部分）の目を閉じた絵: 目と、目に接する淡い縁の画素を、同じ列の目の 2 画素上の色で埋め、
+// 目の下寄りに、太さ 2 画素で両端の上がった閉じた目の線（︶）を目の色で引く。目は、目を探す範囲の行の、不透明で暗い固定色の画素を、絵の左右の半分ずつに分けた物
+export function closeEyes(
+  face: Uint8ClampedArray,
+  fixed: Uint8ClampedArray,
+  size: number,
+): Uint8ClampedArray<ArrayBuffer> {
+  const out = new Uint8ClampedArray(face)
+  const at = (x: number, y: number) => (y * size + x) * 4
+  const lightness = (p: Uint8ClampedArray, i: number) => (p[i] as number) + (p[i + 1] as number) + (p[i + 2] as number)
+  const isEye = (x: number, y: number) => {
+    const i = at(x, y)
+    return (fixed[i + 3] as number) > 200 && lightness(fixed, i) < EYE_LIGHTNESS_MAX
+  }
+  const isEdge = (x: number, y: number) => {
+    const i = at(x, y)
+    return (fixed[i + 3] as number) > 40 && lightness(fixed, i) < EDGE_LIGHTNESS_MAX
+  }
+  for (const [from, to] of [
+    [0, size / 2],
+    [size / 2, size],
+  ] as const) {
+    let x0 = size
+    let x1 = -1
+    let y0 = size
+    let y1 = -1
+    let ink = -1
+    for (let y = EYE_ROWS[0]; y <= EYE_ROWS[1]; y++)
+      for (let x = from; x < to; x++) {
+        if (!isEye(x, y)) continue
+        x0 = Math.min(x0, x)
+        x1 = Math.max(x1, x)
+        y0 = Math.min(y0, y)
+        y1 = Math.max(y1, y)
+        const i = at(x, y)
+        if (ink < 0 || lightness(face, i) < lightness(face, ink)) ink = i
+      }
+    if (ink < 0) continue
+    const color = face.slice(ink, ink + 4)
+    // 埋めるのは、目と、その 1 画素の縁のうち目の色に寄った画素（縁の淡い画素）
+    const near = (x: number, y: number) => {
+      if (isEye(x, y)) return true
+      if (!isEdge(x, y)) return false
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (isEye(x + dx, y + dy)) return true
+      return false
+    }
+    for (let y = Math.max(1, y0 - 1); y <= Math.min(size - 2, y1 + 1); y++)
+      for (let x = Math.max(x0 - 1, 1); x <= Math.min(size - 2, x1 + 1); x++) {
+        if (!near(x, y)) continue
+        const above = at(x, Math.max(0, y0 - 2))
+        out.set(face.subarray(above, above + 4), at(x, y))
+      }
+    const line = Math.min(size - 2, y0 + Math.round((y1 - y0) * 0.6))
+    for (let x = x0; x <= x1; x++) {
+      const lift = x === x0 || x === x1 ? 1 : 0
+      out.set(color, at(x, line - lift))
+      out.set(color, at(x, line + 1 - lift))
+    }
+  }
+  return out
+}

@@ -422,9 +422,10 @@ test("書庫の行の右クリックのメニューから、名前の変更・�
   await page.getByRole("button", { name: "書庫", exact: true }).first().click()
   const home = page.getByRole("list", { name: "書庫 の中身" })
   const menu = page.getByRole("menu")
-  // フォルダの行: 中に作る・名前の変更・ゴミ箱（開くは無い）
+  // フォルダの行: 開く・中に作る・名前の変更・ゴミ箱
   await home.getByRole("button", { name: "メニューの試しの所" }).click({ button: "right" })
   await expect(menu.getByRole("menuitem")).toHaveText([
+    "開くEnter",
     "新しいブック…",
     "新しいフォルダ…",
     "新しいページ…",

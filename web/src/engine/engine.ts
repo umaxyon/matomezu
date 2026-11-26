@@ -16,6 +16,7 @@ import {
   hostNameOf,
   isParticipantAlive,
   listedWorkroomsOf,
+  participantLapsesAt,
   restoreSettings,
   updateCheckOn,
   userNameOf,
@@ -50,7 +51,15 @@ import {
   subjectRolesOf,
   unlistedOf,
 } from "./records"
-import { joinedText, myWorkdesk, visitorJoinedText, windowWarningLines, workroomActivities, workTitle } from "./texts"
+import {
+  isAdminWorkroom,
+  joinedText,
+  myWorkdesk,
+  visitorJoinedText,
+  windowWarningLines,
+  workroomActivities,
+  workTitle,
+} from "./texts"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
@@ -228,11 +237,25 @@ let lastAdded: readonly Plugin[] = []
 ;(globalThis as { matomezuHostActions?: () => string }).matomezuHostActions = () =>
   JSON.stringify(hostActions(assembled.catalog.core))
 
-// 参加者が時点 nowMs（ミリ秒）で生きているか（利用者の設定の参加の有効時間で決まる。常駐が、同じ名前の参加者を引き継げるかを決めるのに読む）
+// 参加者が時点 nowMs（ミリ秒）で生きているか（wake は起こす知らせを渡せる matomezu watch がつながっているか。利用者の設定の参加の有効時間で決まる。
+// 常駐が、同じ名前の参加者を引き継げるかと、ワークルームの一覧の生きているかを決めるのに読む）
 ;(
-  globalThis as { matomezuParticipantAlive?: (settings: string, calledAt: string, nowMs: number) => boolean }
-).matomezuParticipantAlive = (settings, calledAt, nowMs) =>
-  isParticipantAlive(assembled.catalog.core, restoreSettings(JSON.parse(settings)), calledAt || undefined, nowMs)
+  globalThis as {
+    matomezuParticipantAlive?: (settings: string, calledAt: string, wake: string, nowMs: number) => boolean
+  }
+).matomezuParticipantAlive = (settings, calledAt, wake, nowMs) =>
+  isParticipantAlive(
+    assembled.catalog.core,
+    restoreSettings(JSON.parse(settings)),
+    { calledAt: calledAt || undefined, wake: wake === "reaches" ? "reaches" : "none" },
+    nowMs,
+  )
+
+// 最後に呼ばれた時刻 calledAt から有効時間が過ぎる時点（ミリ秒。無ければ 0。常駐が、ワークルームの一覧を直す時点を決めるのに読む）
+;(
+  globalThis as { matomezuParticipantLapsesAt?: (settings: string, calledAt: string) => number }
+).matomezuParticipantLapsesAt = (settings, calledAt) =>
+  participantLapsesAt(assembled.catalog.core, restoreSettings(JSON.parse(settings)), calledAt || undefined) ?? 0
 
 // 常駐が新しい版を自分で確かめるか（利用者の設定で決まる。常駐が、確かめる前に読む）
 ;(globalThis as { matomezuUpdateCheck?: (settings: string) => boolean }).matomezuUpdateCheck = settings =>
@@ -255,6 +278,10 @@ let lastAdded: readonly Plugin[] = []
   settings,
   workroom,
 ) => joinedText(assembled, settings, workroom)
+
+// ワークルーム（id）が、このホストの管理者のワークルームか（管理者の印が指す。常駐が、同じホストの管理者の AI 間メッセージに利用者の頼みの印を付けるかに読む。読み口を置いている間に呼ぶ）
+;(globalThis as { matomezuIsAdminWorkroom?: (workroom: string) => boolean }).matomezuIsAdminWorkroom = workroom =>
+  isAdminWorkroom(assembled, workroom)
 
 // ワークルーム（id と名前）に参加している AI のセッションの作業名（利用者の設定が書くのを止めていれば off。常駐が、話しかけとターンの終わりのフックに答える）
 // 作業はレコードから決まるので、常駐が読み口を置いている間に呼ぶ

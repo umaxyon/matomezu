@@ -1,0 +1,23 @@
+/* 作業しているワークルームの鳥: ブックの名前の枠の中、名前の前に、顔を詰めて並べる。
+   枠の頭に在れば、左の余白（枠の左端の強調の線 3px から）を、名前との間（枠の gap 4px）とそろえる（枠の左の余白 12px から 5px 詰める） */
+.birds {
+  flex: none;
+  display: flex;
+  align-items: center;
+  align-self: center;
+  gap: 2px;
+}
+.birds:first-child {
+  margin-left: -5px;
+}
+/* 押すと書庫で置き場所を開く鳥。押せるのは鳥だけ */
+.button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.button:focus-visible {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: 1px;
+}

@@ -1,5 +1,5 @@
 // ディレクトリ構成図のプラグイン: ディレクトリ構成図のページのタイプと、そのプレゼンテーション・説明の見せ方の設定の項目・ページを作るダイアログ・中身のアクションとコマンド・道具の組（鉛筆とハンド）。
-// テーマと紙の色と文字の色の設定の項目とハンドの道具は、ほかのプラグインの定義を id で選ぶ（dir.ts・tools.ts）
+// テーマと紙の色の設定の項目とハンドの道具は、ほかのプラグインの定義を id で選ぶ（dir.ts・tools.ts）
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { FOLDER_CLOSE, FOLDER_SORT, NODE_ADD, NODE_MOVE, NODE_REMOVE, NODE_UPDATE, PATHS_ADD } from "./actions"
 import {

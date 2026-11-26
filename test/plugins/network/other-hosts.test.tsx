@@ -45,12 +45,16 @@ function open() {
   return { store, asked, connect, peers }
 }
 
-test("「ほかのホスト」の節は、つなぐが入のときだけ出し、出したらつながりを確かめてもらう。行を選ぶと右下に詳しい所、ペアリングを解く（確かめてから）と選んでいないのと同じ", async () => {
+test("「ほかのホスト」の節は、つなぐが入のときだけ出し、出したときと［↻］を押したときにつながりを確かめてもらう。行を選ぶと右下に詳しい所、ペアリングを解く（確かめてから）と選んでいないのと同じ", async () => {
   const { store, asked, connect, peers } = open()
   expect(screen.queryByText("ほかのホスト")).toBeNull()
   connect()
   expect(screen.getByText("ペアリングしたホストはありません")).toBeTruthy()
   expect(asked).toContainEqual({ kind: "check" })
+  const checks = () => asked.filter(r => (r as { kind: string }).kind === "check").length
+  const before = checks()
+  fireEvent.click(screen.getByRole("button", { name: "つながりを確かめ直す", hidden: true }))
+  expect(checks()).toBe(before + 1)
   act(() => {
     store.actions.perform("@matomezu/network:paired-host-add", {
       hostId: B,
@@ -119,6 +123,23 @@ test("ホストをつなぐ: 頼んでいる様子ごとに、待つ所（接続
   expect(asked.at(-1)).toEqual({ kind: "end-pairing" })
 })
 
+test("WSL で動いていれば、ホストをつなぐに一覧に出ないことを言い、待っている所を入れる所を開いて出す。WSL でなければ畳んだまま", () => {
+  const { store, connect } = open()
+  connect()
+  const status = (wsl: boolean) =>
+    act(() => store.setHostStatus({ hostId: B, name: "desk", osHostName: "desk", open: true, port: 41234, wsl }))
+  const dialog = () => screen.getByRole("dialog", { name: "ホストをつなぐ" })
+  status(false)
+  fireEvent.click(screen.getByRole("button", { name: "ホストをつなぐ" }))
+  expect(within(dialog()).queryByText("WSL では、ほかのマシンは一覧に出ません")).toBeNull()
+  expect(dialog().querySelector("details")?.open).toBe(false)
+  fireEvent.keyDown(dialog(), { key: "Escape" })
+  status(true)
+  fireEvent.click(screen.getByRole("button", { name: "ホストをつなぐ" }))
+  expect(within(dialog()).getByText("WSL では、ほかのマシンは一覧に出ません")).toBeTruthy()
+  expect(dialog().querySelector("details")?.open).toBe(true)
+})
+
 test("届いた頼みはしおりとダイアログに出し、断ると消える", () => {
   const { store } = open()
   act(() => {
@@ -160,7 +181,7 @@ test("受け入れられても、ペアリングしたホストが届くまで�
   expect(within(panel).getByRole("button", { name: "ペアリングを解く" })).toBeTruthy()
 })
 
-test("ホストの行の ▸ で開くと、相手のワークルームの写しを名前と作業中・空きで出し、つながっていなければ「つながっていません」だけ", () => {
+test("ホストの行の ▸ で開くと、相手のワークルームの写しを名前と作業中・空きで出し、AI が生きていない行は薄くして「応答なし」を添え、つながっていなければ「つながっていません」だけ", () => {
   const { store, connect, peers } = open()
   connect()
   act(() => {
@@ -181,17 +202,22 @@ test("ホストの行の ▸ で開くと、相手のワークルームの写し
       label: "win-lan",
       state: "connected",
       workrooms: [
-        { name: "win_claude_cli", activity: "idle" },
-        { name: "win_haiku", activity: "working" },
+        { name: "win_claude_cli", activity: "idle", alive: "alive" },
+        { name: "win_haiku", activity: "working", alive: "alive" },
+        { name: "win_sleepy", activity: "idle", alive: "lapsed" },
+        { name: "win_old", activity: "unknown", alive: "unknown" },
       ],
     },
   ])
   const list = screen.getByRole("list", { name: "win-lan のワークルーム" })
-  expect(
-    within(list)
-      .getAllByRole("listitem")
-      .map(li => li.textContent),
-  ).toEqual(["win_claude_cli空き", "win_haiku作業中"])
+  const items = within(list).getAllByRole("listitem")
+  expect(items.map(li => li.textContent)).toEqual([
+    "win_claude_cli空き",
+    "win_haiku作業中",
+    "win_sleepy空き · 応答なし",
+    "win_old",
+  ])
+  expect(items.map(li => li.getAttribute("data-lapsed"))).toEqual(["false", "false", "true", "false"])
   fireEvent.click(caret())
   expect(screen.queryByRole("list", { name: "win-lan のワークルーム" })).toBeNull()
 })
@@ -277,4 +303,25 @@ test("常駐間通信プロトコルの版が合わないホストは、つな�
   expect(screen.getByText("matomezu の版が合いません。win-lan で更新してください")).toBeTruthy()
   peers([{ hostId: B, label: "win-lan", state: "connected" }])
   expect(screen.queryByText(/matomezu の版が合いません/)).toBeNull()
+})
+
+test("このホストの様子の「待っている所」: 相手が張ったリバース接続でだけつながっていれば「相手からつないでいる」、こちらから届けば番地", () => {
+  const { store, connect, peers } = open()
+  connect()
+  act(() => {
+    store.actions.perform("@matomezu/network:paired-host-add", {
+      hostId: B,
+      nameAtPairing: "wsl-nat",
+      userNameAtPairing: "taro",
+      addr: "",
+    })
+  })
+  peers([{ hostId: B, label: "wsl-nat", state: "connected", addr: "192.168.11.11:7240", reverseOnly: true }])
+  fireEvent.click(screen.getByRole("button", { name: /wsl-nat$/ }))
+  fireEvent.click(screen.getByRole("button", { name: "このホストの様子" }))
+  const dialog = () => screen.getByRole("dialog", { name: "このホストの様子" })
+  expect(within(dialog()).getByText("相手からつないでいる")).toBeTruthy()
+  expect(within(dialog()).queryByText("192.168.11.11:7240")).toBeNull()
+  peers([{ hostId: B, label: "wsl-nat", state: "connected", addr: "192.168.11.11:7240", reverseOnly: false }])
+  expect(within(dialog()).getByText("192.168.11.11:7240")).toBeTruthy()
 })

@@ -228,6 +228,10 @@ var migrations = []string{
 	`SELECT 1;`,
 	// ペアリングしたホストに、rallyLimit（そのホストから届く AI ラリーの上限）を足す（Go の移し替え。migrate_paired_host_rally_limit.go）
 	`SELECT 1;`,
+	// ページの設定から、やめた項目 page-text-colors（ページの文字の色の上書き）の値を外す（Go の移し替え。migrate_page_text_colors.go）
+	`SELECT 1;`,
+	// ワーカーブックの名前を写し元の今の名前に合わせ、チケットのブックの中のページの名前の頭の番号を外す（Go の移し替え。migrate_worker_book_names.go）
+	`SELECT 1;`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う
@@ -251,6 +255,8 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	38: addPairedHostListed,
 	39: addMailSenderKind,
 	40: addPairedHostRallyLimit,
+	41: dropPageTextColors,
+	42: fixWorkerBookNames,
 }
 
 type sqliteStorage struct {

@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/umaxyon/matomezu/internal/peer"
 )
@@ -26,6 +27,7 @@ type HostConfig struct {
 	OSHostName string          // OS のホスト名（ホスト名の設定が無いときの名前）
 	WSL        bool            // WSL で動いているか（画面が案内を出す）
 	Discover   bool            // 入口を開いているあいだ mDNS で知らせ、見つける（テストは同じ網に出さないよう切る）
+	Loopback   bool            // 127.0.0.1 だけで待つ（テストは同じ網に出さないよう付ける）
 }
 
 // HostFailed は、入口を開こうとして開けなかった理由
@@ -49,17 +51,18 @@ type HostStatus struct {
 }
 
 type hostEntrance struct {
-	mu     sync.Mutex // 開け閉めの鍵（h.mu とは別。開け閉めのあいだ h.mu を持たない）
-	config HostConfig
-	srv    *http.Server
-	ln     net.Listener // srv が受けている所
-	status HostStatus
-	kick   chan struct{}
-	done   chan struct{} // CloseHostEntrance が閉じる（開け閉めの goroutine を止める）
-	closed bool          // CloseHostEntrance のあとは開かない
-	peers  *peerState    // ペアリングとペアリングしたホストの様子（pairing.go）
-	user   string        // mDNS で知らせている利用者名
-	proto  int           // 常駐間通信プロトコルの版（peer.Protocol。版の違う常駐を組むテストだけが、閉じているあいだに替える）
+	mu      sync.Mutex // 開け閉めの鍵（h.mu とは別。開け閉めのあいだ h.mu を持たない）
+	config  HostConfig
+	srv     *http.Server
+	handler http.Handler // srv が答える口（hostsHandler）。こちらが張ったリバース接続の上でも同じ物で答える
+	ln      net.Listener // srv が受けている所
+	status  HostStatus
+	kick    chan struct{}
+	done    chan struct{} // CloseHostEntrance が閉じる（開け閉めの goroutine を止める）
+	closed  bool          // CloseHostEntrance のあとは開かない
+	peers   *peerState    // ペアリングとペアリングしたホストの様子（pairing.go）
+	user    string        // mDNS で知らせている利用者名
+	proto   int           // 常駐間通信プロトコルの版（peer.Protocol。版の違う常駐を組むテストだけが、閉じているあいだに替える）
 }
 
 // SetHostEntrance は、ホストどうしの入口の用意を渡し、設定に合わせて開け閉めし始める（立ったときに 1 度呼ぶ）
@@ -131,15 +134,17 @@ func (h *Hub) CloseHostEntrance() {
 	if e.peers.cancel != nil {
 		e.peers.cancel()
 	}
+	e.peers.scheduleLapseLocked(h, time.Time{}) // 止まる常駐の一覧は作り直さない
 	e.peers.mu.Unlock()
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.closed = true
 	if e.srv != nil {
 		e.srv.Close()
-		e.srv = nil
+		e.srv, e.handler = nil, nil
 	}
 	h.stopBeacon(e)
+	h.closeReverse(e)
 }
 
 // applyHostEntrance は、利用者の設定に合わせて入口を開け閉めし、様子が変われば窓に知らせる
@@ -168,7 +173,7 @@ func (h *Hub) applyHostEntrance(e *hostEntrance) {
 		e.open(h)
 	case !s.Connect && e.srv != nil:
 		e.srv.Close()
-		e.srv = nil
+		e.srv, e.handler = nil, nil
 		h.stopBeacon(e)
 		go h.EndPairing()
 		e.status.Open, e.status.Port, e.status.Addrs, e.status.Failed = false, 0, nil, ""
@@ -180,6 +185,9 @@ func (h *Hub) applyHostEntrance(e *hostEntrance) {
 	now := e.status
 	e.mu.Unlock()
 	h.tellHostStatus(was, now)
+	if was.Open != now.Open {
+		h.followReverse(e)
+	}
 }
 
 // RepickHostPort は、覚えたポートがほかに使われているとき、空いている番号を取り直して開き、その番号を覚える（利用者が［別のポートにする］を確かめたとき）
@@ -199,6 +207,7 @@ func (h *Hub) RepickHostPort() error {
 	now := e.status
 	e.mu.Unlock()
 	h.tellHostStatus(was, now)
+	h.followReverse(e)
 	return nil
 }
 
@@ -213,7 +222,11 @@ func (h *Hub) tellHostStatus(was, now HostStatus) {
 
 // open は、覚えたポートで入口を開く。覚えていなければ空いている番号を取って覚える（e.mu を持って呼ぶ）
 func (e *hostEntrance) open(h *Hub) {
-	ln, err := net.Listen("tcp", ":"+strconv.Itoa(e.config.Port))
+	bind := ""
+	if e.config.Loopback {
+		bind = "127.0.0.1"
+	}
+	ln, err := net.Listen("tcp", net.JoinHostPort(bind, strconv.Itoa(e.config.Port)))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "hosts: could not open the entrance:", err)
 		e.status.Open, e.status.Addrs, e.status.Failed = false, nil, HostListen
@@ -230,8 +243,9 @@ func (e *hostEntrance) open(h *Hub) {
 			e.config.Port = port
 		}
 	}
-	srv := peer.Server(e.config.Identity, h.hostsHandler(e.proto))
-	e.srv, e.ln = srv, ln
+	handler := h.hostsHandler(e.proto)
+	srv := peer.Server(e.config.Identity, handler)
+	e.srv, e.handler, e.ln = srv, handler, ln
 	go func() {
 		err := srv.ServeTLS(ln, "", "")
 		if err == nil || errors.Is(err, http.ErrServerClosed) {
@@ -252,12 +266,13 @@ func (h *Hub) stoppedHostEntrance(e *hostEntrance, srv *http.Server) {
 		return
 	}
 	was := e.status
-	e.srv = nil
+	e.srv, e.handler = nil, nil
 	h.stopBeacon(e)
 	e.status.Open, e.status.Addrs, e.status.Failed = false, nil, HostListen
 	now := e.status
 	e.mu.Unlock()
 	h.tellHostStatus(was, now)
+	h.followReverse(e)
 }
 
 func sameHostStatus(a, b HostStatus) bool {

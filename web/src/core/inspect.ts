@@ -271,8 +271,8 @@ function permissionQuery(
   }
 }
 
-// 参加を頼む役（AI が参加を頼むときに matomezu が行うアクション）は、参加が確定する前にも行える
-const joinsWithoutParticipation = (def: ActionDef): boolean => def.runsWhenAIJoins !== undefined
+// 参加者を作る役（AI が参加を頼むときに matomezu が行うアクションのうち make-participant）は、参加が確定する前にも行える
+const joinsWithoutParticipation = (def: ActionDef): boolean => def.runsWhenAIJoins === "make-participant"
 
 // コントロールセンターが、対象の種類（対象の定義）のアクションを全部許すか
 const allowsSubject = (center: ControlCenterDef, target: string): boolean =>

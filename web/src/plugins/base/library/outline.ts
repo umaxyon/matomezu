@@ -3,6 +3,7 @@
 import {
   type EntryKind,
   entriesIn,
+  inBackyard,
   type Naming,
   placeOf,
   rowsWithin,
@@ -34,6 +35,7 @@ import {
 } from "../../../core/references"
 import type { ReferenceEntry } from "../../../core/schema/book"
 import type { MovedIfOff } from "../../../core/unreadable"
+import type { MatomezuState } from "../../../store/state"
 import type { Workdesk } from "../participant/workdesks"
 import { referenceLook } from "../utils/reference-look"
 import { restoreTargetOf } from "./entries"
@@ -45,6 +47,7 @@ import {
   deskPathOf,
   deskPlaceOf,
   deskRowId,
+  deskTitleOf,
   GONE,
   isDeskRow,
   NO_DESKS,
@@ -389,14 +392,39 @@ function outsideBinderOver(folders: Folders, page: string): Folder | undefined {
   return above.some(f => f.folderRole === "book") ? undefined : near
 }
 
-// ブックの外のページ page の置き場所: 書庫ホームから、そのページ（ブックの外のバインダの中のページなら、そのバインダ）の入っているフォルダまでの、フォルダの id の列
-// （書庫ホームに直に在れば、書庫ホームだけ）。ステージで開けるブックの外のページの置き場所（core/folders-tree.ts の atOutsidePagePlace）にも、ブックの外のバインダの中にも無ければ空。
-// ブックの外のページは作業机の下に無いので、作業机は渡さない
-export function outsidePagePlaceOf(folders: Folders, page: string): string[] {
-  const entry = atOutsidePagePlace(folders, page) ? page : outsideBinderOver(folders, page)?.id
-  const holder = entry === undefined ? undefined : foldersOver(folders, entry)[0]
-  return holder ? pathTo(folders, holder.id, NO_DESKS) : []
+// 開いている物 entry（ブック・ブックの外のバインダ・ブックの外のページ）の、書庫の画面の上の置き場所: 右の枠に出すフォルダ folder（作業机とその下の行の id も）、
+// そこで選ぶ行 picked、パンくず path（folder までの id の列）。ブックの外のバインダの中のページは、そのバインダの行。
+// ワーカーブックは、それを映している作業机（2 つあれば desks の先頭）の下のブックの行。作業机に映っていないバックヤードの中の物・ゴミ箱の中の物・書庫の表に無い物は NO_LIBRARY_PLACE
+export interface LibraryPlace {
+  folder: string
+  picked: string
+  path: readonly string[]
 }
+export const NO_LIBRARY_PLACE = "none"
+
+export function entryPlaceOf(
+  folders: Folders,
+  entry: string,
+  desks: readonly Workdesk[],
+): LibraryPlace | typeof NO_LIBRARY_PLACE {
+  const desk = desks.find(d => d.book === entry)
+  if (desk !== undefined) {
+    const folder = deskRowId(desk.room)
+    return { folder, picked: deskBookRowId(desk.room), path: pathTo(folders, folder, desks) }
+  }
+  if (inBackyard(folders, entry) || inTrash(folders, entry)) return NO_LIBRARY_PLACE
+  const row =
+    folders[entry] !== undefined || atOutsidePagePlace(folders, entry) ? entry : outsideBinderOver(folders, entry)?.id
+  const holder = row === undefined ? undefined : foldersOver(folders, row)[0]
+  if (row === undefined || holder === undefined) return NO_LIBRARY_PLACE
+  return { folder: holder.id, picked: row, path: pathTo(folders, holder.id, NO_DESKS) }
+}
+
+// パンくずのフォルダ id の名前（作業机とその下の行も。名前を持たない物・無い物は NO_TITLE）
+export const folderTitleOf = (s: MatomezuState, id: string, naming: Naming, desks: readonly Workdesk[]): string =>
+  (isDeskRow(id)
+    ? deskTitleOf(desks, s.folders, id, real => titleOf(s, s.folders[real] ? "folder" : "page", real, naming))
+    : titleOf(s, "folder", id, naming)) ?? NO_TITLE
 
 // 行を開いたとき（2 回押し）の行き先: フォルダは中へ入る、ブックとその中のページ・バインダはブックを窓に出す、ブックの外のページはそのページを、
 // ブックの外のバインダはそのバインダを（中のページの行なら、そのページで）窓に出す。ゴミ箱の中の物・読めない物は開かない（NOT_OPENED）

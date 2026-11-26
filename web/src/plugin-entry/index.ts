@@ -10,7 +10,6 @@ import type {} from "../plugins"
 
 // base の入口の名前（置く計算・文字・Markdown を読む・ブックの設定の項目・紙と、base が拡張ポイントに書き足した物の型。ビルトインプラグインは plugins/base から読む）
 export type {
-  AiUi,
   Axis,
   BlockProps,
   BodyColumn,
@@ -39,6 +38,7 @@ export type {
   ParticipantCategory,
   PortArea,
   Ports,
+  Presence,
   PrintSheets,
   RichLine,
   Run,
@@ -58,13 +58,13 @@ export type {
   WorkroomState,
 } from "../plugins/base"
 export {
-  AI_UI_LABELS,
   AlignSchema,
   adaptPage,
   addPageIn,
   adminWorkroom,
   aiPlacedOf,
   aiPlacedOfPage,
+  aiUiText,
   alignPadding,
   allRectsOf,
   apart,
@@ -134,7 +134,6 @@ export {
   newClash,
   nextItemId,
   PAGE_PAPER_COLOR,
-  PAGE_TEXT_COLORS,
   PAGE_THEME,
   PAPER_IDS,
   PLACE_LINES,

@@ -45,6 +45,10 @@ func (h *Hub) Join() *client {
 		hello["build"] = h.build
 	}
 	h.send(c, "hello", hello)
+	// あるときだけ送る（窓は hello を受けたら持っている承認待ちを空にするので、常駐を起動し直したあとも前の承認待ちは残らない。host-client/server.ts）
+	if len(h.pending) > 0 {
+		h.send(c, "pending-messages", h.pendingListHeld())
+	}
 	return c
 }
 

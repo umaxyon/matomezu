@@ -29,6 +29,7 @@ const row = (state: WorkroomRow["state"], admin = false, id = "a"): WorkroomRow 
   branch: NO_BRANCH,
   aiUi: NO_AI_UI,
   calledAt: NOT_CALLED,
+  wake: "none",
   requestedAt: NOT_REQUESTED,
   activity: "unknown",
 })

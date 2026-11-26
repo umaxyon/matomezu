@@ -56,6 +56,7 @@ export interface MatomezuState {
   updateStatus: UpdateStatus | null // 新しい版の確かめの結果（常駐だけが持つ。ホストクライアントが知らせる。無ければ null）
   hostStatus: HostStatus | null // ホストどうしの入口の様子（常駐だけが持つ。ホストクライアントが知らせる。無ければ null）
   hostPeers: HostPeers | null // ほかのホストの様子（常駐だけが持つ。ホストクライアントが知らせる。無ければ null）
+  pendingMessages: readonly PendingMessage[] // 承認待ちの AI 間メッセージ（常駐だけが持つ。ホストクライアントが知らせる。無ければ空）
   lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐のレコードの知らせに添えられた値で入れる）
   // ステージエントリの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのステージエントリを変えたら、その全部に同じ画面の履歴の段が入る
   history: Readonly<Record<string, History>>
@@ -98,15 +99,21 @@ export interface HostStatus {
 }
 
 // ペアリングしたホストの、常駐だけが持つ様子: state はつながりの様子（確かめた時点で）、lastSeen は最後につながった時刻、addr は待っている所（番地:ポート）、
+// reverseOnly は相手が張ったリバース接続でだけつながっている（相手の待っている所へは届かない）、
 // name と userName は相手の今のホスト名と利用者名（つながったときに聞いた物）、
 // label はホストエイリアス（常駐が決める。同じ名前のホストがあれば鍵の印の頭（違うまで伸ばす）を添える）、workrooms は相手のワークルームの一覧の写し（つながっていて写しのあるときだけ）
 export interface PeerLive {
   hostId: string
   label: string
   state: "connected" | "unreachable" | "key-mismatch" | "update-this" | "update-that"
-  workrooms?: readonly { name: string; activity: "working" | "idle" | "unknown" }[]
+  workrooms?: readonly {
+    name: string
+    activity: "working" | "idle" | "unknown"
+    alive: "alive" | "lapsed" | "unknown" // そこにいる AI が生きているか（分からなければ unknown）
+  }[]
   lastSeen?: string
   addr?: string
+  reverseOnly?: boolean
   name?: string
   userName?: string
 }
@@ -138,6 +145,18 @@ export interface HostPeers {
   pairing?: HostPairing
 }
 
+// 承認待ちの AI 間メッセージ 1 通（ほかのホストから届いた物。常駐だけが持つ）。receiver は受け手の参加者 id、
+// senderRoom は送り手のワークルームの名前、senderHost は送り手のホスト id で senderHostName はそのホストエイリアス
+export interface PendingMessage {
+  id: string
+  receiver: string
+  senderRoom: string
+  senderHost: string
+  senderHostName: string
+  body: string
+  at: string
+}
+
 // ほかのホストについてホストに頼む事: pair は addr（番地:ポート）のホストにペアリングを頼む（manual は利用者が手で入れたか）、end-pairing は頼んでいるのをやめる（終わった様子も消す）、
 // check はペアリングしたホストとつながっているか確かめる、discover は mDNS で今すぐ問う、repick-port は覚えたポートが使われているとき別の番号で開き直す
 export type HostRequest =
@@ -147,10 +166,11 @@ export type HostRequest =
   | { kind: "discover" }
   | { kind: "repick-port" }
 
-// 常駐の版とデータの形の番号（移し替えの数）
+// 常駐の版とデータの形の番号（移し替えの数）と、配る画面の印（index.html から求めた物。無い常駐もある）
 export interface Build {
   version: string
   dataVersion: number
+  web?: string
 }
 // 窓を開いたときの常駐（from）と、つなぎ直したときの常駐（to）。dropped は、データの形が違うので送らずに捨てた、まだ確かめられていなかったアクションバルクの数
 export interface StaleBuild {
@@ -159,10 +179,12 @@ export interface StaleBuild {
   dropped: number
 }
 
-// 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチ（知らされていない物は持たない）
+// 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチと、起こす知らせを渡せる matomezu watch がつながっているか（reaches。
+// つながっていなければ持たない）（知らされていない物は持たない）
 export interface ParticipantLive {
   readonly model?: string
   readonly branch?: string
+  readonly wake?: "reaches"
 }
 
 // 編集ロックの 1 つ: within（ページの id か、ブックの id）の中の物 ids（ページなら、アイテムなどとそのページのアノテーションとページそのもの。ブックなら、バインダとブックそのもの）か、対象の種類 subject のレコード ids
@@ -284,6 +306,10 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   setHostStatus(status: HostStatus): void
   // ほかのホストの様子（hostPeers）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setHostPeers(peers: HostPeers): void
+  // 承認待ちの AI 間メッセージを入れる（pendingMessages）。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
+  setPendingMessages(messages: readonly PendingMessage[]): void
+  // 承認待ちの AI 間メッセージに、承認（approve）かキャンセル（cancel）を頼む。base のフックを通して使う。ホストが無いか、頼めなければ投げる
+  answerMessage(id: string, answer: "approve" | "cancel"): Promise<void>
   // ほかのホストについてホストに頼む（様子はホストの知らせで入る）。base のフックを通して使う。ホストが無いか、頼めなければ投げる
   askHosts(request: HostRequest): Promise<void>
   // 新しい版を今確かめるのをホストに頼む（結果はホストの知らせで入る）。base のフックを通して使う。ホストが無いか、頼めなければ投げる
@@ -372,6 +398,7 @@ export function initialState(
     updateStatus: null,
     hostStatus: null,
     hostPeers: null,
+    pendingMessages: [],
     lastWindow: false,
     history: {},
     pluginValues: NO_PLUGIN_STATES,
@@ -431,6 +458,8 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   updateHost?: { check(): Promise<void>; ask(workroom: string): Promise<boolean> }
   // ほかのホストについてホストに頼む口。無ければ、頼むと投げる（E412）
   hostsHost?: { ask(request: HostRequest): Promise<void> }
+  // 承認待ちの AI 間メッセージの承認・キャンセルをホストに頼む口。無ければ、頼むと投げる（E414）
+  messageHost?: { answer(id: string, answer: "approve" | "cancel"): Promise<void> }
   // 読めない物のフォルダについてホストに頼む口（完全に消す・無効にしたら移る物を数える）。無ければ、頼むと投げる（E406）
   unreadableHost?: {
     purge(id: string): Promise<Purged>

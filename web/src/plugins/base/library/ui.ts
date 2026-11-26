@@ -1,5 +1,6 @@
 // 書庫の見た目: 書庫のスクリーンとビュー、ダイアログ、コマンドのアイコンと右クリックのメニュー、フォルダの中身を読むフック
 
+export { BOOK_PLACE } from "./BookPlace"
 export { LIBRARY_CONTEXT_MENUS } from "./commands"
 export {
   LIBRARY_NEW_BOOK_DIALOG,

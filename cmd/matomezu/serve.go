@@ -107,7 +107,7 @@ func (c *serveCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	hub.SetBuild(server.Build{Version: version, DataVersion: storage.DataVersion()})
+	hub.SetBuild(server.Build{Version: version, DataVersion: storage.DataVersion(), Web: server.WebPrint(webFS)})
 	hub.SetCommand(typedName("matomezu"))
 	// 新しい版を、立ったときと 1 日ごとに確かめる（利用者の設定が許せば。開発の版は確かめない）
 	if version == devVersion {

@@ -14,6 +14,7 @@ import { kit } from "../kit"
 import { useCloseLeftSidePanel, useLeftSidePanelShows, useToggleLeftSidePanel } from "../left-side-panel/hooks"
 import type { LeftSidePanelEntry } from "../left-side-panel/state"
 import { paperSize } from "../place/grow"
+import { useCanPlace } from "../toolbox/use-can-place"
 import footer from "../utils/FooterButtons.module.css"
 import { refusalMessage } from "../utils/refusal"
 import { scrapFrameIn } from "."
@@ -68,6 +69,7 @@ function Row({ id, scrap }: { id: string; scrap: Scrap }) {
   const paper = opened === NO_PAGE ? null : paperSize(catalog, opened)
   const toPlace = paper ? scrapToPlace(scrap, paper) : scrap
   const pressed = frame !== null && placing !== NO_PLACING && placing.item === frame && sameData(placing.props, toPlace)
+  const canPlace = useCanPlace() // 置くコマンドを認可ステップが止める間（ロック中など）は押せない。置こうとしている行は、取り消せるように押せるまま
   const removable = useAllowedOn(SCRAP_REMOVE.id, {}, { record: id }).ok
   const label = useMatomezuState(s => {
     const at = openablePage(s, scrap.page)
@@ -91,7 +93,7 @@ function Row({ id, scrap }: { id: string; scrap: Scrap }) {
         type="button"
         className={styles.pick}
         aria-pressed={pressed}
-        disabled={frame === null}
+        disabled={frame === null || (!canPlace && !pressed)}
         title={label}
         onClick={() => frame && togglePlacing(frame, toPlace)}
       >

@@ -13,6 +13,7 @@ import {
   isParticipantAlive,
   langOf,
   participantAliveMs,
+  participantLapsesAt,
   userSetting,
 } from "../../web/src/core/settings"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
@@ -111,22 +112,38 @@ test("選択肢の名前（optionTitles）の文言の鍵が文言に無けれ�
   expect(() => assemble([...BUILTIN, named])).toThrow("E018")
 })
 
+test("設定の項目の説明（help）の文言の鍵が文言に無ければ、利用者の設定の項目でもページの設定の項目でも、台帳アセンブルで誤り", () => {
+  const user: Plugin = { id: "@ex/h", userSettings: [{ ...OPEN, id: "@ex/h:mode", help: "@ex/h:none" }] }
+  expect(() => assemble([...BUILTIN, user])).toThrow("E018")
+  const page: Plugin = {
+    id: "@ex/h",
+    settings: [
+      { id: "@ex/h:look", title: "@matomezu/base:Language", schema: z.number(), holder: "page", help: "@ex/h:none" },
+    ],
+  }
+  expect(() => assemble([...BUILTIN, page])).toThrow("E018")
+})
+
 test("参加者が生きているとする長さは、role が participant-alive の項目（分の数）から決まる", () => {
   expect(participantAliveMs(CORE_CATALOG, {})).toBe(60 * 60_000)
   expect(participantAliveMs(CORE_CATALOG, { "@matomezu/base:participant-alive": "15" })).toBe(15 * 60_000)
   expect(participantAliveMs(CORE_CATALOG, { "@matomezu/base:participant-alive": "7" })).toBe(60 * 60_000)
 })
 
-test("参加者が生きているかは、最後に呼ばれた時刻から有効時間の設定以内。呼ばれていない・読めない時刻・形に合わない設定は既定の 60 分で決まる", () => {
+test("参加者が生きているかは、起こす知らせを渡せる matomezu watch がつながっているか、最後に呼ばれた時刻から有効時間の設定以内。呼ばれていない・読めない時刻・形に合わない設定は既定の 60 分で決まる", () => {
   const now = Date.parse("2026-11-08T10:00:00.000Z")
-  const alive = (calledAt: string | undefined, settings = {}) =>
-    isParticipantAlive(CORE_CATALOG, settings, calledAt, now)
+  const alive = (calledAt: string | undefined, settings = {}, wake: "reaches" | "none" = "none") =>
+    isParticipantAlive(CORE_CATALOG, settings, { calledAt, wake }, now)
   expect(alive(undefined)).toBe(false)
   expect(alive("not a time")).toBe(false)
   expect(alive("2026-11-08T09:30:00.000Z")).toBe(true)
   expect(alive("2026-11-08T08:30:00.000Z")).toBe(false)
   expect(alive("2026-11-08T09:30:00.000Z", { "@matomezu/base:participant-alive": "15" })).toBe(false)
   expect(alive("2026-11-08T09:30:00.000Z", { "@matomezu/base:participant-alive": "7" })).toBe(true)
+  expect(alive("2026-11-08T08:30:00.000Z", {}, "reaches")).toBe(true)
+  expect(alive(undefined, {}, "reaches")).toBe(true)
+  expect(participantLapsesAt(CORE_CATALOG, {}, "2026-11-08T09:30:00.000Z")).toBe(Date.parse("2026-11-08T10:30:00.000Z"))
+  expect(participantLapsesAt(CORE_CATALOG, {}, undefined)).toBeUndefined()
 })
 
 test("無効の（有効にしていない）追加プラグインの id の集合は、追加プラグインのうち、role が enabled-plugins の設定の値（形に合わない値は無し）に無い物。足したときは無効", () => {

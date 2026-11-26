@@ -41,7 +41,7 @@ export function UpdateCategory() {
   const [asking, setAsking] = useState<Asking>("idle")
   const isAlive = useIsAlive()
   const admin = useWorkroomRows().find(r => r.admin)
-  const adminHere = admin?.state === "ready" && isAlive(admin.calledAt, Date.now()) && asking !== "nobody"
+  const adminHere = admin?.state === "ready" && isAlive(admin, Date.now()) && asking !== "nobody"
   useEffect(() => {
     if (copied === "none") return
     const timer = setTimeout(() => setCopied("none"), COPIED_MS)

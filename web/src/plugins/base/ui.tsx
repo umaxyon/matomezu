@@ -16,6 +16,7 @@ import { EDIT_LOCK } from "./edit-lock/ui"
 import { FOOTER_MENU_MINIMAP, HISTORY_BUTTONS, STAGE_MENU_BUTTONS } from "./footer-menu/ui"
 import { HISTORY_ICONS } from "./history/ui"
 import {
+  BOOK_PLACE,
   LIBRARY_COMMAND_ICON_LOOKS,
   LIBRARY_COMMAND_ICONS,
   LIBRARY_NEW_BOOK_DIALOG,
@@ -45,7 +46,7 @@ import { OPEN_GUIDE } from "./open-guide/ui"
 import type { AnnotationIconProps } from "./outbox/ui"
 import { OUTBOX, OUTBOX_BUTTON } from "./outbox/ui"
 import { PAGE_CONTEXT_MENU_ROWS, PAGE_DIALOG_VIEWS, PAGE_LIST, PAGE_SETTINGS_ICONS, PAGE_TABS } from "./page-tabs/ui"
-import { JOIN_REQUEST_BOOKMARKS, JOIN_REQUEST_WATCH, PARTICIPANT_DIALOG_VIEWS } from "./participant/ui"
+import { JOIN_REQUEST_BOOKMARKS, JOIN_REQUEST_WATCH, PARTICIPANT_DIALOG_VIEWS, WORKER_BIRDS } from "./participant/ui"
 import {
   PRINT_CHECK_PANEL,
   PRINT_PREVIEW_BUTTON,
@@ -79,7 +80,6 @@ import {
   STAND_LAYER,
 } from "./stage/ui"
 import { STARTUP_ERROR } from "./startup-error/ui"
-import { TEXT_SETTING_VIEWS } from "./text/ui"
 import { TOAST_HOST } from "./toast-host/ui"
 import { TOOL_PICKER_WIDGET } from "./tool-picker/ui"
 import { TOOL_ICONS, TOOL_SWITCH } from "./tool-switch/ui"
@@ -189,6 +189,8 @@ export {
   AdminCrown,
   BirdFaceView,
   CrownIcon,
+  PendingBalloon,
+  useAliveNow,
   useOwnBookPages,
   useVisitorRows,
   useWorkerBook,
@@ -323,7 +325,7 @@ export const BASE_UI = definePluginUi(BASE, {
     ...PARTICIPANT_DIALOG_VIEWS,
     ...SCRAP_DIALOG_VIEWS,
   },
-  settingViews: { ...BOOK_LOOK_SETTING_VIEWS, ...TEXT_SETTING_VIEWS, ...PRINT_PREVIEW_SETTING_VIEWS },
+  settingViews: { ...BOOK_LOOK_SETTING_VIEWS, ...PRINT_PREVIEW_SETTING_VIEWS },
   userSettingViews: USER_SETTING_VIEWS,
   widgets: [
     WINDOW,
@@ -371,6 +373,8 @@ export const BASE_UI = definePluginUi(BASE, {
     STARTUP_ERROR,
     UNREADABLE_NOTICE,
     PAGE_PLACE,
+    BOOK_PLACE,
+    WORKER_BIRDS,
     PROPOSAL_ACTIONS,
     FULL_TEXT_MODE,
     WIDE_SEARCH_TAB,
@@ -429,6 +433,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-layers": Record<string, never>
     "@matomezu/base:sheet-layers": PrintSheetProps // 印刷区画 1 つの中のレイヤー
     "@matomezu/base:stage-bottom": Record<string, never>
+    "@matomezu/base:book-name-head": Record<string, never> // ブックの名前の枠の中、名前のボタンの前
     "@matomezu/base:stage-corner": Record<string, never>
     "@matomezu/base:footer-menu-map": Record<string, never>
     "@matomezu/base:footer-menu-history": Record<string, never>
@@ -501,6 +506,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:startup-error": typeof STARTUP_ERROR
     "@matomezu/base:unreadable-notice": typeof UNREADABLE_NOTICE
     "@matomezu/base:page-place": typeof PAGE_PLACE
+    "@matomezu/base:book-place": typeof BOOK_PLACE
+    "@matomezu/base:worker-birds": typeof WORKER_BIRDS
     "@matomezu/base:proposal-actions": typeof PROPOSAL_ACTIONS
     "@matomezu/base:wide-search-full-text": typeof FULL_TEXT_MODE
     "@matomezu/base:wide-search": typeof WIDE_SEARCH_TAB

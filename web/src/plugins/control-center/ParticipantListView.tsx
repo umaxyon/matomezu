@@ -5,8 +5,8 @@
 import { useState } from "react"
 import { NO_STATE } from "../../plugin-api"
 import { Slot, useMessages, usePluginState, useSetPluginState } from "../../plugin-api/ui"
-import { visitorName } from "../base"
-import { Band, Panel, useRowSlide, useVisitorRows, useWorkroomRows, VisitorIcon } from "../base/ui"
+import { NO_OCCUPANT, visitorName } from "../base"
+import { Band, Panel, PendingBalloon, useRowSlide, useVisitorRows, useWorkroomRows, VisitorIcon } from "../base/ui"
 import { BIRD_SIZE, Bird } from "./Bird"
 import { PARTICIPANT_KIND, PICKED, WORKROOM_KIND } from "./control-center"
 import { kit } from "./kit"
@@ -61,6 +61,7 @@ export function ParticipantListView() {
                 </span>
                 <span className={styles.who}>
                   <span className={styles.name}>{row.room.name}</span>
+                  {row.participant === NO_OCCUPANT ? null : <PendingBalloon receiver={row.participant.id} />}
                   {detail ? <span className={styles.detail}>{detail}</span> : null}
                   {kind !== "preparing" ? (
                     <Slot

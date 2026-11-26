@@ -123,7 +123,7 @@ export {
 // レコードが無いときの値（useRecord・アクションの文脈の record）
 export { NO_RECORD } from "../core/records"
 export type { Book, StageLineup } from "../core/schema/book"
-export { LISTED_WORKROOMS } from "../core/settings"
+export { LISTED_WORKROOMS, type WakeReach } from "../core/settings"
 export {
   areaOf,
   binderOf,
@@ -149,7 +149,6 @@ export type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../core/w
 export type { StageView } from "../core/workspace"
 export type { CalledScreen, CommandContext, ScreenCommandContext } from "../store/commands/def"
 export { NO_BOOK, NO_OUTSIDE_BINDER, NO_PAGE } from "../store/commands/def"
-export { NO_CONTEXT_MENU } from "../store/context-menus"
 export type { NewPageDialogArgs, PageSettingsArgs } from "../store/dialogs"
 export { NO_DIALOG, NO_DIALOG_PREVIEW, shapeDialogs } from "../store/dialogs"
 export type { OwnedMessages } from "../store/kit"

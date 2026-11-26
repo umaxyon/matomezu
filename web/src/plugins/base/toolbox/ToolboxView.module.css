@@ -6,6 +6,7 @@
   gap: 2px;
 }
 .tool {
+  position: relative;
   display: grid;
   place-items: center;
   padding: 6px;
@@ -16,12 +17,30 @@
   cursor: pointer;
   line-height: 0;
 }
-.tool:hover {
+.tool:hover:not(:disabled) {
   background: var(--skin-btn-hover);
 }
 .tool[aria-pressed="true"] {
   background: color-mix(in srgb, var(--skin-accent) 30%, transparent);
   border-color: var(--skin-accent);
+}
+/* 置けない間: 押せず、斜めの線を引く（tool-picker の使えない道具とそろえる） */
+.tool:disabled,
+.cell:disabled {
+  color: var(--skin-text-disabled);
+  cursor: default;
+}
+.tool:disabled::after,
+.cell:disabled::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 70%;
+  height: 2px;
+  margin: -1px 0 0 -35%;
+  background: currentColor;
+  transform: rotate(-45deg);
 }
 .tool:focus-visible {
   outline: 2px solid var(--skin-accent);
@@ -58,6 +77,7 @@
   box-shadow: var(--skin-shadow-2);
 }
 .cell {
+  position: relative;
   display: grid;
   place-items: center;
   width: 32px;
@@ -70,7 +90,7 @@
   cursor: pointer;
   line-height: 0;
 }
-.cell:hover {
+.cell:hover:not(:disabled) {
   background: var(--skin-btn-hover);
 }
 .cell[aria-pressed="true"] {

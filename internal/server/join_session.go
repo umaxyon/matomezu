@@ -27,6 +27,7 @@ func (h *Hub) noteJoinHost(id string, req JoinRequest) {
 		n.SessionPid, n.SessionPidSpace = req.SessionPid, req.SessionPidSpace
 	}
 	h.participantNotes[id] = n
+	h.noteWakesLocked()
 }
 
 // noteSession は参加者 id の常駐だけが持つ参加者の記録に、join で MCP が運んだセッション id を結ぶ（空なら何もしない）。
@@ -40,6 +41,7 @@ func (h *Hub) noteSession(id, sessionID string) {
 	h.bindSession(id, sessionID, boundByJoin, "")
 	h.broadcast("participant-ready", map[string]any{"participant": id})
 	h.kickRooms()
+	h.noteWakesLocked()
 }
 
 // bindSession は、参加者 id にセッション id sessionID を、結んだ所 by で結ぶ。host が空でなければAI のプログラムのプロセス id も書く。
@@ -148,6 +150,7 @@ func (h *Hub) SessionParticipant(session, host string) string {
 		n.WakeHost, n.WakeSession = host, session
 		logWake("participant %s is reached at host %q, session %q (hook)", found, host, session)
 		h.participantNotes[found] = n
+		h.noteWakesLocked()
 		if err := h.putParticipantNotes(); err != nil {
 			fmt.Fprintln(os.Stderr, "could not save the wake target of participant", found, ":", err)
 		}

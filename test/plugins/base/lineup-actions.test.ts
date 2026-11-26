@@ -90,7 +90,7 @@ describe("バインダのアクション", () => {
 
 describe("pages-update", () => {
   const THEME = "@matomezu/base:page-theme"
-  const TEXT_COLORS = "@matomezu/base:page-text-colors"
+  const LINE_ROUTE = "@matomezu/line:line-route"
 
   test("全部のページの設定を 1 回で変え、ロックしたページと、その項目を選んでいないタイプのページは飛ばす", () => {
     const mixed = testBook("b2", "混ざる", [
@@ -100,7 +100,7 @@ describe("pages-update", () => {
     ])
     const done = run(mixed, "@matomezu/base:pages-update", {
       pages: "all",
-      settings: { [TEXT_COLORS]: { "@matomezu/base:warn": "#111111" } },
+      settings: { [LINE_ROUTE]: "straight" },
     })
     expect(done).toMatchObject({ ok: true, result: { updated: ["p1"], skipped: ["p2", "m1"] } })
     // 名指したページだけ

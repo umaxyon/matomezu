@@ -60,10 +60,14 @@ export interface ItemUi<Props = never, Content = never> {
   contextMenus?: readonly ContextMenuId[] // ビューが開く右クリックのメニュー
 }
 
+// 設定の項目の説明が無いこと（UserSettingControlProps の help）
+export const NO_HELP: unique symbol = Symbol("no help")
+
 // 利用者の設定の項目を変えるコンポーネントに渡す値。value は今の値（値が無いか形に合わなければ既定。既定も無ければ NOT_SET）、onChange は値を書き、onReset は値を消す（既定に戻す）。
 // 変えさせないときは、並べる側がまとめて押せなくする（コンポーネントは見なくてよい）
 export interface UserSettingControlProps<V = unknown> {
   label: string
+  help: string | typeof NO_HELP // 項目の短い説明（訳した文。項目の定義が help を持たなければ NO_HELP）。名前の右の「？」の吹き出しに出す
   value: V | typeof NOT_SET
   onChange(value: V): void
   onReset(): void

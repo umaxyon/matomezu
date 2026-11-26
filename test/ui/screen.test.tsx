@@ -2,8 +2,9 @@ import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { StrictMode } from "react"
 import { pagesOf } from "../../web/src/core/book"
+import { HOME_ID } from "../../web/src/core/folders"
 import { defineMessages } from "../../web/src/core/i18n/messages"
-import { screenOf } from "../../web/src/core/window"
+import { currentScreen, screenOf } from "../../web/src/core/window"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -85,6 +86,29 @@ test("下に出た書庫で 2 回押したブックを右で開き、右にそ�
   fireEvent.doubleClick(within(lowerLibrary()).getByRole("button", { name: "残課題", hidden: true }))
   expect(screen.getAllByRole("img", { name: "紙" })).toHaveLength(2)
   expect(screen.getAllByRole("tablist").map(l => l.getAttribute("aria-label"))).toEqual(["まとめ図の構想", "残課題"])
+})
+
+test("下に出た書庫で、ゴミ箱に入れられない行に Delete を押しても断るだけで、上のステージの紙で選んでいる物は消さない（書庫に焦点が移ると、書庫のスクリーンがカレントになる）", () => {
+  const store = renderBooksScreen()
+  fireEvent.click(fromMenu("画面を分割"))
+  const items = () => (pagesOf(store.state.getState().books.b1!)[0] as { items: readonly { id: string }[] }).items
+  const left = screenOf(store.state.getState().window).stages[0]!.id
+  act(() => {
+    const perform = store.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }
+    const placed = { item: "@matomezu/box:shape-nest-box", at: { x: 100, y: 100 }, w: 100, h: 64 }
+    expect(perform("@matomezu/paper:item-place", placed, { page: "p1" }).ok).toBe(true)
+  })
+  const item = items()[0]!.id
+  act(() => store.actions.select(left, [item]))
+  const row = within(lowerLibrary()).getAllByRole("button", { hidden: true })[0]!
+  fireEvent.focus(row)
+  const library = currentScreen(store.state.getState().window)
+  expect(library.def).toBe("@matomezu/base:library-screen")
+  // 書庫ホームを選んでいる（ゴミ箱に入れる物も、消す物も無い）
+  act(() => store.setPluginState("@matomezu/base:library-picked", library.id, HOME_ID))
+  fireEvent.keyDown(row, { key: "Delete" })
+  expect(items().map(i => i.id)).toContain(item)
+  expect(store.state.getState().dialog).toBeNull()
 })
 
 test("書庫の右クリックのメニューで、ロックしたブックの行の「名前の変更…」「ゴミ箱に入れる」は、出たまま押せない。ロックしていないブックの行は押せる", () => {

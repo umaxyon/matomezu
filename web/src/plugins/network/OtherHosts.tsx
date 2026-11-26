@@ -1,7 +1,7 @@
-// コントロールセンターの「ほかのホスト」の節（スロット below-participants に置く。「ホストとつなぐ」が入のときだけ）: 見出しの右に［＋］（ホストをつなぐのダイアログ）、
+// コントロールセンターの「ほかのホスト」の節（スロット below-participants に置く。「ホストとつなぐ」が入のときだけ）: 見出しの右に［↻］（つながりを確かめ直し、ワークルームの写しを取り直す）と［＋］（ホストをつなぐのダイアログ）、
 // ペアリングしたホストの行（▸ 開く、● つながっている・○ つながっていない、ホストエイリアス、AI 用ホストリストから隠したホストは右に薄い斜線の入った目）。名前を押すと、コントロールセンターの選んでいる物にし、右の下の枠に詳しい所が出る。
-// ▸ を押すと行を開き、相手のワークルームの行（名前と作業中・空き。常駐が持つ相手の一覧の写しから。見るだけ）を出す。つながっていなければ「つながっていません」だけ。
-// 節を出したときに、ペアリングしたホストとつながっているかを常駐に確かめてもらう（間を置いて確かめ続けない）
+// ▸ を押すと行を開き、相手のワークルームの行（名前と作業中・空き、AI が生きていなければ薄くして応答なし。常駐が持つ相手の一覧の写しから。見るだけ）を出す。つながっていなければ「つながっていません」だけ。
+// 節を出したときと［↻］を押したときに、ペアリングしたホストとつながっているかを常駐に確かめてもらう（つながっていれば常駐が写しも取り直す。間を置いて確かめ続けない）
 import { useEffect, useState } from "react"
 import { NO_STATE } from "../../plugin-api"
 import { useActions, useMessages, useRecords, useSetPluginStateById, useSettings } from "../../plugin-api/ui"
@@ -57,11 +57,22 @@ function Section({ picked }: { picked: { kind: string; id: string } | typeof NO_
     <Panel className={styles.section}>
       <Band spread>
         <h2 className={styles.heading}>{t("Other hosts")}</h2>
-        <IconButton small label={t("Pair with a host")} onClick={() => openDialog(PAIRING_DIALOG.id)}>
-          <LineIcon size={12} stroke={2}>
-            <path d="M12 5v14M5 12h14" />
-          </LineIcon>
-        </IconButton>
+        <span className={styles.tools}>
+          <IconButton
+            small
+            label={t("Check the hosts again")}
+            onClick={() => void ask({ kind: "check" }).catch(() => {})}
+          >
+            <LineIcon size={12} stroke={2}>
+              <path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v6h-6" />
+            </LineIcon>
+          </IconButton>
+          <IconButton small label={t("Pair with a host")} onClick={() => openDialog(PAIRING_DIALOG.id)}>
+            <LineIcon size={12} stroke={2}>
+              <path d="M12 5v14M5 12h14" />
+            </LineIcon>
+          </IconButton>
+        </span>
       </Band>
       {rows.length === 0 ? <p className={styles.note}>{t("No paired hosts")}</p> : null}
       <ul className={styles.rows}>
@@ -109,7 +120,7 @@ function Section({ picked }: { picked: { kind: string; id: string } | typeof NO_
   )
 }
 
-// 開いたホストの行の下: 相手のワークルームの行（見るだけ）。つながっていなければ「つながっていません」だけ
+// 開いたホストの行の下: 相手のワークルームの行（見るだけ）。そこにいる AI が生きていなければ、行を薄くして「応答なし」を添える。つながっていなければ「つながっていません」だけ
 function Workrooms({ live }: { live: PeerLive | undefined }) {
   const t = useMessages(kit)
   if (live?.state !== "connected") return <p className={styles.rooms}>{t("Not connected now")}</p>
@@ -117,10 +128,15 @@ function Workrooms({ live }: { live: PeerLive | undefined }) {
   return (
     <ul className={styles.rooms} aria-label={t("Workrooms of {name}", { name: live.label })}>
       {live.workrooms.map(w => (
-        <li key={w.name} className={styles.room}>
+        <li key={w.name} className={styles.room} data-lapsed={w.alive === "lapsed"}>
           <span className={styles.roomName}>{w.name}</span>
-          {w.activity === "unknown" ? null : (
-            <span className={styles.activity}>{w.activity === "working" ? t("Working") : t("Idle")}</span>
+          {w.activity === "unknown" && w.alive !== "lapsed" ? null : (
+            <span className={styles.activity}>
+              {[
+                ...(w.activity === "unknown" ? [] : [w.activity === "working" ? t("Working") : t("Idle")]),
+                ...(w.alive === "lapsed" ? [t("Not responding")] : []),
+              ].join(" · ")}
+            </span>
           )}
         </li>
       ))}

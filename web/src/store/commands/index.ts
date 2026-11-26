@@ -27,7 +27,6 @@ import {
   workspaceOf,
 } from "../../core/window"
 import { stageView, toolOf } from "../../core/workspace"
-import { NO_CONTEXT_MENU } from "../context-menus"
 import { NO_DIALOG } from "../dialogs"
 import type { Assembled } from "../plugin"
 import { ownedPluginState, placeOf, pluginValueOf } from "../plugin-state"
@@ -106,7 +105,7 @@ export function screenCommandContext(
     arrangement: { id: win.arrangement },
     settings,
     dialog: dialog ?? NO_DIALOG,
-    contextMenu: contextMenu ?? NO_CONTEXT_MENU,
+    contextMenuOpen: contextMenu !== null,
     libraryHistory: state.history[LIBRARY_HISTORY] ?? NO_HISTORY,
     folders: state.folders,
     pageTitle: page => titleOf(state, "page", page, namingOf(catalog, settings)) ?? NO_NAME,
@@ -235,22 +234,32 @@ function whereOf(c: Called, arg?: unknown): Where | undefined {
   return commandScopeOf(c.def.permissionScope, c.ctx, arg) ?? (page === NO_PAGE ? undefined : { page })
 }
 
-// 出すか: 行うアクションが使え、when が出すとするとき（arg は、押す前から分かっている引数）
-export function isShown(defs: Assembled, state: MatomezuState, at: string, id: CommandId, arg?: unknown): boolean {
+// 呼ぶ引数: 押す前から分かっていれば、その 1 つ（undefined も分かっている値）。分からなければ空
+type Given = readonly [] | readonly [arg: unknown]
+
+// 定義 def の accepts を、分かっている引数で呼ぶ（引数が分からないか、accepts が無ければ、受け付ける）
+const accepted = (c: Called, given: Given): boolean =>
+  given.length === 0 ||
+  ((c.def.accepts as ((ctx: ScreenCommandContext, args: unknown) => boolean) | undefined)?.(c.ctx, given[0]) ?? true)
+
+// 出すか: 行うアクションが使え、when が出すとし、分かっている引数を accepts が受け付けるとき（given は、押す前から分かっている引数）
+export function isShown(defs: Assembled, state: MatomezuState, at: string, id: CommandId, ...given: Given): boolean {
   const c = called(defs, state, at, id)
-  return c !== null && performable(c, arg) && ask(c, "when") === true
+  return c !== null && performable(c, given[0]) && ask(c, "when") === true && accepted(c, given)
 }
 
 // 行うアクションのどれかを、認可ステップと印刷プレビューの間のステージ（stageBlocks）が止めないか（行うアクションが無ければ止められない。denied: "runs" のコマンドは認可ステップを見ない）。
 // ブック・ページ・アノテーションが対象のアクションは、今のブックの許可スコープの所で問う。
 // 許可スコープを書いたコマンドが行う、一覧が対象のアクション（戻す・やり直すの置き直しなど）は、開いているブック（ブックの外のページを開いていれば、そのページ）のその所を変える物として扱う
 // スクリーンから呼ぶコマンドが行うアクションと引数を名乗れば（performsWith）、その引数で行うときと同じに問い、名乗ったどれかが止められれば押せない
-function permitted(c: Called, state: MatomezuState, arg?: unknown): boolean {
+function permitted(c: Called, state: MatomezuState, given: Given): boolean {
+  const arg = given[0]
   const actions = c.def.performs ?? []
   if (actions.length === 0) return true
   if (!("stage" in c.ctx)) {
     const ctx = c.ctx
-    const named = (c.def.from === "screen" && c.def.performsWith?.(ctx, arg as never)) || UNKNOWN_PERFORMED
+    const named =
+      (given.length === 1 && c.def.from === "screen" && c.def.performsWith?.(ctx, arg as never)) || UNKNOWN_PERFORMED
     if (named !== UNKNOWN_PERFORMED) {
       const world = worldOf(state)
       const asked = { catalog: ctx.catalog, controlCenter: ctx.controlCenter, actor: USER }
@@ -275,16 +284,32 @@ function permitted(c: Called, state: MatomezuState, arg?: unknown): boolean {
   )
 }
 
+// 行うアクションが使え、そのどれかを認可ステップが止めないか（押せるかのうち、アクションの所だけ）
+const allowed = (c: Called, state: MatomezuState, given: Given): boolean =>
+  performable(c, given[0]) && permitted(c, state, given)
+
 // 押せるか: 出していて、行うアクションのどれかを認可ステップが止めず、enabled が押せるとするとき
-export function isEnabled(defs: Assembled, state: MatomezuState, at: string, id: CommandId, arg?: unknown): boolean {
+export function isEnabled(defs: Assembled, state: MatomezuState, at: string, id: CommandId, ...given: Given): boolean {
   const c = called(defs, state, at, id)
   return (
     c !== null &&
-    performable(c, arg) &&
     ask(c, "when") === true &&
-    permitted(c, state, arg) &&
+    accepted(c, given) &&
+    allowed(c, state, given) &&
     (ask(c, "enabled") ?? true)
   )
+}
+
+// 行うアクションを、開いているページのタイプなどの許可スコープの所で使えるか（認可ステップは見ない）
+export function isPerformable(defs: Assembled, state: MatomezuState, at: string, id: CommandId): boolean {
+  const c = called(defs, state, at, id)
+  return c !== null && performable(c)
+}
+
+// 行うアクションの所では押せるか（when・accepts・enabled は見ない）。押す前の状態を作るボタン（置こうとするボタンなど）が、その先のコマンドを押せる所かを問う
+export function isPermitted(defs: Assembled, state: MatomezuState, at: string, id: CommandId): boolean {
+  const c = called(defs, state, at, id)
+  return c !== null && allowed(c, state, [])
 }
 
 export function isActive(defs: Assembled, state: MatomezuState, at: string, id: CommandId): boolean {

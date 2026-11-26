@@ -6,6 +6,7 @@ import type { Records } from "../../../web/src/core/records"
 import { TICKETS_HISTORY } from "../../../web/src/plugins/base/library/backyards"
 import { MY_WORKDESK, WORKROOMS } from "../../../web/src/plugins/base/library/system-folders"
 import { myWorkdeskIn } from "../../../web/src/plugins/base/participant/my-workdesk"
+import { WRITE_IN_WORKER_BOOK } from "../../../web/src/plugins/base/participant/worker-page-add"
 import { WORKROOM } from "../../../web/src/plugins/base/participant/workroom"
 import { CORE_CATALOG } from "../../support"
 
@@ -59,4 +60,6 @@ test("参加の文は、ページが 1 枚なら単数で、ブックが無け�
   expect(deskOf("r3")).toMatchObject({ workrooms: "wf", book: undefined, pages: 0 })
   expect(deskOf("r3").forAi).toContain("has no pages yet: add one with @matomezu/base:worker-page-add.")
   expect(deskOf("r3").forAi).toContain(`read_folder with folder "${MY_WORKDESK}"`)
+  // 今の作業の相談はワーカーブックへ、と伝える
+  expect(deskOf("r3").forAi).toContain(WRITE_IN_WORKER_BOOK)
 })

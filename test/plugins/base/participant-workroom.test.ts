@@ -18,11 +18,15 @@ const room = (id: string, name: string) => ({ id, name, bird: "inko", createdAt:
 const joined = (id: string, workroom: string) => ({ id, state: "joined", workroom }) as never
 const rooms = [room("r1", "桜"), room("r2", "梅"), room("r3", "松")]
 const people = [joined("a", "r1"), joined("b", "r2")]
-const alive = (calledAt: string) => calledAt === "now"
+const alive = (p: { calledAt: string; wake: string }) => p.calledAt === "now" || p.wake === "reaches"
+const presences =
+  (calls: Record<string, string>, wakes: Record<string, "reaches"> = {}) =>
+  (id: string) => ({ calledAt: calls[id] ?? "none", wake: wakes[id] ?? ("none" as const) })
 
 test("引き継げるワークルームは、空室と、いる参加者が生きていないワークルーム。生きている参加者のいるワークルームは引き継げない", () => {
-  expect(takeable(rooms, people, { a: "now", b: "old" }, alive, 0).map(r => r.id)).toEqual(["r2", "r3"])
-  expect(takeable(rooms, people, {}, alive, 0).map(r => r.id)).toEqual(["r1", "r2", "r3"])
+  expect(takeable(rooms, people, presences({ a: "now", b: "old" }), alive, 0).map(r => r.id)).toEqual(["r2", "r3"])
+  expect(takeable(rooms, people, presences({}), alive, 0).map(r => r.id)).toEqual(["r1", "r2", "r3"])
+  expect(takeable(rooms, people, presences({}, { b: "reaches" }), alive, 0).map(r => r.id)).toEqual(["r1", "r3"])
 })
 
 test("ワークルームにいる参加者を引く。名前が使われているかは、前後の空白を除いた名前で、空の名前は使われていない", () => {

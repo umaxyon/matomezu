@@ -42,7 +42,7 @@ export function ContextMenuHost() {
 
 function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   const { closeContextMenu } = useStoreActions()
-  const items = useContextMenuItems(openedAt(menu), menu.id as ContextMenuId)
+  const items = useContextMenuItems(openedAt(menu), menu.id as ContextMenuId, menu.target)
   const t = useMessages(kit)
   const readPressed = useReadPluginState(kit, PRESSED_ANCHOR)
   // 開いたときの、押した物のアンカー
@@ -50,7 +50,7 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
     const pressed = readPressed()
     return pressedAnchorAt(pressed === NO_STATE ? undefined : pressed, menu.at)
   })
-  const shown = useAnchorMenuItems(openedAt(menu))
+  const shown = useAnchorMenuItems(openedAt(menu), anchor)
   const anchored = anchor === undefined ? [] : shown
   const own = useUiCatalog().contextMenuRows.get(menu.id) // メニューが自分で出す行（あれば、UI マッピングのコマンドの並びの前に出す）
   const empty = !own && items.every(i => i === SEPARATOR) && anchored.length === 0
@@ -159,7 +159,7 @@ function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMen
 
 // anchorMenu の項目: 押すと閉じてから、押した物のアンカーの id を渡してコマンドを呼ぶ
 function AnchorMenuItem({ id, anchor }: { id: AnchorMenuCommandId; anchor: string }) {
-  const command = useCommand(id)
+  const command = useCommand(id, anchor as never)
   const icon = useUiCatalog().commandIcons.get(id)
   const { closeContextMenu } = useStoreActions()
   const t = useMessages(kit)

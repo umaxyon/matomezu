@@ -101,16 +101,34 @@ export function updateCheckOn(catalog: CoreCatalog, settings: Settings): boolean
   return byRole(catalog, settings, "update-check") === true
 }
 
-// 参加者が時点 nowMs で生きているか: 最後に呼ばれた時刻 calledAt（無ければ呼ばれていない）から、有効時間の設定以内。画面もホスト（エンジン経由）もこれで決める
+// 参加者に、起こす知らせを渡せる matomezu watch がつながっているか（常駐だけが知り、画面は常駐から受ける）: reaches（つながっている）・none
+export const WAKE_REACH = ["reaches", "none"] as const
+export type WakeReach = (typeof WAKE_REACH)[number]
+
+// 参加者の、生きているかを決める様子: 最後に呼ばれた時刻 calledAt（無ければ呼ばれていない）と、起こす知らせを渡せる matomezu watch がつながっているか
+export type ParticipantPresence = { calledAt: string | undefined; wake: WakeReach }
+
+// 参加者が時点 nowMs で生きているか: 起こす知らせを渡せる matomezu watch がつながっているか、最後に呼ばれてから有効時間の設定以内。画面もホスト（エンジン経由）もこれで決める
 export function isParticipantAlive(
   catalog: CoreCatalog,
   settings: Settings,
-  calledAt: string | undefined,
+  presence: ParticipantPresence,
   nowMs: number,
 ): boolean {
-  if (!calledAt) return false
+  if (presence.wake === "reaches") return true
+  const until = participantLapsesAt(catalog, settings, presence.calledAt)
+  return until !== undefined && nowMs < until
+}
+
+// 最後に呼ばれた時刻 calledAt から有効時間が過ぎる時点（ミリ秒。呼ばれていないか読めない時刻なら undefined）
+export function participantLapsesAt(
+  catalog: CoreCatalog,
+  settings: Settings,
+  calledAt: string | undefined,
+): number | undefined {
+  if (!calledAt) return undefined
   const at = Date.parse(calledAt)
-  return !Number.isNaN(at) && nowMs - at < participantAliveMs(catalog, settings)
+  return Number.isNaN(at) ? undefined : at + participantAliveMs(catalog, settings)
 }
 
 // AI に見せる設定: 機能台帳にある、利用者だけが変える項目でない項目の値（値が無いか形に合わなければ既定。既定も無ければ出さない）

@@ -77,9 +77,18 @@ export const HostPeersSchema = z.object({
       hostId: z.string(),
       label: z.string(),
       state: z.enum(["connected", "unreachable", "key-mismatch", "update-this", "update-that"]),
-      workrooms: z.array(z.object({ name: z.string(), activity: z.enum(["working", "idle", "unknown"]) })).optional(),
+      workrooms: z
+        .array(
+          z.object({
+            name: z.string(),
+            activity: z.enum(["working", "idle", "unknown"]),
+            alive: z.enum(["alive", "lapsed", "unknown"]).catch("unknown"), // 古い版の相手は送らない
+          }),
+        )
+        .optional(),
       lastSeen: z.string().optional(),
       addr: z.string().optional(),
+      reverseOnly: z.boolean().optional(),
       name: z.string().optional(),
       userName: z.string().optional(),
     }),
@@ -123,11 +132,14 @@ export const DataSchema = z.object({
   host: HostStatusSchema.optional(),
   hostPeers: HostPeersSchema.optional(),
   participantLive: z
-    .record(z.string(), z.object({ model: z.string().optional(), branch: z.string().optional() }))
+    .record(
+      z.string(),
+      z.object({ model: z.string().optional(), branch: z.string().optional(), wake: z.literal("reaches").optional() }),
+    )
     .optional(),
 })
 // build は常駐の版とデータの形の番号（移し替えの数）。build の無い hello もある
-export const BuildSchema = z.object({ version: z.string(), dataVersion: z.number().int() })
+export const BuildSchema = z.object({ version: z.string(), dataVersion: z.number().int(), web: z.string().optional() })
 export const HelloSchema = z.object({ client: z.string(), build: BuildSchema.optional() })
 const Mark = { client: z.string().optional(), seq: z.number().int().optional() }
 // 変わったページ・フォルダ 1 つ（消したなら removed が true で、中身と版は無い）
@@ -161,8 +173,25 @@ export const ParticipantLiveSchema = z.object({
   participant: z.string(),
   model: z.string().optional(),
   branch: z.string().optional(),
+  wake: z.literal("reaches").optional(),
 })
 export const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 export const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown() })
 // 更新を頼んだ答え（ok が偽なら、そのワークルームに参加の確定した AI がいない）
 export const ASK_UPDATE_ANSWER = z.object({ ok: z.boolean() })
+
+// 承認待ちの AI 間メッセージ（常駐だけが持つ。知らせ pending-messages の中身は、その並び）。
+// 承認待ちは、ほかのホストから届いた物だけ（senderHost は送り手のホスト id、senderHostName はそのホストエイリアス）
+export const PENDING_MESSAGES = z.array(
+  z.object({
+    id: z.string(),
+    receiver: z.string(),
+    senderRoom: z.string(),
+    senderHost: z.string(),
+    senderHostName: z.string(),
+    body: z.string(),
+    at: z.string(),
+  }),
+)
+// 承認・キャンセルの答え（not-pending なら ok が false。画面はどちらでも閉じる）
+export const MESSAGE_ANSWER = z.object({ ok: z.boolean(), reason: z.string().optional() })

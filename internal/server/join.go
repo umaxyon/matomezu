@@ -1,7 +1,7 @@
 package server
 
 // AI の参加: AI（MCP の join）が参加を頼む口と、参加者ごとの記録（常駐だけが持つ）。
-// 参加を頼むと、参加者を作るアクションを行う（どのアクションかは、アクションの定義が runsWhenAIJoins で名乗る）。利用者は、要求中の参加者を画面のしおりで見る。
+// 参加を頼むと、参加者を作るアクションを行う（どのアクションかは、アクションの定義が runsWhenAIJoins で名乗る）。受け入れ済みの参加者が頼み直したら、頼み直しを書くアクション（役 rejoin-participant）を、利用者としてその参加者のレコードに行う（何を書き換えるかはアクションが決める）。利用者は、要求中の参加者を画面のしおりで見る。
 // 同じ AI（参加の id・link・ai と env と sessionName が同じ）の要求が答えを待っている間は、頼み直しを断る（already-requested）。ただし、その要求のセッションが終わっていれば、
 // 知らせずに要求を消して（セッションが終わったときに行うアクション。runsWhenAIEnds）、新しい要求を受ける。
 // 参加者・ワークルームはアクションの結果（レコード）が持つ。ここが持つ常駐だけが持つ参加者の記録はアクションを通さない記録で、参加者の id ごとに
@@ -40,6 +40,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/umaxyon/matomezu/internal/aiwire"
+	"github.com/umaxyon/matomezu/internal/engine"
 )
 
 // participantNote は参加者 1 人の、常駐だけが持つ記録
@@ -62,15 +63,25 @@ func (n participantNote) live() participantLive {
 	return participantLive{Model: n.Model, Branch: n.Branch}
 }
 
-// participantLive は、窓に知らせる参加者 1 人の様子
+// participantLive は、窓に知らせる参加者 1 人の様子（Wake は、起こす知らせを渡せる通り道がつながっていれば engine.WakeReaches。ほかは省く）
 type participantLive struct {
 	Model  string `json:"model,omitempty"`
 	Branch string `json:"branch,omitempty"`
+	Wake   string `json:"wake,omitempty"`
+}
+
+// liveLocked は、参加者 id の窓に知らせる様子（h.mu を持って呼ぶ）
+func (h *Hub) liveLocked(id string) participantLive {
+	l := h.participantNotes[id].live()
+	if h.wakeReachLocked(id) == engine.WakeReaches {
+		l.Wake = engine.WakeReaches
+	}
+	return l
 }
 
 // announceLive は、参加者 id の様子の全部を窓に知らせる（h.mu を持って呼ぶ）
 func (h *Hub) announceLive(id string) {
-	l := h.participantNotes[id].live()
+	l := h.liveLocked(id)
 	h.broadcast("participant-live", struct {
 		Participant string `json:"participant"`
 		participantLive
@@ -130,7 +141,7 @@ type JoinRequest struct {
 	Workroom        string `json:"workroom"`
 	As              string `json:"as"`           // visitor なら、ビジターとしての参加（ワークルームと一緒には頼めない）
 	AdeWorkspace    string `json:"adeWorkspace"` // AI が動いている ADE のワークスペースの名前（MCP が clients/ade の部品に訊いて添える。分からなければ空）
-	AiUi            string `json:"aiUi"`         // 利用者がその会話と話している AI の UI（MCP が clients の部品で決めて添える。分からなければ空。値の組は参加の要求のアクションが確かめる）
+	AiUi            string `json:"aiUi"`         // 利用者がその会話と話している AI の UI（MCP が clients の部品で決めて添える。分からなければ空。値は参加の要求のアクションが確かめる）
 	Participant     string `json:"-"`
 	Host            string `json:"-"` // AI のプログラムのプロセス id（MCP が X-Matomezu-Host で添える。起こす知らせの宛て先。watch.go）
 	HostSession     string `json:"-"` // AI のプログラムが MCP を立てたときのセッション id（MCP が X-Matomezu-Host-Session で添える。起こす知らせの宛て先。watch.go）
@@ -210,7 +221,10 @@ func (h *Hub) putParticipantNotes() error {
 // askedArgs は、参加の要求のアクションに渡す、頼んだ AI についての引数（画面で受け入れる道と、合言葉で入り直す道で同じにする）。
 // ADE のワークスペース・望むワークルームの名前・ビジターかは、画面で受け入れる道だけが足す
 func (req JoinRequest) askedArgs() map[string]any {
-	args := map[string]any{"ai": req.AI, "model": req.Model, "env": req.Env, "link": req.Link}
+	args := map[string]any{"ai": req.AI, "model": req.Model, "env": req.Env}
+	if req.Link != "" { // 参加の id で頼み直したときは無い（参加の要求は link を求めるので、空なら断られる）
+		args["link"] = req.Link
+	}
 	if req.SessionName != "" {
 		args["sessionName"] = req.SessionName
 	}
@@ -253,6 +267,9 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 			}
 			h.noteSession(s.ID, req.SessionID)
 			h.noteJoinHost(s.ID, req)
+			if err := h.rejoinAsked(ids.Rejoin, s.ID, req); err != nil {
+				return Joined{}, err
+			}
 			return Joined{OK: true, Participant: s.ID}, h.settleNotes()
 		}
 	}
@@ -342,13 +359,13 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	return Joined{OK: true, Participant: result.Participant}, h.settleNotes()
 }
 
-// alive は、受け入れ済みの参加者 id が、時点 now で生きているか（最後に呼ばれてから、利用者の設定の参加の有効時間以内）
+// alive は、受け入れ済みの参加者 id が、時点 now で生きているか（起こす知らせを渡せる通り道がつながっているか、最後に呼ばれてから、利用者の設定の参加の有効時間以内）
 func (h *Hub) alive(id string, now time.Time) (bool, error) {
 	settings, _ := h.Data()
 	h.mu.Lock()
-	called := h.participantNotes[id].Called
+	called, wake := h.participantNotes[id].Called, h.wakeReachLocked(id)
 	h.mu.Unlock()
-	return h.engine.ParticipantAlive(settings, called, now)
+	return h.engine.ParticipantAlive(settings, called, wake, now)
 }
 
 // dropIfEnded は、要求中の参加者 s のセッションが終わっていれば、知らせずに消す（セッションが終わったときに行うアクションで）。waiting は、消さずに答えを待っているか

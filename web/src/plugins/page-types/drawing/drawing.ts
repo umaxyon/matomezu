@@ -1,12 +1,5 @@
-// 図面のページのタイプ: ページを持ち、ページごとに紙を置き、紙の上にアイテム（形と、形どうしを結ぶ線）を置く。見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる
-import {
-  BACKGROUND_PRINT,
-  DIAGRAM_THEME_TYPE,
-  PAGE_PAPER_COLOR,
-  PAGE_TEXT_COLORS,
-  PAGE_THEME,
-  PAPER_IDS,
-} from "../../base"
+// 図面のページのタイプ: ページを持ち、ページごとに紙を置き、紙の上にアイテム（形と、形どうしを結ぶ線）を置く。見た目（テーマと紙の色）は base の設定の項目で変えられる
+import { BACKGROUND_PRINT, DIAGRAM_THEME_TYPE, PAGE_PAPER_COLOR, PAGE_THEME, PAPER_IDS } from "../../base"
 import { kit } from "./kit"
 
 // ツールボックスに出す順: 内包ボックス・リスト・データ・シェイプ（シェイプパネルに並ぶ）、線
@@ -65,7 +58,7 @@ export const DRAWING = kit.definePageType({
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "@matomezu/paper:paper",
-  // ページの設定の項目: テーマ・紙の色・線の既定の通り方・文字の色・背景の印刷（ページが値を持たなければ項目の既定）
+  // ページの設定の項目: テーマ・紙の色・線の既定の通り方・背景の印刷（ページが値を持たなければ項目の既定）
   printCrossing: "ask", // 形は利用者が手で置くので、印刷区画をまたいだ形は印刷プレビューの前に直してもらう
-  settings: [PAGE_THEME.id, PAGE_PAPER_COLOR.id, "@matomezu/line:line-route", PAGE_TEXT_COLORS.id, BACKGROUND_PRINT.id],
+  settings: [PAGE_THEME.id, PAGE_PAPER_COLOR.id, "@matomezu/line:line-route", BACKGROUND_PRINT.id],
 })

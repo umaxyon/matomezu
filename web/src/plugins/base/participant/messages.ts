@@ -2,7 +2,13 @@
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const PARTICIPANT_MESSAGES = defineMessages({
+  "Message waiting for approval": { en: "Message waiting for approval", ja: "承認待ちのメッセージ" },
+  "Sender: {name}": { en: "Sender: {name}", ja: "送り手: {name}" },
+  "{room} on host {host}": { en: "{room} on host {host}", ja: "{host} の {room}" },
+  Approve: { en: "Approve", ja: "承認" },
+  "The answer could not be sent": { en: "The answer could not be sent", ja: "返事を送れませんでした" },
   "Request to participate": { en: "Request to participate", ja: "参加を要求する" },
+  "Write a rejoin": { en: "Write a rejoin", ja: "参加の頼み直しを書く" },
   "Name sessions by work": { en: "Name sessions by work", ja: "セッション名を作業名にする" },
   "{name} (idle)": { en: "{name} (idle)", ja: "{name}（空き）" },
   "Joined matomezu. Workroom name: {name}": {
@@ -87,4 +93,8 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   "Cancel a join request": { en: "Cancel a join request", ja: "参加要求をキャンセルする" },
   "Add a page to the worker book": { en: "Add a page to the worker book", ja: "ワーカーブックにページを足す" },
   "Another workroom's worker book": { en: "Another workroom's worker book", ja: "ほかのワークルームのワーカーブック" },
+  "A page's name cannot start with the book's name": {
+    en: "A page's name cannot start with the book's name",
+    ja: "ページ名をブック名で始めることは出来ません",
+  },
 })
