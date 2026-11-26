@@ -19,6 +19,7 @@ import {
   PAGE_SETTINGS,
   PAGE_SETTINGS_DIALOG,
   PAGE_SETTINGS_OF,
+  REFERENCE_CONTEXT,
 } from "."
 import { useAddPageInRows, useAddPageRows } from "./AddPageMenu"
 import { BinderDeleteDialog } from "./BinderDeleteDialog"
@@ -32,7 +33,7 @@ import { PageTabs } from "./PageTabs"
 export const PAGE_TABS = defineWidget({
   id: kit.name("page-tabs"),
   slots: STAGE_SLOTS,
-  contextMenus: [PAGE_CONTEXT, BINDER_CONTEXT, ADD_PAGE_MENU],
+  contextMenus: [PAGE_CONTEXT, BINDER_CONTEXT, REFERENCE_CONTEXT, ADD_PAGE_MENU],
   view: PageTabs,
 })
 
@@ -48,6 +49,7 @@ declare module "../../../core/catalog" {
   interface ContextMenuTable {
     "@matomezu/base:page-context": { page: string } // ページタブのページ（右クリックしたページの id）
     "@matomezu/base:binder-context": { binder: string } // ページタブのバインダ（右クリックしたバインダの id）
+    "@matomezu/base:reference-context": { reference: string } // ページタブの参照エントリ（右クリックした参照エントリの id）
     "@matomezu/base:page-list-context": { page: string } // ページ一覧のページ（右クリックしたページの id）
     "@matomezu/base:add-page-menu": { first: string | null } // 先頭に並べるタイプ（開いているページのタイプ。無ければ null）
   }

@@ -29,6 +29,7 @@ type folderRow struct {
 	row
 	role    string
 	entries []string
+	refs    []string // ブックの並びの参照エントリが指す物の id（並びの順）
 }
 
 // isBook は、フォルダの行がブックか（storage.IsBookRole）
@@ -67,9 +68,71 @@ func newFolderRow(body json.RawMessage, version int64) folderRow {
 	for _, e := range lineupOf(body) {
 		if _, id, ok := entryRef(f.role, e); ok {
 			f.entries = append(f.entries, id)
+		} else if target := referenceTarget(e); target != "" && f.isBook() {
+			f.refs = append(f.refs, target)
 		}
 	}
 	return f
+}
+
+// referenceTarget は、並びの要素 entry が参照エントリなら、その指す物の id（でなければ空）
+func referenceTarget(entry json.RawMessage) string {
+	var ref struct {
+		Kind string `json:"kind"`
+		Of   struct {
+			ID string `json:"id"`
+		} `json:"of"`
+	}
+	if json.Unmarshal(entry, &ref) != nil || ref.Kind != storage.KindReference {
+		return ""
+	}
+	return ref.Of.ID
+}
+
+// referredEntry は、参照エントリが指す物 id の行をエンジンへ渡すときの、渡すブックかエントリ（ブックの中ならそのブック、ブックの外のページならそのページかそれを持つバインダ、
+// ブックの外のバインダならそのバインダ）。book はブックのときに真。渡せない（無い・ゴミ箱の中など）なら空（h.mu を持って呼ぶ）
+func (h *Hub) referredEntry(id string) (entry string, book bool) {
+	if b := h.bookOfEntry(id); b != "" {
+		return b, true
+	}
+	if _, ok := h.pages[id]; ok {
+		return h.entryNotInBook(id), false
+	}
+	if f, ok := h.folders[id]; ok && f.role == storage.RoleBinder && !h.outOfSight(id) {
+		if holder, ok := h.folders[h.places[id]]; ok && holder.isOpen() {
+			return id, false
+		}
+	}
+	return "", false
+}
+
+// referringBooks は、ブックかエントリ ids の中の物（ids 自身も）を指す参照エントリを持つブックの id（ids は除く。h.order の順。h.mu を持って呼ぶ）
+func (h *Hub) referringBooks(ids []string) []string {
+	under := map[string]bool{}
+	for _, id := range ids {
+		under[id] = true
+		for _, r := range h.rowsUnder(id) {
+			under[r] = true
+		}
+		if f, ok := h.folders[id]; ok && f.role == storage.RoleBinder {
+			for _, p := range f.entries {
+				under[p] = true
+			}
+		}
+	}
+	out := []string{}
+	for _, b := range h.order {
+		if under[b] {
+			continue
+		}
+		for _, t := range h.folders[b].refs {
+			if under[t] {
+				out = append(out, b)
+				break
+			}
+		}
+	}
+	return out
 }
 
 // loadTables は、置き場所からページとフォルダとエントリの入っているフォルダを読み、ブックを組む（NewHub が呼ぶ）
@@ -418,6 +481,44 @@ func (h *Hub) Tables() ([]storage.Page, []storage.Folder) {
 		folders = append(folders, storage.Folder{ID: id, Body: h.folders[id].body, Version: h.folders[id].version})
 	}
 	return pages, folders
+}
+
+// Referred は、参照エントリの指す先（kind は page か binder、id はその id）の名前・タイプと見えるか（バインダなら中のページも。表に無ければ ok が偽）
+func (h *Hub) Referred(kind, id string) (Referred, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var head struct {
+		Title    string `json:"title"`
+		Type     string `json:"type"`
+		PageType string `json:"pageType"`
+	}
+	switch kind {
+	case storage.KindPage:
+		p, ok := h.pages[id]
+		if !ok || json.Unmarshal(p.body, &head) != nil {
+			return Referred{}, false
+		}
+	case storage.KindBinder:
+		f, ok := h.folders[id]
+		if !ok || f.role != storage.RoleBinder || json.Unmarshal(f.body, &head) != nil {
+			return Referred{}, false
+		}
+		head.Type = head.PageType
+	default:
+		return Referred{}, false
+	}
+	found := Referred{Title: head.Title, Type: head.Type, Visible: !h.outOfSight(id)}
+	if kind == storage.KindBinder {
+		for _, p := range h.folders[id].entries {
+			var page struct {
+				Title string `json:"title"`
+			}
+			if row, ok := h.pages[p]; ok && json.Unmarshal(row.body, &page) == nil {
+				found.Pages = append(found.Pages, ReferredPage{ID: p, Title: page.Title})
+			}
+		}
+	}
+	return found, true
 }
 
 // PageVersion は、ページ id の版（無ければ 0）

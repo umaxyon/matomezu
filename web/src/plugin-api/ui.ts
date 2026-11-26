@@ -7,7 +7,7 @@ export { KEEP_ALL, NO_HOVER, NO_POINT, NO_TARGET, ShapeMarksProvider, useShapeMa
 export { useContextMenu } from "../ui/context-menu"
 export { useMessages, useT } from "../ui/i18n"
 export type { ContextMenuEntry, LayoutDef, MenuItem, WidgetDef, WidgetPlace } from "../ui/layout"
-export { defineLayout, defineWidget } from "../ui/layout"
+export { defineLayout, defineWidget, SEPARATOR } from "../ui/layout"
 export { NO_MENU_COMMAND, useMenu, useMenuCommand } from "../ui/menu"
 export type {
   ContextMenuRow,

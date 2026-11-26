@@ -17,6 +17,7 @@ import { FOOTER_MENU_MINIMAP, HISTORY_BUTTONS, STAGE_MENU_BUTTONS } from "./foot
 import { HISTORY_ICONS } from "./history/ui"
 import {
   BOOK_PLACE,
+  LIBRARY_COMMAND_ICON_LOOKS,
   LIBRARY_COMMAND_ICONS,
   LIBRARY_NEW_BOOK_DIALOG,
   LIBRARY_NEW_FOLDER_DIALOG,
@@ -74,6 +75,7 @@ import {
   PAPER_LAYER,
   PRINT_AREA_LAYER,
   PRINT_AREA_TOGGLE,
+  REFERENCE_LAYER,
   STAGE_ICONS,
   STAND_LAYER,
 } from "./stage/ui"
@@ -342,6 +344,7 @@ export const BASE_UI = definePluginUi(BASE, {
     PAPER_LAYER,
     PRINT_AREA_LAYER,
     BOOK_CONTENT,
+    REFERENCE_LAYER,
     STAND_LAYER,
     NOTE_LAYER,
     NOTE_PANEL,
@@ -407,6 +410,7 @@ export const BASE_UI = definePluginUi(BASE, {
     ...SETTINGS_ICONS,
     ...WINDOW_ICONS,
   },
+  commandIconLooks: LIBRARY_COMMAND_ICON_LOOKS,
   toolIcons: TOOL_ICONS,
 })
 
@@ -415,6 +419,7 @@ declare module "../../core/catalog" {
     // 書庫の画面の行（右クリックしたエントリの id）と、右の枠の何も無い所（開いているフォルダの id）。pressed は、押した画面の位置
     "@matomezu/base:library-entry-context": { entry: string; pressed: Point }
     "@matomezu/base:library-folder-context": { folder: string; pressed: Point }
+    "@matomezu/base:library-reference-context": { reference: string } // ブックの中身に並ぶ参照エントリの行（参照エントリの id）
     "@matomezu/base:library-add-page-menu": { folder: string } // ページを作る先のフォルダの id
   }
   interface SlotTable {
@@ -476,6 +481,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:paper-layer": typeof PAPER_LAYER
     "@matomezu/base:print-area-layer": typeof PRINT_AREA_LAYER
     "@matomezu/base:book-content": typeof BOOK_CONTENT
+    "@matomezu/base:reference-layer": typeof REFERENCE_LAYER
     "@matomezu/base:stand-layer": typeof STAND_LAYER
     "@matomezu/base:note-layer": typeof NOTE_LAYER
     "@matomezu/base:note-panel": typeof NOTE_PANEL

@@ -82,6 +82,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:print-area-layer",
       "@matomezu/slide:slide-layer",
       "@matomezu/base:book-content",
+      "@matomezu/base:reference-layer",
       "@matomezu/base:stand-layer",
       "@matomezu/base:note-layer",
       "@matomezu/base:mark-layer",
@@ -236,9 +237,14 @@ export const DEFAULT_LAYOUT = defineLayout({
       "-",
       "@matomezu/base:library-entry-rename",
       "@matomezu/base:library-entry-duplicate",
+      "@matomezu/base:library-reference-place",
       "-",
       "@matomezu/base:library-entry-trash",
       "@matomezu/base:library-entry-remove",
+    ],
+    "@matomezu/base:library-reference-context": [
+      "@matomezu/base:library-reference-source",
+      "@matomezu/base:library-reference-delete",
     ],
     "@matomezu/base:library-folder-context": [
       "@matomezu/base:library-book-new",
@@ -247,8 +253,8 @@ export const DEFAULT_LAYOUT = defineLayout({
     ],
     // 行は、メニューが自分で並べる（ページのタイプの一覧）
     "@matomezu/base:library-add-page-menu": [],
-    // 行は、メニューが自分で並べる（ページのタイプの一覧）
-    "@matomezu/base:add-page-menu": [],
+    // ページのタイプの一覧は、メニューが自分で並べる（その下に、区切り線を挟んで並ぶ）
+    "@matomezu/base:add-page-menu": ["@matomezu/base:library-reference-choose"],
     "@matomezu/base:page-context": [
       "@matomezu/base:page-duplicate",
       "@matomezu/base:scrap-cut",
@@ -262,6 +268,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "-",
       "@matomezu/base:binder-delete",
     ],
+    "@matomezu/base:reference-context": ["@matomezu/base:reference-source", "-", "@matomezu/base:reference-delete"],
     "@matomezu/base:page-list-context": [
       "@matomezu/base:page-add-after",
       "@matomezu/base:page-duplicate",

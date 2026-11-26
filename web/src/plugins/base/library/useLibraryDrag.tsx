@@ -67,6 +67,8 @@ function aimAt(
   const zone = under?.closest<HTMLElement>("[data-key-scope]")?.dataset.keyScope
   const { libraryRow: row, holder } = under?.dataset ?? {}
   if (!under || !root.contains(under) || !zone || !row || !holder) return { over: null, aim: null }
+  // 参照エントリの行（data-reference）は、落とす所にしない（並べ替えはページタブでする）
+  if (under.dataset.reference !== undefined) return { over: null, aim: null }
   const box = under.getBoundingClientRect()
   const along = zone === LIBRARY_TREE_SCOPE ? (y - box.top) / box.height : (x - box.left) / box.width
   const inside: Drop = row === TRASH_ID ? { to: "trash" } : { to: "folder", into: row }

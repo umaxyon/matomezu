@@ -135,13 +135,16 @@ function OwnRow({ row }: { row: ContextMenuRow }) {
 
 function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMenuCommandId<ContextMenuId> }) {
   const command = useCommand(id, menu.target as never)
-  const icon = useUiCatalog().commandIcons.get(id)
+  const catalog = useUiCatalog()
+  const icon = catalog.commandIcons.get(id)
+  const look = catalog.commandIconLooks.get(id)
   const key = useKeyLabel(id)
   const { closeContextMenu } = useStoreActions()
   const t = useMessages(kit)
   return (
     <MenuRow
       icon={icon}
+      {...(look ? { iconLook: look } : {})}
       label={t(command.title)}
       keyLabel={key}
       disabled={!command.enabled}

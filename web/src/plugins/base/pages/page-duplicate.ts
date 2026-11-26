@@ -4,7 +4,7 @@
 // 写しの名前は、同じブックかバインダのほかのページと重ならない名前にする（渡した名前が重なれば断る。渡さなければ、元の名前に番号を付ける）
 
 import { z } from "zod"
-import { addPage, findPage, NO_BINDER, NO_PAGE, siblingsOf } from "../../../core/book"
+import { addPage, findPage, NO_BINDER, NO_PAGE, ownTitlesOf, siblingsOf } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Declined } from "../../../core/def/action"
 import { freeTitle } from "../../../core/entries"
@@ -61,7 +61,7 @@ export function duplicatedPage<B extends StageLineup>(
   if (problem === "content") return UNRENEWABLE_DECLINED
   if (problem) return null
   const siblings = siblingsOf(book, page)
-  const titles = siblings.map(e => e.title)
+  const titles = ownTitlesOf(siblings)
   if (title !== undefined && titles.includes(title)) return null
   const { id: _id, locked: _locked, ...content } = at.page
   const copy = { ...renewedIds(at.page, content, newId), title: title ?? freeTitle(at.page.title, titles) }

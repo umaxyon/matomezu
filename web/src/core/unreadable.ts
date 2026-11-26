@@ -38,6 +38,7 @@ import {
   type WorkKey,
 } from "./folders"
 import { pinnedCount, rowsLibraryOf } from "./folders-tree"
+import { deadReferences } from "./references"
 import { type Warning, warning } from "./warnings"
 
 type Row = Readonly<Record<string, unknown>>
@@ -94,6 +95,7 @@ export interface SettleWith {
 // 置き場所から読んだままの行 pageRows・folderRows で、書庫を今の機能台帳に合わせて整える行の変わり: 今の機能台帳で読めない物は読めない物のフォルダへ移し、
 // そこの物で読めるようになった物は在った所へ戻す。先に戻し（並びの順に、何も戻らなくなるまで繰り返す。入れ物が先に戻り、中の物は次の回で戻る）、それから移す。
 // そのあと、足りないバックヤードとシステムフォルダを足し（withBackyards・withSystemFolders）、名前の重なりに番号を付ける（withFreeTitles。読んだデータの重なりも、戻った物・現れたシステムフォルダが当たった物も）。
+// 指す先の無くなった参照エントリ（読めない物を完全に消した物を指す物など）は並びから外す（deadReferences）。
 // 決まりは with。読めない物のフォルダの行が形に合わなければ BROKEN、足すシステムフォルダの id が振れなければ BROKEN（何も書かない）
 export function settleLibrary(
   catalog: CoreCatalog,
@@ -123,7 +125,9 @@ export function settleLibrary(
   const library = libraryOf(world)
   const filled = withSystemFolders(withBackyards(library, catalog), catalog, newId)
   if (!filled) return BROKEN
-  const { next, freed } = withFreeTitles(filled.next, naming)
+  const { next: titled, freed } = withFreeTitles(filled.next, naming)
+  const dead = deadReferences(titled)
+  const next = Object.keys(dead).length === 0 ? titled : { ...titled, folders: { ...titled.folders, ...dead } }
   world = withLibrary(world, library, next)
   return { writes: writesOf(world), moved, returned, purged, added: filled.added, numbered: freed }
 }
@@ -176,11 +180,20 @@ export function purgedRows(
     Object.values(library.folders).flatMap(f => (inside.has(f.id) ? [] : f.lineup.map(r => r.id))),
   )
   const keep = (rows: readonly string[]) => rows.filter(r => !elsewhere.has(r))
+  const removedPages = keep(under.pages)
+  const removedFolders = keep(under.folders)
+  // 消す物を指していた参照エントリも、同じ書き込みで並びから外す
+  const without = (rows: Readonly<Record<string, unknown>>, gone: readonly string[]) =>
+    Object.fromEntries(Object.entries(rows).filter(([id]) => !gone.includes(id)))
+  const dead = deadReferences({
+    pages: without(library.pages, removedPages),
+    folders: without(library.folders, removedFolders),
+  } as Library)
   return {
     pages: {},
-    folders: { [UNREADABLE_ID]: { ...found, lineup: found.lineup.filter(r => r !== ref) } },
-    removedPages: keep(under.pages),
-    removedFolders: keep(under.folders),
+    folders: { ...dead, [UNREADABLE_ID]: { ...found, lineup: found.lineup.filter(r => r !== ref) } },
+    removedPages,
+    removedFolders,
   }
 }
 

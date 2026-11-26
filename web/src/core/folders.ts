@@ -5,7 +5,7 @@
 import { z } from "zod"
 import type { ItemPage } from "./placed"
 import type { REMOVED } from "./records"
-import type { AnyPage, Book, OutermostSettings } from "./schema/book"
+import type { AnyPage, Book, OutermostSettings, ReferenceEntry } from "./schema/book"
 import type { WarningCode } from "./warnings"
 
 // フォルダが持つエントリ 1 つ: ページかバインダの id
@@ -37,7 +37,17 @@ export const TRASH_ID = "library-trash"
 export type TrashRef = AnyEntryRef & { trashed: string; from: readonly string[] }
 
 // ブックのフォルダ: ブックのフィールド（名前・ロック・ブックが持つ設定の項目）と、エントリの id の並び
-export type BookFolder = Omit<Book, "lineup"> & { folderRole: "book"; lineup: readonly EntryRef[] }
+// ブックのフォルダの並びのエントリ 1 つ: ページかバインダの id か、参照エントリ（中身を持たないので、表に分けずに並びの中に持つ）
+export type BookLineupRef = EntryRef | ReferenceEntry
+export type BookFolder = Omit<Book, "lineup"> & { folderRole: "book"; lineup: readonly BookLineupRef[] }
+
+// フォルダ folder の並びのうち、書庫のエントリ（ページ・バインダ・ブック・フォルダ）だけ（参照エントリは書庫の物でないので除く）
+export const libraryReferencesOf = (folder: {
+  lineup: readonly (AnyEntryRef | ReferenceEntry | TrashRef)[]
+}): readonly AnyEntryRef[] =>
+  folder.lineup.some(r => r.kind === "reference")
+    ? folder.lineup.flatMap(r => (r.kind === "reference" ? [] : [r]))
+    : (folder.lineup as readonly AnyEntryRef[])
 // バインダ: 名前と、入れるページのタイプと、ページの id の並びと、ステージエントリが持つ設定の項目
 export interface BinderFolder {
   folderRole: "binder"

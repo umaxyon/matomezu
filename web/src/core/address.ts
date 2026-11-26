@@ -15,14 +15,17 @@ import { sameData } from "./same"
 import type { BinderEntry, Book } from "./schema/book"
 import {
   NO_PAGE,
+  NO_REFERENCE,
   NOTHING_OPENED,
   newStage,
   openBinder,
   openBook,
   openedEntry,
+  openedReference,
   openOutsideBinder,
   openOutsidePage,
   openPage,
+  openReference,
   panBy,
   type Stage,
   shownPageId,
@@ -43,6 +46,7 @@ export interface StagePlace {
   outermost: string // 開いているブックの id（何も開いていないか、ブックの外のページ・バインダを開いていれば NO_OUTERMOST）
   page: string | null // 開いているページの id（outermost が NO_OUTERMOST なら、ブックの外のページか、ブックの外のバインダの中のページ）
   binder: string | null // 空のバインダを開いているときの、バインダの id（ページを開いていれば null）
+  reference: string | null // 参照エントリを開いているときの、その id（page は、指すバインダで選んだページ。選んでいなければ null）
   zoom: number
   pan: Point
   states: Readonly<Record<string, unknown>> // 画面の場所に入れる、ステージの範囲のプラグイン状態（宣言の id → 値。store/plugin-state.ts）
@@ -101,11 +105,13 @@ function stagesPlaceOf(ws: Workspace, states: (stage: string) => Readonly<Record
     places: ws.stages.map(s => {
       const view = s.mode.kind === "print-preview" ? s.mode.back : s
       const entry = openedEntry(s.opened)
-      const page = shownPageId(s.opened)
+      const ref = openedReference(s.opened)
+      const page = ref === NO_REFERENCE ? shownPageId(s.opened) : ref.chosen
       return {
         outermost: entry?.kind === "book" ? entry.id : NO_OUTERMOST,
         page: page === NO_PAGE ? null : page,
         binder: s.opened !== NOTHING_OPENED && s.opened.kind === "binder" ? s.opened.binder : null,
+        reference: ref === NO_REFERENCE ? null : ref.reference,
         zoom: view.zoom,
         pan: view.pan,
         states: states(s.id),
@@ -202,7 +208,8 @@ function placed(
   let next = fresh
   if (book) {
     next = openBook(catalog, next, book)
-    if (place.page !== null) next = openPage(catalog, next, book, place.page)
+    if (place.reference !== null) next = openReference(next, book, place.reference, place.page ?? undefined)
+    else if (place.page !== null) next = openPage(catalog, next, book, place.page)
     else if (place.binder !== null) next = openBinder(catalog, next, book, place.binder)
   } else if (outside?.kind === "page") next = openOutsidePage(catalog, next, outside)
   else if (outside) next = openOutsideBinder(catalog, next, outside, place.page ?? undefined)

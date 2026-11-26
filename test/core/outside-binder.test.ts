@@ -1,6 +1,6 @@
 // ブックの外のバインダをステージで開く（core/stage.ts の openOutsideBinder・followOutsideBinder・followInto、core/workspace.ts の followLibrary）
 import { expect, test } from "bun:test"
-import { type Folder, HOME_ID, type Library, TRASH_ID } from "../../web/src/core/folders"
+import { type AnyEntryRef, type Folder, HOME_ID, type Library, TRASH_ID } from "../../web/src/core/folders"
 import { outsideBinderIn } from "../../web/src/core/folders-tree"
 import { type LibraryAndBooks, openablePage } from "../../web/src/core/library"
 import {
@@ -28,7 +28,7 @@ const binder = (id: string, ...ids: string[]): Folder => ({
 })
 
 // 書庫ホームに、ブックの外のバインダ n1（中は ids のページ）。rest は、ほかのフォルダの行と書庫ホームの並び
-function library(ids = ["s1", "s2", "s3"], rest: { folders?: Folder[]; home?: Folder["lineup"] } = {}): Library {
+function library(ids = ["s1", "s2", "s3"], rest: { folders?: Folder[]; home?: AnyEntryRef[] } = {}): Library {
   const home = rest.home ?? [{ kind: "binder" as const, id: "n1" }]
   const folders: Record<string, Folder> = {
     [HOME_ID]: { folderRole: "home", id: HOME_ID, lineup: home },

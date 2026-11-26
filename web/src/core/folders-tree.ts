@@ -132,7 +132,11 @@ export function treeHolds({ pages, folders }: Library): boolean {
     for (const r of f.lineup) {
       if (holder.has(r.id)) return false
       holder.set(r.id, f.id)
-      if ((isOpenRole(f.folderRole) || f.folderRole === "backyard") && !refFits(pages, folders, r)) return false
+      if (
+        (isOpenRole(f.folderRole) || f.folderRole === "backyard") &&
+        (r.kind === "reference" || !refFits(pages, folders, r))
+      )
+        return false
     }
   }
   const isTop = (id: string | undefined) =>

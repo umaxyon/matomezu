@@ -73,10 +73,13 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	in.Watched = h.watched()
 	in.WatchedRecords = h.watchedRecords()
 	out, err := h.engine.PerformWith(in, recordSource{h})
-	// フォローステップがバックヤードの中に行う事の先のブックを渡していなければ、そのブックの行とアノテーションを足して行い直す
-	// （応じる事はアクションのあとに決まるので、先には渡せない。1 回ごとに足りないブックが減るので、ブックの数で止まる）
+	// フォローステップがバックヤードの中に行う事の先のブックか、ブックが新しく置いた参照エントリの指す先を渡していなければ、その行を足して行い直す
+	// （どちらもアクションのあとに決まるので、先には渡せない。1 回ごとに足りない物が減るので、ブックの数で止まる）。足せる行が無ければ断る
 	for tries := 0; err == nil && !out.OK && out.Reason == "needs-rows" && tries < len(h.books)+1; tries++ {
-		h.addBookInputs(&in, out.Needs)
+		if !h.addNeededInputs(&in, out.Needs) {
+			out = engine.Output{OK: false, Reason: "refused", At: out.At}
+			break
+		}
 		out, err = h.engine.PerformWith(in, recordSource{h})
 	}
 	if err != nil {
@@ -229,6 +232,10 @@ func (h *Hub) performInputs(in *engine.Input) error {
 		}
 		return nil
 	}
+	// 渡す物を指す参照エントリを持つブックも（指す物を消す・ブックに入れると、同じ書き込みでその参照エントリを外すため）
+	for _, b := range h.referringBooks(append(slices.Clone(books), entries...)) {
+		add(b)
+	}
 	needed := append(slices.Clone(books), entries...)
 	in.Pages, in.Folders = h.rowsOf(needed)
 	in.Folders = append(in.Folders, h.openRowsAbove(needed)...)
@@ -283,6 +290,34 @@ func (h *Hub) actorOfHeld(p Perform) *engine.Actor {
 		return h.actorOfParticipantHeld(p.Participant)
 	}
 	return nil
+}
+
+// addNeededInputs は、エンジンが needs-rows で答えた物 ids（ブックか、参照エントリの指す先）の行を in に足す（指す先は referredEntry で決めた物）。
+// 1 つも足せなければ偽（h.mu を持って呼ぶ）
+func (h *Hub) addNeededInputs(in *engine.Input, ids []string) bool {
+	books := []string{}
+	entries := []string{}
+	for _, id := range ids {
+		e, isBook := id, h.hasBook(id)
+		if !isBook {
+			e, isBook = h.referredEntry(id)
+		}
+		switch {
+		case e == "" || h.inUnreadable(e):
+		case isBook:
+			books = append(books, e)
+		default:
+			entries = append(entries, e)
+		}
+	}
+	if len(books) == 0 && len(entries) == 0 {
+		return false
+	}
+	h.addBookInputs(in, books)
+	pages, folders := h.rowsOf(entries)
+	in.Pages = append(in.Pages, pages...)
+	in.Folders = append(in.Folders, folders...)
+	return true
 }
 
 // addBookInputs は、エンジンに渡す in に、ブック books の行（中の物も）とそのページのアノテーションを足す（h.mu を持って呼ぶ）

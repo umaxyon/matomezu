@@ -1,9 +1,11 @@
 // 書庫の画面が描く物を、書庫の表（ページの行とフォルダの行）から出す: フォルダの直下の行・ゴミ箱の行・パンくず・行を開いたときの行き先
+
 import {
   type EntryKind,
   entriesIn,
   inBackyard,
   type Naming,
+  placeOf,
   rowsWithin,
   rowTitle,
   titleOf,
@@ -24,9 +26,18 @@ import {
 } from "../../../core/folders"
 import { atOutsidePagePlace, foldersOver, inTrash, systemFolderOf } from "../../../core/folders-tree"
 import type { UnreadableItem } from "../../../core/folders-unreadable"
+import {
+  bookLineupOf,
+  bookOfReference,
+  holdsNewReference,
+  referableIn,
+  referableTarget,
+} from "../../../core/references"
+import type { ReferenceEntry } from "../../../core/schema/book"
 import type { MovedIfOff } from "../../../core/unreadable"
 import type { MatomezuState } from "../../../store/state"
 import type { Workdesk } from "../participant/workdesks"
+import { referenceLook } from "../utils/reference-look"
 import { restoreTargetOf } from "./entries"
 import { WORKROOMS } from "./system-folders"
 import {
@@ -45,9 +56,11 @@ import {
 } from "./workdesk-rows"
 
 // 行 1 つ（描くのに要る物だけ）。title は名前（名前の無い物は NO_TITLE）、type はページのタイプの id（バインダなら入れるページのタイプ。無ければ NO_TYPE）、
-// readable は読めるか（表に無い物は false）
+// readable は読めるか（表に無い物は false）。参照エントリの行（kind が reference。ブックの中身にだけ出る）は、id が参照エントリの id、名前とタイプが指す先の物
+// （指す先の行が無ければ NO_TITLE）
+export type RowKind = EntryKind | "reference"
 export interface LibraryRow {
-  kind: EntryKind
+  kind: RowKind
   id: string
   title: string
   type: string
@@ -87,6 +100,19 @@ function rowOf(library: Library, r: AnyEntryRef, naming: Naming): LibraryRow {
   }
 }
 
+// ブックの並びの参照エントリ r の行
+function referenceRowOf(library: Library, r: ReferenceEntry): LibraryRow {
+  const look = referenceLook(library, r)
+  return {
+    kind: "reference",
+    id: r.id,
+    title: look?.title ?? NO_TITLE,
+    type: look?.type ?? NO_TYPE,
+    readable: true,
+    locked: false,
+  }
+}
+
 // フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ。作業机とその下の行も）の直下の行（並びの順。フォルダが無ければ空）。
 // ワークルームのフォルダの直下は、作業机 desks
 export function rowsIn(
@@ -97,6 +123,9 @@ export function rowsIn(
 ): readonly LibraryRow[] {
   const under = childrenOf(library.folders, folder, desks)
   if (under === undefined) {
+    const lineup = bookLineupOf(library.folders, folder)
+    if (lineup.some(r => r.kind === "reference"))
+      return lineup.map(r => (r.kind === "reference" ? referenceRowOf(library, r) : rowOf(library, r, naming)))
     const entries = entriesIn(library.folders, folder)
     return entries.length === 0 ? NO_ROWS : entries.map(r => rowOf(library, r, naming))
   }
@@ -213,7 +242,13 @@ export function paneIdsOf(
 ): readonly string[] {
   if (opened === TRASH_ID) return trashNewestFirst(trashRefsOf(folders)).map(r => r.id)
   if (opened === UNREADABLE_ID) return unreadableOrder(unreadable).map(i => i.id)
-  return childrenOf(folders, opened, desks)?.map(c => c.id) ?? entriesIn(folders, opened).map(r => r.id)
+  const under = childrenOf(folders, opened, desks)
+  if (under !== undefined) return under.map(c => c.id)
+  // ブックは、参照エントリの行も並べる（rowsIn と同じ並び）
+  const holder = folders[opened]
+  return holder?.folderRole === "book"
+    ? bookLineupOf(folders, opened).map(r => r.id)
+    : entriesIn(folders, opened).map(r => r.id)
 }
 
 // 読めない物の行 1 つ: 読めない物のフォルダの直下の物の id と名前 title。並びの要素が形に合えば（fits）、種類 kind・在った所 place・訳の番号 code・
@@ -395,7 +430,7 @@ export const folderTitleOf = (s: MatomezuState, id: string, naming: Naming, desk
 // ブックの外のバインダはそのバインダを（中のページの行なら、そのページで）窓に出す。ゴミ箱の中の物・読めない物は開かない（NOT_OPENED）
 export type OpenTarget =
   | { to: "folder"; folder: string }
-  | { to: "book"; book: string; page?: string; binder?: string }
+  | { to: "book"; book: string; page?: string; binder?: string; reference?: string }
   | { to: "page"; page: string }
   | { to: "binder"; binder: string; page?: string }
   | typeof NOT_OPENED
@@ -412,6 +447,10 @@ export function openTargetOf(
     if (place === GONE) return NOT_OPENED
     if (place.at === "desk") return { to: "folder", folder: place.id }
     return place.real === undefined ? NOT_OPENED : openTargetOf(folders, { ...row, id: place.real }, desks)
+  }
+  if (row.kind === "reference") {
+    const book = bookOfReference(folders, row.id)
+    return book && !inTrash(folders, book.id) ? { to: "book", book: book.id, reference: row.id } : NOT_OPENED
   }
   if (!row.readable || row.id === TRASH_ID || inTrash(folders, row.id)) return NOT_OPENED
   if (row.kind === "folder") return { to: "folder", folder: row.id }
@@ -431,10 +470,10 @@ export function openTargetOf(
 // 行を開くと出すブックと、そのページ
 export interface BookOpened {
   book: string
-  page?: string
+  page?: string // 開くページ（参照エントリの行なら、その参照エントリ。showBook）
 }
 
-// 書庫の行 row を、ブックスクリーンに開くなら、開くブックとページ（ページの無いブック・バインダ・ブックの外の物・フォルダは undefined）。
+// 書庫の行 row を、ブックスクリーンに開くなら、開くブックとページか参照エントリ（ページの無いブック・バインダ・ブックの外の物・フォルダは undefined）。
 // ワーカーブックの行は、実のブックで開く（ページが在るときだけ）
 export function bookOpenedFrom(
   folders: Folders,
@@ -449,6 +488,7 @@ export function bookOpenedFrom(
   }
   const target = openTargetOf(folders, row, desks)
   if (target === NOT_OPENED || target.to !== "book" || target.binder !== undefined) return undefined
+  if (target.reference !== undefined) return { book: target.book, page: target.reference }
   if (target.page !== undefined) return { book: target.book, page: target.page }
   return pagesIn(target.book) > 0 ? { book: target.book } : undefined
 }
@@ -549,4 +589,47 @@ export function treeCurrentOf(
   const place = deskPlaceOf(desks, folders, picked)
   const holds = place === undefined ? folders[picked] !== undefined : place !== GONE && deskHolds(folders, place)
   return holds ? opened : picked
+}
+
+// 書庫で参照エントリを置くために選んでいる間の物: ブック book に置く参照エントリの指す先を選ぶ（referred。ページタブの＋の「参照…」から）か、of を指す参照エントリを置くブックを選ぶ（book。書庫の右クリックの「参照を置く…」から）
+export type Choosing = { choose: "referred"; book: string } | { choose: "book"; of: ReferenceEntry["of"] }
+
+// 選んでいる物 choosing が今も続けられるか（置く先のブック・指す先が、書庫の見える所に在る）。続けられなければ undefined（参照エントリを置くために選んでいない間と同じに扱う）
+export function choosingNow(folders: Folders, choosing: Choosing | undefined): Choosing | undefined {
+  if (choosing === undefined) return undefined
+  if (choosing.choose === "referred") return holdsNewReference(folders, choosing.book) ? choosing : undefined
+  return referableTarget(folders, choosing.of) ? choosing : undefined
+}
+
+// 選んでいる物 choosing での行 id の扱い: 選べるなら chosen に置き先と指す先。選べないとき、中へ入れる行なら enters（フォルダと、置く参照エントリを置くために選んでいるときのブック）。
+// どちらでもない行は薄く描き、押しても何もしない
+export function chooseLookOf(
+  folders: Folders,
+  choosing: Choosing,
+  id: string,
+  desks: readonly Workdesk[],
+): { chosen: { book: string; of: ReferenceEntry["of"] } | undefined; enters: boolean } {
+  const chosen = chosenBy(folders, choosing, id, desks)
+  const kind = placeOf(folders, realOf(desks, folders, id))?.ref.kind
+  return {
+    chosen,
+    enters: chosen === undefined && (kind === "folder" || (choosing.choose === "referred" && kind === "book")),
+  }
+}
+
+// 選んでいる物 choosing で、行 id を選べるか（作業机の下の行は実の物で）。選べるなら、置く参照エントリの置き先と指す先
+export function chosenBy(
+  folders: Folders,
+  choosing: Choosing,
+  id: string,
+  desks: readonly Workdesk[],
+): { book: string; of: ReferenceEntry["of"] } | undefined {
+  const real = realOf(desks, folders, id)
+  const kind = placeOf(folders, real)?.ref.kind
+  if (choosing.choose === "referred") {
+    if (kind !== "page" && kind !== "binder") return undefined
+    const of = { kind, id: real }
+    return referableIn(folders, choosing.book, of) ? { book: choosing.book, of } : undefined
+  }
+  return kind === "book" && referableIn(folders, real, choosing.of) ? { book: real, of: choosing.of } : undefined
 }

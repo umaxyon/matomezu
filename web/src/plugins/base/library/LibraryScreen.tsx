@@ -1,7 +1,8 @@
 // 書庫のスクリーン（screen.ts の LIBRARY_SCREEN）を描く: 帯と、書庫の画面（LibraryView）。
 // ブックスクリーンと上下に並べている間（「画面を分割」で下に出したとき）は、帯に「→ 閉じる」と「広げる」を出し（チケットスクリーンと同じ）、
 // 書庫のスクリーンの外を押す・焦点がその外へ移ると閉じる（ブックスクリーンの編集と、書庫の画面から開く操作を同時にさせない。書庫の画面が開いたダイアログ・メニュー・トーストは内に数える。
-// 窓ごと焦点を失ったときは閉じない）。窓いっぱいのときは、帯に名前と閉じるボタン。閉じる・広げるは screen.ts のコマンドを通る
+// 窓ごと焦点を失ったときは閉じない）。窓いっぱいのときは、帯に名前と閉じるボタン。閉じる・広げるは screen.ts のコマンドを通る。
+// 参照エントリを置くために選んでいる間は帯を出さない（書庫の画面が選んでいる間の帯を出す）
 import { useEffect, useRef } from "react"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
@@ -10,10 +11,12 @@ import { IconButton } from "../utils/IconButton"
 import { POPUP_KEEPS } from "../utils/popup-keeps"
 import { BOOK_SCREEN_DEF } from "../window"
 import { useScreenSplit } from "../window/useScreenSplit"
+import { useChoosing } from "./hooks"
 import { CLOSE, CLOSE_RIGHT, EXPAND } from "./icons"
 import styles from "./LibraryScreen.module.css"
 import { LibraryView } from "./LibraryView"
 import { LIBRARY_SCREEN_CLOSE, LIBRARY_SCREEN_EXPAND } from "./screen"
+import { LIBRARY_SCREEN_SCOPE } from "./screen-keys"
 
 export function LibraryScreen() {
   const t = useMessages(kit)
@@ -24,6 +27,8 @@ export function LibraryScreen() {
   const closing = useCommand(LIBRARY_SCREEN_CLOSE.id)
   const expanding = useCommand(LIBRARY_SCREEN_EXPAND.id)
   const root = useRef<HTMLDivElement>(null)
+  // 参照エントリを置くために選んでいる間は、帯を書庫の画面の選んでいる間の帯に替える
+  const choosing = useChoosing() !== undefined
   const close = () => closing.run()
   const expand = () => expanding.run()
   // 並べている間は、書庫のスクリーンの外を押したら・焦点がその外の物へ移ったら閉じる（書庫の画面が開いたダイアログ・メニュー・トーストは外に数えない。
@@ -57,32 +62,34 @@ export function LibraryScreen() {
     }
   }, [below])
   return (
-    <div ref={root} className={styles.screen}>
-      <div className={styles.band}>
-        {below ? (
-          <>
-            <button type="button" className={styles.close} onClick={close}>
-              {CLOSE_RIGHT}
-              {t("Close library")}
-            </button>
-            {low ? null : (
-              <>
-                <span className={styles.divider} aria-hidden="true" />
-                <IconButton label={t("Expand library")} onClick={expand}>
-                  {EXPAND}
-                </IconButton>
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            <h2 className={styles.title}>{t("Library")}</h2>
-            <IconButton label={t("Close library")} onClick={close}>
-              {CLOSE}
-            </IconButton>
-          </>
-        )}
-      </div>
+    <div ref={root} className={styles.screen} data-key-scope={LIBRARY_SCREEN_SCOPE}>
+      {choosing ? null : (
+        <div className={styles.band}>
+          {below ? (
+            <>
+              <button type="button" className={styles.close} onClick={close}>
+                {CLOSE_RIGHT}
+                {t("Close library")}
+              </button>
+              {low ? null : (
+                <>
+                  <span className={styles.divider} aria-hidden="true" />
+                  <IconButton label={t("Expand library")} onClick={expand}>
+                    {EXPAND}
+                  </IconButton>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <h2 className={styles.title}>{t("Library")}</h2>
+              <IconButton label={t("Close library")} onClick={close}>
+                {CLOSE}
+              </IconButton>
+            </>
+          )}
+        </div>
+      )}
       <LibraryView className={styles.library} />
     </div>
   )

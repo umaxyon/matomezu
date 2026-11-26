@@ -1,15 +1,18 @@
 // 書庫の画面のビューが共に使うフック: 書庫の表から出した行を同じ値のまま保つ・行の名前・焦点を中に保つ
 import { type RefObject, useEffect, useRef } from "react"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { type EntryKind, type Naming, namingOf } from "../../../core/entries"
 import { type BROKEN, HOME_ID, type Library, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
 import { sameData } from "../../../core/same"
 import type { MovedIfOff, Purged, UnreadableNotice } from "../../../core/unreadable"
 import type { MatomezuState } from "../../../store/state"
 import { useMessages } from "../../../ui/i18n"
+import { usePluginState } from "../../../ui/plugin-state-hooks"
 import { useCatalog, useInstance, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import type { Workdesk } from "../participant/workdesks"
-import { type LibraryRow, NO_TITLE, rowsIn } from "./outline"
+import { type Choosing, chooseLookOf, choosingNow, type LibraryRow, NO_TITLE, rowsIn } from "./outline"
+import { LIBRARY_CHOOSING } from "./state"
 import { NO_DESKS, workdesksIn } from "./workdesk-rows"
 
 // 書庫の表から rowsOf で出した行（名前は、利用者の設定の言語で引く naming で引く。読めない物のフォルダの直下の物 unreadableFolder と、レコード records と、作業机 desks も読める）。
@@ -63,6 +66,28 @@ export function useLibraryRows<R>(
   })
 }
 
+// この書庫の画面で選んでいる物（選んでいない・続けられなければ undefined）
+export function useChoosing(): Choosing | undefined {
+  const now = usePluginState(kit, LIBRARY_CHOOSING)
+  return useMatomezuState(s => choosingNow(s.folders, now === NO_STATE ? undefined : now))
+}
+
+// 参照エントリを置くために選んでいる間の、行 row の選ばれ方: 選べるか（chosen）と、薄く描くか（faded。選べず、中へも入らない行。置く参照エントリの指す先を選ぶ間はブックとフォルダ、
+// 置くブックを選ぶ間はフォルダが中へ入る）。選んでいなければ undefined
+export function useChooseOf(
+  row: Pick<LibraryRow, "id" | "kind">,
+): { choosing: Choosing; chosen: boolean; faded: boolean } | undefined {
+  const choosing = useChoosing()
+  const desks = useWorkdesks()
+  const look = useMatomezuState(s => {
+    if (choosing === undefined) return 0
+    const { chosen, enters } = chooseLookOf(s.folders, choosing, row.id, desks)
+    return chosen ? 1 : enters ? 2 : 3
+  })
+  if (choosing === undefined) return undefined
+  return { choosing, chosen: look === 1, faded: look === 3 }
+}
+
 // 作業机（ワークルームのフォルダの下に映す物。中身が同じなら同じ値のまま）
 export function useWorkdesks(): readonly Workdesk[] {
   const catalog = useCatalog().core
@@ -91,16 +116,18 @@ export interface FolderEntry {
 // フォルダが無いときの値（useFolderEntries）
 export const NO_FOLDER = "none"
 
-// フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下のエントリ（並びの順。フォルダの中を問うので、作業机は出さない）。フォルダが無ければ NO_FOLDER
+// フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下のエントリ（並びの順。フォルダの中を問うので、作業机と参照エントリは出さない）。フォルダが無ければ NO_FOLDER
 export function useFolderEntries(folder: string): readonly FolderEntry[] | typeof NO_FOLDER {
   const entries = useLibraryRows(folder, (s, naming) =>
-    rowsIn(s, folder, naming, NO_DESKS).map((r): FolderEntry => ({ id: r.id, kind: r.kind, name: r.title })),
+    rowsIn(s, folder, naming, NO_DESKS).flatMap((r): FolderEntry[] =>
+      r.kind === "reference" ? [] : [{ id: r.id, kind: r.kind, name: r.title }],
+    ),
   )
   return useMatomezuState(s => s.folders[folder] !== undefined) ? entries : NO_FOLDER
 }
 
 // 行の名前: 書庫ホームとゴミ箱と読めない物のフォルダは画面の言葉、ブックごと読めないブックは読めない訳に残った名前、名前の無い物は id を添える
-export function useNameOf(): (row: Pick<LibraryRow, "id" | "title">) => string {
+export function useNameOf(): (row: Pick<LibraryRow, "id" | "title"> & { kind?: LibraryRow["kind"] }) => string {
   const t = useMessages(kit)
   const unreadable = useMatomezuState(s => s.unreadable)
   return row => {
@@ -108,6 +135,8 @@ export function useNameOf(): (row: Pick<LibraryRow, "id" | "title">) => string {
     if (row.id === TRASH_ID) return t("Trash")
     if (row.id === UNREADABLE_ID) return t("Unreadable")
     if (row.title !== NO_TITLE) return row.title
+    // 指す先の行が無い参照エントリ（ページタブと同じ）
+    if (row.kind === "reference") return t("No Data")
     // ブックごと読めないブックは書庫の表に行が無いので、読めない訳（warning）に残った名前
     const title = unreadable.find(w => w.params.book === row.id)?.params.title
     return title !== undefined && title !== NO_TITLE ? title : t("Untitled ({id})", { id: row.id })

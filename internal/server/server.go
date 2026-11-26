@@ -670,7 +670,7 @@ func (o Options) aiBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Query().Get("outline") != "" {
-		writeJSON(w, map[string]any{"id": b.ID, "book": outlineBook(b.Body, o.Hub.PageVersion), "version": b.Version, "annotations": list})
+		writeJSON(w, map[string]any{"id": b.ID, "book": outlineBook(b.Body, o.Hub.PageVersion, o.Hub.Referred), "version": b.Version, "annotations": list})
 		return
 	}
 	placed, err := o.Hub.AIPlaced(b.Body)

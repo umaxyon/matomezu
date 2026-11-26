@@ -10,7 +10,7 @@ import { withRowsPatched } from "../core/folders-restore"
 import { NO_OUTERMOST, outermostOf } from "../core/folders-tree"
 import {
   changeSeen,
-  changesByOutermost,
+  changesByCause,
   foldersNear,
   HISTORY_LIMIT,
   type HistoryStep,
@@ -199,6 +199,7 @@ export function createUnseenChanges(deps: {
       seq: nextSeq(),
       by: change.by,
       outermosts: [LIBRARY_HISTORY],
+      also: [],
       pages: of(rows.pages, was.pages, to.pages),
       folders: of(rows.folders, was.folders, to.folders),
     }
@@ -257,16 +258,24 @@ export function createUnseenChanges(deps: {
       return false
     })
   }
-  // よその変更 change が、ステージエントリ outermost の行を、表 was から changes のとおりに変えたことを、まだ見ていない変更に足す（ステージエントリごとに HISTORY_LIMIT まで。古い物から捨てる）
+  // よその変更 change が、ステージエントリ outermost の行を、表 was から changes のとおりに変えたことを、まだ見ていない変更に足す（ステージエントリごとに HISTORY_LIMIT まで。古い物から捨てる）。
+  // also は、changes に行を寄せたほかのブック（changesByCause）
   const addUnseen = (
     change: { by: "ai" | "window"; act: string },
     outermost: string,
     was: Library,
     changes: TableChanges,
+    also: readonly string[],
   ) => {
     const mine = unseen.filter(u => u.outermost === outermost)
     const over = mine.length >= HISTORY_LIMIT ? mine[0] : undefined
-    const step: HistoryStep = { seq: nextSeq(), by: change.by, outermosts: [outermost], ...rowChangesOf(was, changes) }
+    const step: HistoryStep = {
+      seq: nextSeq(),
+      by: change.by,
+      outermosts: [outermost],
+      also,
+      ...rowChangesOf(was, changes),
+    }
     const places = [...Object.keys(changes.pages), ...Object.keys(changes.folders)]
     unseen = [...unseen.filter(u => u !== over), { step, act: change.act, outermost, places }]
   }
@@ -288,9 +297,9 @@ export function createUnseenChanges(deps: {
     const books = split ? libraryOf(split.tables) : known
     // よその変更が変えたステージエントリごとに（前にも後にも在る物だけ）、まだ見ていない変更に足す
     if (change && by && recorded)
-      for (const [outermost, changes] of Object.entries(changesByOutermost(before, tables, rowChanges(before, tables))))
+      for (const [outermost, c] of Object.entries(changesByCause(before, tables, rowChanges(before, tables))))
         if (heldIn(before, books, outermost) && heldIn(tables, library, outermost))
-          addUnseen({ by, act: change.act }, outermost, before, changes)
+          addUnseen({ by, act: change.act }, outermost, before, c.changes, c.also)
     known = library
     knownTables = tables
   }

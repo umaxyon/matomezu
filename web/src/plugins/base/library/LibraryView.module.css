@@ -187,6 +187,14 @@
   width: 100%;
   height: 100%;
 }
+/* 参照エントリのアイコン（ReferenceIcon）も、中の絵ごと枠いっぱいに広げる */
+.typed > [data-reference-icon],
+.typed > [data-reference-icon] > span,
+.typed > [data-reference-icon] > span > span,
+.typed > [data-reference-icon] svg {
+  width: 100%;
+  height: 100%;
+}
 .name {
   display: flex;
   flex: 1;
@@ -497,4 +505,36 @@
 }
 .entry[data-drop="after"]::after {
   right: -5px;
+}
+/* 参照エントリを置くために選んでいる間の書庫の画面: 上に選んでいる間の帯、その下に書庫の画面 */
+.chooser {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+/* 選んでいる間の帯: 何を選んでいるかと［取消］（書庫のスクリーンの帯と同じ高さ） */
+.chooseBand {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--skin-border);
+  background: var(--skin-accent-subtle);
+  color: var(--skin-text);
+  font-size: 13px;
+}
+.chooseWhat {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 参照エントリを置くために選んでいる間の、選べず中へも入らない行 */
+[data-unchoosable] {
+  opacity: 0.4;
 }

@@ -50,7 +50,13 @@ export interface BinderEntry {
 }
 // ステージエントリが持つ設定の項目の値（settings のフィールドの中身）
 export type OutermostSettings = SettingValuesOf<OutermostSettingId>
-export type LineupEntry = AnyPage | BinderEntry
+// 参照エントリ: ほかの所のページ（バインダの外の物）かバインダを id で指す、ブックの並びの 1 つ。中身・名前・設定を持たず、指す先を見るだけで描く
+export interface ReferenceEntry {
+  kind: "reference"
+  id: string
+  of: { kind: "page" | "binder"; id: string }
+}
+export type LineupEntry = AnyPage | BinderEntry | ReferenceEntry
 
 // ステージで開く物の並び: その物の id と、並び lineup（ブックならその id と並び、ブックの外のバインダならその id と、そのバインダ 1 つだけの並び）
 export type StageLineup = {

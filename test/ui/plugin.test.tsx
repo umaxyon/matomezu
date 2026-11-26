@@ -100,11 +100,15 @@ describe("見た目のプラグイン", () => {
     expect(assembleUi([...plugins])).not.toBe(assembleUi(plugins))
   })
 
-  test("コマンドのアイコンは自分のコマンドにだけ付けられる（ほかのプラグインのコマンドなら E307）", () => {
+  test("コマンドのアイコンとその見せ方は自分のコマンドにだけ付けられる（ほかのプラグインのコマンドなら E307）", () => {
     const icons = definePluginUi(definePlugin({ id: "icons" }), {
       commandIcons: { "@matomezu/paper:paper-delete": <span /> },
     })
     expect(thrown(() => assembleUi([...BUILTIN_UI, icons]))).toMatchObject({ code: "E307" })
+    const looks = definePluginUi(definePlugin({ id: "looks" }), {
+      commandIconLooks: { "@matomezu/paper:paper-delete": "picture" },
+    } as never)
+    expect(thrown(() => assembleUi([...BUILTIN_UI, looks]))).toMatchObject({ code: "E307" })
   })
 
   test("メニューが自分で出す行は、自分のメニューにだけ書ける（ほかのプラグインのメニューなら E315）", () => {

@@ -207,6 +207,7 @@ const FRAMES = [
   "page-tabs/useAddPage.tsx",
   "print-preview/PrintPreviewView.tsx",
   "print-preview/SheetFrame.tsx",
+  "references/ReferenceLayer.tsx",
   "right-side-panel/RevealAndRestore.tsx",
   "right-side-panel/RightSidePanel.tsx",
   "right-side-panel/hooks.tsx",

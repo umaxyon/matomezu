@@ -14,6 +14,8 @@ import type { Folders } from "../../../core/folders"
 import { isKeptSystemFolder, systemFolderOf } from "../../../core/folders-tree"
 import type { Point } from "../../../core/geom"
 import { LIBRARY_HISTORY } from "../../../core/history"
+import { bookOfReference, inSight, referableTarget, referenceEntryOf } from "../../../core/references"
+import type { OpenTo } from "../../../store/actions"
 import {
   type CommandActions,
   type ScreenCommandContext,
@@ -46,24 +48,30 @@ import { ENTRY_DUPLICATE } from "./entry-duplicate"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
 import { ENTRY_REMOVE } from "./entry-remove"
 import { ENTRY_TRASH } from "./entry-trash"
-import { openFromLibrary, openSplitFromLibrary, opensBeside } from "./open-from"
+import { openFromLibrary, openSplitFromLibrary, opensBeside, placeChosen } from "./open-from"
 import {
   arrivedAt,
   type BookOpened,
   bookOpenedFrom,
+  type Choosing,
+  chooseLookOf,
+  choosingNow,
   NOT_OPENED,
   type OpenTarget,
   openedFolderOf,
   openTargetOf,
   paneIdsOf,
+  type RowKind,
   type TreeRow,
   treeCurrentOf,
   treeRowsOf,
 } from "./outline"
 import { PAGE_CREATE } from "./page-create"
+import { LIBRARY_REFERENCE_ADD, LIBRARY_REFERENCE_REMOVE } from "./reference-actions"
 import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
 import { unreadableShownIn } from "./show-unreadable"
 import {
+  LIBRARY_CHOOSING,
   LIBRARY_COLUMNS,
   LIBRARY_FOLDER,
   LIBRARY_FOUND_PICKED,
@@ -118,10 +126,17 @@ export const LIBRARY_REDO = kit.defineScreenCommand({
 // 書庫の画面の右クリックのメニュー: 行（ツリーの行・右の枠のアイコン）のメニューと、右の枠の何も無い所のメニュー（受け取るのは、開いているフォルダ）
 export const LIBRARY_ENTRY_CONTEXT = kit.name("library-entry-context")
 export const LIBRARY_FOLDER_CONTEXT = kit.name("library-folder-context")
+// 書庫の画面の、ブックの中身に並ぶ参照エントリの行のメニュー（受け取るのは、参照エントリの id。エントリのコマンドが参照エントリの id を受けないよう、行のメニューとは分ける）
+export const LIBRARY_REFERENCE_CONTEXT = kit.name("library-reference-context")
 // 「ページ新規作成」を押して開く、ページのタイプの一覧のメニュー（受け取るのは、作る先のフォルダ。行はメニューが自分で出す）
 export const LIBRARY_ADD_PAGE_MENU = kit.name("library-add-page-menu")
 // LibraryView が開くメニュー（LibraryView を描くウィジェットが、contextMenus に書く）
-export const LIBRARY_CONTEXT_MENUS = [LIBRARY_ENTRY_CONTEXT, LIBRARY_FOLDER_CONTEXT, LIBRARY_ADD_PAGE_MENU] as const
+export const LIBRARY_CONTEXT_MENUS = [
+  LIBRARY_ENTRY_CONTEXT,
+  LIBRARY_FOLDER_CONTEXT,
+  LIBRARY_REFERENCE_CONTEXT,
+  LIBRARY_ADD_PAGE_MENU,
+] as const
 
 // コマンドが受け取る物: エントリ entry か、フォルダ folder（何も無い所のメニューから）か、ツリーで今いる行（at）。
 // 書庫の右クリックのメニューが受け取る物も、この形（pressed は、メニューを開いた画面の位置。続けてメニューを開くコマンドが使う）
@@ -191,7 +206,9 @@ function openedRow(ctx: ScreenCommandContext, named?: Named) {
   if (entry === undefined) return undefined
   const desks = desksIn(ctx)
   const real = realOf(desks, ctx.folders, entry)
-  const kind = placeOf(ctx.folders, real)?.ref.kind ?? (isDeskRow(entry) ? "folder" : undefined)
+  const kind: RowKind | undefined =
+    placeOf(ctx.folders, real)?.ref.kind ??
+    (isDeskRow(entry) ? "folder" : bookOfReference(ctx.folders, entry) ? "reference" : undefined)
   if (kind === undefined) return undefined
   const readable = isDeskRow(entry) || kind === "page" || entry in ctx.folders
   return { row: { id: entry, kind, readable }, desks }
@@ -205,27 +222,104 @@ function opening(ctx: ScreenCommandContext, named?: Named): Exclude<OpenTarget, 
   return target === NOT_OPENED ? undefined : target
 }
 
-// 分割で開くブックとページ（ブックスクリーンに開く行だけ。「画面を分割」で出した書庫のスクリーンでは開かない: 開く先が上の段に決まっている）
+// 分割で開くブックとページ（ブックスクリーンに開く行だけ。「画面を分割」で出した書庫のスクリーンでは開かない: 開く先が上の段に決まっている。参照エントリを置くために選んでいる間も開かない）
 function splitOpening(ctx: ScreenCommandContext, named?: Named): BookOpened | undefined {
-  if (opensBeside(ctx)) return undefined
+  if (opensBeside(ctx) || choosingIn(ctx)) return undefined
   const found = openedRow(ctx, named)
   return found === undefined ? undefined : bookOpenedFrom(ctx.folders, found.row, found.desks)
 }
 
+// 呼ばれた場所の書庫の画面で選んでいる物（選んでいない・続けられなければ undefined）
+export function choosingIn(ctx: ScreenCommandContext): Choosing | undefined {
+  const now = ctx.pluginState(LIBRARY_CHOOSING)
+  return choosingNow(ctx.folders, now === NO_STATE ? undefined : now)
+}
+
+// 選んでいる物 choosing での、扱う行の扱い（chooseLookOf。行が無ければ undefined）
+function lookIn(ctx: ScreenCommandContext, choosing: Choosing, named?: Named) {
+  const entry = named && "folder" in named ? undefined : entryOf(ctx, named)
+  return entry === undefined ? undefined : chooseLookOf(ctx.folders, choosing, entry, desksIn(ctx))
+}
+
+// 選んでいる物 choosing で、扱う行を選んで置くときの置き先と指す先（選べない行なら undefined）
+const chosenIn = (ctx: ScreenCommandContext, choosing: Choosing, named?: Named) => lookIn(ctx, choosing, named)?.chosen
+
+// 参照エントリを置くために選んでいる間の開く: 選べる行は、選んで置く。中へ入れる行（chooseLookOf）は右の枠で中へ入る（窓には開かない）。ほかの行は何もしない
+function openWhileChoosing(ctx: ScreenCommandContext, a: CommandActions, choosing: Choosing, named?: Named): void {
+  const look = lookIn(ctx, choosing, named)
+  if (look?.chosen) {
+    placeChosen(ctx, a, choosing, look.chosen)
+    return
+  }
+  if (!look?.enters) return
+  const found = openedRow(ctx, named)
+  const target = found === undefined ? NOT_OPENED : openTargetOf(ctx.folders, found.row, found.desks)
+  if (target === NOT_OPENED) return
+  if (target.to === "folder") goTo(ctx, a, { id: target.folder, holder: target.folder, holds: true })
+  else if (target.to === "book") goTo(ctx, a, { id: target.book, holder: target.book, holds: true })
+}
+
+// 参照エントリを置くために選んでいる間に、選べる行を選んで置く（その行の吹き出しの［参照を置く］・［ここに置く］）。選べない行・参照エントリを置くために選んでいない間は何もしない
+export const LIBRARY_CHOOSE_PLACE = kit.defineScreenCommand({
+  id: "library-choose-place",
+  readsSubjects: workdesksReadsOf,
+  title: "Add reference",
+  performs: [LIBRARY_REFERENCE_ADD.id],
+  run: (ctx, a, named: Named | undefined) => {
+    const choosing = choosingIn(ctx)
+    const chosen = choosing && chosenIn(ctx, choosing, named)
+    if (choosing && chosen) placeChosen(ctx, a, choosing, chosen)
+  },
+  performsWith: (ctx, named) => {
+    const choosing = choosingIn(ctx)
+    const chosen = choosing && chosenIn(ctx, choosing, named)
+    return chosen ? [{ action: LIBRARY_REFERENCE_ADD.id, args: chosen }] : []
+  },
+  when: ctx => choosingIn(ctx) !== undefined,
+})
+
+// 参照を置く…（書庫の右クリックのメニュー）が指す物: 受け取った行の実の物が、書庫の見える所の、バインダの外のページかバインダのとき（参照エントリを置くために選んでいる間は出さない）
+function placeable(ctx: ScreenCommandContext, named?: Named): Choosing | undefined {
+  if (choosingIn(ctx)) return undefined
+  const entry = named && "folder" in named ? undefined : entryOf(ctx, named)
+  if (entry === undefined) return undefined
+  const real = realOf(desksIn(ctx), ctx.folders, entry)
+  const kind = placeOf(ctx.folders, real)?.ref.kind
+  if (kind !== "page" && kind !== "binder") return undefined
+  return referableTarget(ctx.folders, { kind, id: real }) ? { choose: "book", of: { kind, id: real } } : undefined
+}
+
+// 参照を置く…: 受け取ったページかバインダを指す参照エントリを置くブックを、書庫で選び始める（選んでいる行は外す。書庫は開いたまま）
+export const LIBRARY_REFERENCE_PLACE = kit.defineScreenCommand({
+  id: "library-reference-place",
+  readsSubjects: workdesksReadsOf,
+  title: "Place reference…",
+  run: (ctx, a, named: Named | undefined) => {
+    const choosing = placeable(ctx, named)
+    if (choosing === undefined) return
+    a.updatePluginState(LIBRARY_CHOOSING, () => choosing)
+    a.resetPluginState(LIBRARY_PICKED)
+  },
+  when: ctx => choosingIn(ctx) === undefined,
+  accepts: findsNamed(placeable),
+})
+
 // 開く: フォルダは右の枠で中へ入り、ブック・ページ・バインダ・ブックの外のページは窓に出す（書庫の画面の行を 2 回押す・Enter・右クリックのメニューの「開く」の、ただ 1 つの道）。
-// 名指した物が開けるときだけ出す（フォルダも）
+// 名指した物が開けるときだけ出す（フォルダも）。参照エントリを置くために選んでいる間は、窓に出さず（openWhileChoosing）、右クリックのメニューにも出さない
 export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
   id: "library-entry-open",
   readsSubjects: workdesksReadsOf,
   title: "Open",
   run: (ctx, a, named: Named | undefined) => {
+    const choosing = choosingIn(ctx)
+    if (choosing) return openWhileChoosing(ctx, a, choosing, named)
     const target = opening(ctx, named)
     if (!target) return
     if (target.to === "folder") return goTo(ctx, a, { id: target.folder, holder: target.folder, holds: true })
     openFromLibrary(ctx, a, target)
   },
-  when: () => true,
-  accepts: findsNamed(opening),
+  when: ctx => choosingIn(ctx) === undefined || !ctx.contextMenuOpen,
+  accepts: (ctx, named) => choosingIn(ctx) !== undefined || opening(ctx, named) !== undefined,
 })
 
 // 分割で開く: ブックとその中のページ・ワーカーブックを、呼ばれたスクリーンを起点に上下に分けて窓に出す（右クリックのメニューの「分割で開く」と Mod+Enter。窓が低ければ窓いっぱいに）
@@ -242,6 +336,28 @@ export const LIBRARY_ENTRY_OPEN_SPLIT = kit.defineScreenCommand({
   accepts: findsNamed(splitOpening),
 })
 
+// 参照元へ移動: 参照エントリ reference の指す先を、書庫から開くのと同じく窓に出す（指す先がゴミ箱・読めない物のフォルダに居れば出さない）
+export const LIBRARY_REFERENCE_SOURCE = kit.defineScreenCommand({
+  id: "library-reference-source",
+  readsSubjects: workdesksReadsOf,
+  title: "Go to source",
+  run: (ctx, a, { reference }: { reference: string }) => {
+    const target = sourceOf(ctx, reference)
+    if (target) openFromLibrary(ctx, a, target)
+  },
+  when: () => true,
+  accepts: (ctx, { reference }) => sourceOf(ctx, reference) !== undefined,
+})
+
+// 参照エントリ reference の指す先を開く所（見えなければ・参照エントリを置くために選んでいる間は undefined）
+function sourceOf(ctx: ScreenCommandContext, reference: string): OpenTo | undefined {
+  if (choosingIn(ctx)) return undefined
+  const ref = referenceEntryOf(ctx.folders, reference)
+  if (ref?.kind !== "reference" || !inSight(ctx.folders, ref.of.id)) return undefined
+  const target = openTargetOf(ctx.folders, { id: ref.of.id, kind: ref.of.kind, readable: true }, desksIn(ctx))
+  return target === NOT_OPENED || target.to === "folder" ? undefined : target
+}
+
 export const LIBRARY_BOOK_NEW = kit.defineScreenCommand({
   id: "library-book-new",
   readsSubjects: workdesksReadsOf,
@@ -256,7 +372,8 @@ export const LIBRARY_BOOK_NEW = kit.defineScreenCommand({
     const into = holder(ctx, named)
     return into === undefined ? [] : [{ action: BOOK_CREATE.id, args: { title: ASKED_TITLE, into } }]
   },
-  when: () => true,
+  // 参照エントリを置くために選んでいる間は出さない（作ったブックが選べる行になり、すぐ置いてしまうため）
+  when: ctx => choosingIn(ctx) === undefined,
   accepts: findsNamed(holder),
 })
 
@@ -371,24 +488,67 @@ export const LIBRARY_ENTRY_TRASH = kit.defineScreenCommand({
   id: "library-entry-trash",
   readsSubjects: workdesksReadsOf,
   title: "Move to trash",
-  performs: [ENTRY_TRASH.id, ENTRY_REMOVE.id], // 中の物は、開いたダイアログが entry-remove を行う
+  performs: [ENTRY_TRASH.id, ENTRY_REMOVE.id, LIBRARY_REFERENCE_REMOVE.id], // 中の物は、開いたダイアログが entry-remove を行う
   run: (ctx, a, named: Named | undefined) => {
+    // 参照エントリの行は、確かめずに消す（Delete キーは、このコマンドにだけ結ぶ）
+    const ref = referenceAt(ctx, entryOf(ctx, named))
+    if (ref) return removeReferenceIn(ctx, a, ref)
     const trashed = handled(ctx, trashes, named)
     if (trashed !== undefined) return trash(ctx, a, trashed)
     const entry = handled(ctx, removes, named)
     if (entry !== undefined) a.openDialog(LIBRARY_REMOVE_DIALOG.id, { entry })
   },
   performsWith: (ctx, named) => {
+    const ref = referenceAt(ctx, entryOf(ctx, named))
+    if (ref) return [{ action: LIBRARY_REFERENCE_REMOVE.id, args: ref }]
     const trashed = handled(ctx, trashes, named)
     if (trashed !== undefined) return [{ action: ENTRY_TRASH.id, args: { entry: trashed } }]
     const entry = handled(ctx, removes, named)
     return entry === undefined ? [] : [{ action: ENTRY_REMOVE.id, args: { entry } }]
   },
   when: () => true,
-  // 名指した物は直下の物だけ。キーからは中の物も（消す前に確かめる）
+  // 参照エントリはいつも（確かめずに消す）。ほかは、名指した物は直下の物だけ。キーからは中の物も（消す前に確かめる）
   accepts: (ctx, named) =>
+    referenceAt(ctx, entryOf(ctx, named)) !== undefined ||
     handled(ctx, trashes, named) !== undefined ||
     (!(named && ("entry" in named || "folder" in named)) && handled(ctx, removes, named) !== undefined),
+})
+
+// 参照エントリ id と、それを置いたブック（id が参照エントリでなければ undefined）
+function referenceAt(
+  ctx: ScreenCommandContext,
+  id: string | undefined,
+): { book: string; reference: string } | undefined {
+  const book = id === undefined ? undefined : bookOfReference(ctx.folders, id)
+  return book && id !== undefined ? { book: book.id, reference: id } : undefined
+}
+
+// 参照エントリ at を、確かめずに消す。断られたらトーストで知らせる。行えたら、それを選んでいれば外す
+function removeReferenceIn(
+  ctx: ScreenCommandContext,
+  a: CommandActions,
+  at: { book: string; reference: string },
+): void {
+  const done = a.perform(LIBRARY_REFERENCE_REMOVE.id, at)
+  if (done.ok) a.updatePluginState(LIBRARY_PICKED, now => (now === at.reference ? NO_STATE : now))
+  else a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Could not delete")) })
+}
+
+// 参照エントリの行の右クリックの「削除」: 確かめずに消す（指す先は変わらない）
+export const LIBRARY_REFERENCE_DELETE = kit.defineScreenCommand({
+  id: "library-reference-delete",
+  readsSubjects: workdesksReadsOf,
+  title: "Delete",
+  performs: [LIBRARY_REFERENCE_REMOVE.id],
+  run: (ctx, a, { reference }: { reference: string }) => {
+    const at = referenceAt(ctx, reference)
+    if (at) removeReferenceIn(ctx, a, at)
+  },
+  performsWith: (ctx, named?: { reference: string }) => {
+    const at = referenceAt(ctx, named?.reference)
+    return at ? [{ action: LIBRARY_REFERENCE_REMOVE.id, args: at }] : []
+  },
+  when: () => true,
 })
 
 // 消す: ブックやバインダの中の物を、確かめるダイアログを開いてから消す（ダイアログが entry-remove を行う）

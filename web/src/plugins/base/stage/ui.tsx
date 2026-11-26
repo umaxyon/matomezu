@@ -1,7 +1,8 @@
-// ステージの見た目: ブックの中身を描く枠とレイヤー（紙の面・印刷区画の区切り・プレゼンテーションのビュー・スタンド）、閉じるボタン、ステージのコマンドのアイコン
+// ステージの見た目: ブックの中身を描く枠とレイヤー（紙の面・印刷区画の区切り・プレゼンテーションのビュー・参照エントリの指す先・スタンド）、閉じるボタン、ステージのコマンドのアイコン
 import { defineWidget } from "../../../ui/layout"
 import { CORNER_STATUSES } from "../corner-status/corner"
 import { kit } from "../kit"
+import { ReferenceLayer } from "../references/ReferenceLayer"
 import { StandLayer } from "../stand/anchors"
 import { BOOK_LAYERS, SHEET_LAYERS, STAGE_BODY } from "../workspace/slots"
 import { STAGE_SLOTS } from "../workspace/ui"
@@ -25,6 +26,12 @@ export const PRINT_AREA_LAYER = defineWidget({
   view: PrintAreaLayer,
 })
 export const BOOK_CONTENT = defineWidget({ id: kit.name("book-content"), slots: [BOOK_LAYERS], view: BookContentLayer })
+// 開いた参照エントリの指す先を、見るだけで描くレイヤー
+export const REFERENCE_LAYER = defineWidget({
+  id: kit.name("reference-layer"),
+  slots: [BOOK_LAYERS],
+  view: ReferenceLayer,
+})
 export const STAND_LAYER = defineWidget({ id: kit.name("stand-layer"), slots: [BOOK_LAYERS], view: StandLayer })
 export const PRINT_AREA_TOGGLE = defineWidget({
   id: kit.name("print-area-toggle"),

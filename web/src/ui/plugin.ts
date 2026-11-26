@@ -157,13 +157,14 @@ export interface Overrides {
 // 列挙の値のアイコン: 絵 1 つ。開け閉めのある物（フォルダなど）は、閉じた絵と開いた絵
 export type EnumValueIcon = ReactNode | { readonly closed: ReactNode; readonly open: ReactNode }
 
-// widgets はこのプラグインのウィジェット、commandIcons はメニューなどに出すコマンドのアイコン（無ければ名前の文字だけを出す）、
+// widgets はこのプラグインのウィジェット、commandIcons はメニューなどに出すコマンドのアイコン（無ければ名前の文字だけを出す）、commandIconLooks はその見せ方（書かなければ line）、
 // pageTypeIcons はページのタイプのアイコン（ページタブの頭に出す。名乗らないタイプは、通常のファイルの絵）、
 // enumValueIcons は自分が足した列挙の値のアイコン（絵を使う列挙の宣言側が読む。無ければ宣言側が決めた絵）、
 // contextMenuRows は自分のメニューが自分で出す行（機能台帳から決まる一覧など。UI マッピングのコマンドの並びの前に出る）
 export type UiParts<P> = PluginViews<P> & {
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: { [id in IdsOf<P, "commands">]?: ReactNode }
+  commandIconLooks?: { [id in IdsOf<P, "commands">]?: IconLook }
   pageTypeIcons?: { [id in IdsOf<P, "pageTypes">]?: ReactNode }
   enumValueIcons?: { [id in IdsOf<P, "enumValues">]?: EnumValueIcon }
   contextMenuRows?: { [M in OwnContextMenuId<P>]?: ContextMenuRows<M> }
@@ -179,8 +180,11 @@ export interface ContextMenuRow {
   args?: unknown
   label: string
   icon?: ReactNode
-  iconLook?: "line" | "picture" // アイコンの見せ方（line は線の絵でスキンの色、picture は絵の元の色。書かなければ line）
+  iconLook?: IconLook
 }
+
+// アイコンの見せ方（line は線の絵でスキンの色、picture は絵の元の色。書かなければ line）
+export type IconLook = "line" | "picture"
 
 // メニュー M の行を、開いたときに受け取った物 target から出すフック（中で文言や機能台帳のフックを使える）
 export type ContextMenuRows<M extends ContextMenuId = ContextMenuId> = (
@@ -205,6 +209,7 @@ export interface UiCatalog {
   dialogViews: ReadonlyMap<string, AnyDialogView>
   widgets: ReadonlyMap<string, AnyWidgetDef>
   commandIcons: ReadonlyMap<string, ReactNode>
+  commandIconLooks: ReadonlyMap<string, IconLook>
   toolIcons: ReadonlyMap<string, ReactNode>
   pageTypeIcons: ReadonlyMap<string, ReactNode>
   enumValueIcons: ReadonlyMap<string, EnumValueIcon>
@@ -220,6 +225,7 @@ interface LooseUi {
   dialogViews?: Record<string, AnyDialogView>
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: Record<string, ReactNode>
+  commandIconLooks?: Record<string, IconLook>
   toolIcons?: Record<string, ReactNode>
   pageTypeIcons?: Record<string, ReactNode>
   enumValueIcons?: Record<string, EnumValueIcon>
@@ -251,6 +257,7 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
   const dialogViews = new Map<string, AnyDialogView>()
   const widgets = new Map<string, AnyWidgetDef>()
   const commandIcons = new Map<string, ReactNode>()
+  const commandIconLooks = new Map<string, IconLook>()
   const contextMenuRows = new Map<string, (target: never) => readonly ContextMenuRow[]>()
   const toolIcons = new Map<string, ReactNode>()
   const pageTypeIcons = new Map<string, ReactNode>()
@@ -305,6 +312,10 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
       if (!own.has(id)) fail("E307", { plugin: p.id, command: id })
       commandIcons.set(id, icon)
     }
+    for (const [id, look] of Object.entries(ui.commandIconLooks ?? {})) {
+      if (!own.has(id)) fail("E307", { plugin: p.id, command: id })
+      commandIconLooks.set(id, look)
+    }
     for (const [id, rows] of Object.entries(ui.contextMenuRows ?? {})) {
       if (!isOwnedBy(p.id, id)) fail("E315", { plugin: p.id, id })
       contextMenuRows.set(id, rows)
@@ -349,6 +360,7 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
     dialogViews,
     widgets,
     commandIcons,
+    commandIconLooks,
     toolIcons,
     pageTypeIcons,
     enumValueIcons,

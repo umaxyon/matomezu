@@ -23,7 +23,7 @@ func TestWalksTheLineupWithBinders(t *testing.T) {
 	if strings.Join(ids, ",") != "p1,s1,s2" {
 		t.Fatalf("pages = %v", ids)
 	}
-	outlined := string(outlineBook(json.RawMessage(book), func(string) int64 { return 3 }))
+	outlined := string(outlineBook(json.RawMessage(book), func(string) int64 { return 3 }, func(string, string) (Referred, bool) { return Referred{}, false }))
 	for _, want := range []string{
 		`{"kind":"page","id":"p1","title":"図","type":"@matomezu/drawing:drawing","size":`,
 		`{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-page:slide","lineup":[{"kind":"page","id":"s1","title":"1","type":"@matomezu/slide-page:slide","size":`,

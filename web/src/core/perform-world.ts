@@ -40,6 +40,7 @@ import { FOLDERS, type WithFolders } from "./permission-input"
 import type { ItemPage } from "./placed"
 import { type RecordSource, readerOf, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, REMOVED, type RecordChange, type Records } from "./records"
+import { deadReferences, newReferencesHold, unreadTargets } from "./references"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import { langChosen, type Settings } from "./settings"
@@ -74,7 +75,8 @@ export type PerformedIn =
       hostMessages?: readonly HostMessage[] // フォローステップが返した、送る常駐メッセージの並び（常駐がバルクの書き込みと一緒に送る）
     }
   | Refused
-  // フォローステップがバックヤードの中に行う事の、ブックの行が世界に無い（常駐が、そのブックの行を足して行い直す。画面は全部を持つので起きない）
+  // 要る行が世界に無い（常駐が、その行を足して行い直す。画面は全部を持つので起きない）。books は、フォローステップがバックヤードの中に行う事の先のブックか、
+  // ブックが新しく置いた参照エントリの指す先の id
   | { ok: false; reason: "needs-rows"; books: readonly string[] }
   | { ok: false; reason: "no-book" }
   | { ok: false; reason: "no-record"; detail: string }
@@ -224,17 +226,24 @@ function changedLibrary(naming: Naming, world: World, done: ReturnType<typeof pe
 const collides = (world: Library, before: readonly Book[], changes: TableChanges): boolean =>
   createdIn(before, changes).some(id => id in world.pages || id in world.folders)
 
-// ブックを変えるアクションの結果 done を、変わった物だけの形にする（book は行う前のブック）。
+// ブックを変えるアクションの結果 done を、変わった物だけの形にする（book は行う前のブック。残れなくなったほかのブックの参照エントリも外す）。
 // ブックの id を変えていたら断り、変わったページでは無くなった物をアノテーションのアンカーから外し、無くなったページのアノテーションは消す（名前は naming で引く）
 function changedBook(naming: Naming, world: World, book: Book, done: ReturnType<typeof perform>): PerformedIn {
   if (!done.ok) return done
   const next = done.next as Book
   if (next.id !== book.id) return { ok: false, reason: "refused" }
   if (next === book) return { ok: true, result: done.result }
-  const changes = changesBetween([book], [next])
-  if (collides(world, [book], changes)) return { ok: false, reason: "refused" }
+  const own = changesBetween([book], [next])
+  if (collides(world, [book], own)) return { ok: false, reason: "refused" }
+  const after = withChanges(world, own)
+  const unread = unreadTargets(after, book, next)
+  if (unread.length > 0) return { ok: false, reason: "needs-rows", books: unread }
+  if (!newReferencesHold(after, book, next)) return { ok: false, reason: "refused" }
+  // ページやバインダを消して・入れ替えて、ほかのブックの参照エントリが残れなくなったら、同じ書き込みで外す
+  // （残れなくなるのはフォルダの並びが変わったときだけなので、ページの中身だけの変わりでは確かめない）
+  const dead = Object.keys(own.folders).length === 0 ? {} : deadReferences(after)
+  const changes = Object.keys(dead).length === 0 ? own : { ...own, folders: { ...own.folders, ...dead } }
   if (next.title !== book.title) {
-    const after = withChanges(world, changes)
     const clashes = titleClashes(after, naming)
     if (clashes.length > 0) return titleTaken(after, clashes, naming)
   }

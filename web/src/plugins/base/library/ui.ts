@@ -9,7 +9,7 @@ export {
   LIBRARY_RENAME_DIALOG,
 } from "./dialog"
 export { type FolderEntry, NO_FOLDER, useFolderEntries } from "./hooks"
-export { LIBRARY_COMMAND_ICONS } from "./icons"
+export { LIBRARY_COMMAND_ICON_LOOKS, LIBRARY_COMMAND_ICONS } from "./icons"
 export { LibraryNewBookDialog } from "./LibraryNewBookDialog"
 export { LibraryRemoveDialog } from "./LibraryRemoveDialog"
 export { LibraryView } from "./LibraryView"

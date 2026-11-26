@@ -231,7 +231,7 @@ test("新しいブックのダイアログでブックを作ると、そのス�
   const made = Object.values(folders).find(f => (f as { title?: string }).title === "新しい図")!
   const holder = Object.values(folders).find(f => f.lineup.some(r => r.id === made.id))
   expect((holder as { title?: string }).title).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-  // ページタブの＋はタイプの一覧を出す（ページを開いていなければ機能台帳の順）
+  // ページタブの＋はタイプの一覧を出す（ページを開いていなければ機能台帳の順）。末尾は、書庫で選んで参照を置く「参照…」
   fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
   expect(screen.getAllByRole("menuitem").map(m => m.textContent)).toEqual([
     "図面",
@@ -240,6 +240,7 @@ test("新しいブックのダイアログでブックを作ると、そのス�
     "ディレクトリ構成図",
     "マークダウン",
     "スライド",
+    "参照…",
   ])
   fireEvent.click(screen.getByRole("menuitem", { name: "図面" }))
   const page = screen.getByRole("dialog", { name: /^新しい/ })

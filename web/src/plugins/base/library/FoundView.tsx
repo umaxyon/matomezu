@@ -74,32 +74,44 @@ export function FoundView({
       {rows.length > 0 && (
         <ul className={styles.foundRows} aria-label={t("Found")}>
           {rows.map(row => (
-            <li key={row.id}>
-              <button
-                type="button"
-                className={styles.foundRow}
-                data-library-row={row.id}
-                data-key-scope={LIBRARY_FOUND_SCOPE}
-                tabIndex={row.id === tabbable ? 0 : -1}
-                aria-pressed={row.id === picked}
-                onFocus={() => resetOpens()}
-                onClick={() => {
-                  setPicked(row.id)
-                  onPick(row)
-                }}
-                onDoubleClick={() => onOpen(row)}
-                onContextMenu={e => {
-                  setPicked(row.id)
-                  onMenu(e, row)
-                }}
-              >
-                <RowIcon row={row} className={styles.icon} />
-                <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>
-                  {nameOf(row)}
-                </span>
-                <span className={styles.place}>{row.place.join(" › ")}</span>
-              </button>
-            </li>
+            <RowPressOf
+              key={row.id}
+              row={row}
+              noOpenChoice
+              click={() => {
+                setPicked(row.id)
+                onPick(row)
+              }}
+              open={() => onOpen(row)}
+            >
+              {press => (
+                <li>
+                  {press.bubble}
+                  <button
+                    type="button"
+                    className={styles.foundRow}
+                    data-library-row={row.id}
+                    data-key-scope={LIBRARY_FOUND_SCOPE}
+                    data-unchoosable={press.faded || undefined}
+                    tabIndex={row.id === tabbable ? 0 : -1}
+                    aria-pressed={row.id === picked}
+                    onFocus={() => resetOpens()}
+                    onClick={press.onClick}
+                    onDoubleClick={press.onDoubleClick}
+                    onContextMenu={e => {
+                      setPicked(row.id)
+                      onMenu(e, row)
+                    }}
+                  >
+                    <RowIcon row={row} className={styles.icon} />
+                    <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>
+                      {nameOf(row)}
+                    </span>
+                    <span className={styles.place}>{row.place.join(" › ")}</span>
+                  </button>
+                </li>
+              )}
+            </RowPressOf>
           ))}
         </ul>
       )}

@@ -1,6 +1,6 @@
 // ページタブの＋: 押すとページのタイプの一覧のメニュー（add-page-menu）を＋の上に開く（開いている間に押すと閉じるだけ）。
 // メニューの行（useAddPageRows。メニューが自分で出す行）は、開いているページのタイプを先頭に、ほかは機能台帳の順。
-// 選んだタイプのページを作るダイアログを開く（コマンド page-new）
+// 選んだタイプのページを作るダイアログを開く（コマンド page-new）。UI マッピングが末尾に置く「参照…」は、書庫で選んでこのブックに参照エントリを置く（書庫のコマンド library-reference-choose）
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { useCommand } from "../../../ui/commands"
 import { useToggledMenu } from "../../../ui/context-menu"
@@ -58,7 +58,8 @@ function useTypeRowLook(): (type: string) => Pick<ContextMenuRow, "label" | "ico
   }
 }
 
-// メニュー add-page-menu の行: タイプごとに 1 行（そのタイプのページを作るコマンド page-new。タイプがページを足すアクションを外していれば出ず、認可ステップが止めるなら押せない）
+// メニュー add-page-menu の行: タイプごとに 1 行（そのタイプのページを作るコマンド page-new。タイプがページを足すアクションを外していれば出ず、認可ステップが止めるなら押せない）。
+// 区切り線の下の「参照…」は、UI マッピングが置く（コマンド library-reference-choose）
 export function useAddPageRows({ first }: { first: string | null }): readonly ContextMenuRow[] {
   const catalog = useCatalog().core
   const look = useTypeRowLook()

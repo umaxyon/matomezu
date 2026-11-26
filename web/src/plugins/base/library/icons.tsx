@@ -3,6 +3,8 @@ import type { EntryKind } from "../../../core/entries"
 import { useUiCatalog } from "../../../ui/store-context"
 import { REDO_ICON, UNDO_ICON } from "../history/icons"
 import { LockIcon } from "../lock/LockIcon"
+import { FileIcon } from "../page-tabs/FileIcon"
+import { ReferenceIcon } from "../page-tabs/ReferenceIcon"
 import { BirdFaceView } from "../participant/BirdFaceView"
 import { asBird } from "../participant/birds"
 import { BookIcon, BookOpenIcon } from "../utils/book-icons"
@@ -11,7 +13,7 @@ import { icon } from "../utils/icon"
 import { LIBRARY_REDO, LIBRARY_UNDO } from "./commands"
 import styles from "./LibraryView.module.css"
 import type { LibraryRow } from "./outline"
-import { LIBRARY_OPEN } from "./screen"
+import { LIBRARY_OPEN, LIBRARY_REFERENCE_CHOOSE } from "./screen"
 
 const BINDER = icon(
   <>
@@ -68,10 +70,12 @@ export function RowIcon({
     )
   ) : row.kind === "page" && typed !== undefined ? (
     typed
+  ) : row.kind === "reference" ? (
+    <ReferenceIcon icon={typed ?? <FileIcon />} />
   ) : undefined
   return (
     <span className={picture === undefined ? className : `${className} ${styles.typed}`}>
-      {picture ?? iconOf(row.kind)}
+      {picture ?? (row.kind === "reference" ? null : iconOf(row.kind))}
       {row.locked && (
         <span className={styles.lock}>
           <LockIcon />
@@ -85,4 +89,8 @@ export const LIBRARY_COMMAND_ICONS = {
   [LIBRARY_UNDO.id]: UNDO_ICON,
   [LIBRARY_REDO.id]: REDO_ICON,
   [LIBRARY_OPEN.id]: icon(<path d="M3.5 5.5h6l2 2h9v11h-17z" />),
+  // ページタブの＋のメニューで、ページのタイプの行の絵とそろえる（絵の元の色で見せる）
+  [LIBRARY_REFERENCE_CHOOSE.id]: <ReferenceIcon icon={<FileIcon />} />,
 }
+
+export const LIBRARY_COMMAND_ICON_LOOKS = { [LIBRARY_REFERENCE_CHOOSE.id]: "picture" } as const

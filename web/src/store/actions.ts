@@ -62,7 +62,7 @@ export interface WindowActions {
   // 機能台帳に無い定義・形に合わない値なら開かず、false を返す
   openScreen(def: string, props: unknown): boolean
   // ブックを窓に出す: もう開いているブックスクリーンが在れば、それをカレントスクリーンにする。無ければ、新しいブックスクリーンで開く
-  // （開いたままにする枚数を超えた分は、土台がカレントにしたのが古い物から閉じる）。page を言えば、そのページを開く。無いブックなら何もせず false
+  // （開いたままにする枚数を超えた分は、土台がカレントにしたのが古い物から閉じる）。page を言えば、そのページを開く（ブックの参照エントリの id なら、その参照エントリを開く）。無いブックなら何もせず false
   showBook(book: string, page?: string): boolean
   // スクリーンアレンジメントを定義 def と値 value に替える（値を渡さなければ、定義の初めの値。機能台帳に無い定義・値が定義の形に合わなければ替えない）
   setScreenArrangement(def: string, value?: unknown): void
@@ -85,9 +85,9 @@ export interface WindowActions {
   continueStep(outermost: string): void
 }
 
-// ステージで開く物: ブック（とその中のページ・バインダ）か、ブックの外のページか、ブックの外のバインダ（とその中のページ）
+// ステージで開く物: ブック（とその中のページ・バインダ・参照エントリ）か、ブックの外のページか、ブックの外のバインダ（とその中のページ）
 export type OpenTo =
-  | { to: "book"; book: string; page?: string; binder?: string }
+  | { to: "book"; book: string; page?: string; binder?: string; reference?: string }
   | { to: "page"; page: string }
   | { to: "binder"; binder: string; page?: string }
 
@@ -132,6 +132,7 @@ export interface PlaceActions {
   openBook(stage: string, book: string): void // そのステージでブックを開き（ページがあれば最初のページ）、カレントにする
   openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにして、そのブックスクリーンをカレントスクリーンにする
   openBinder(stage: string, binder: string): void // そのステージで開いているブックのバインダを開く（中の最初のページ。空ならバインダ）
+  openReference(stage: string, reference: string, chosen?: string): void // そのステージで開いているブックの参照エントリを開く（指すバインダなら、選んだページ chosen）
   openPageById(stage: string, page: string): void // ページ page を持つステージエントリ（ブックか、ブックの外のバインダ。ブックの外のページ 1 枚ならそのページ）をそのステージで開き、そのページを開く（開ける所に無ければ何もしない）
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   // プレゼンテーションが描く広さ（可変ページ。null なら紙 1 枚）と、描く中身を右・下へずらした量（印刷区画の数。位置をデータに持たないプレゼンテーション）
@@ -148,6 +149,7 @@ export interface PlaceActions {
   startBackground(id: string): void // そのステージを背景編集モードにする（背景を持つタイプのブックのページを開いている編集の間だけ）
   endBackground(id: string): void // そのステージの背景編集モードを終える
   setPreviewArea(id: string, area: Size): void // 印刷プレビューで並べた広さ（プレゼンテーションが知らせる）
+  setReferenceArea(id: string, area: Size | null): void // 開いた参照エントリを描いた広さ（描く側が知らせる。描く物が無ければ null）
   // そのステージが使う道具の組の道具を替える（同じ組を使うステージが全部替わり、置こうとしていたアイテムは取り消す）
   setTool(stage: string, tool: ToolId): void
   // そのステージでアイテムを置こうとする（同じものなら取り消す）。props は置くときに渡す項目の値（無ければアイテムの既定）
@@ -186,6 +188,7 @@ export const PLACE_ACTIONS: { readonly [K in keyof PlaceActions]: true } = {
   openBook: true,
   openPage: true,
   openBinder: true,
+  openReference: true,
   openPageById: true,
   resizeStage: true,
   setStageArea: true,
@@ -198,6 +201,7 @@ export const PLACE_ACTIONS: { readonly [K in keyof PlaceActions]: true } = {
   startBackground: true,
   endBackground: true,
   setPreviewArea: true,
+  setReferenceArea: true,
   setTool: true,
   togglePlacing: true,
   stopPlacing: true,

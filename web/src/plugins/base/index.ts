@@ -39,6 +39,9 @@ import {
   IN_WORKROOMS,
   LIBRARY_APPEARANCE,
   LIBRARY_BOOK_NEW,
+  LIBRARY_CHOOSE_CANCEL,
+  LIBRARY_CHOOSE_PLACE,
+  LIBRARY_CHOOSING,
   LIBRARY_COLUMNS,
   LIBRARY_CONTENTS_AROUND_KEY_SCOPE,
   LIBRARY_CONTENTS_KEY_SCOPE,
@@ -64,12 +67,19 @@ import {
   LIBRARY_PLACE_OPEN,
   LIBRARY_QUERY,
   LIBRARY_REDO,
+  LIBRARY_REFERENCE_ADD,
+  LIBRARY_REFERENCE_CHOOSE,
+  LIBRARY_REFERENCE_DELETE,
+  LIBRARY_REFERENCE_PLACE,
+  LIBRARY_REFERENCE_REMOVE,
+  LIBRARY_REFERENCE_SOURCE,
   LIBRARY_REMOVE_DIALOG,
   LIBRARY_RENAME_DIALOG,
   LIBRARY_REVERT,
   LIBRARY_SCREEN,
   LIBRARY_SCREEN_CLOSE,
   LIBRARY_SCREEN_EXPAND,
+  LIBRARY_SCREEN_KEY_SCOPE,
   LIBRARY_SCREEN_KEYS,
   LIBRARY_TREE_AROUND_KEY_SCOPE,
   LIBRARY_TREE_FOLD_OR_PARENT,
@@ -175,6 +185,9 @@ import {
   PAGE_SETTINGS,
   PAGE_SETTINGS_DIALOG,
   PAGE_SETTINGS_OF,
+  REFERENCE_DELETE,
+  REFERENCE_OPEN,
+  REFERENCE_SOURCE,
 } from "./page-tabs"
 import {
   BINDER_DUPLICATE,
@@ -186,6 +199,9 @@ import {
   PAGE_MOVE,
   PAGE_REMOVE,
   PAGE_UPDATE,
+  REFERENCE_ADD,
+  REFERENCE_MOVE,
+  REFERENCE_REMOVE,
   VARIABLE_PAGES,
 } from "./pages"
 import {
@@ -519,6 +535,9 @@ export const BASE = defineBuiltin(
       BINDER_MOVE,
       BINDER_DUPLICATE,
       BINDER_REMOVE,
+      REFERENCE_ADD,
+      REFERENCE_MOVE,
+      REFERENCE_REMOVE,
       PAGES_UPDATE,
       PAGE_REMOVE,
       PAGE_LOCK,
@@ -534,6 +553,8 @@ export const BASE = defineBuiltin(
       ENTRY_RENAME,
       ENTRY_DUPLICATE,
       ENTRY_REMOVE,
+      LIBRARY_REFERENCE_ADD,
+      LIBRARY_REFERENCE_REMOVE,
       PAGE_CREATE,
       ENTRY_TRASH,
       ENTRY_RESTORE,
@@ -655,6 +676,9 @@ export const BASE = defineBuiltin(
       MENU_CLOSE,
       PAGE_NEW,
       BINDER_OPEN,
+      REFERENCE_OPEN,
+      REFERENCE_SOURCE,
+      REFERENCE_DELETE,
       BINDER_SETTINGS,
       BINDER_SETTINGS_OPENED,
       BINDER_DUPLICATE_COMMAND,
@@ -674,6 +698,12 @@ export const BASE = defineBuiltin(
       LIBRARY_REDO,
       LIBRARY_ENTRY_OPEN,
       LIBRARY_ENTRY_OPEN_SPLIT,
+      LIBRARY_REFERENCE_SOURCE,
+      LIBRARY_REFERENCE_DELETE,
+      LIBRARY_REFERENCE_PLACE,
+      LIBRARY_REFERENCE_CHOOSE,
+      LIBRARY_CHOOSE_PLACE,
+      LIBRARY_CHOOSE_CANCEL,
       LIBRARY_BOOK_NEW,
       LIBRARY_OPEN,
       LIBRARY_SCREEN_CLOSE,
@@ -735,6 +765,7 @@ export const BASE = defineBuiltin(
       SCREEN_FLASH,
       LIBRARY_FOLDER,
       LIBRARY_PICKED,
+      LIBRARY_CHOOSING,
       LIBRARY_FOUND_PICKED,
       LIBRARY_COLUMNS,
       LIBRARY_UNFOLDED,
@@ -760,6 +791,7 @@ export const BASE = defineBuiltin(
       WIDE_SEARCH_WORDS_KEY_SCOPE,
       NOTE_TEXT_KEY_SCOPE,
       LIBRARY_KEY_SCOPE,
+      LIBRARY_SCREEN_KEY_SCOPE,
       LIBRARY_TREE_KEY_SCOPE,
       LIBRARY_CONTENTS_KEY_SCOPE,
       LIBRARY_TREE_AROUND_KEY_SCOPE,
@@ -829,6 +861,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:binder-move": typeof BINDER_MOVE
     "@matomezu/base:binder-duplicate": typeof BINDER_DUPLICATE
     "@matomezu/base:binder-remove": typeof BINDER_REMOVE
+    "@matomezu/base:reference-add": typeof REFERENCE_ADD
+    "@matomezu/base:reference-move": typeof REFERENCE_MOVE
+    "@matomezu/base:reference-remove": typeof REFERENCE_REMOVE
     "@matomezu/base:pages-update": typeof PAGES_UPDATE
     "@matomezu/base:page-remove": typeof PAGE_REMOVE
     "@matomezu/base:page-lock": typeof PAGE_LOCK
@@ -841,6 +876,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:entry-rename": typeof ENTRY_RENAME
     "@matomezu/base:entry-duplicate": typeof ENTRY_DUPLICATE
     "@matomezu/base:entry-remove": typeof ENTRY_REMOVE
+    "@matomezu/base:library-reference-add": typeof LIBRARY_REFERENCE_ADD
+    "@matomezu/base:library-reference-remove": typeof LIBRARY_REFERENCE_REMOVE
     "@matomezu/base:page-create": typeof PAGE_CREATE
     "@matomezu/base:entry-trash": typeof ENTRY_TRASH
     "@matomezu/base:entry-restore": typeof ENTRY_RESTORE
@@ -955,6 +992,12 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-redo": typeof LIBRARY_REDO
     "@matomezu/base:library-entry-open": typeof LIBRARY_ENTRY_OPEN
     "@matomezu/base:library-entry-open-split": typeof LIBRARY_ENTRY_OPEN_SPLIT
+    "@matomezu/base:library-reference-source": typeof LIBRARY_REFERENCE_SOURCE
+    "@matomezu/base:library-reference-delete": typeof LIBRARY_REFERENCE_DELETE
+    "@matomezu/base:library-reference-place": typeof LIBRARY_REFERENCE_PLACE
+    "@matomezu/base:library-reference-choose": typeof LIBRARY_REFERENCE_CHOOSE
+    "@matomezu/base:library-choose-place": typeof LIBRARY_CHOOSE_PLACE
+    "@matomezu/base:library-choose-cancel": typeof LIBRARY_CHOOSE_CANCEL
     "@matomezu/base:library-book-new": typeof LIBRARY_BOOK_NEW
     "@matomezu/base:library-open": typeof LIBRARY_OPEN
     "@matomezu/base:library-screen-close": typeof LIBRARY_SCREEN_CLOSE
@@ -1005,6 +1048,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:page-new": typeof PAGE_NEW
     "@matomezu/base:page-open": typeof PAGE_OPEN
     "@matomezu/base:binder-open": typeof BINDER_OPEN
+    "@matomezu/base:reference-open": typeof REFERENCE_OPEN
+    "@matomezu/base:reference-source": typeof REFERENCE_SOURCE
+    "@matomezu/base:reference-delete": typeof REFERENCE_DELETE
     "@matomezu/base:binder-settings": typeof BINDER_SETTINGS
     "@matomezu/base:binder-settings-opened": typeof BINDER_SETTINGS_OPENED
     "@matomezu/base:binder-duplicate": typeof BINDER_DUPLICATE_COMMAND
@@ -1051,6 +1097,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:screen-flash": typeof SCREEN_FLASH
     "@matomezu/base:library-folder": typeof LIBRARY_FOLDER
     "@matomezu/base:library-picked": typeof LIBRARY_PICKED
+    "@matomezu/base:library-choosing": typeof LIBRARY_CHOOSING
     "@matomezu/base:library-found-picked": typeof LIBRARY_FOUND_PICKED
     "@matomezu/base:unreadable-notice-closed": typeof UNREADABLE_NOTICE_CLOSED
     "@matomezu/base:library-columns": typeof LIBRARY_COLUMNS
@@ -1084,6 +1131,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-contents-around": typeof LIBRARY_CONTENTS_AROUND_KEY_SCOPE // 書庫の画面の右の枠の中身の、行の外にフォーカスがある間のキー（矢印だけ）
     "@matomezu/base:library-found": typeof LIBRARY_FOUND_KEY_SCOPE // 書庫の画面の検索の結果の中にフォーカスがある間のキー
     "@matomezu/base:library": typeof LIBRARY_KEY_SCOPE // 書庫の画面の中にフォーカスがある間のキー
+    "@matomezu/base:library-screen": typeof LIBRARY_SCREEN_KEY_SCOPE // 書庫のスクリーンの中にフォーカスがある間のキー
     "@matomezu/base:mailbox": typeof MAILBOX_KEY_SCOPE // 郵便箱の画面の中にフォーカスがある間のキー
   }
   interface DialogTable {

@@ -83,11 +83,13 @@ export function restoredTables(tables: Library, patches: RowPatches): Library | 
   for (const folder of Object.values(folders)) {
     if (folder.folderRole === "binder" || !Array.isArray(folder.lineup)) continue
     const outside = isOpenRole(folder.folderRole)
-    // バックヤードはブックだけを持つ
+    // バックヤードはブックだけを持つ。ブックの参照エントリは中身を持たないので、そのまま残す（指す先が無ければ、書庫を整えるときに外す。core/references.ts）
     const backyard = folder.folderRole === "backyard"
+    const book = folder.folderRole === "book"
     const lineup = there<AnyEntryRef>(
-      folder.lineup,
+      folder.lineup as readonly AnyEntryRef[],
       r =>
+        (book && (r as { kind: string }).kind === "reference") ||
         hasPage(r) ||
         hasBinder(r) ||
         (backyard && r.kind === "book") ||

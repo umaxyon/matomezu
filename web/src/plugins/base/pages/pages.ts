@@ -1,6 +1,6 @@
 // 次のページ（と、あとで変えるページ）に選べる紙と向きと、次のページの題名の案（可変ページにできるか・増やす向きの選び方は place/grow.ts）（ページを足す・消すのは土台の core/book.ts）
 
-import { findBinder, findPage, lineupOf, NO_BINDER, NO_PAGE, pagesIn } from "../../../core/book"
+import { findBinder, findPage, lineupOf, NO_BINDER, NO_PAGE, ownTitlesOf, pagesIn } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ORIENTATIONS, type Orientation } from "../../../core/def/paper"
 import type { MessageKey, Params } from "../../../core/i18n/i18n"
@@ -119,7 +119,7 @@ export function freePageTitle(
 export const nextPageTitle = (
   book: StageLineup,
   t: (key: MessageKey, params?: Params) => string,
-  taken: readonly string[] = lineupOf(book).map(e => e.title),
+  taken: readonly string[] = ownTitlesOf(lineupOf(book)),
 ): string => freePageTitle(t, taken, taken.length + 1)
 
 // ページ page の形が、ページの広さに収まるか（可変ページは伸びる向きには印刷区画を増やして広がるので、伸びない向きだけ紙 1 枚に収める）
