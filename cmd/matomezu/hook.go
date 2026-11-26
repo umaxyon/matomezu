@@ -94,6 +94,8 @@ type hookInput struct {
 	Cwd            string `json:"cwd"`             // AI のセッションのフォルダ
 	// Rename は、作業名を ADE のワークスペースの表示名にも書く（dir は AI のセッションのフォルダ。答えを書いたあとに呼ぶ。nil なら書かない）
 	Rename func(dir, name string) `json:"-"`
+	// Previous は、会話の記録 transcript のセッション session が置き換えた前の会話のセッション id（/clear など。その AI の事情で記録から読む。nil なら送らない）
+	Previous func(transcript, session string) []string `json:"-"`
 }
 
 // eventName は、フックの出力に書くイベント名（入力のイベント名。無ければ UserPromptSubmit）
@@ -203,10 +205,16 @@ func talked(out io.Writer, hook hookInput, context, format string, api hookAPI) 
 	_ = json.NewEncoder(out).Encode(answer)
 }
 
-// askTalked は、ターンの始まりを知らせ、結ばれていない参加者がいるなら会話の記録を後ろから調べて結ばせる。常駐の答えが読めなければ空を返す
+// askTalked は、ターンの始まりを知らせ（前の会話のセッション id が分かれば添える。常駐は、この会話が誰にも結ばれていなければ、前の会話の参加者を移す）、結ばれていない参加者がいるなら会話の記録を後ろから調べて結ばせる。常駐の答えが読めなければ空を返す
 func askTalked(hook hookInput, api hookAPI) talkReply {
 	var reply talkReply
-	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "woken": hook.Woken, "prompt": hook.Prompt})
+	first := map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "woken": hook.Woken, "prompt": hook.Prompt}
+	if hook.Previous != nil {
+		if previous := hook.Previous(hook.TranscriptPath, hook.SessionID); len(previous) > 0 {
+			first["previousSessions"] = previous
+		}
+	}
+	body, _ := json.Marshal(first)
 	out, err := api(body)
 	if err != nil || json.Unmarshal(out, &reply) != nil {
 		return talkReply{}

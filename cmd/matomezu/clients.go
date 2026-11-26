@@ -112,7 +112,7 @@ type claudePromptCmd struct{}
 // Run は、ターンの始まりを知らせ、待つアノテーションを添える
 func (claudePromptCmd) Run() error {
 	claudeDev()
-	hookPrompt(hookHost(claudelaunch.HooksSendHost), claudelaunch.HookSetsTitle, claudelaunch.Woken)
+	hookPrompt(hookHost(claudelaunch.HooksSendHost), claudelaunch.HookSetsTitle, claudelaunch.Woken, claudelaunch.ClearedFrom)
 	return nil
 }
 
@@ -209,7 +209,7 @@ type codexPromptCmd struct{}
 // Run は、ターンの始まりを知らせ、待つアノテーションを添える
 func (codexPromptCmd) Run() error {
 	codexDev()
-	hookPrompt(hookHost(codexlaunch.HooksSendHost), codexlaunch.HookSetsTitle, nil)
+	hookPrompt(hookHost(codexlaunch.HooksSendHost), codexlaunch.HookSetsTitle, nil, nil)
 	return nil
 }
 
@@ -240,8 +240,9 @@ func (c opencodeMCPCmd) Run() error {
 }
 
 // hookPrompt は、話しかけのフック: 待つアノテーションの文を添えて、ターンの始まりを常駐に知らせ、フックの答えを出す（host は AI のプログラムのプロセス id、分からなければ空。
-// titled は、答えに会話の題名 sessionTitle を書くか。woken は、フックが --woken を渡せない AI のプログラムが、裏の知らせで始まったターンを入力から見分ける物。渡せるなら nil）
-func hookPrompt(host string, titled bool, woken func(prompt string) bool) {
+// titled は、答えに会話の題名 sessionTitle を書くか。woken は、フックが --woken を渡せない AI のプログラムが、裏の知らせで始まったターンを入力から見分ける物。渡せるなら nil。
+// previous は、会話の記録からその会話が置き換えた前の会話のセッション id を読む物。読めない AI のプログラムは nil）
+func hookPrompt(host string, titled bool, woken func(prompt string) bool, previous func(transcript, session string) []string) {
 	hook := stdinHook()
 	var notes bytes.Buffer
 	writeAnnotations(&notes, hook.SessionID)
@@ -249,6 +250,7 @@ func hookPrompt(host string, titled bool, woken func(prompt string) bool) {
 	hook.Titled = titled
 	hook.Woken = hook.Woken || (woken != nil && woken(hook.Prompt))
 	hook.Rename = renameAdeWorkspace
+	hook.Previous = previous
 	talked(os.Stdout, hook, notes.String(), formatHook, runningAPI("api/ai/talked"))
 }
 
