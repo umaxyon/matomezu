@@ -252,7 +252,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
     row?.scrollIntoView({ block: "nearest" })
   }, [current, reveals])
   const here = nameOf({ id: opened, title: titles[titles.length - 1] ?? NO_TITLE })
-  // 参照を選んでいる間は、上に選んでいる間の帯を出す（帯の中の焦点にも書庫のキーが効くよう、帯ごと書庫の範囲に入れる）
+  // 参照エントリを置くために選んでいる間は、上に選んでいる間の帯を出す（帯の中の焦点にも書庫のキーが効くよう、帯ごと書庫の範囲に入れる）
   return (
     <div
       className={className === undefined ? styles.chooser : `${styles.chooser} ${className}`}
@@ -360,7 +360,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
               {opened !== TRASH_ID && opened !== UNREADABLE_ID && (
                 <div className={styles.tools}>
                   {/* ブック・フォルダを作る先は、コマンドが決める（ゴミ箱の外なら、どこにも在る） */}
-                  {/* 参照を選んでいる間は、ブックを作るボタンを出さない（コマンドが出ていない） */}
+                  {/* 参照エントリを置くために選んでいる間は、ブックを作るボタンを出さない（コマンドが出ていない） */}
                   {bookNew.shown && (
                     <ActionButton raised disabled={!bookNew.enabled} onClick={() => bookNew.run({ folder: opened })}>
                       <span className={styles.create}>

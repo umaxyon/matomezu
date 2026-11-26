@@ -62,7 +62,7 @@ func TestReferencesSurviveStorage(t *testing.T) {
 	}
 }
 
-// 常駐の道（Go が選んで渡す行だけで行う）でも、ほかのブックのページを参照でき、指す先のページを消すと、同じ書き込みで参照を置いたブックからも消える
+// 常駐の道（Go が選んで渡す行だけで行う）でも、ほかのブックのページを指す参照エントリを置け、指す先のページを消すと、同じ書き込みで参照エントリを置いたブックからも消える
 func TestReferencesThroughTheHost(t *testing.T) {
 	other := `{"id":"b2","title":"U","lineup":[{"kind":"page","id":"q1","type":"@matomezu/drawing:drawing","title":"Q","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 	hub, store, c := bulkHub(t, other)
@@ -95,7 +95,7 @@ func TestReferencesThroughTheHost(t *testing.T) {
 	}
 }
 
-// 指す先のブックをゴミ箱に入れても参照は残り、ゴミ箱から完全に消すと、同じ書き込みで消える（常駐の道）
+// 指す先のブックをゴミ箱に入れても参照エントリは残り、ゴミ箱から完全に消すと、同じ書き込みで消える（常駐の道）
 func TestReferencesGoWithAPurgedBook(t *testing.T) {
 	other := `{"id":"b2","title":"U","lineup":[{"kind":"page","id":"q1","type":"@matomezu/drawing:drawing","title":"Q","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 	hub, _, c := bulkHub(t, other)
@@ -129,6 +129,29 @@ func TestAnOutlinedBinderReferenceListsItsPages(t *testing.T) {
 	}
 	outlined := lineupOf(outlineBook(hub.Book("b1").Body, hub.PageVersion, hub.Referred))
 	if len(outlined) != 2 || !strings.Contains(string(outlined[1]), `"title":"D"`) || !strings.Contains(string(outlined[1]), `"visible":true`) || !strings.Contains(string(outlined[1]), `"pages":[{"id":"q1","title":"Q"}]`) {
+		t.Fatalf("outlined = %s", outlined)
+	}
+}
+
+// 指す先がゴミ箱に入った参照エントリの目次は、見えない事だけを添え、指す先の名前・タイプ・中のページを出さない
+func TestAnOutlinedReferenceToTheTrashHidesItsName(t *testing.T) {
+	hub, _, c := bulkHub(t, `{"id":"b2","title":"U","lineup":[]}`)
+	done, err := hub.Perform(Perform{Actions: []engine.BulkAction{
+		step("@matomezu/base:page-add", `{"type":"@matomezu/slide-page:slide","title":"Q","into":{"newBinder":"D"}}`, &engine.On{Book: "b2"}, "q1", "d1"),
+		step("@matomezu/base:reference-add", `{"of":{"kind":"binder","id":"d1"}}`, &engine.On{Book: "b1"}, "r1"),
+	}, Client: c.id, Seq: 1})
+	if err != nil || !done.OK {
+		t.Fatalf("perform = %+v, %v", done, err)
+	}
+	trashed, err := hub.Perform(Perform{Actions: []engine.BulkAction{
+		step("@matomezu/base:entry-trash", `{"entry":"b2"}`, nil),
+	}, Client: c.id, Seq: 2})
+	if err != nil || !trashed.OK {
+		t.Fatalf("trash = %+v, %v", trashed, err)
+	}
+	outlined := lineupOf(outlineBook(hub.Book("b1").Body, hub.PageVersion, hub.Referred))
+	last := string(outlined[len(outlined)-1])
+	if !strings.Contains(last, `"visible":false`) || strings.Contains(last, `"title"`) || strings.Contains(last, `"type"`) || strings.Contains(last, `"pages"`) {
 		t.Fatalf("outlined = %s", outlined)
 	}
 }

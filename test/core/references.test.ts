@@ -80,7 +80,7 @@ test("在らない物・このブックの物・ゴミ箱の物・2 つ目の同
     "result" in after(w, "reference-add", { of }, { book: "B" })
   expect(refused({ kind: "page", id: "none" })).toBe(false)
   expect(refused({ kind: "page", id: "b1" })).toBe(false)
-  expect(refused({ kind: "page", id: "s1" })).toBe(false) // バインダの中のページ（スライドはバインダで参照する）
+  expect(refused({ kind: "page", id: "s1" })).toBe(false) // バインダの中のページ（スライドはバインダを指す）
   expect(refused({ kind: "binder", id: "a1" })).toBe(false)
   expect(refused({ kind: "page", id: "a1" }, added(world, { kind: "page", id: "a1" }))).toBe(false)
   const trashed = after(world, "entry-trash", { entry: "o1" })

@@ -464,7 +464,7 @@ test("書庫の行の右クリックのメニューから、名前の変更・�
   await tree.getByRole("button", { name: "メニューで作った所", exact: true }).click({ button: "right" })
   await menu.getByRole("menuitem", { name: "ゴミ箱に入れる" }).click()
   await expect(tree.getByRole("button", { name: "メニューで作った所", exact: true })).toHaveCount(0)
-  // ブックの中のページは、開く・名前の変更・複製・参照を置く（ページの在るブックで確かめる）
+  // ブックの中のページは、開く・名前の変更・複製・参照を置く…（ページの在るブックで確かめる）
   const books = (await storedBooks(page.request)) as { id: string; title: string }[]
   const first = books[0]!
   await tree.getByRole("button", { name: `${first.title} の中を出す` }).click()

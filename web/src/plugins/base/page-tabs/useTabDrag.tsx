@@ -1,4 +1,4 @@
-// ページタブのドラッグ（フック）: タブ（ページ一覧のページも）を掴んで並べ替える。並びの向き axis は、タブの横（x）か、ページ一覧の縦（y）。4px 動かしてから始め、落とす所を index で追い、離したらアクション page-move（バインダのタブなら binder-move、参照のタブなら reference-move）を行う。
+// ページタブのドラッグ（フック）: タブ（ページ一覧のページも）を掴んで並べ替える。並びの向き axis は、タブの横（x）か、ページ一覧の縦（y）。4px 動かしてから始め、落とす所を index で追い、離したらアクション page-move（バインダのタブなら binder-move、参照エントリのタブなら reference-move）を行う。
 // タブの並びの外で離したら取り消す。並びが横にあふれていれば、端へ寄せている間スクロールする。始める前に page-move を行えるか問い、行えなければ始めない
 import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "react"
 import { useAllowed, usePerform } from "../../../ui/view-hooks"

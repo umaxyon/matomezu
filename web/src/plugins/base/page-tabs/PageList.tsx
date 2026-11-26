@@ -10,6 +10,7 @@
 import { useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { findBinder, findReference, NO_BINDER, pagesIn } from "../../../core/book"
+import { entriesIn } from "../../../core/entries"
 import { outermostOf } from "../../../core/folders-tree"
 import type { Size } from "../../../core/geom"
 import { referencePage, referredOf, UNSEEN } from "../../../core/references"
@@ -105,7 +106,7 @@ function ReferencedPageList({ opened }: { opened: OpenedReference }) {
       const at = outermostOf(s, to.binder.id)
       return {
         outermost: typeof at === "string" ? null : at.id,
-        lineup: to.binder.lineup,
+        lineup: entriesIn(s.folders, to.binder.id),
         shown: referencePage(s, ref, opened.chosen),
       }
     }),

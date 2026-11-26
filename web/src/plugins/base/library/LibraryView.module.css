@@ -506,7 +506,7 @@
 .entry[data-drop="after"]::after {
   right: -5px;
 }
-/* 参照を選んでいる間の書庫の画面: 上に選んでいる間の帯、その下に書庫の画面 */
+/* 参照エントリを置くために選んでいる間の書庫の画面: 上に選んでいる間の帯、その下に書庫の画面 */
 .chooser {
   display: flex;
   flex: 1;
@@ -534,7 +534,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* 参照を選んでいる間の、選べず中へも入らない行 */
+/* 参照エントリを置くために選んでいる間の、選べず中へも入らない行 */
 [data-unchoosable] {
   opacity: 0.4;
 }

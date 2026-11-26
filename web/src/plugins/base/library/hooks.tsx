@@ -72,7 +72,7 @@ export function useChoosing(): Choosing | undefined {
   return useMatomezuState(s => choosingNow(s.folders, now === NO_STATE ? undefined : now))
 }
 
-// 参照を選んでいる間の、行 row の選ばれ方: 選べるか（chosen）と、薄く描くか（faded。選べず、中へも入らない行。置く参照を選ぶ間はブックとフォルダ、
+// 参照エントリを置くために選んでいる間の、行 row の選ばれ方: 選べるか（chosen）と、薄く描くか（faded。選べず、中へも入らない行。置く参照エントリの指す先を選ぶ間はブックとフォルダ、
 // 置くブックを選ぶ間はフォルダが中へ入る）。選んでいなければ undefined
 export function useChooseOf(
   row: Pick<LibraryRow, "id" | "kind">,

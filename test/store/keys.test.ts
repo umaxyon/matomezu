@@ -244,7 +244,7 @@ test("ステージを持たないスクリーンがカレントなら、キー�
   const libraryOpen = () => store.state.getState().window.screens.some(s => s.def === "@matomezu/base:library-screen")
   store.actions.command("s1", "@matomezu/base:stage-split")
   expect(libraryOpen()).toBe(true)
-  // 下に出した書庫のスクリーンがカレント。その中の Esc は、書庫のスクリーンを閉じる（参照を選んでいない間は、書庫の画面の範囲の Esc は使えず、書庫のスクリーンの範囲へ落ちる）
+  // 下に出した書庫のスクリーンがカレント。その中の Esc は、書庫のスクリーンを閉じる（参照エントリを置くために選んでいない間は、書庫の画面の範囲の Esc は使えず、書庫のスクリーンの範囲へ落ちる）
   expect(store.actions.pressKey("Escape", ["@matomezu/base:library", "@matomezu/base:library-screen"])).toBe(true)
   expect(libraryOpen()).toBe(false)
 })

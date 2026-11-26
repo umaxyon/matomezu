@@ -7,6 +7,7 @@ import { inBackyard, placeOf } from "./entries"
 import {
   type BinderFolder,
   type BookFolder,
+  type BookLineupRef,
   type Folder,
   type Folders,
   isUnreadableRole,
@@ -32,8 +33,8 @@ export function inSight(folders: Folders, id: string): boolean {
   return over.length > 0 && !over.some(f => f.folderRole === "trash" || isUnreadableRole(f.folderRole))
 }
 
-// 参照エントリ ref の指す先の行（どこに居ても。書庫の表に無ければ undefined）
-function targetOf({ pages, folders }: Library, ref: ReferenceEntry): Referred | undefined {
+// 参照エントリ ref の指す先の行（どこに居ても。ゴミ箱の中なども。書庫の表に無ければ undefined）
+export function targetOf({ pages, folders }: Library, ref: ReferenceEntry): Referred | undefined {
   const row = ref.of.kind === "page" ? pages[ref.of.id] : undefined
   if (row !== undefined) return { kind: "page", page: row }
   const binder = ref.of.kind === "binder" ? folders[ref.of.id] : undefined
@@ -93,7 +94,7 @@ export function referable(library: Library, book: string, of: ReferenceEntry["of
   return referableIn(library.folders, book, of) && targetOf(library, { kind: "reference", id: "", of }) !== undefined
 }
 
-// referable を、フォルダの表だけで答える（書庫の画面のコマンドとビューが、参照を選んでいる間に選べる行を決める。ページの行を持たないので、
+// referable を、フォルダの表だけで答える（書庫の画面のコマンドとビューが、参照エントリを置くために選んでいる間に選べる行を決める。ページの行を持たないので、
 // ページはフォルダの並びに在れば在ると見る）
 export function referableIn(folders: Folders, book: string, of: ReferenceEntry["of"]): boolean {
   const holder = folders[book]
@@ -112,13 +113,17 @@ export function referencePage(library: Library, ref: ReferenceEntry, chosen: str
   return ids.includes(chosen) ? chosen : (ids[0] ?? NO_PAGE)
 }
 
-// 参照エントリ ref の指す先のタイプと名前（ページはそのタイプ、バインダは入れるページのタイプ。指す先の行が無ければ null。ゴミ箱の中なども、行が在れば答える）
-export function referenceLook(library: Library, ref: ReferenceEntry): { type: string; title: string } | null {
-  const found = targetOf(library, ref)
-  if (found === undefined) return null
-  return found.kind === "page"
-    ? { type: found.page.type, title: found.page.title }
-    : { type: found.binder.pageType, title: found.binder.title }
+// ブック book のフォルダの、参照エントリも入れた並び（ブックでなければ空）
+export function bookLineupOf(folders: Folders, book: string): readonly BookLineupRef[] {
+  const f = folders[book]
+  return f?.folderRole === "book" ? f.lineup : NO_LINEUP
+}
+const NO_LINEUP: readonly BookLineupRef[] = []
+
+// 参照エントリ id（どのブックにも無ければ undefined）
+export function referenceEntryOf(folders: Folders, id: string): ReferenceEntry | undefined {
+  const holder = bookOfReference(folders, id)
+  return holder?.lineup.find((r): r is ReferenceEntry => r.kind === "reference" && r.id === id)
 }
 
 // 参照エントリ id を並びに置いているブックのフォルダ（どのブックにも無ければ undefined）

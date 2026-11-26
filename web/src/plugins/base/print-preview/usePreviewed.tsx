@@ -1,6 +1,7 @@
 // 描いている場所のステージの、印刷プレビューで開いているステージエントリ（previewed.ts）を引くフック
 
 import { useMemo } from "react"
+import { lineupOf, referencesOf } from "../../../core/book"
 import { outsidePageIn } from "../../../core/folders-tree"
 import { type ReferredPage, referredLineup } from "../../../core/references"
 import { openedEntry } from "../../../core/stage"
@@ -35,8 +36,8 @@ export function usePrinted(previewed: PreviewedEntry | null): {
   const pages = useMatomezuState(s => s.pages)
   const folders = useMatomezuState(s => s.folders)
   return useMemo(() => {
-    if (!previewed?.lineup.some(e => e.kind === "reference")) return { printed: previewed, referred: NOT_REFERRED }
-    const done = referredLineup({ books, pages, folders }, previewed.lineup)
+    if (!previewed || referencesOf(previewed).length === 0) return { printed: previewed, referred: NOT_REFERRED }
+    const done = referredLineup({ books, pages, folders }, lineupOf(previewed))
     return { printed: { ...previewed, lineup: done.lineup }, referred: done.referred }
   }, [previewed, books, pages, folders])
 }

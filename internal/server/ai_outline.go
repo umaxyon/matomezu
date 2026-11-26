@@ -96,7 +96,8 @@ func outlineBook(
 	return out
 }
 
-// outlineReference は、参照エントリ e に指す先の名前・タイプと見えるかを添えた物（形が読めなければ e のまま）
+// outlineReference は、参照エントリ e に指す先の名前・タイプと見えるかを添えた物（形が読めなければ e のまま）。
+// 指す先がゴミ箱・読めない物のフォルダの中など見えない所に居れば、見えない事だけを添える（そこの物の名前とタイプは AI に出さない）
 func outlineReference(e json.RawMessage, referred func(kind, id string) (Referred, bool)) json.RawMessage {
 	var ref outlinedReference
 	var of struct {
@@ -106,8 +107,8 @@ func outlineReference(e json.RawMessage, referred func(kind, id string) (Referre
 	if json.Unmarshal(e, &ref) != nil || json.Unmarshal(ref.Of, &of) != nil {
 		return e
 	}
-	if found, ok := referred(of.Kind, of.ID); ok {
-		ref.Title, ref.Type, ref.Visible, ref.Pages = found.Title, found.Type, found.Visible, found.Pages
+	if found, ok := referred(of.Kind, of.ID); ok && found.Visible {
+		ref.Title, ref.Type, ref.Visible, ref.Pages = found.Title, found.Type, true, found.Pages
 	}
 	out, err := json.Marshal(ref)
 	if err != nil {

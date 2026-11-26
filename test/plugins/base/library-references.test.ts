@@ -157,7 +157,7 @@ test("書庫の右クリックの「参照を置く…」で置くブックを�
   })
 })
 
-test("置く参照を選んでいる間の開く（Enter・ダブルクリック）: 選べるページは置き、フォルダとブックは中へ入り、選べないページは何もしない", () => {
+test("置く参照エントリを置くために選んでいる間の開く（Enter・ダブルクリック）: 選べるページは置き、フォルダとブックは中へ入り、選べないページは何もしない", () => {
   const { state, store, lineup, perform } = setup()
   const made = perform("@matomezu/base:folder-create", { title: "箱", into: HOME_ID })
   const box = (made.result as { folder: string }).folder
@@ -182,7 +182,7 @@ test("置く参照を選んでいる間の開く（Enter・ダブルクリック
   expect(state.getState().folders.b1?.lineup.at(-1)).toMatchObject({ kind: "reference" })
 })
 
-test("選ぶ事が続けられなくなったら（置く先のブックをゴミ箱に入れた）、参照を選んでいない間と同じに開く", () => {
+test("選ぶ事が続けられなくなったら（置く先のブックをゴミ箱に入れた）、参照エントリを置くために選んでいない間と同じに開く", () => {
   const { state, run, center, store, perform } = setup()
   store.setPluginState(CHOOSING, center, { choose: "referred", book: "b1" })
   expect(perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(true)
@@ -191,7 +191,7 @@ test("選ぶ事が続けられなくなったら（置く先のブックをゴ�
   expect(state.getState().window.screens.length).toBeGreaterThan(screens)
 })
 
-test("参照を選んでいる間は、開く・分割で開く・参照元へ移動・参照を置く…・新しいブック…を出さず、［取消］でやめる。参照を置く…は参照エントリの行に出さない", () => {
+test("参照エントリを置くために選んでいる間は、開く・分割で開く・参照元へ移動・参照を置く…・新しいブック…を出さず、［取消］でやめる。参照を置く…は参照エントリの行に出さない", () => {
   const { state, run, center, store, lineup, ref } = setup()
   const page = lineup("b2")?.[0] as string
   const shown = (id: string, menu: string, target: unknown) => {
@@ -216,7 +216,7 @@ test("参照を選んでいる間は、開く・分割で開く・参照元へ�
   expect(menu("p1")).toEqual(rows)
 })
 
-test("ページタブの＋の「参照…」で書庫を開いて置く参照を選び始め、選べるページを選んで置くと、書庫を閉じてブックの置いた参照を開く。［取消］は書庫を閉じる", () => {
+test("ページタブの＋の「参照…」で書庫を開いて置く参照を選び始め、選べるページを選んで置くと、書庫を閉じてブックの置いた参照エントリを開く。［取消］は書庫を閉じる", () => {
   const { state, store, lineup } = setup()
   const command = store.actions.command as (at: string, id: string, ...args: unknown[]) => boolean
   const libraryScreen = () => state.getState().window.screens.find(s => s.def === LIBRARY_SCREEN.id)?.id

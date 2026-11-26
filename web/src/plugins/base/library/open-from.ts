@@ -67,7 +67,7 @@ function openAndLeave(ctx: ScreenCommandContext, a: CommandActions, to: OpenTo, 
 }
 
 // 選んでいる物 choosing で選んだ物 chosen（置く先のブックと指す先）に、参照エントリを並びの末尾に置く（断られたらトーストで知らせ、選んでいるまま）。
-// 置く参照を選んでいた（referred）なら、選ぶのをやめ、書庫のスクリーンを閉じて、上の段のステージにそのブックの置いた参照を開く。
+// 置く参照エントリの指す先を選んでいた（referred）なら、選ぶのをやめ、書庫のスクリーンを閉じて、上の段のステージにそのブックの置いた参照エントリを開く。
 // 置くブックを選んでいた（book）なら、選ぶのをやめ（書庫は開いたまま）、置いたとトーストで知らせる
 export function placeChosen(
   ctx: ScreenCommandContext,

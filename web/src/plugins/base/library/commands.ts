@@ -14,7 +14,7 @@ import type { Folders } from "../../../core/folders"
 import { isKeptSystemFolder, systemFolderOf } from "../../../core/folders-tree"
 import type { Point } from "../../../core/geom"
 import { LIBRARY_HISTORY } from "../../../core/history"
-import { bookOfReference, inSight, referableTarget } from "../../../core/references"
+import { bookOfReference, inSight, referableTarget, referenceEntryOf } from "../../../core/references"
 import type { OpenTo } from "../../../store/actions"
 import {
   type CommandActions,
@@ -237,7 +237,7 @@ function opening(ctx: ScreenCommandContext, named?: Named): Exclude<OpenTarget, 
   return target === NOT_OPENED ? undefined : target
 }
 
-// 分割で開くブックとページ（ブックスクリーンに開く行だけ。「画面を分割」で出した書庫のスクリーンでは開かない: 開く先が上の段に決まっている。参照を選んでいる間も開かない）
+// 分割で開くブックとページ（ブックスクリーンに開く行だけ。「画面を分割」で出した書庫のスクリーンでは開かない: 開く先が上の段に決まっている。参照エントリを置くために選んでいる間も開かない）
 function splitOpening(ctx: ScreenCommandContext, named?: Named): BookOpened | undefined {
   if (opensBeside(ctx) || choosingIn(ctx)) return undefined
   const found = openedRow(ctx, named)
@@ -260,7 +260,7 @@ function lookIn(ctx: ScreenCommandContext, choosing: Choosing, named?: Named) {
 // 選んでいる物 choosing で、扱う行を選んで置くときの置き先と指す先（選べない行なら undefined）
 const chosenIn = (ctx: ScreenCommandContext, choosing: Choosing, named?: Named) => lookIn(ctx, choosing, named)?.chosen
 
-// 参照を選んでいる間の開く: 選べる行は、選んで置く。中へ入れる行（chooseLookOf）は右の枠で中へ入る（窓には開かない）。ほかの行は何もしない
+// 参照エントリを置くために選んでいる間の開く: 選べる行は、選んで置く。中へ入れる行（chooseLookOf）は右の枠で中へ入る（窓には開かない）。ほかの行は何もしない
 function openWhileChoosing(ctx: ScreenCommandContext, a: CommandActions, choosing: Choosing, named?: Named): void {
   const look = lookIn(ctx, choosing, named)
   if (look?.chosen) {
@@ -275,7 +275,7 @@ function openWhileChoosing(ctx: ScreenCommandContext, a: CommandActions, choosin
   else if (target.to === "book") goTo(ctx, a, { id: target.book, holder: target.book, holds: true })
 }
 
-// 参照を選んでいる間に、選べる行を選んで置く（その行の吹き出しの［参照を置く］・［ここに置く］）。選べない行・参照を選んでいない間は何もしない
+// 参照エントリを置くために選んでいる間に、選べる行を選んで置く（その行の吹き出しの［参照を置く］・［ここに置く］）。選べない行・参照エントリを置くために選んでいない間は何もしない
 export const LIBRARY_CHOOSE_PLACE = kit.defineScreenCommand({
   id: "library-choose-place",
   readsSubjects: workdesksReadsOf,
@@ -294,7 +294,7 @@ export const LIBRARY_CHOOSE_PLACE = kit.defineScreenCommand({
   when: ctx => choosingIn(ctx) !== undefined,
 })
 
-// 参照を置く…（書庫の右クリックのメニュー）が指す物: 受け取った行の実の物が、書庫の見える所の、バインダの外のページかバインダのとき（参照を選んでいる間は出さない）
+// 参照を置く…（書庫の右クリックのメニュー）が指す物: 受け取った行の実の物が、書庫の見える所の、バインダの外のページかバインダのとき（参照エントリを置くために選んでいる間は出さない）
 function placeable(ctx: ScreenCommandContext, named?: Named): Choosing | undefined {
   if (choosingIn(ctx)) return undefined
   const to = given(ctx, named)
@@ -306,7 +306,7 @@ function placeable(ctx: ScreenCommandContext, named?: Named): Choosing | undefin
   return referableTarget(ctx.folders, { kind, id: real }) ? { choose: "book", of: { kind, id: real } } : undefined
 }
 
-// 参照を置く…: 受け取ったページかバインダを指す参照を置くブックを、書庫で選び始める（選んでいる行は外す。書庫は開いたまま）
+// 参照を置く…: 受け取ったページかバインダを指す参照エントリを置くブックを、書庫で選び始める（選んでいる行は外す。書庫は開いたまま）
 export const LIBRARY_REFERENCE_PLACE = kit.defineScreenCommand({
   id: "library-reference-place",
   readsSubjects: workdesksReadsOf,
@@ -321,7 +321,7 @@ export const LIBRARY_REFERENCE_PLACE = kit.defineScreenCommand({
 })
 
 // 開く: フォルダは右の枠で中へ入り、ブック・ページ・バインダ・ブックの外のページは窓に出す（書庫の画面の行を 2 回押す・Enter・右クリックのメニューの「開く」の、ただ 1 つの道）。
-// 参照を選んでいる間は、窓に出さない（openWhileChoosing。右クリックのメニューにも出さない）。
+// 参照エントリを置くために選んでいる間は、窓に出さない（openWhileChoosing。右クリックのメニューにも出さない）。
 // 右クリックのメニューでは、受け取った物がフォルダでなく開けるときだけ出す。名指して呼ぶときは when が引数を受けないので、メニューの外ではいつも出す
 export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
   id: "library-entry-open",
@@ -372,10 +372,10 @@ export const LIBRARY_REFERENCE_SOURCE = kit.defineScreenCommand({
   },
 })
 
-// 参照エントリ reference の指す先を開く所（見えなければ・参照を選んでいる間は undefined）
+// 参照エントリ reference の指す先を開く所（見えなければ・参照エントリを置くために選んでいる間は undefined）
 function sourceOf(ctx: ScreenCommandContext, reference: string): OpenTo | undefined {
   if (choosingIn(ctx)) return undefined
-  const ref = bookOfReference(ctx.folders, reference)?.lineup.find(r => r.kind === "reference" && r.id === reference)
+  const ref = referenceEntryOf(ctx.folders, reference)
   if (ref?.kind !== "reference" || !inSight(ctx.folders, ref.of.id)) return undefined
   const target = openTargetOf(ctx.folders, { id: ref.of.id, kind: ref.of.kind, readable: true }, desksIn(ctx))
   return target === NOT_OPENED || target.to === "folder" ? undefined : target
@@ -395,7 +395,7 @@ export const LIBRARY_BOOK_NEW = kit.defineScreenCommand({
     const into = holder(ctx, named)
     return into === undefined ? [] : [{ action: BOOK_CREATE.id, args: { title: ASKED_TITLE, into } }]
   },
-  // 参照を選んでいる間は出さない（作ったブックが選べる行になり、すぐ置いてしまうため）
+  // 参照エントリを置くために選んでいる間は出さない（作ったブックが選べる行になり、すぐ置いてしまうため）
   when: ctx => choosingIn(ctx) === undefined && inMenu(holder)(ctx),
 })
 

@@ -5,6 +5,7 @@ import { findBinder, findPage, findReference, NO_BINDER, NO_PAGE, siblingsOf } f
 import type { MessageKey } from "../../../core/catalog"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
+import { entriesIn } from "../../../core/entries"
 import { binderOf, editingBackground } from "../../../core/stage"
 import { type CommandContext, NO_BOOK, NO_OUTSIDE_BINDER } from "../../../store/commands/def"
 import type { DialogTaking, NewPageDialogArgs, PageSettingsArgs } from "../../../store/dialogs"
@@ -143,7 +144,7 @@ export const REFERENCE_SOURCE = kit.defineCommand({
     if (!ref) return
     if (ref.of.kind === "page") return a.openPageById(ref.of.id)
     const binder = ctx.folders[ref.of.id]
-    const ids = binder?.folderRole === "binder" ? binder.lineup.map(p => p.id) : []
+    const ids = binder?.folderRole === "binder" ? entriesIn(ctx.folders, binder.id).map(p => p.id) : []
     const o = ctx.stage.opened
     const chosen = o !== "none" && o.kind === "reference" && o.reference === reference ? o.chosen : NO_PAGE
     const page = ids.includes(chosen) ? chosen : ids[0]

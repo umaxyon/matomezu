@@ -25,7 +25,7 @@ export const LIBRARY_FOUND_PICKED = kit.definePluginStateOf<string>()({ id: "lib
 // 検索している言葉（「検索」を押したときの入力Formの中身。読み直すと消える。値が無ければ、検索していない）
 export const LIBRARY_QUERY = kit.definePluginStateOf<string>()({ id: "library-query", scope: "screen" })
 
-// 参照を選んでいる間の物（outline.ts の Choosing。値が無ければ、選んでいない。読み直すと消える。画面の場所には入れない）
+// 参照エントリを置くために選んでいる間の物（outline.ts の Choosing。値が無ければ、選んでいない。読み直すと消える。画面の場所には入れない）
 export const LIBRARY_CHOOSING = kit.definePluginStateOf<Choosing>()({ id: "library-choosing", scope: "screen" })
 
 // 右の枠の中身が 1 行に並べている列の数（ビューが描いた後に測り、窓や中身が変わったら測り直す。値が無ければ 1 列と見る）。

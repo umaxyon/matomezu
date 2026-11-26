@@ -158,15 +158,15 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	return done, nil
 }
 
+// referenceAdd は、参照エントリを置くアクションの id（指す物の行も渡す）
+const referenceAdd = "@matomezu/base:reference-add"
+
 // performInputs は、バルク in.Actions を行う前に、エンジンへ渡すページ・フォルダ・アノテーション・レコード・番号の表を in に入れる（h.mu を持って呼ぶ）。
 // アクションごとに要るブック（レコードが対象なら引数から答えた読むだけのブック、宛先があればそのブック）の和と、そのアノテーションと、それらのブックから書庫の一番上までのフォルダを渡す。
 // 宛先がブックに入っていないページなら、そのページ（バインダの中なら、そのバインダと中のページの全部）と、そのアノテーションと、そこから書庫ホームまでのフォルダを渡す。
 // 一覧のアクション（宛先が無く、レコードが対象でない）か、宛先がブックの外のバインダのアクションか、0 番目でなく宛先が置き場所に無い（バルクの前のアクションが作ったページなど）アクションを含むなら、
 // 全部のブックと、ブックに入っていないページとバインダの全部（ゴミ箱の中の物も）と、アノテーションの全部と、書庫ホーム・ゴミ箱・フォルダ・バックヤードの全部
 // （バックヤードは、バックヤードにまだ無いブックを作って置くアクションのため）
-// referenceAdd は、参照エントリを置くアクションの id（指す物の行も渡す）
-const referenceAdd = "@matomezu/base:reference-add"
-
 func (h *Hub) performInputs(in *engine.Input) error {
 	all := false
 	yards := false // レコードが対象のアクションがある（フォローステップがバックヤードの中のブックを引くので、バックヤードの行も渡す）
@@ -199,7 +199,7 @@ func (h *Hub) performInputs(in *engine.Input) error {
 			// 置き場所に無い宛先は、前のアクションが作った物でありうるので全部のブック。0 番目のアクションの宛先は前のアクションが作った物ではないので、何も足さない
 			book := h.bookOn(step.On)
 			_, known := h.pages[step.On.Page]
-			// 参照を置くなら、指す物の行も（在るか・どこに居るかを確かめるため）
+			// 参照エントリを置くなら、指す物の行も（在るか・どこに居るかを確かめるため）
 			if step.Action == referenceAdd {
 				var args struct {
 					Of struct {

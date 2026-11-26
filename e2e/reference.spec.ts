@@ -76,7 +76,7 @@ test("印刷プレビューには参照の指す先のページも並びの所�
   await expect(sheets.nth(0)).toContainText("Bの箱")
 })
 
-// スライドのバインダを指す参照: ページ一覧に指す先のスライドが並び（＋は無い）、押すとそのスライドを見せる
+// スライドのバインダを指す参照エントリ: ページ一覧に指す先のスライドが並び（＋は無い）、押すとそのスライドを見せる
 test.describe("バインダを指す参照", () => {
   const slide = (id: string, title: string, text: string) =>
     withSlide(testPage(SLIDE, id, { title }), [
@@ -231,7 +231,7 @@ test.describe("書庫で選んで参照を置く", () => {
     ])
   })
 
-  test("ページタブの＋の「参照…」で置く参照を選ぶ帯が出て、選べるページの［参照を置く］で書庫を閉じて置いた参照を開く。［取消］は書庫を閉じる", async ({
+  test("ページタブの＋の「参照…」で置く参照を選ぶ帯が出て、選べるページの［参照を置く］で書庫を閉じて置いた参照エントリを開く。［取消］は書庫を閉じる", async ({
     page,
   }) => {
     await page.emulateMedia({ reducedMotion: "reduce" })

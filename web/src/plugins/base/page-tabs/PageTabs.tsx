@@ -8,7 +8,6 @@
 import { useLayoutEffect, useRef } from "react"
 import { lineupOf, NO_BINDER } from "../../../core/book"
 import type { Library } from "../../../core/folders"
-import { referenceLook } from "../../../core/references"
 import type { LineupEntry } from "../../../core/schema/book"
 import {
   binderOf,
@@ -28,6 +27,7 @@ import { useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
 import { GhostArea } from "../utils/GhostArea"
+import { referenceLook } from "../utils/reference-look"
 import { BINDER_CONTEXT, BINDER_OPEN, PAGE_CONTEXT, PAGE_OPEN, REFERENCE_CONTEXT, REFERENCE_OPEN } from "."
 import { AddPageMenu } from "./AddPageMenu"
 import { FileIcon } from "./FileIcon"
