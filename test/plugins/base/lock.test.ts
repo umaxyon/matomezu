@@ -16,10 +16,11 @@ import { refusalMessage } from "../../../web/src/plugins/base"
 import { TICKETS_HISTORY } from "../../../web/src/plugins/base/library/backyards"
 import { LOCK } from "../../../web/src/plugins/base/lock"
 import { addPageIn } from "../../../web/src/plugins/base/pages/add-page"
+import { canPlace } from "../../../web/src/plugins/base/toolbox/toolbox"
 import type { CommandId } from "../../../web/src/store/commands"
 import { isEnabled } from "../../../web/src/store/commands"
 import { roomKey, yardCtx, yardWorld } from "../../backyard"
-import { DRAWING, drawingPage, testBinder, testBook } from "../../lineup"
+import { DRAWING, drawingPage, SLIDE, testBinder, testBook } from "../../lineup"
 import { CORE_CATALOG, newStore } from "../../support"
 
 type Drawing = Book
@@ -188,6 +189,22 @@ test("ロック中は、行うアクションをどれも認可ステップに�
   expect(enabled("@matomezu/base:book-new")).toBe(
     isEnabled(newStore(), newStore().state.getState(), "s1", "@matomezu/base:book-new"),
   )
+})
+
+test("ロック中のページでは、ツールボックスから置けない（紙の置くコマンドも、スライドの置くコマンドも止められる）。外せば置ける", () => {
+  const store = newStore()
+  const { state, actions } = store
+  const can = () => canPlace(store, state.getState(), "s1")
+  for (const type of [DRAWING, SLIDE]) {
+    addPageIn(store, "s1", { type, title: type })
+    const page = pagesOf(state.getState().books.b1 as Drawing).at(-1)!.id
+    actions.openPage("s1", page)
+    expect(can()).toBe(true)
+    expect(actions.perform("@matomezu/base:page-lock", {}, { page }).ok).toBe(true)
+    expect(can()).toBe(false)
+    expect(actions.perform("@matomezu/base:page-unlock", {}, { page }).ok).toBe(true)
+    expect(can()).toBe(true)
+  }
 })
 
 test("断りの文言は、認可ステップが止めたならそのステップの名前、ほかの理由なら呼ぶ側の文言", () => {
