@@ -5,6 +5,7 @@
 // 扱う物が無いと答える（作業机とその下の行は、掴めず、落とす先にならず、メニューに出ない。行の id のまま、アクションに渡さない）
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Folders } from "../../../core/folders"
+import { type Kept, sameParts } from "../../../core/folders-books"
 import { foldersOver, systemFolderOf } from "../../../core/folders-tree"
 import { readerOf, sourceOf } from "../../../core/record-source"
 import type { Records } from "../../../core/records"
@@ -17,16 +18,17 @@ const IN = "/e/"
 
 export const NO_DESKS: readonly Workdesk[] = []
 
-// 最後に出した作業机と、出した元（書庫の行ごとに同じ状態から出すので、元が同じなら出し直さない）
-let lastDesks: { catalog: CoreCatalog; records: Records; folders: Folders; desks: readonly Workdesk[] } | undefined
+// 出した作業机の覚え: レコードごとに、出した元の機能台帳と書庫の表（書庫の行ごとに同じ状態から出すので、元が同じなら出し直さない）
+const desksKept = new WeakMap<Records, Kept<readonly Workdesk[]>>()
 
 // 持っているレコード records と書庫の表 folders から出す作業机（読むのは workdesksReadsOf の種類だけ）
 export function workdesksIn(catalog: CoreCatalog, s: { records: Records; folders: Folders }): readonly Workdesk[] {
-  const was = lastDesks
-  if (was?.catalog === catalog && was.records === s.records && was.folders === s.folders) return was.desks
-  const desks = workdesksOf(catalog, readerOf(catalog, sourceOf(s.records), workdesksReadsOf(catalog)), s.folders)
-  lastDesks = { catalog, records: s.records, folders: s.folders, desks }
-  return desks
+  const parts = [catalog, s.folders]
+  const kept = desksKept.get(s.records)
+  if (kept && sameParts(kept.parts, parts)) return kept.made
+  const made = workdesksOf(catalog, readerOf(catalog, sourceOf(s.records), workdesksReadsOf(catalog)), s.folders)
+  desksKept.set(s.records, { parts, made })
+  return made
 }
 
 export const deskRowId = (room: string): string => `${PREFIX}${encodeURIComponent(room)}`

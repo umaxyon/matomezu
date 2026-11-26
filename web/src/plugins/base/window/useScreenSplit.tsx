@@ -83,15 +83,13 @@ export function useScreenSplit(): ScreenSplit {
   // スクリーンの中では起点が決まっているので、カレントスクリーンが変わっても描き直さない
   const currentId = useMatomezuState(s => (inside !== NO_SCREEN ? inside.id : currentScreen(s.window).id))
   const currentDef = useMatomezuState(s => (inside !== NO_SCREEN ? inside.def : currentScreen(s.window).def))
+  const here = inside !== NO_SCREEN ? { id: inside.id, def: inside.def } : { id: currentId, def: currentDef }
   const split = useMatomezuState(useShallow(s => splitIn(s.window)))
-  const wideHere = useMatomezuState(
-    s => wideIn(s.window) === (inside !== NO_SCREEN ? inside.id : currentScreen(s.window).id),
-  )
+  const wideHere = useMatomezuState(s => wideIn(s.window) === here.id)
   const members = useMatomezuState(useShallow(s => split.map(id => s.window.screens.find(x => x.id === id) ?? null)))
   const tall = useTallEnough()
   const actions = useStoreActions()
   const flash = useUpdatePluginState(kit, SCREEN_FLASH)
-  const here = inside !== NO_SCREEN ? { id: inside.id, def: inside.def } : { id: currentId, def: currentDef }
   // 後ろのステージを並べないスクリーンが起点のほかにあるか（そのスクリーンの id は、分けるときに読む）
   const behindOther = useMatomezuState(s => {
     const behind = recentPlainScreen(s.window)?.id
