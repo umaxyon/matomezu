@@ -295,7 +295,7 @@ export const LIBRARY_CHOOSE_PLACE = kit.defineScreenCommand({
 })
 
 // 参照を置く…（書庫の右クリックのメニュー）が指す物: 受け取った行の実の物が、書庫の見える所の、バインダの外のページかバインダのとき（選ぶ形の間は出さない）
-function puttable(ctx: ScreenCommandContext, named?: Named): Choosing | undefined {
+function placeable(ctx: ScreenCommandContext, named?: Named): Choosing | undefined {
   if (choosingIn(ctx)) return undefined
   const to = given(ctx, named)
   const entry = to && "folder" in to ? undefined : entryOf(ctx, named)
@@ -307,17 +307,17 @@ function puttable(ctx: ScreenCommandContext, named?: Named): Choosing | undefine
 }
 
 // 参照を置く…: 受け取ったページかバインダを指す参照を置くブックを、書庫で選ぶ形にする（選んでいる行は外す。書庫は開いたまま）
-export const LIBRARY_REFERENCE_PUT = kit.defineScreenCommand({
-  id: "library-reference-put",
+export const LIBRARY_REFERENCE_PLACE = kit.defineScreenCommand({
+  id: "library-reference-place",
   readsSubjects: workdesksReadsOf,
   title: "Place reference…",
   run: (ctx, a, named: Named | undefined) => {
-    const choosing = puttable(ctx, named)
+    const choosing = placeable(ctx, named)
     if (choosing === undefined) return
     a.updatePluginState(LIBRARY_CHOOSING, () => choosing)
     a.resetPluginState(LIBRARY_PICKED)
   },
-  when: inMenu(puttable),
+  when: inMenu(placeable),
 })
 
 // 開く: フォルダは右の枠で中へ入り、ブック・ページ・バインダ・ブックの外のページは窓に出す（書庫の画面の行を 2 回押す・Enter・右クリックのメニューの「開く」の、ただ 1 つの道）。

@@ -70,7 +70,7 @@ import {
   LIBRARY_REFERENCE_ADD,
   LIBRARY_REFERENCE_CHOOSE,
   LIBRARY_REFERENCE_DELETE,
-  LIBRARY_REFERENCE_PUT,
+  LIBRARY_REFERENCE_PLACE,
   LIBRARY_REFERENCE_REMOVE,
   LIBRARY_REFERENCE_SOURCE,
   LIBRARY_REMOVE_DIALOG,
@@ -697,7 +697,7 @@ export const BASE = defineBuiltin(
       LIBRARY_ENTRY_OPEN_SPLIT,
       LIBRARY_REFERENCE_SOURCE,
       LIBRARY_REFERENCE_DELETE,
-      LIBRARY_REFERENCE_PUT,
+      LIBRARY_REFERENCE_PLACE,
       LIBRARY_REFERENCE_CHOOSE,
       LIBRARY_CHOOSE_PLACE,
       LIBRARY_CHOOSE_CANCEL,
@@ -989,7 +989,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-entry-open-split": typeof LIBRARY_ENTRY_OPEN_SPLIT
     "@matomezu/base:library-reference-source": typeof LIBRARY_REFERENCE_SOURCE
     "@matomezu/base:library-reference-delete": typeof LIBRARY_REFERENCE_DELETE
-    "@matomezu/base:library-reference-put": typeof LIBRARY_REFERENCE_PUT
+    "@matomezu/base:library-reference-place": typeof LIBRARY_REFERENCE_PLACE
     "@matomezu/base:library-reference-choose": typeof LIBRARY_REFERENCE_CHOOSE
     "@matomezu/base:library-choose-place": typeof LIBRARY_CHOOSE_PLACE
     "@matomezu/base:library-choose-cancel": typeof LIBRARY_CHOOSE_CANCEL

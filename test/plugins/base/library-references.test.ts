@@ -134,7 +134,7 @@ const choosingAt = (store: ReturnType<typeof setup>["store"], screen: string) =>
 test("書庫の右クリックの「参照を置く…」で置くブックを選ぶ形になり、選べるブックに置くと、選ぶ形をやめて書庫のままトーストで知らせる", () => {
   const { state, run, center, store, lineup } = setup()
   const page = lineup("b2")?.[0] as string
-  run("library-reference-put", { entry: page })
+  run("library-reference-place", { entry: page })
   expect(choosingAt(store, center)).toEqual({ choose: "book", of: { kind: "page", id: page } })
   const of = { kind: "page" as const, id: page }
   const choosing = { choose: "book" as const, of }
@@ -198,12 +198,12 @@ test("選ぶ形の間は、開く・分割で開く・参照元へ移動・参�
     store.actions.openContextMenu(center, `@matomezu/base:${menu}`, target, { x: 0, y: 0 })
     return isShown(store, state.getState(), center, `@matomezu/base:${id}` as CommandId)
   }
-  const rows = ["library-entry-open", "library-entry-open-split", "library-reference-put"]
+  const rows = ["library-entry-open", "library-entry-open-split", "library-reference-place"]
   const menu = (entry: string) => rows.filter(id => shown(id, "library-entry-context", { entry }))
   expect(menu("p1")).toEqual(rows)
-  expect(shown("library-reference-put", "library-entry-context", { entry: ref })).toBe(false)
+  expect(shown("library-reference-place", "library-entry-context", { entry: ref })).toBe(false)
   store.actions.closeContextMenu()
-  run("library-reference-put", { entry: page })
+  run("library-reference-place", { entry: page })
   expect(menu("p1")).toEqual([])
   expect(shown("library-reference-source", "library-reference-context", { reference: ref })).toBe(false)
   store.actions.closeContextMenu()
