@@ -506,3 +506,35 @@
 .entry[data-drop="after"]::after {
   right: -5px;
 }
+/* 選ぶ形の間の書庫の画面: 上に選ぶ形の帯、その下に書庫の画面 */
+.chooser {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+/* 選ぶ形の帯: 何を選んでいるかと［取消］（書庫のスクリーンの帯と同じ高さ） */
+.chooseBand {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--skin-border);
+  background: var(--skin-accent-subtle);
+  color: var(--skin-text);
+  font-size: 13px;
+}
+.chooseWhat {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 選ぶ形の間の、選べず中へも入らない行 */
+[data-unchoosable] {
+  opacity: 0.4;
+}

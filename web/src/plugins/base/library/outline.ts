@@ -3,6 +3,7 @@ import {
   type EntryKind,
   entriesIn,
   type Naming,
+  placeOf,
   rowsWithin,
   rowTitle,
   titleOf,
@@ -23,7 +24,7 @@ import {
 } from "../../../core/folders"
 import { atOutsidePagePlace, foldersOver, inTrash, systemFolderOf } from "../../../core/folders-tree"
 import type { UnreadableItem } from "../../../core/folders-unreadable"
-import { bookOfReference, referenceLook } from "../../../core/references"
+import { bookOfReference, inSight, referableIn, referenceLook } from "../../../core/references"
 import type { ReferenceEntry } from "../../../core/schema/book"
 import type { MovedIfOff } from "../../../core/unreadable"
 import type { Workdesk } from "../participant/workdesks"
@@ -550,4 +551,34 @@ export function treeCurrentOf(
   const place = deskPlaceOf(desks, folders, picked)
   const holds = place === undefined ? folders[picked] !== undefined : place !== GONE && deskHolds(folders, place)
   return holds ? opened : picked
+}
+
+// 書庫で選ぶ形: ブック book に置く参照の指す先を選ぶ（referred。ページタブの＋の「参照…」から）か、of を指す参照を置くブックを選ぶ（book。書庫の右クリックの「参照を置く…」から）
+export type Choosing = { choose: "referred"; book: string } | { choose: "book"; of: ReferenceEntry["of"] }
+
+// 選ぶ形 choosing が今も続けられるか（置く先のブック・指す先が、書庫の見える所に在る）。続けられなければ undefined（選ぶ形の外と同じに扱う）
+export function choosingNow(folders: Folders, choosing: Choosing | undefined): Choosing | undefined {
+  if (choosing === undefined) return undefined
+  if (choosing.choose === "referred")
+    return folders[choosing.book]?.folderRole === "book" && inSight(folders, choosing.book) ? choosing : undefined
+  return placeOf(folders, choosing.of.id)?.ref.kind === choosing.of.kind && inSight(folders, choosing.of.id)
+    ? choosing
+    : undefined
+}
+
+// 選ぶ形 choosing で、行 id を選べるか（作業机の下の行は実の物で）。選べるなら、置く参照エントリの置き先と指す先
+export function chosenBy(
+  folders: Folders,
+  choosing: Choosing,
+  id: string,
+  desks: readonly Workdesk[],
+): { book: string; of: ReferenceEntry["of"] } | undefined {
+  const real = realOf(desks, folders, id)
+  const kind = placeOf(folders, real)?.ref.kind
+  if (choosing.choose === "referred") {
+    if (kind !== "page" && kind !== "binder") return undefined
+    const of = { kind, id: real }
+    return referableIn(folders, choosing.book, of) ? { book: choosing.book, of } : undefined
+  }
+  return kind === "book" && referableIn(folders, real, choosing.of) ? { book: real, of: choosing.of } : undefined
 }

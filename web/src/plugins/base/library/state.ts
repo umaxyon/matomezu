@@ -3,7 +3,7 @@ import { z } from "zod"
 import { HOME_ID } from "../../../core/folders"
 import { kit } from "../kit"
 import { workdesksOf, workdesksReadsOf } from "../participant/workdesks"
-import { AT_FIRST, openedFolderOf, shownFoldersOf } from "./outline"
+import { AT_FIRST, type Choosing, openedFolderOf, shownFoldersOf } from "./outline"
 import { DEFAULT_TREE_WIDTH, TREE_MIN_WIDTH } from "./tree-width"
 
 // 開いているフォルダの id（右の枠に中身を出しているフォルダ）。画面の場所に入り、替えるたびにブラウザの履歴に積む（値が無ければ書庫ホーム）
@@ -24,6 +24,9 @@ export const LIBRARY_FOUND_PICKED = kit.definePluginStateOf<string>()({ id: "lib
 
 // 検索している言葉（「検索」を押したときの入力Formの中身。読み直すと消える。値が無ければ、検索していない）
 export const LIBRARY_QUERY = kit.definePluginStateOf<string>()({ id: "library-query", scope: "screen" })
+
+// 選ぶ形（outline.ts の Choosing。値が無ければ、選ぶ形でない。読み直すと消える。画面の場所には入れない）
+export const LIBRARY_CHOOSING = kit.definePluginStateOf<Choosing>()({ id: "library-choosing", scope: "screen" })
 
 // 右の枠の中身が 1 行に並べている列の数（ビューが描いた後に測り、窓や中身が変わったら測り直す。値が無ければ 1 列と見る）。
 // 右の枠の上下の矢印のコマンド library-pick-move が、列の数だけ前・後ろの行を選ぶ

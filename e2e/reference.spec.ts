@@ -177,3 +177,99 @@ test.describe("書庫の参照の行", () => {
     await expect(inside.getByRole("button")).toHaveText(["設計"])
   })
 })
+
+// 書庫で選んで参照を置く形: 書庫の右クリックの「参照を置く…」で置くブックを選ぶ。ページタブの＋の「参照…」で置く参照を選ぶ
+test.describe("書庫で選んで参照を置く", () => {
+  test.use({
+    books: [
+      [
+        testBook("ref-ca", "元のブック", [drawingPage("ref-ca1", { title: "全体図" })]),
+        testBook("ref-cb", "置くブック", [drawingPage("ref-cb1", { title: "設計" })]),
+      ],
+      {},
+    ],
+  })
+
+  const tree = (page: Page) => page.getByRole("navigation", { name: "フォルダ" })
+  const band = (page: Page) => page.getByRole("status").filter({ hasText: "を選ぶ" })
+
+  test("右クリックの「参照を置く…」で置くブックを選ぶ帯が出て、選べるブックの［ここに置く］で置き、書庫のまま知らせる。Esc は選ぶ形だけやめる", async ({
+    page,
+  }) => {
+    await page.goto("/")
+    await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+    await tree(page).getByRole("button", { name: "元のブック", exact: true }).click()
+    await page.keyboard.press("Escape")
+    const inside = page.getByRole("list", { name: "元のブック の中身" })
+    await inside.getByRole("button", { name: "全体図" }).click({ button: "right" })
+    await page.getByRole("menuitem", { name: "参照を置く…" }).click()
+    await expect(band(page)).toHaveText(/全体図 の参照を置くブックを選ぶ/)
+    // 選べない物は薄い
+    await expect(inside.getByRole("button", { name: "全体図" })).toHaveAttribute("data-unchoosable", "true")
+    // Esc で選ぶ形だけやめる（書庫は開いたまま）
+    await inside.getByRole("button", { name: "全体図" }).focus()
+    await page.keyboard.press("Escape")
+    await expect(band(page)).toHaveCount(0)
+    await expect(inside).toBeVisible()
+
+    await inside.getByRole("button", { name: "全体図" }).click({ button: "right" })
+    await page.getByRole("menuitem", { name: "参照を置く…" }).click()
+    // 指す先の入っているブックは選べない。ほかのブックを押すと［ここに置く］
+    await expect(tree(page).getByRole("button", { name: "元のブック", exact: true })).toHaveAttribute(
+      "data-unchoosable",
+      "true",
+    )
+    await tree(page).getByRole("button", { name: "置くブック", exact: true }).click()
+    await page.getByRole("menuitem", { name: "ここに置く" }).click()
+    await expect(page.getByText("置くブック に参照を置きました")).toBeVisible()
+    await expect(band(page)).toHaveCount(0)
+    await expect(page.getByRole("list", { name: "置くブック の中身" }).getByRole("button")).toHaveText([
+      "設計",
+      "全体図",
+    ])
+  })
+
+  test("ページタブの＋の「参照…」で置く参照を選ぶ帯が出て、選べるページの［参照を置く］で書庫を閉じて置いた参照を開く。［取消］は書庫を閉じる", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await page.goto(bookScreenUrl("ref-cb", "ref-cb1"))
+    const choose = async () => {
+      await page.getByRole("button", { name: "ページを足す" }).click()
+      await page.getByRole("menuitem", { name: "参照…" }).click()
+      await expect(band(page)).toHaveText(/置くブック に置く参照を選ぶ/)
+    }
+    await choose()
+    // 書庫のスクリーンの帯（→ 閉じる・広げる）は、選ぶ形の帯に替わる
+    await expect(page.getByRole("button", { name: "広げる", exact: true })).toHaveCount(0)
+    await page.getByRole("button", { name: "取消" }).click()
+    await expect(band(page)).toHaveCount(0)
+    await expect(tree(page)).toHaveCount(0)
+    // 外を押して閉じても、選ぶ形は残らない（次に開いた書庫は、いつもの帯）
+    await choose()
+    await page.getByRole("tab", { name: "設計" }).click()
+    await expect(tree(page)).toHaveCount(0)
+    await (await fromMenu(page, "書庫を開く")).click()
+    await expect(tree(page)).toBeVisible()
+    await expect(band(page)).toHaveCount(0)
+    await page.keyboard.press("Escape")
+    await expect(tree(page)).toHaveCount(0)
+
+    await choose()
+    // 置くブックの中のページは選べず、Enter でも開かない
+    await tree(page).getByRole("button", { name: "置くブック", exact: true }).click()
+    const own = page.getByRole("list", { name: "置くブック の中身" })
+    await expect(own.getByRole("button", { name: "設計" })).toHaveAttribute("data-unchoosable", "true")
+    await own.getByRole("button", { name: "設計" }).click()
+    await page.keyboard.press("Enter")
+    await expect(band(page)).toBeVisible()
+    // 選べないブックは、押すと中へ入る
+    await tree(page).getByRole("button", { name: "元のブック", exact: true }).click()
+    await expect(page.getByRole("menuitem", { name: "分割で開く" })).toHaveCount(0)
+    await page.getByRole("list", { name: "元のブック の中身" }).getByRole("button", { name: "全体図" }).click()
+    await page.getByRole("menuitem", { name: "参照を置く" }).click()
+    await expect(tree(page)).toHaveCount(0)
+    await expect(page.getByRole("tab", { name: "全体図" })).toHaveAttribute("aria-selected", "true")
+    await expect(page.locator('[data-reference="shown"]')).toBeVisible()
+  })
+})

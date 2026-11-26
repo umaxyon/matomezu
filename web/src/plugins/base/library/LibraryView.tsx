@@ -23,6 +23,7 @@ import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import type { Workdesk } from "../participant/workdesks"
 import { SplitHandle } from "../utils/SplitHandle"
+import { ChooseBand } from "./ChooseBand"
 import {
   LIBRARY_ADD_PAGE_MENU,
   LIBRARY_BOOK_NEW,
@@ -42,7 +43,7 @@ import {
 import { holderForNewPage } from "./entries"
 import { FoundView } from "./FoundView"
 import { HistoryButtons } from "./HistoryButtons"
-import { useKeepFocusIn, useLibraryRows, useNameOf, useWorkdesks } from "./hooks"
+import { useChoosing, useKeepFocusIn, useLibraryRows, useNameOf, useWorkdesks } from "./hooks"
 import { CHEVRON, RowIcon, TRASH } from "./icons"
 import styles from "./LibraryView.module.css"
 import { MoveClashConfirm } from "./MoveClashConfirm"
@@ -112,6 +113,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const nameOf = useNameOf()
   const read = useReadState()
   const openEntry = useCommand(LIBRARY_ENTRY_OPEN.id).run
+  const choosing = useChoosing()
   const value = usePluginState(kit, LIBRARY_FOLDER)
   const setFolder = useSetPluginState(kit, LIBRARY_FOLDER)
   const pickedState = usePluginState(kit, LIBRARY_PICKED)
@@ -250,176 +252,188 @@ export function LibraryView({ className }: { className?: string } = {}) {
     row?.scrollIntoView({ block: "nearest" })
   }, [current, reveals])
   const here = nameOf({ id: opened, title: titles[titles.length - 1] ?? NO_TITLE })
+  // 選ぶ形の間は、上に選ぶ形の帯を出す（帯の中の焦点にも書庫のキーが効くよう、帯ごと書庫の範囲に入れる）
   return (
     <div
-      ref={root}
-      className={className === undefined ? styles.library : `${styles.library} ${className}`}
+      className={className === undefined ? styles.chooser : `${styles.chooser} ${className}`}
       data-key-scope={LIBRARY_SCOPE}
-      tabIndex={-1}
-      onPointerDown={onPointerDown}
-      style={
-        {
-          "--library-tree-width": `${treeWidth}px`,
-          "--library-tree-min-width": `${TREE_MIN_WIDTH}px`,
-          "--library-content-min-width": `${CONTENT_MIN_WIDTH}px`,
-        } as CSSProperties
-      }
     >
-      <div className={styles.left}>
-        <search>
-          <form
-            id={searchForm}
-            className={styles.search}
-            onSubmit={e => {
-              e.preventDefault()
-              if (searchWord(typed) === NO_SEARCH) resetQuery()
-              else setQuery(typed.trim())
-            }}
+      {choosing && <ChooseBand choosing={choosing} />}
+      <div
+        ref={root}
+        className={styles.library}
+        data-key-scope={LIBRARY_SCOPE}
+        tabIndex={-1}
+        onPointerDown={onPointerDown}
+        style={
+          {
+            "--library-tree-width": `${treeWidth}px`,
+            "--library-tree-min-width": `${TREE_MIN_WIDTH}px`,
+            "--library-content-min-width": `${CONTENT_MIN_WIDTH}px`,
+          } as CSSProperties
+        }
+      >
+        <div className={styles.left}>
+          <search>
+            <form
+              id={searchForm}
+              className={styles.search}
+              onSubmit={e => {
+                e.preventDefault()
+                if (searchWord(typed) === NO_SEARCH) resetQuery()
+                else setQuery(typed.trim())
+              }}
+            >
+              <input
+                className={controlClass}
+                aria-label={t("Search by name")}
+                placeholder={t("Search by name")}
+                value={typed}
+                onChange={e => {
+                  setTyped(e.target.value)
+                  // 入力Formを空にしたら、元の表示に戻す
+                  if (e.target.value === "") resetQuery()
+                }}
+              />
+              <ActionButton form={searchForm} raised>
+                {t("Search")}
+              </ActionButton>
+            </form>
+          </search>
+          {/* 行の外（余白）を押したら、ここが焦点を受ける（矢印だけが効く） */}
+          <nav
+            className={styles.tree}
+            aria-label={t("Folders")}
+            data-key-scope={LIBRARY_TREE_AROUND_SCOPE}
+            tabIndex={-1}
           >
-            <input
-              className={controlClass}
-              aria-label={t("Search by name")}
-              placeholder={t("Search by name")}
-              value={typed}
-              onChange={e => {
-                setTyped(e.target.value)
-                // 入力Formを空にしたら、元の表示に戻す
-                if (e.target.value === "") resetQuery()
+            <ul className={styles.rows}>
+              {(unreadableShown ? TOPS_WITH_UNREADABLE : TOPS).map(top => (
+                <TreeNode key={top.id} row={top} holder={top.id} depth={0} handlers={handlers} />
+              ))}
+            </ul>
+          </nav>
+          {unreadableCount > 0 && (
+            <button type="button" className={styles.unreadableNotice} onClick={openUnreadable}>
+              {t("⚠ Unreadable: {count}", { count: unreadableCount })}
+            </button>
+          )}
+        </div>
+        <SplitHandle
+          direction="row"
+          frame={root}
+          onMove={(at, length) => setTreeWidth(treeWidthAt(at, length))}
+          onReset={() => resetTreeWidth()}
+          className={styles.treeSplitter}
+          data-tree-splitter
+        />
+        <div className={styles.right}>
+          {query !== undefined ? (
+            <FoundView
+              key={query}
+              query={query}
+              current={current}
+              onPick={reveal}
+              onOpen={handlers.open}
+              onMenu={(e, row) => {
+                reveal(row)
+                handlers.menu(e, row)
               }}
             />
-            <ActionButton form={searchForm} raised>
-              {t("Search")}
-            </ActionButton>
-          </form>
-        </search>
-        {/* 行の外（余白）を押したら、ここが焦点を受ける（矢印だけが効く） */}
-        <nav className={styles.tree} aria-label={t("Folders")} data-key-scope={LIBRARY_TREE_AROUND_SCOPE} tabIndex={-1}>
-          <ul className={styles.rows}>
-            {(unreadableShown ? TOPS_WITH_UNREADABLE : TOPS).map(top => (
-              <TreeNode key={top.id} row={top} holder={top.id} depth={0} handlers={handlers} />
-            ))}
-          </ul>
-        </nav>
-        {unreadableCount > 0 && (
-          <button type="button" className={styles.unreadableNotice} onClick={openUnreadable}>
-            {t("⚠ Unreadable: {count}", { count: unreadableCount })}
-          </button>
-        )}
-      </div>
-      <SplitHandle
-        direction="row"
-        frame={root}
-        onMove={(at, length) => setTreeWidth(treeWidthAt(at, length))}
-        onReset={() => resetTreeWidth()}
-        className={styles.treeSplitter}
-        data-tree-splitter
-      />
-      <div className={styles.right}>
-        {query !== undefined ? (
-          <FoundView
-            key={query}
-            query={query}
-            current={current}
-            onPick={reveal}
-            onOpen={handlers.open}
-            onMenu={(e, row) => {
-              reveal(row)
-              handlers.menu(e, row)
-            }}
-          />
-        ) : (
-          <>
-            <nav className={styles.path} aria-label={t("Where it is")}>
-              {path.map((id, i) => (
-                <span key={id}>
-                  {i > 0 && <span className={styles.sep}>›</span>}
-                  <button
-                    type="button"
-                    className={styles.crumb}
-                    aria-current={id === opened ? "true" : undefined}
-                    onClick={() => enter(id)}
-                  >
-                    {nameOf({ id, title: titles[i] ?? NO_TITLE })}
-                  </button>
-                </span>
-              ))}
-            </nav>
-            {opened !== TRASH_ID && opened !== UNREADABLE_ID && (
-              <div className={styles.tools}>
-                {/* ブック・フォルダを作る先は、コマンドが決める（ゴミ箱の外なら、どこにも在る） */}
-                <ActionButton raised disabled={!bookNew.enabled} onClick={() => bookNew.run({ folder: opened })}>
-                  <span className={styles.create}>
-                    <RowIcon row={{ kind: "book", type: NO_TYPE }} className={styles.icon} />
-                    {t("Create book")}
-                  </span>
-                </ActionButton>
-                <ActionButton raised disabled={!folderNew.enabled} onClick={() => folderNew.run({ folder: opened })}>
-                  <span className={styles.create}>
-                    <RowIcon row={{ kind: "folder", type: NO_TYPE }} className={styles.icon} />
-                    {t("New folder")}
-                  </span>
-                </ActionButton>
-
-                {pageInto !== undefined && (
-                  <span ref={addPage} onPointerDown={addPageMenu.pressed}>
-                    <ActionButton
-                      raised
-                      disabled={!pageNew.enabled}
-                      onClick={() => {
-                        const r = addPage.current?.getBoundingClientRect()
-                        if (r) addPageMenu.open({ x: r.left, y: r.bottom + 4 }, { folder: pageInto })
-                      }}
+          ) : (
+            <>
+              <nav className={styles.path} aria-label={t("Where it is")}>
+                {path.map((id, i) => (
+                  <span key={id}>
+                    {i > 0 && <span className={styles.sep}>›</span>}
+                    <button
+                      type="button"
+                      className={styles.crumb}
+                      aria-current={id === opened ? "true" : undefined}
+                      onClick={() => enter(id)}
                     >
-                      <span className={styles.create}>
-                        <RowIcon row={{ kind: "page", type: NO_TYPE }} className={styles.icon} />
-                        {t("Create page")}
-                      </span>
-                    </ActionButton>
+                      {nameOf({ id, title: titles[i] ?? NO_TITLE })}
+                    </button>
                   </span>
-                )}
-                <HistoryButtons />
-              </div>
-            )}
-            {opened === TRASH_ID ? (
-              <TrashView picked={picked} onPick={setPicked} />
-            ) : opened === UNREADABLE_ID ? (
-              <UnreadableView picked={picked} onPick={setPicked} />
-            ) : rows.length === 0 ? (
-              <p
-                className={styles.blank}
-                onContextMenu={e => openFolderMenu(e, { folder: opened, pressed: { x: e.clientX, y: e.clientY } })}
-              >
-                {t("Nothing inside")}
-              </p>
-            ) : (
-              <ul
-                className={styles.contents}
-                aria-label={t("Contents of {name}", { name: here })}
-                onContextMenu={e => openFolderMenu(e, { folder: opened, pressed: { x: e.clientX, y: e.clientY } })}
-                // ドラッグのあとの click は、useLibraryDrag が止める
-                {...pick.list}
-              >
-                {rows.map(row => (
-                  <ContentEntry
-                    key={row.id}
-                    row={row}
-                    pressProps={pick.row(row.id)}
-                    holder={opened}
-                    drag={drag}
-                    onOpen={() => handlers.open(row)}
-                    onMenu={e => {
-                      setPicked(row.id)
-                      handlers.menu(e, row)
-                    }}
-                  />
                 ))}
-              </ul>
-            )}
-          </>
-        )}
+              </nav>
+              {opened !== TRASH_ID && opened !== UNREADABLE_ID && (
+                <div className={styles.tools}>
+                  {/* ブック・フォルダを作る先は、コマンドが決める（ゴミ箱の外なら、どこにも在る） */}
+                  <ActionButton raised disabled={!bookNew.enabled} onClick={() => bookNew.run({ folder: opened })}>
+                    <span className={styles.create}>
+                      <RowIcon row={{ kind: "book", type: NO_TYPE }} className={styles.icon} />
+                      {t("Create book")}
+                    </span>
+                  </ActionButton>
+                  <ActionButton raised disabled={!folderNew.enabled} onClick={() => folderNew.run({ folder: opened })}>
+                    <span className={styles.create}>
+                      <RowIcon row={{ kind: "folder", type: NO_TYPE }} className={styles.icon} />
+                      {t("New folder")}
+                    </span>
+                  </ActionButton>
+
+                  {pageInto !== undefined && (
+                    <span ref={addPage} onPointerDown={addPageMenu.pressed}>
+                      <ActionButton
+                        raised
+                        disabled={!pageNew.enabled}
+                        onClick={() => {
+                          const r = addPage.current?.getBoundingClientRect()
+                          if (r) addPageMenu.open({ x: r.left, y: r.bottom + 4 }, { folder: pageInto })
+                        }}
+                      >
+                        <span className={styles.create}>
+                          <RowIcon row={{ kind: "page", type: NO_TYPE }} className={styles.icon} />
+                          {t("Create page")}
+                        </span>
+                      </ActionButton>
+                    </span>
+                  )}
+                  <HistoryButtons />
+                </div>
+              )}
+              {opened === TRASH_ID ? (
+                <TrashView picked={picked} onPick={setPicked} />
+              ) : opened === UNREADABLE_ID ? (
+                <UnreadableView picked={picked} onPick={setPicked} />
+              ) : rows.length === 0 ? (
+                <p
+                  className={styles.blank}
+                  onContextMenu={e => openFolderMenu(e, { folder: opened, pressed: { x: e.clientX, y: e.clientY } })}
+                >
+                  {t("Nothing inside")}
+                </p>
+              ) : (
+                <ul
+                  className={styles.contents}
+                  aria-label={t("Contents of {name}", { name: here })}
+                  onContextMenu={e => openFolderMenu(e, { folder: opened, pressed: { x: e.clientX, y: e.clientY } })}
+                  // ドラッグのあとの click は、useLibraryDrag が止める
+                  {...pick.list}
+                >
+                  {rows.map(row => (
+                    <ContentEntry
+                      key={row.id}
+                      row={row}
+                      pressProps={pick.row(row.id)}
+                      holder={opened}
+                      drag={drag}
+                      onOpen={() => handlers.open(row)}
+                      onMenu={e => {
+                        setPicked(row.id)
+                        handlers.menu(e, row)
+                      }}
+                    />
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+        {asking && <MoveClashConfirm asking={asking} onDone={answered} />}
+        {clearing && <SettingsClearConfirm clearing={clearing} onDone={cleared} />}
       </div>
-      {asking && <MoveClashConfirm asking={asking} onDone={answered} />}
-      {clearing && <SettingsClearConfirm clearing={clearing} onDone={cleared} />}
     </div>
   )
 }
@@ -466,6 +480,7 @@ function ContentEntry({
             {...marks}
             data-holder={holder}
             data-reference={row.kind === "reference" ? "" : undefined}
+            data-unchoosable={press.faded || undefined}
             {...dragMarks(drag, LIBRARY_CONTENTS_SCOPE, row.id)}
             onClick={press.onClick}
             onDoubleClick={press.onDoubleClick}
@@ -533,6 +548,7 @@ function TreeNode({
               data-key-scope={LIBRARY_TREE_SCOPE}
               tabIndex={row.id === handlers.tabbable ? 0 : -1}
               data-holder={holder}
+              data-unchoosable={press.faded || undefined}
               {...dragMarks(handlers.drag, LIBRARY_TREE_SCOPE, row.id)}
               aria-current={holds && row.id === handlers.opened ? "true" : undefined}
               aria-pressed={!holds && row.id === handlers.picked}

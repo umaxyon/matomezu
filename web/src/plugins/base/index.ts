@@ -39,6 +39,9 @@ import {
   IN_WORKROOMS,
   LIBRARY_APPEARANCE,
   LIBRARY_BOOK_NEW,
+  LIBRARY_CHOOSE_CANCEL,
+  LIBRARY_CHOOSE_PLACE,
+  LIBRARY_CHOOSING,
   LIBRARY_COLUMNS,
   LIBRARY_CONTENTS_AROUND_KEY_SCOPE,
   LIBRARY_CONTENTS_KEY_SCOPE,
@@ -65,7 +68,9 @@ import {
   LIBRARY_QUERY,
   LIBRARY_REDO,
   LIBRARY_REFERENCE_ADD,
+  LIBRARY_REFERENCE_CHOOSE,
   LIBRARY_REFERENCE_DELETE,
+  LIBRARY_REFERENCE_PUT,
   LIBRARY_REFERENCE_REMOVE,
   LIBRARY_REFERENCE_SOURCE,
   LIBRARY_REMOVE_DIALOG,
@@ -74,6 +79,7 @@ import {
   LIBRARY_SCREEN,
   LIBRARY_SCREEN_CLOSE,
   LIBRARY_SCREEN_EXPAND,
+  LIBRARY_SCREEN_KEY_SCOPE,
   LIBRARY_SCREEN_KEYS,
   LIBRARY_TREE_AROUND_KEY_SCOPE,
   LIBRARY_TREE_FOLD_OR_PARENT,
@@ -691,6 +697,10 @@ export const BASE = defineBuiltin(
       LIBRARY_ENTRY_OPEN_SPLIT,
       LIBRARY_REFERENCE_SOURCE,
       LIBRARY_REFERENCE_DELETE,
+      LIBRARY_REFERENCE_PUT,
+      LIBRARY_REFERENCE_CHOOSE,
+      LIBRARY_CHOOSE_PLACE,
+      LIBRARY_CHOOSE_CANCEL,
       LIBRARY_BOOK_NEW,
       LIBRARY_OPEN,
       LIBRARY_SCREEN_CLOSE,
@@ -751,6 +761,7 @@ export const BASE = defineBuiltin(
       SCREEN_FLASH,
       LIBRARY_FOLDER,
       LIBRARY_PICKED,
+      LIBRARY_CHOOSING,
       LIBRARY_FOUND_PICKED,
       LIBRARY_COLUMNS,
       LIBRARY_UNFOLDED,
@@ -776,6 +787,7 @@ export const BASE = defineBuiltin(
       WIDE_SEARCH_WORDS_KEY_SCOPE,
       NOTE_TEXT_KEY_SCOPE,
       LIBRARY_KEY_SCOPE,
+      LIBRARY_SCREEN_KEY_SCOPE,
       LIBRARY_TREE_KEY_SCOPE,
       LIBRARY_CONTENTS_KEY_SCOPE,
       LIBRARY_TREE_AROUND_KEY_SCOPE,
@@ -977,6 +989,10 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-entry-open-split": typeof LIBRARY_ENTRY_OPEN_SPLIT
     "@matomezu/base:library-reference-source": typeof LIBRARY_REFERENCE_SOURCE
     "@matomezu/base:library-reference-delete": typeof LIBRARY_REFERENCE_DELETE
+    "@matomezu/base:library-reference-put": typeof LIBRARY_REFERENCE_PUT
+    "@matomezu/base:library-reference-choose": typeof LIBRARY_REFERENCE_CHOOSE
+    "@matomezu/base:library-choose-place": typeof LIBRARY_CHOOSE_PLACE
+    "@matomezu/base:library-choose-cancel": typeof LIBRARY_CHOOSE_CANCEL
     "@matomezu/base:library-book-new": typeof LIBRARY_BOOK_NEW
     "@matomezu/base:library-open": typeof LIBRARY_OPEN
     "@matomezu/base:library-screen-close": typeof LIBRARY_SCREEN_CLOSE
@@ -1076,6 +1092,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:screen-flash": typeof SCREEN_FLASH
     "@matomezu/base:library-folder": typeof LIBRARY_FOLDER
     "@matomezu/base:library-picked": typeof LIBRARY_PICKED
+    "@matomezu/base:library-choosing": typeof LIBRARY_CHOOSING
     "@matomezu/base:library-found-picked": typeof LIBRARY_FOUND_PICKED
     "@matomezu/base:unreadable-notice-closed": typeof UNREADABLE_NOTICE_CLOSED
     "@matomezu/base:library-columns": typeof LIBRARY_COLUMNS
@@ -1109,6 +1126,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-contents-around": typeof LIBRARY_CONTENTS_AROUND_KEY_SCOPE // 書庫の画面の右の枠の中身の、行の外にフォーカスがある間のキー（矢印だけ）
     "@matomezu/base:library-found": typeof LIBRARY_FOUND_KEY_SCOPE // 書庫の画面の検索の結果の中にフォーカスがある間のキー
     "@matomezu/base:library": typeof LIBRARY_KEY_SCOPE // 書庫の画面の中にフォーカスがある間のキー
+    "@matomezu/base:library-screen": typeof LIBRARY_SCREEN_KEY_SCOPE // 書庫のスクリーンの中にフォーカスがある間のキー
     "@matomezu/base:mailbox": typeof MAILBOX_KEY_SCOPE // 郵便箱の画面の中にフォーカスがある間のキー
   }
   interface DialogTable {

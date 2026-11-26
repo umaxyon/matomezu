@@ -3,12 +3,14 @@
 // 書庫のスクリーンを閉じる・広げる道（帯のボタン・書庫のスクリーンの外の操作・「書庫を開く」・選んで開いたあと）は、どれもここの関数を通り、ステージを分けて足した空のステージを閉じる
 
 import { z } from "zod"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { UNREADABLE_ID } from "../../../core/folders"
 import { type Actions, SCREEN_REFUSED } from "../../../store/actions"
 import {
   arrangementValueIn,
   type CommandActions,
   calledScreenIdOf,
+  NO_BOOK,
   type OpenScreen,
   resetPluginStateAtOf,
   type ScreenCommandContext,
@@ -21,8 +23,8 @@ import { kit } from "../kit"
 import { hasOpenedPage } from "../utils/opened-page"
 import { closeInLowerRow, expandLowerRow, openInLowerRow, stageAboveLower } from "../window/lower-row"
 import { splitOf } from "../window/split"
-import { outsidePagePlaceOf } from "./outline"
-import { LIBRARY_APPEARANCE, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY } from "./state"
+import { choosingNow, outsidePagePlaceOf } from "./outline"
+import { LIBRARY_APPEARANCE, LIBRARY_CHOOSING, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY } from "./state"
 
 export const LIBRARY_SCREEN = kit.defineScreen({
   id: "library-screen",
@@ -80,6 +82,42 @@ export const LIBRARY_PLACE_OPEN = kit.defineCommand({
     reset(library, LIBRARY_QUERY)
   },
   when: ctx => hasOpenedPage(ctx) && outsidePagePlaceOf(ctx.folders, ctx.page.id).length > 0,
+})
+
+// 参照…（ページタブの＋のメニュー）: 書庫を開き（書庫を開くと同じ所に出す）、開いているブックに置く参照の指す先を選ぶ形にする（検索していればやめ、選んでいる行は外す）。
+// 選んで置くと、書庫のスクリーンを閉じて置いた参照を開く（open-from.ts の placeChosen）
+export const LIBRARY_REFERENCE_CHOOSE = kit.defineCommand({
+  id: "library-reference-choose",
+  title: "Reference…",
+  run: (ctx, a) => {
+    if (ctx.book === NO_BOOK) return
+    const book = ctx.book.id
+    const library = openLibrary(ctx, a)
+    if (library === SCREEN_REFUSED) return
+    const write = updatePluginStateAtOf(a)
+    write(library, LIBRARY_CHOOSING, () => ({ choose: "referred" as const, book }))
+    const reset = resetPluginStateAtOf(a)
+    reset(library, LIBRARY_PICKED)
+    reset(library, LIBRARY_QUERY)
+  },
+  when: ctx => ctx.book !== NO_BOOK,
+})
+
+// 選ぶ形をやめる（選ぶ形の帯の［取消］と、書庫の画面の中の Esc）。置く参照を選んでいた（ページタブの＋から始めた）なら、書庫のスクリーンも閉じる
+export const LIBRARY_CHOOSE_CANCEL = kit.defineScreenCommand({
+  id: "library-choose-cancel",
+  title: "Cancel choosing",
+  run: (ctx, a) => {
+    const now = ctx.pluginState(LIBRARY_CHOOSING)
+    if (now === NO_STATE) return
+    a.resetPluginState(LIBRARY_CHOOSING)
+    if (now.choose === "referred" && ctx.screen.def === LIBRARY_SCREEN.id)
+      closeLibrary(storeActionsOf(a), screensOf(ctx), arrangementValueIn(ctx), calledScreenIdOf(ctx))
+  },
+  when: ctx => {
+    const now = ctx.pluginState(LIBRARY_CHOOSING)
+    return choosingNow(ctx.folders, now === NO_STATE ? undefined : now) !== undefined
+  },
 })
 
 // 書庫のスクリーンを出して、その id を返す（出せなければ SCREEN_REFUSED）。開いていれば、新しく開かずにそれを使う

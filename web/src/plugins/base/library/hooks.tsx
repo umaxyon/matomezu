@@ -1,15 +1,18 @@
 // 書庫の画面のビューが共に使うフック: 書庫の表から出した行を同じ値のまま保つ・行の名前・焦点を中に保つ
 import { type RefObject, useEffect, useRef } from "react"
+import { NO_STATE } from "../../../core/def/plugin-state"
 import { type EntryKind, type Naming, namingOf } from "../../../core/entries"
 import { type BROKEN, HOME_ID, type Library, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
 import { sameData } from "../../../core/same"
 import type { MovedIfOff, Purged, UnreadableNotice } from "../../../core/unreadable"
 import type { MatomezuState } from "../../../store/state"
 import { useMessages } from "../../../ui/i18n"
+import { usePluginState } from "../../../ui/plugin-state-hooks"
 import { useCatalog, useInstance, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import type { Workdesk } from "../participant/workdesks"
-import { type LibraryRow, NO_TITLE, rowsIn } from "./outline"
+import { type Choosing, choosingNow, chosenBy, type LibraryRow, NO_TITLE, rowsIn } from "./outline"
+import { LIBRARY_CHOOSING } from "./state"
 import { NO_DESKS, workdesksIn } from "./workdesk-rows"
 
 // 書庫の表から rowsOf で出した行（名前は、利用者の設定の言語で引く naming で引く。読めない物のフォルダの直下の物 unreadableFolder と、レコード records と、作業机 desks も読める）。
@@ -61,6 +64,27 @@ export function useLibraryRows<R>(
     }
     return rows
   })
+}
+
+// この書庫の画面の選ぶ形（選ぶ形でない・続けられなければ undefined）
+export function useChoosing(): Choosing | undefined {
+  const now = usePluginState(kit, LIBRARY_CHOOSING)
+  return useMatomezuState(s => choosingNow(s.folders, now === NO_STATE ? undefined : now))
+}
+
+// 選ぶ形の間の、行 row の選ばれ方: 選べるか（chosen）と、薄く描くか（faded。選べず、中へも入らない行。置く参照を選ぶ間はブックとフォルダ、
+// 置くブックを選ぶ間はフォルダが中へ入る）。選ぶ形でなければ undefined
+export function useChooseOf(
+  row: Pick<LibraryRow, "id" | "kind">,
+): { choosing: Choosing; chosen: boolean; faded: boolean } | undefined {
+  const choosing = useChoosing()
+  const desks = useWorkdesks()
+  const chosen = useMatomezuState(
+    s => choosing !== undefined && chosenBy(s.folders, choosing, row.id, desks) !== undefined,
+  )
+  if (choosing === undefined) return undefined
+  const enters = row.kind === "folder" || (choosing.choose === "referred" && row.kind === "book")
+  return { choosing, chosen, faded: !chosen && !enters }
 }
 
 // 作業机（ワークルームのフォルダの下に映す物。中身が同じなら同じ値のまま）

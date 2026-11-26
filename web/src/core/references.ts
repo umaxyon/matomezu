@@ -3,7 +3,7 @@
 // 指す先が完全に消されたときと、指す先が参照エントリを置いたブックの中に入ったとき、指す先のページがバインダに入ったときは、書庫を変えた書き込みと同じ書き込みで、仕組みが消す
 
 import { findBinder, NO_BINDER, NO_PAGE, referencesOf } from "./book"
-import { inBackyard } from "./entries"
+import { inBackyard, placeOf } from "./entries"
 import {
   type BinderFolder,
   type BookFolder,
@@ -75,13 +75,25 @@ const placeable = (library: Library, book: string, ref: ReferenceEntry): boolean
   !inBackyard(library.folders, book) &&
   !inBackyard(library.folders, ref.of.id)
 
-// ブック book に、of を指す参照エントリを置けるか（書庫で置く物・置く先を選ぶ形が、選べる行を決める）: book が書庫の見える所に在るブックで、
+// ブック book に、of を指す参照エントリを置けるか: book が書庫の見える所に在るブックで、
 // of を指す参照エントリをまだ持たず、newReferencesHold が新しく置いた物に求める事を満たす
 export function referable(library: Library, book: string, of: ReferenceEntry["of"]): boolean {
   const holder = library.folders[book]
   if (holder?.folderRole !== "book" || !inSight(library.folders, book)) return false
   if (holder.lineup.some(r => r.kind === "reference" && r.of.id === of.id)) return false
   return placeable(library, book, { kind: "reference", id: "", of })
+}
+
+// referable を、フォルダの表だけで答える（書庫の画面のコマンドとビューが、選ぶ形で選べる行を決める。ページの行を持たないので、
+// ページはフォルダの並びに在れば在ると見る）
+export function referableIn(folders: Folders, book: string, of: ReferenceEntry["of"]): boolean {
+  const holder = folders[book]
+  if (holder?.folderRole !== "book" || !inSight(folders, book) || inBackyard(folders, book)) return false
+  if (holder.lineup.some(r => r.kind === "reference" && r.of.id === of.id)) return false
+  if (placeOf(folders, of.id)?.ref.kind !== of.kind || !inSight(folders, of.id) || inBackyard(folders, of.id))
+    return false
+  const over = foldersOver(folders, of.id)
+  return !over.some(f => f.id === book) && (of.kind === "binder" || over[0]?.folderRole !== "binder")
 }
 
 // 参照エントリ ref を開いて見せるページの id: ページを指すならそのページ、バインダを指すなら、選んだページ chosen（そのバインダに無ければ最初のページ）。

@@ -15,11 +15,16 @@ import {
   windowNowOf,
 } from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
+import { kit } from "../kit"
+import { refusalMessage } from "../utils/refusal"
 import { showBookSplit } from "../window/apply-split"
+import { stageAboveLower } from "../window/lower-row"
 import { SCREEN_FLASH } from "../window/split"
 import { tallNow } from "../window/tall"
-import type { BookOpened } from "./outline"
+import type { BookOpened, Choosing } from "./outline"
+import { LIBRARY_REFERENCE_ADD } from "./reference-actions"
 import { LIBRARY_SCREEN, leaveLibrary, stageBeside } from "./screen"
+import { LIBRARY_CHOOSING, LIBRARY_PICKED } from "./state"
 
 // 分割で開くときに一緒に並べる段の数（useShowBook と同じ）
 const PAIR = 2
@@ -53,6 +58,44 @@ export function openFromLibrary(ctx: ScreenCommandContext, a: CommandActions, to
   const stage = store.openToStage(to, beside)
   if (stage === NO_STAGE || ctx.screen.def !== LIBRARY_SCREEN.id) return
   // 開いたステージは残す
+  leaveLibrary(store, screens, value, here)
+  store.showStage(stage)
+}
+
+// 選ぶ形 choosing で選んだ物 chosen（置く先のブックと指す先）に、参照エントリを並びの末尾に置く（断られたらトーストで知らせ、選ぶ形のまま）。
+// 置く参照を選んでいた（referred）なら、選ぶ形をやめ、書庫のスクリーンを閉じて、上の段のステージにそのブックの置いた参照を開く。
+// 置くブックを選んでいた（book）なら、選ぶ形をやめ（書庫は開いたまま）、置いたとトーストで知らせる
+export function placeChosen(
+  ctx: ScreenCommandContext,
+  a: CommandActions,
+  choosing: Choosing,
+  chosen: { book: string; of: { kind: "page" | "binder"; id: string } },
+): void {
+  const done = a.perform(LIBRARY_REFERENCE_ADD.id, chosen)
+  if (!done.ok) {
+    a.showToast({
+      kind: "warn",
+      message: refusalMessage(ctx.catalog, done, kit.message("Could not place the reference")),
+    })
+    return
+  }
+  a.resetPluginState(LIBRARY_CHOOSING)
+  a.resetPluginState(LIBRARY_PICKED)
+  if (choosing.choose === "book") {
+    const holder = ctx.folders[chosen.book]
+    const book = holder?.folderRole === "book" ? holder.title : chosen.book
+    a.showToast({ kind: "success", message: kit.message("Placed a reference in {book}"), params: { book } })
+    return
+  }
+  const store = storeActionsOf(a)
+  const here = calledScreenIdOf(ctx)
+  const screens = screensOf(ctx)
+  const value = arrangementValueIn(ctx)
+  const stage = store.openToStage(
+    { to: "book", book: chosen.book, reference: done.result.reference },
+    stageAboveLower(screens, value, here),
+  )
+  if (stage === NO_STAGE || ctx.screen.def !== LIBRARY_SCREEN.id) return
   leaveLibrary(store, screens, value, here)
   store.showStage(stage)
 }

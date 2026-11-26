@@ -406,7 +406,7 @@ test("書庫の右の枠の上下の矢印は、描いた段の真上・真下�
   }
 })
 
-test("書庫の行の右クリックのメニューから、名前の変更・ゴミ箱に入れる・開く・中に作る、ができる。ブックの中のページは開く・名前の変更・複製・削除。何も無い所では、作るだけ。Escape で閉じる", async ({
+test("書庫の行の右クリックのメニューから、名前の変更・ゴミ箱に入れる・開く・中に作る、ができる。ブックの中のページは開く・名前の変更・複製・参照を置く・削除。何も無い所では、作るだけ。Escape で閉じる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -464,7 +464,7 @@ test("書庫の行の右クリックのメニューから、名前の変更・�
   await tree.getByRole("button", { name: "メニューで作った所", exact: true }).click({ button: "right" })
   await menu.getByRole("menuitem", { name: "ゴミ箱に入れる" }).click()
   await expect(tree.getByRole("button", { name: "メニューで作った所", exact: true })).toHaveCount(0)
-  // ブックの中のページは、開く・名前の変更・複製（ページの在るブックで確かめる）
+  // ブックの中のページは、開く・名前の変更・複製・参照を置く（ページの在るブックで確かめる）
   const books = (await storedBooks(page.request)) as { id: string; title: string }[]
   const first = books[0]!
   await tree.getByRole("button", { name: `${first.title} の中を出す` }).click()
@@ -475,6 +475,7 @@ test("書庫の行の右クリックのメニューから、名前の変更・�
     "分割で開くCtrl+Enter",
     "名前の変更…F2",
     "複製",
+    "参照を置く…",
     "削除…",
   ])
   await menu.getByRole("menuitem", { name: /^開く/ }).click()
