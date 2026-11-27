@@ -1,7 +1,7 @@
 // スクラップ: 紙の右クリックの「スクラップを切り抜く」で、範囲（はじめはページ全体）を決めてスクラップトレイに入れると、左サイドパネルのスクラップトレイが開く。
 // スクラップトレイの 1 つを押して紙を押すと、その値のスクラップボックスが置かれ、中に元のページの箱が見える。スクラップトレイには残り、× で消える。
 // 置いたスクラップボックスをダブルクリックすると設定のダイアログが開き、枠線を切り替えられる。大きさは、四隅のつまみで比を保って変える
-import { drawingPage, MARKDOWN, TREE, testBook, testPage } from "../test/lineup"
+import { drawingPage, MARKDOWN, SLIDE, TREE, testBinder, testBook, testPage, withSlide } from "../test/lineup"
 import { BOOK_SCREEN_URL, bookScreenUrl, expect, type Page, test } from "./fixtures"
 import { leftPanel } from "./helpers/outbox"
 import { addBox, items, onPaper, paper } from "./helpers/paper"
@@ -157,5 +157,77 @@ test.describe("ツリーのページ", () => {
     await page.getByRole("menu").getByRole("menuitem", { name: "スクラップを切り抜く" }).click()
     const cut = page.getByRole("dialog", { name: "スクラップを切り抜く" })
     await expect(cut).toContainText("根の字")
+  })
+})
+
+test.describe("スライドに置くスクラップ", () => {
+  // 2 つのブックの並びは、Playwright が値と設定の組と読むので、値を組で渡す
+  test.use({
+    books: [
+      [
+        testBook("scrap-book", "まとめ図の構想", [drawingPage("scrap-page")]),
+        testBook("slide-scrap-book", "発表", [
+          testBinder(
+            "slide-scrap-slides",
+            "スライド",
+            SLIDE,
+            withSlide(testPage(SLIDE, "slide-scrap-p1", { title: "1", paper: "@matomezu/base:ratio-16x9" }), []),
+          ),
+        ]),
+      ],
+      { option: true },
+    ] as never,
+  })
+
+  test("スクラップトレイから押した所に置け、選ぶと角のつまみだけで回すつまみは無く、角を引くと比を保つ", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await page.goto(BOOK_SCREEN_URL)
+    await addBox(page, 200, 150, "元の箱")
+    const empty = await onPaper(page, 700, 500)
+    await page.mouse.click(empty.x, empty.y, { button: "right" })
+    await page.getByRole("menu").getByRole("menuitem", { name: "スクラップを切り抜く" }).click()
+    const cut = page.getByRole("dialog", { name: "スクラップを切り抜く" })
+    await cut.getByRole("button", { name: "トレイに入れる" }).click()
+    await expect(cut).toBeHidden()
+
+    await page.goto(bookScreenUrl("slide-scrap-book"))
+    await openScrapTray(page)
+    await leftPanel(page).locator("[data-scrap-row]").first().getByRole("button").first().click()
+    // 置こうとしている間は、紙と同じく、足す印のポインタと、ポインタから左上へ離した所に置く大きさの点線の箱。押すとその箱の所に置く
+    const at = await onPaper(page, 100, 80)
+    await page.mouse.move(at.x, at.y)
+    const layer = page.locator("[data-slide-layer]")
+    await expect(layer).toHaveCSS("cursor", "copy")
+    const ghost = layer.locator("[data-ghost]")
+    await expect(ghost).toHaveCount(1)
+    const shown = (await ghost.boundingBox())!
+    expect(shown.x).toBeLessThan(at.x)
+    expect(shown.y).toBeLessThan(at.y)
+    await page.mouse.click(at.x, at.y)
+    const placed = layer.locator("[data-item]").filter({ has: page.locator('[data-scrap="shown"]') })
+    await expect(placed).toHaveCount(1)
+    await expect(placed).toContainText("元の箱")
+    await expect(ghost).toHaveCount(0)
+    const box = (await placed.boundingBox())!
+    expect(Math.abs(box.x - shown.x)).toBeLessThan(3)
+    expect(Math.abs(box.y - shown.y)).toBeLessThan(3)
+    expect(Math.abs(box.width - shown.width)).toBeLessThan(3)
+
+    // 置くと選ばれている: つまみは四隅だけで、回すつまみと水平に戻すは無い
+    await expect(layer.locator("[data-grip]")).toHaveCount(4)
+    await expect(layer.locator("[data-rotate]")).toHaveCount(0)
+    await expect(page.getByRole("button", { name: "水平に戻す" })).toHaveCount(0)
+
+    // 右下の角を引くと、比を保ったまま大きくなる
+    const corner = (await layer.locator('[data-grip="bottom-right"]').boundingBox())!
+    await page.mouse.move(corner.x + corner.width / 2, corner.y + corner.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(corner.x + corner.width / 2 + 120, corner.y + corner.height / 2 + 10, { steps: 4 })
+    await page.mouse.up()
+    await expect.poll(async () => (await placed.boundingBox())!.width).toBeGreaterThan(box.width + 60)
+    const grown = (await placed.boundingBox())!
+    expect(Math.abs(grown.width / grown.height - box.width / box.height)).toBeLessThan(0.03)
   })
 })

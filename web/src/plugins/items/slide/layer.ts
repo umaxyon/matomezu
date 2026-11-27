@@ -1,6 +1,7 @@
 // スライドのレイヤーが描く物と、離したときに渡す値: ドラッグの途中の様子を重ねた形、複数を選んだときの全体の四角、選んだ 1 つ、
 // ドラッグ枠で選ぶ物、なぞった点から置く四角と項目
 import type { CoreCatalog, ItemId, PlacedShape, Point, Rect } from "../../../plugin-api"
+import { NO_SIZE, placedSize, stretchOf, writesSize } from "../../base"
 import {
   boundsOf,
   drawnRect,
@@ -14,7 +15,16 @@ import {
   touches,
   unionOf,
 } from "./rect"
-import { DEFAULT_FONT_SIZE, FREE_LINE, linePropsOf, MIN_SIZE, movedLineProps, STRAIGHT_LINE, TEXT_FRAME } from "./slide"
+import {
+  DEFAULT_FONT_SIZE,
+  FREE_LINE,
+  linePropsOf,
+  MIN_SIZE,
+  movedLineProps,
+  ROTATES,
+  STRAIGHT_LINE,
+  TEXT_FRAME,
+} from "./slide"
 
 // 押しただけとみなす動き（紙の上の px）と、自由な線の点の間引きの間
 export const CLICK = 4
@@ -39,18 +49,29 @@ export function minSizeOf(catalog: CoreCatalog, item: string): number {
   return def?.kind === "shape" && def.min ? Math.max(def.min.w, def.min.h) : MIN_SIZE
 }
 
+// 大きさが項目で決まる形 item を、項目 props で置いたときの大きさ（決まらなければ NO_SIZE）
+export const stampSize = (catalog: CoreCatalog, item: ItemId, props: Record<string, unknown>) =>
+  placedSize(catalog, { id: "", x: 0, y: 0, item, props } as PlacedShape)
+
 // なぞった点 points に、置こうとしているアイテム item を置く四角と項目（なぞれていなければ、置くときの大きさで始めの点に。置かないなら null）。
-// zoom はステージの倍率（押しただけとみなす動きと、自由な線の点の間引きの間を、紙の上の px にする）
+// zoom はステージの倍率（押しただけとみなす動きと、自由な線の点の間引きの間を、紙の上の px にする）。
+// given は置こうとしている物が持つ項目（スクラップトレイから置くスクラップなど）。大きさが項目で決まる形は、なぞらず、始めの点にその項目のまま置く
 export function drawnPlacement(
   catalog: CoreCatalog,
   item: ItemId,
   points: readonly Point[],
   zoom: number,
+  given?: Record<string, unknown>,
 ): { rect: Rect; props: Record<string, unknown> } | null {
   const def = catalog.items.get(item)
   const from = points[0]
   const to = points.at(-1)
   if (!from || !to || def?.kind !== "shape") return null
+  if (writesSize(catalog, item)) {
+    const props = given ?? {}
+    const size = stampSize(catalog, item, props)
+    return size === NO_SIZE ? null : { rect: roundRect({ x: from.x, y: from.y, ...size }), props }
+  }
   const moved = Math.hypot(to.x - from.x, to.y - from.y) >= CLICK / zoom
   if (item === LINE || item === FREE) {
     if (!moved) return null
@@ -118,8 +139,8 @@ export function groupOf(shown: readonly PlacedShape[], selection: readonly strin
   )
 }
 
-// 選んだ 1 つのつまみとバーに渡す物（選んだ 1 つが無ければ null）
-export function selectedItemOf(current: PlacedShape | undefined) {
+// 選んだ 1 つのつまみとバーに渡す物（選んだ 1 つが無ければ null）: 回せるか（ケイパビリティ ROTATES）と、大きさを変えられる向き（base の stretch）も
+export function selectedItemOf(catalog: CoreCatalog, current: PlacedShape | undefined) {
   return current
     ? {
         id: current.id,
@@ -127,6 +148,15 @@ export function selectedItemOf(current: PlacedShape | undefined) {
         rotation: rotationOf(current),
         kind: current.item,
         props: shapeProps(current),
+        rotates: catalog.items.get(current.item)?.capabilities.includes(ROTATES) ?? false,
+        stretch: stretchOf(catalog, current.item),
       }
     : null
 }
+
+// 描く形の並び: どの形にも、描く大きさ（base の placedSize。大きさが項目で決まる形は項目から）を w・h に書く。データには戻さない
+export const sizedShapes = (catalog: CoreCatalog, shapes: readonly PlacedShape[]): PlacedShape[] =>
+  shapes.map(s => {
+    const size = placedSize(catalog, s)
+    return size === NO_SIZE ? s : { ...s, w: size.w, h: size.h }
+  })

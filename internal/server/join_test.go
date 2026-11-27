@@ -596,7 +596,7 @@ func TestJoinWithAWorkroomOfAQuietParticipantCanBeAcceptedByTakingOver(t *testin
 	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: second.Participant}); h.Get(aiwire.NoticeHeader) == "" {
 		t.Fatal("the new owner was not welcomed")
 	}
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: first.Participant}); !strings.Contains(h.Get(aiwire.NoticeHeader), "removed+you") {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: first.Participant}); !strings.Contains(h.Get(aiwire.NoticeHeader), "the+user+removed+you+on+the+matomezu+screen") {
 		t.Fatalf("the old owner = %q", h.Get(aiwire.NoticeHeader))
 	}
 	// 呼ばれて時間がたった（有効時間を過ぎた）参加者の名前も引き継げる

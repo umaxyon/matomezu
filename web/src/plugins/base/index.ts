@@ -416,7 +416,7 @@ export {
   workTitleIn,
 } from "./participant"
 // 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）
-export type { Axis, Edges, Frame, Gap, GrowFrom, PortArea, Ports } from "./place"
+export type { Axis, Edges, Frame, Gap, GrowFrom, PortArea, Ports, Stretch } from "./place"
 export {
   type AiPlaced,
   adaptPage,
@@ -458,6 +458,7 @@ export {
   NO_SPOT,
   newClash,
   nextItemId,
+  PLACE_OFFSET,
   paperSize,
   placeChild,
   placedAt,
@@ -471,16 +472,20 @@ export {
   replaceShapePushing,
   resizedBy,
   roomOf,
+  STRETCH_BOTH,
   settleChildren,
   shapeDefOf,
   shapeThemeFits,
   shownRects,
+  sizedTo,
   slideOffsetOf,
+  stretchOf,
   tidyPage,
   toData,
   tooClose,
   unpinPage,
   widenForCaption,
+  writesSize,
 } from "./place"
 export type { PrintSheets, SheetPurpose } from "./print-preview"
 export {
@@ -490,7 +495,18 @@ export {
   sheetShapes,
   sheetsOfShape,
 } from "./print-preview"
-export { type Scrap, ScrapSchema, scrapSize } from "./scrap"
+export {
+  type PageFromFile,
+  type PutAsset,
+  SCRAP_SCALE_MAX,
+  SCRAP_SCALE_TOO_SMALL,
+  type Scrap,
+  ScrapSchema,
+  scrapScaleFits,
+  scrapScaleMin,
+  scrapSize,
+  wholeScrapOf,
+} from "./scrap"
 export type { SearchableDef } from "./search"
 export type { Font, Weight } from "./text"
 export {

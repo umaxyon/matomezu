@@ -467,6 +467,12 @@
   background: var(--skin-btn);
   outline: 2px solid var(--skin-accent);
 }
+/* 外から落としたファイルを、開いているフォルダに取り込むとき: 中身の枠の内側に線 */
+.contents[data-drop="into"],
+.blank[data-drop="into"] {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: -2px;
+}
 .name[data-drop="before"],
 .name[data-drop="after"],
 .entry[data-drop="before"],

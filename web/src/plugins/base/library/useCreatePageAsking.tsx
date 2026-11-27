@@ -15,6 +15,7 @@ import { TitleClashConfirm } from "./TitleClashConfirm"
 import { type CreatePageArgs, useCreatePage } from "./useCreatePage"
 
 interface Asking {
+  folder: string
   args: CreatePageArgs & { title: string }
   there: AnyEntryRef
   numbered: string
@@ -25,11 +26,20 @@ export function useCreatePageAsking(folder: string): {
   create(args: CreatePageArgs & { title: string }): Promise<boolean> // 作れたか（やめた・断られたら false）
   confirm: ReactNode
 } {
+  const { create, confirm } = useCreatePageAskingIn()
+  return { create: args => create(folder, args), confirm }
+}
+
+// useCreatePageAsking の、作るフォルダ folder を 1 回ずつ受ける物（書庫に落としたファイルのように、作る先が頼むたびに替わるとき）
+export function useCreatePageAskingIn(): {
+  create(folder: string, args: CreatePageArgs & { title: string }): Promise<boolean>
+  confirm: ReactNode
+} {
   const create = useCreatePage()
   const read = useReadState()
   const naming = useReadNaming()
   const [asking, setAsking] = useState<Asking | null>(null)
-  const ask = (args: CreatePageArgs & { title: string }) =>
+  const ask = (folder: string, args: CreatePageArgs & { title: string }) =>
     new Promise<boolean>(done => {
       const library = read()
       const holder = library.folders[folder]
@@ -38,7 +48,7 @@ export function useCreatePageAsking(folder: string): {
         done(create(folder, args))
         return
       }
-      setAsking({ args, there, numbered: freeTitle(args.title, titlesIn(library, holder, naming())), done })
+      setAsking({ folder, args, there, numbered: freeTitle(args.title, titlesIn(library, holder, naming())), done })
     })
   const answer = (made: () => boolean) => {
     if (!asking) return
@@ -47,10 +57,10 @@ export function useCreatePageAsking(folder: string): {
   }
   const confirm = asking && (
     <CreateClashConfirm
-      folder={folder}
+      folder={asking.folder}
       asking={asking}
-      onNumber={() => answer(() => create(folder, { ...asking.args, title: asking.numbered }))}
-      onReplace={() => answer(() => create(folder, { ...asking.args, replaces: asking.there.id }))}
+      onNumber={() => answer(() => create(asking.folder, { ...asking.args, title: asking.numbered }))}
+      onReplace={() => answer(() => create(asking.folder, { ...asking.args, replaces: asking.there.id }))}
       onCancel={() => answer(() => false)}
     />
   )

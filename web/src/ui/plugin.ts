@@ -159,6 +159,8 @@ export type EnumValueIcon = ReactNode | { readonly closed: ReactNode; readonly o
 
 // widgets はこのプラグインのウィジェット、commandIcons はメニューなどに出すコマンドのアイコン（無ければ名前の文字だけを出す）、commandIconLooks はその見せ方（書かなければ line）、
 // pageTypeIcons はページのタイプのアイコン（ページタブの頭に出す。名乗らないタイプは、通常のファイルの絵）、
+// binderTypeIcons は自分のページのタイプを入れるバインダのアイコン、
+// systemFolderIcons は自分が定義したシステムフォルダのアイコン（無ければ通常のフォルダの絵）、
 // enumValueIcons は自分が足した列挙の値のアイコン（絵を使う列挙の宣言側が読む。無ければ宣言側が決めた絵）、
 // contextMenuRows は自分のメニューが自分で出す行（機能台帳から決まる一覧など。UI マッピングのコマンドの並びの前に出る）
 export type UiParts<P> = PluginViews<P> & {
@@ -166,6 +168,8 @@ export type UiParts<P> = PluginViews<P> & {
   commandIcons?: { [id in IdsOf<P, "commands">]?: ReactNode }
   commandIconLooks?: { [id in IdsOf<P, "commands">]?: IconLook }
   pageTypeIcons?: { [id in IdsOf<P, "pageTypes">]?: ReactNode }
+  binderTypeIcons?: { [id in IdsOf<P, "pageTypes">]?: ReactNode }
+  systemFolderIcons?: { [id in IdsOf<P, "systemFolders">]?: ReactNode }
   enumValueIcons?: { [id in IdsOf<P, "enumValues">]?: EnumValueIcon }
   contextMenuRows?: { [M in OwnContextMenuId<P>]?: ContextMenuRows<M> }
   overrides?: Overrides
@@ -212,6 +216,8 @@ export interface UiCatalog {
   commandIconLooks: ReadonlyMap<string, IconLook>
   toolIcons: ReadonlyMap<string, ReactNode>
   pageTypeIcons: ReadonlyMap<string, ReactNode>
+  binderTypeIcons: ReadonlyMap<string, ReactNode>
+  systemFolderIcons: ReadonlyMap<string, ReactNode>
   enumValueIcons: ReadonlyMap<string, EnumValueIcon>
   contextMenuRows: ReadonlyMap<string, (target: never) => readonly ContextMenuRow[]>
 }
@@ -228,6 +234,8 @@ interface LooseUi {
   commandIconLooks?: Record<string, IconLook>
   toolIcons?: Record<string, ReactNode>
   pageTypeIcons?: Record<string, ReactNode>
+  binderTypeIcons?: Record<string, ReactNode>
+  systemFolderIcons?: Record<string, ReactNode>
   enumValueIcons?: Record<string, EnumValueIcon>
   contextMenuRows?: Record<string, (target: never) => readonly ContextMenuRow[]>
   overrides?: {
@@ -261,6 +269,8 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
   const contextMenuRows = new Map<string, (target: never) => readonly ContextMenuRow[]>()
   const toolIcons = new Map<string, ReactNode>()
   const pageTypeIcons = new Map<string, ReactNode>()
+  const binderTypeIcons = new Map<string, ReactNode>()
+  const systemFolderIcons = new Map<string, ReactNode>()
   const enumValueIcons = new Map<string, EnumValueIcon>()
   const uis = plugins.map(p => {
     const ui = (p as Partial<AnyPluginUi>).ui as LooseUi | undefined
@@ -325,6 +335,15 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
       if (!ownTypes.has(id)) fail("E313", { plugin: p.id, id })
       pageTypeIcons.set(id, icon)
     }
+    for (const [id, icon] of Object.entries(ui.binderTypeIcons ?? {})) {
+      if (!ownTypes.has(id)) fail("E322", { plugin: p.id, id })
+      binderTypeIcons.set(id, icon)
+    }
+    const ownFolders = new Set((p.systemFolders ?? []).map(f => f.id))
+    for (const [id, icon] of Object.entries(ui.systemFolderIcons ?? {})) {
+      if (!ownFolders.has(id)) fail("E321", { plugin: p.id, id })
+      systemFolderIcons.set(id, icon)
+    }
     const ownValues = new Set((p.enumValues ?? []).map(v => v.id))
     for (const [id, icon] of Object.entries(ui.enumValueIcons ?? {})) {
       if (!ownValues.has(id)) fail("E314", { plugin: p.id, id })
@@ -363,6 +382,8 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
     commandIconLooks,
     toolIcons,
     pageTypeIcons,
+    binderTypeIcons,
+    systemFolderIcons,
     enumValueIcons,
     contextMenuRows,
   }

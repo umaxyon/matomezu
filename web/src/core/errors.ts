@@ -98,6 +98,7 @@ export const ERRORS = {
   E131: "paper {paper}: there is no paper in the catalog to draw it with",
   E132: "system folders {first} and {second} have the same title {title} in {lang}",
   E133: "subject {id}: workroomWorkSubjects has {ref}, which is not in the catalog or lacks completesWork or workRecordName (the worker book of a work record is cleaned up through completesWork and named through workRecordName)",
+  E134: "pageType {id}: slide has {ref}, which does not have the capability {capability}",
 
   E201: "MatomezuProvider is missing",
   E202: "#root is missing",
@@ -134,6 +135,8 @@ export const ERRORS = {
   E318: "plugin {plugin}: it could not be added ({reason})",
   E319: "plugin {plugin}: only built-in plugins may have backyards",
   E320: "follow step of plugin {plugin}: it writes in the backyard {ref}, which is not in the catalog or not its own (a follow step writes only in backyards its plugin defines)",
+  E321: "plugin {plugin}: systemFolderIcons has {id}, which is not its own system folder",
+  E322: "plugin {plugin}: binderTypeIcons has {id}, which is not its own page type",
 
   E401: "the server could not give the data: {status}",
   E402: "the server does not know this browser (run matomezu open in a terminal)",

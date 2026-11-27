@@ -25,6 +25,7 @@ import {
   type Edges,
   hasOpenedPage,
   NO_SHAPE_DEF,
+  PLACE_OFFSET,
   refusalMessage,
   shapeDefOf,
 } from "../../base"
@@ -32,11 +33,67 @@ import { kit } from "../kit"
 import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
 import { NO_FREE_SPOT } from "./crowd"
 import type { Came } from "./drag"
-import { nearestMove, nearestReparent, PLACE_OFFSET, placeTarget, placingShape, stretchedBy } from "./items"
+import { nearestMove, nearestReparent, placeTarget, placingShape, stretchedBy } from "./items"
 
 // 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所を、toPaperAt で紙の上の点に直す
 export function placeAt(toPaperAt: (p: Point) => Point | typeof NO_PAPER, pointer: Point): Point | typeof NO_PAPER {
   return toPaperAt({ x: pointer.x - PLACE_OFFSET.x, y: pointer.y - PLACE_OFFSET.y })
+}
+
+type PlaceRun = Parameters<Parameters<typeof kit.defineCommand>[0]["run"]>
+type Placing = { item: string; props: Readonly<Record<string, unknown>> | typeof NO_PROPS }
+
+// アイテム placing を、左上が紙の上の at に来るよう置く（point はポインタの指す紙の上の点で、どの形の中に入れるかを決める。PAPER_PLACE と PAPER_DROP の中身）。置けたら true（追加のダイアログを開いたときも true。置くのをやめるのは呼んだ側）
+function placeItem(
+  ctx: PlaceRun[0],
+  a: PlaceRun[1],
+  at: Point | typeof NO_PAPER,
+  point: Point | typeof NO_PAPER,
+  placing: Placing,
+): boolean {
+  const shape = placingShape(ctx.catalog, placing.item, placing.props)
+  if (at === NO_PAPER || point === NO_PAPER || !hasOpenedPage(ctx) || !shape) return false
+  const page = ctx.page
+  const target = placeTarget(ctx.catalog, page, point, at, shape)
+  if (!target) {
+    a.showToast({ kind: "warn", message: kit.message("No free spot") })
+    return false
+  }
+  if (!target.fits) {
+    a.showToast({ kind: "warn", message: kit.message("Does not fit on the paper") })
+    return false
+  }
+  // 空きに置くなら座標を渡さず、中身を決めた大きさで item-place が空きを選ぶ
+  const where = {
+    ...(target.free ? {} : { at: target.at }),
+    ...(target.parent === PAGE_ITSELF ? {} : { parent: target.parent }),
+  }
+  // 項目の値 props で置いて選ぶ。断られたら断りの文
+  const place = (props: Readonly<Record<string, unknown>> | typeof NO_PROPS): MessageKey | null => {
+    const given = props === NO_PROPS ? {} : { props }
+    const done = a.perform(ITEM_PLACE.id, { ...where, item: placing.item, ...given, crowd: "push" }, { page: page.id })
+    if (!done.ok) {
+      const fallback = "kind" in done && done.kind === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"
+      return refusalMessage(ctx.catalog, done, kit.message(fallback))
+    }
+    a.select([done.result.item])
+    return null
+  }
+  // 形の定義が名指す追加のダイアログ（無ければそのまま置く。置こうとしている物が項目の値を持っていれば、聞かずにその値で置く）
+  const def = shapeDefOf(ctx.catalog, placing.item)
+  const dialog = def !== NO_SHAPE_DEF ? shapeDialogs(def).add : NO_DIALOG
+  if (dialog !== NO_DIALOG && placing.props === NO_PROPS) {
+    a.stopPlacing()
+    const args: ShapeAddArgs = { page: page.id, place }
+    a.openDialog(dialog, args)
+    return true
+  }
+  const refused = place(placing.props)
+  if (refused) {
+    a.showToast({ kind: "warn", message: refused })
+    return false
+  }
+  return true
 }
 
 // 置こうとしているアイテムを、ポインタの所に置く（置く先は items.ts の placeTarget: 子を持てる形の上ならその中、子を持てない形の上ならその親の中の空き）。
@@ -50,59 +107,32 @@ export const PAPER_PLACE = kit.defineCommand({
   placesItem: true,
   title: "Place item",
   run: (ctx, a, pointer: Point) => {
-    const { stage } = ctx
-    const at = placeAt(ctx.toPaper, pointer)
-    const point = ctx.toPaper(pointer)
-    const placing = stage.placing
-    const shape = placing === NO_PLACING ? null : placingShape(ctx.catalog, placing.item, placing.props)
-    if (at === NO_PAPER || point === NO_PAPER || !hasOpenedPage(ctx) || placing === NO_PLACING || !shape) return
-    const page = ctx.page
-    const target = placeTarget(ctx.catalog, page, point, at, shape)
-    if (!target) {
-      a.showToast({ kind: "warn", message: kit.message("No free spot") })
-      return
-    }
-    if (!target.fits) {
-      a.showToast({ kind: "warn", message: kit.message("Does not fit on the paper") })
-      return
-    }
-    // 空きに置くなら座標を渡さず、中身を決めた大きさで item-place が空きを選ぶ
-    const where = {
-      ...(target.free ? {} : { at: target.at }),
-      ...(target.parent === PAGE_ITSELF ? {} : { parent: target.parent }),
-    }
-    // 項目の値 props で置いて選ぶ。断られたら断りの文
-    const place = (props: Readonly<Record<string, unknown>> | typeof NO_PROPS): MessageKey | null => {
-      const given = props === NO_PROPS ? {} : { props }
-      const done = a.perform(
-        ITEM_PLACE.id,
-        { ...where, item: placing.item, ...given, crowd: "push" },
-        { page: page.id },
-      )
-      if (!done.ok) {
-        const fallback = "kind" in done && done.kind === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"
-        return refusalMessage(ctx.catalog, done, kit.message(fallback))
-      }
-      a.select([done.result.item])
-      return null
-    }
-    // 形の定義が名指す追加のダイアログ（無ければそのまま置く。置こうとしている物が項目の値を持っていれば、聞かずにその値で置く）
-    const def = shapeDefOf(ctx.catalog, placing.item)
-    const dialog = def !== NO_SHAPE_DEF ? shapeDialogs(def).add : NO_DIALOG
-    if (dialog !== NO_DIALOG && placing.props === NO_PROPS) {
+    const placing = ctx.stage.placing
+    if (placing !== NO_PLACING && placeItem(ctx, a, placeAt(ctx.toPaper, pointer), ctx.toPaper(pointer), placing))
       a.stopPlacing()
-      const args: ShapeAddArgs = { page: page.id, place }
-      a.openDialog(dialog, args)
-      return
-    }
-    const refused = place(placing.props)
-    if (refused) {
-      a.showToast({ kind: "warn", message: refused })
-      return
-    }
-    a.stopPlacing()
   },
   when: ctx => hasOpenedPage(ctx) && ctx.stage.placing !== NO_PLACING,
+})
+
+// 外から落としたファイルから作ったアイテム item（項目の値 props）を、左上がポインタ pointer の所から右へ shift（紙の px）の所に来るよう置く
+// （置き方は PAPER_PLACE と同じ。置こうとしている物は変えない）。ファイルを取り込む間に開いているページが替わっていたら（落としたページ page でなければ）置かない
+export const PAPER_DROP = kit.defineCommand({
+  id: "paper-drop",
+  performs: [ITEM_PLACE.id],
+  permissionScope: "opened-page",
+  placesItem: true,
+  title: "Place item",
+  run: (
+    ctx,
+    a,
+    args: { page: string; pointer: Point; shift: number; item: string; props: Readonly<Record<string, unknown>> },
+  ) => {
+    if (!hasOpenedPage(ctx) || ctx.page.id !== args.page) return
+    const at = ctx.toPaper(args.pointer)
+    const shifted = at === NO_PAPER ? NO_PAPER : { x: at.x + args.shift, y: at.y }
+    placeItem(ctx, a, shifted, shifted, args)
+  },
+  when: hasOpenedPage,
 })
 
 // 形 item が編集のダイアログを持つか。

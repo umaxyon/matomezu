@@ -11,8 +11,8 @@ import {
   type Size,
   walkShapes,
 } from "../../../plugin-api"
-import { CANNOT_RESIZE, type Edges } from "../../base"
-import { sizedTo, stretchedBy } from "./items"
+import { CANNOT_RESIZE, type Edges, sizedTo } from "../../base"
+import { stretchedBy } from "./items"
 
 // ドラッグ中にアイテム item をずらして描く量（紙の上）。shift はポインタの動いた量（紙の上。ドラッグしていなければ null）、plan は入れ替えを含めたドラッグ中の四角（items.ts の dragging）、dragged は動かしているアイテム
 export function shiftedBy(

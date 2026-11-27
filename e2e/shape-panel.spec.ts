@@ -16,10 +16,8 @@ test("「形」のボタンでパネルを開き、乗せたまま形を押す�
   page,
 }) => {
   await flowchartBook(page)
-  const tabs = (await page.getByRole("tablist").boundingBox())!
-  await page.mouse.move(tabs.x + tabs.width - 20, tabs.y + tabs.height / 2)
+  const shapes = await footerMenuTool(page, "形")
   const tools = page.getByRole("toolbar", { name: "ツール" })
-  const shapes = tools.getByRole("button", { name: "形", exact: true })
   await shapes.click()
   const panel = tools.getByRole("group", { name: "形" })
   await expect(panel).toBeVisible()

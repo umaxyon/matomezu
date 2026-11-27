@@ -64,13 +64,14 @@ export const isBranch = (item: string): boolean => (BRANCH_ITEMS as readonly str
 // 流れが右へか（setting はそのページで効いている設定の値）
 const turnedRight = (setting: SettingReader): boolean => setting(FLOW_DIRECTION) === "right"
 
-// 背景に置く形（ページの slide。背景編集モードで置く。描画シェイプ）
+// 背景に置く形（ページの slide。背景編集モードで置く。ケイパビリティ on-slide を持つ形: 描画シェイプとスクラップボックス）
 const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-text",
   "@matomezu/slide:slide-free-line",
   "@matomezu/slide:slide-line",
   "@matomezu/slide:slide-ellipse",
   "@matomezu/slide:slide-rectangle",
+  "@matomezu/scrap:shape-scrap-box",
 ] as const
 
 export const FLOWCHART = kit.definePageType({

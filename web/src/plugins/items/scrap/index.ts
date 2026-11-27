@@ -5,19 +5,28 @@
 import { z } from "zod"
 import type { ShapeEditArgs } from "../../../plugin-api"
 import { defineBuiltin } from "../../../plugin-api/builtin"
-import { ColorSchema, ScrapSchema, scrapSize } from "../../base"
+import {
+  ColorSchema,
+  SCRAP_SCALE_MAX,
+  SCRAP_SCALE_TOO_SMALL,
+  type Scrap,
+  ScrapSchema,
+  scrapScaleFits,
+  scrapScaleMin,
+  scrapSize,
+} from "../../base"
 import { kit } from "./kit"
 
 const DEFAULT = { w: 240, h: 160 }
 // つまみで縮められる一番小さい大きさ（つかめて、見分けられる大きさ）
 const MIN = { w: 24, h: 24 }
 
-// 幅 w になる倍率（スクラップの倍率の取れる範囲に寄せる。見る範囲 × 倍率を切り上げた幅が w を超えないよう、小数 6 桁で切り捨てる）
-const SCALE = ScrapSchema.shape.scale
-export const scaleForWidth = (areaWidth: number, w: number): number =>
+// 見る範囲 area で幅 w になる倍率（スクラップの倍率の取れる範囲に寄せる。見る範囲 × 倍率を切り上げた幅が w を超えないよう、小数 6 桁で切り捨てる。
+// 下限は見る範囲で決まる）
+export const scaleForWidth = (area: Scrap["area"], w: number): number =>
   Math.min(
-    Math.max(Math.floor((Math.floor(w) * 1e6) / areaWidth) / 1e6, SCALE.minValue ?? 0),
-    SCALE.maxValue ?? Number.POSITIVE_INFINITY,
+    Math.max(Math.floor((Math.floor(w) * 1e6) / area.w) / 1e6, Math.ceil(scrapScaleMin(area) * 1e6) / 1e6),
+    SCRAP_SCALE_MAX,
   )
 
 // 枠線の色のテーマキー（テーマが決めなければ、紙の線の色）
@@ -36,18 +45,20 @@ export const SCRAP_BOX = kit.defineShape({
   kind: "shape",
   version: 1,
   title: "Scrap box",
-  capabilities: ["connectable", "resizable"],
+  capabilities: ["connectable", "resizable", "@matomezu/slide:on-slide"], // 形だけの並び（slide）にも置ける（回せない）
   toolbox: false,
   scrapFrame: true,
   dialogs: { edit: SCRAP_BOX_EDIT_DIALOG.id },
-  props: ScrapSchema.extend({ line: z.union([z.literal(NO_LINE), ColorSchema]).optional() }).describe(
-    "A view of a part of another page, drawn live from that page (nothing is copied): page is that page's id, area the part shown in that page's own pixels (x and y from its top-left), scale how much it is enlarged (1 is the same size). Its size is area × scale, so w and h are not kept: item-resize with w changes scale (the height follows). It shows No Data while the page does not exist. line is the border around it: without it the theme's line colour, \"none\" for no border, or a colour (a theme colour name or #rrggbb)",
-  ),
+  props: ScrapSchema.extend({ line: z.union([z.literal(NO_LINE), ColorSchema]).optional() })
+    .refine(scrapScaleFits, SCRAP_SCALE_TOO_SMALL)
+    .describe(
+      "A view of a part of another page, drawn live from that page (nothing is copied): page is that page's id, area the part shown in that page's own pixels (x and y from its top-left; on an image page, the image's own pixels, without the paper's margin), scale how much it is enlarged (1 is the same size; at least what makes the shorter side 24 pixels, or 1 for a smaller area). Its size is area × scale, so w and h are not kept: item-resize with w changes scale (the height follows). It shows No Data while the page does not exist. line is the border around it: without it the theme's line colour, \"none\" for no border, or a colour (a theme colour name or #rrggbb)",
+    ),
   size: DEFAULT,
   min: MIN,
   sizeOf: s => scrapSize(s.props),
-  resizedTo: (s, size) => ({ ...s, props: { ...s.props, scale: scaleForWidth(s.props.area.w, size.w) } }),
-  "@matomezu/paper:stretch": "ratio",
+  resizedTo: (s, size) => ({ ...s, props: { ...s.props, scale: scaleForWidth(s.props.area, size.w) } }),
+  stretch: "ratio",
   tokens: [SCRAP_LINE],
 })
 

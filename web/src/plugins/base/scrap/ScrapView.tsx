@@ -1,7 +1,16 @@
 // スクラップの中を描く部品: スクラップ（scrap.ts。指すページの id・見る範囲・倍率）を、置いたときの大きさ（scrapSize）の枠に描く。ページを、そのページのブックの見た目で、見るだけに描く
 // （ステージの外で、見るだけに描くページ。ui/scope.tsx）。指す先のページが無ければ No Data、スクラップをたどって同じページに戻ったら輪の印を描く（どちらも灰色の枠）。
 // 範囲は可変ページの中身の位置で持つ（中身を右・下へずらしたら、ずらした分だけ先を描く）
-import { createContext, type ReactNode, useCallback, useContext, useLayoutEffect, useMemo, useState } from "react"
+import {
+  type ComponentType,
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react"
 import { useShallow } from "zustand/react/shallow"
 import { pageType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
@@ -13,12 +22,12 @@ import { PageScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { usePageLookStyle } from "../book-look/use-page-look-style"
 import { kit } from "../kit"
-import { pageArea, paperSize } from "../place/grow"
+import { paperSize } from "../place/grow"
 import { NOT_MEASURED, type PrintMeasured } from "../print-preview/measures-state"
 import { Printing } from "../print-preview/printing"
 import { SheetLayers } from "../print-preview/SheetLayers"
 import styles from "./ScrapView.module.css"
-import { areaOnPage, type Scrap, scrapSize, shiftOf } from "./scrap"
+import { areaOnPage, type Scrap, scrapSize, scrapSpaceOf } from "./scrap"
 
 // 描いている途中のスクラップがたどったページの id。同じページに戻ったら輪
 const TracedContext = createContext<readonly string[]>([])
@@ -46,7 +55,8 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
   const state: ScrapState = !outermost || !page ? "none" : traced.includes(pageId) ? "loop" : "shown"
   const placed = scrapSize(scrap)
   const frame = { width: placed.w, height: placed.h }
-  const size = outermost && page ? pageArea(catalog, page).size : undefined
+  const space = outermost && page ? scrapSpaceOf(catalog, page) : undefined
+  const size = space?.size
   const paper = page ? paperSize(catalog, page) : null
   const inner = useMemo(() => [...traced, pageId], [traced, pageId])
   if (state !== "shown" || !outermost || !page || !size || !paper)
@@ -55,16 +65,39 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
         {state === "loop" ? <LoopMark /> : t("No Data")}
       </div>
     )
-  const at = areaOnPage(area, shiftOf(catalog, page))
+  const at = areaOnPage(area, space?.shift ?? { x: 0, y: 0 })
   return (
     <div className={styles.frame} data-scrap="shown" style={frame}>
       <TracedContext.Provider value={inner}>
         <PageScope outermost={outermost} page={page.id} zoom={zoom * scale}>
           <div className={styles.moved} style={{ transform: `scale(${scale}) translate(${-at.x}px, ${-at.y}px)` }}>
-            <DrawnSheet page={page} size={size} />
+            <ScrapSheet page={page} size={size} />
           </div>
         </PageScope>
       </TracedContext.Provider>
+    </div>
+  )
+}
+
+declare module "../../../core/catalog" {
+  interface PresentationViewExtras {
+    // スクラップを切り抜く広さを自分で決めるプレゼンテーション（定義の scrapSpace）が、その広さの上の座標で中身を描くビュー（左上が 0, 0。広さいっぱいに描く）
+    scrapView?: ComponentType<{ page: Page }>
+  }
+}
+
+// スクラップを切り抜く広さ size の中身: プレゼンテーションのビューの定義に scrapView があればそれ、無ければ印刷区画のビュー（DrawnSheet）で描く。
+// onSize は、描いてみて分かった広さ（DrawnSheet の測ってから描くプレゼンテーション）
+export function ScrapSheet({ page, size, onSize }: { page: Page; size: Size; onSize?: (size: Size) => void }) {
+  const catalog = useCatalog().core
+  const View = useUiCatalog().presentationViews.get(pageType(catalog, page.type).presentation)?.scrapView
+  const look = usePageLookStyle()
+  if (!View) return <DrawnSheet page={page} size={size} onSize={onSize} />
+  return (
+    <div className={styles.space} style={{ ...look, width: size.w, height: size.h }}>
+      <Printing>
+        <View page={page} />
+      </Printing>
     </div>
   )
 }

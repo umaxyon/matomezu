@@ -44,6 +44,20 @@ export interface Edges {
 // 大きさを変えられない（resizedBy）
 export const CANNOT_RESIZE = "cannot"
 
+// 形 item を大きさ wanted にした形: 大きさを項目に写す形（定義の resizedTo）は項目に写して w・h を書かず（大きさは写した項目から決まる）、ほかは w・h を書く
+export function sizedTo(catalog: CoreCatalog, item: PlacedShape, wanted: Size): PlacedShape {
+  const def = shapeDefOf(catalog, item.item)
+  return def !== NO_SHAPE_DEF && def.resizedTo
+    ? (def.resizedTo(item as ShapeData, wanted) as PlacedShape)
+    : { ...item, w: wanted.w, h: wanted.h }
+}
+
+// 大きさを項目に写す形か（定義の resizedTo を持つ）
+export const writesSize = (catalog: CoreCatalog, item: string): boolean => {
+  const def = shapeDefOf(catalog, item)
+  return def !== NO_SHAPE_DEF && def.resizedTo !== undefined
+}
+
 // 辺をつかんで、紙の上で by だけ動かしたときの左上と大きさ。つかんでいない辺はそのまま。
 // 一番小さい大きさより小さくせず（子を持つ形は、子がみな入る大きさより小さくしない）、紙の外へは広げない（変えられないアイテムは CANNOT_RESIZE）。
 // ratio なら、つかめるのは角だけで（辺なら CANNOT_RESIZE）、向かいの角を止めて幅と高さの比を保つ（幅と高さのうち、大きく変わった方の割合に合わせる）。
@@ -58,13 +72,10 @@ export function resizedBy(
 ): { x: number; y: number; w: number; h: number } | typeof CANNOT_RESIZE {
   const own = minSize(catalog, item)
   const size = placedSize(catalog, item)
-  const def = shapeDefOf(catalog, item.item)
   if (own === NO_SIZE || size === NO_SIZE) return CANNOT_RESIZE
   // 大きさを項目に写す形（定義の resizedTo）の、大きさ wanted に写した項目から決まる大きさ（写さない形は NO_SIZE）
   const written = (wanted: Size) =>
-    def !== NO_SHAPE_DEF && def.resizedTo
-      ? placedSize(catalog, def.resizedTo(item as ShapeData, wanted) as PlacedShape)
-      : NO_SIZE
+    writesSize(catalog, item.item) ? placedSize(catalog, sizedTo(catalog, item, wanted)) : NO_SIZE
   const children = childrenSize(catalog, item)
   const min = children ? { w: Math.max(own.w, children.w), h: Math.max(own.h, children.h) } : own
   if (ratio) {
@@ -79,8 +90,7 @@ export function resizedBy(
     const grown = Math.abs(fw - 1) >= Math.abs(fh - 1) ? fw : fh
     const f = Math.min(Math.max(grown, min.w / size.w, min.h / size.h), room.w / size.w, room.h / size.h)
     const wanted = { w: size.w * f, h: size.h * f }
-    const writes = def !== NO_SHAPE_DEF && !!def.resizedTo
-    const next = writes ? written(wanted) : wanted
+    const next = writesSize(catalog, item.item) ? written(wanted) : wanted
     if (next === NO_SIZE) return CANNOT_RESIZE
     return {
       x: right ? item.x : item.x + size.w - next.w,

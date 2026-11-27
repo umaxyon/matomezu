@@ -1,10 +1,23 @@
 // 描画シェイプ（SLIDE_ITEMS）。ページの items に置くアイテム（箱や線）とは別の物。
-// 置き場はページの slide（ページのタイプが選ぶ）で、押し合わず、線もつながず、紙をはみ出てもよい（紙は表示の範囲）。ケイパビリティ（capabilities）は持たない。
+// 置き場はページの slide（ページのタイプが選ぶ）で、押し合わず、線もつながず、紙をはみ出てもよい（紙は表示の範囲）。
+// slide に置ける形は、ほかのプラグインの形も、ケイパビリティ ON_SLIDE を宣言する（タイプの slide.allowed に書けるのは、宣言した形だけ。check.ts）。回せる形は ROTATES も宣言する（角度 rotation を項目に持つ）
 // 線の点は、枠（幅と高さ）の中の割合（0 から 1）で持つ。枠を拡大すれば線も一緒に拡大する。
-// 角度（rotation）は、どのアイテムも持つ
+// 角度（rotation）は、描画シェイプのどれもが持つ
 import { z } from "zod"
 import { ColorSchema, type MinimapMark } from "../../base"
 import { kit } from "./kit"
+
+// slide に置ける形・slide の上で回せる形のケイパビリティ
+export const ON_SLIDE = kit.name("on-slide")
+export const ROTATES = kit.name("rotates")
+const DRAWING_CAPABILITIES = [ON_SLIDE, ROTATES] as const
+
+declare module "../../../core/catalog" {
+  interface CapabilityTable {
+    "@matomezu/slide:on-slide": true // 形だけの並び（ページの slide）に置ける
+    "@matomezu/slide:rotates": true // slide の上で回せる（項目に角度 rotation を持つ）
+  }
+}
 
 // どのアイテムも持つ項目
 const FRAME = {
@@ -123,7 +136,7 @@ export const TEXT_FRAME = kit.defineShape({
   kind: "shape",
   version: 1,
   title: "Text frame",
-  capabilities: [],
+  capabilities: DRAWING_CAPABILITIES,
   toolbox: true,
   props: TextFrameProps,
   tokens: [],
@@ -143,7 +156,7 @@ export const FREE_LINE = kit.defineShape({
   kind: "shape",
   version: 1,
   title: "Free line",
-  capabilities: [],
+  capabilities: DRAWING_CAPABILITIES,
   toolbox: true,
   props: FreeLineProps,
   tokens: [],
@@ -157,7 +170,7 @@ export const STRAIGHT_LINE = kit.defineShape({
   kind: "shape",
   version: 1,
   title: "Straight line",
-  capabilities: [],
+  capabilities: DRAWING_CAPABILITIES,
   toolbox: true,
   props: StraightLineProps,
   tokens: [],
@@ -173,7 +186,7 @@ export const ELLIPSE = kit.defineShape({
   kind: "shape",
   version: 1,
   title: "Ellipse",
-  capabilities: [],
+  capabilities: DRAWING_CAPABILITIES,
   toolbox: true,
   props: FigureProps,
   tokens: [],
@@ -187,7 +200,7 @@ export const RECTANGLE = kit.defineShape({
   kind: "shape",
   version: 1,
   title: "Rectangle",
-  capabilities: [],
+  capabilities: DRAWING_CAPABILITIES,
   toolbox: true,
   props: FigureProps,
   tokens: [],

@@ -46,6 +46,9 @@ declare module "../../../core/catalog" {
     childOrigin?(item: D): Point
     // 子の形を持つ形の、子の領域の下に空ける高さ（キャプションや本文を底に置くときなど）。無ければ NEST_PADDING
     childBottom?(item: D): number
+    // 大きさを変えられる向き（紙とスライドのつまみと、大きさを変えるアクションが読む）: "width" なら幅だけ（高さは中身から決まる形。つかめるのは左右の辺だけで、高さは置いた大きさのまま）。
+    // "ratio" なら幅と高さの比を保つ（つかめるのは角だけ。高さは幅から決まる）。無ければ幅も高さも
+    stretch?: Stretch
   }
   interface ConnectorItemExtras<D extends ConnectorData = ConnectorData> {
     gaps?(lines: readonly D[], base: Gap): Gap // つないだ組の間隔の下限（base に重ねる）
@@ -53,6 +56,19 @@ declare module "../../../core/catalog" {
     tidy?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, setting: SettingReader): D[]
   }
 }
+
+// 大きさを変えられる向き（both は幅も高さも）
+export type Stretch = "width" | "ratio"
+export const STRETCH_BOTH = "both"
+
+// アイテム item の大きさを変えられる向き（表に無いアイテムは both）
+export function stretchOf(catalog: CoreCatalog, item: string): Stretch | typeof STRETCH_BOTH {
+  const def = shapeDefOf(catalog, item)
+  return (def !== NO_SHAPE_DEF ? def.stretch : undefined) ?? STRETCH_BOTH
+}
+
+// 置こうとしているアイテムの左上を、ポインタから左上へこれだけ離す（画面の px。紙もスライドも、押すと置く所はここ）
+export const PLACE_OFFSET: Point = { x: 16, y: 12 }
 
 // 機能台帳に無いアイテム（プラグインを外したなど）の形の大きさ（データに w・h が無いとき）
 export const UNKNOWN_SIZE: Size = { w: 64, h: 64 }

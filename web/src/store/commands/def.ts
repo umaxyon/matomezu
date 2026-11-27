@@ -93,8 +93,9 @@ export interface ScreenCommandContext {
   dialog: OpenedDialog | typeof NO_DIALOG // 開いているダイアログ（無ければ NO_DIALOG）
   contextMenuOpen: boolean // 右クリックのメニューを開いているか（右クリックされた物は、メニューの行が呼ぶ引数で受け取る: accepts と run）
   libraryHistory: History // 書庫の履歴
-  folders: Folders // 書庫のフォルダの表（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダの行と並び。読むだけ。ページの中身は持たない）
-  pageTitle(page: string): string | typeof NO_NAME // ページ page の名前（名前の無いページ・表に無い物は NO_NAME。ページの中身は渡さない）
+  folders: Folders // 書庫のフォルダの表（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダの行と並び。読むだけ。ページの中身は pageOf で読む）
+  pageTitle(page: string): string | typeof NO_NAME // ページ page の名前（名前の無いページ・表に無い物は NO_NAME）
+  pageOf(page: string): ItemPage | typeof NO_PAGE // 開けるページ page の中身（読むだけ。ゴミ箱の中・表に無いページは NO_PAGE）
   // コマンドを持つプラグインが宣言したプラグイン状態 def の今の値（スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値。
   // 無ければ、既定を持つ宣言は既定、持たない宣言は NO_STATE。ほかのプラグインの宣言は E125。変えるのは run が受け取る updatePluginState と resetPluginState）
   pluginState: PluginStateRead

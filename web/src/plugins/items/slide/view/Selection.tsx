@@ -3,6 +3,7 @@
 import { useState } from "react"
 import type { Rect } from "../../../../plugin-api"
 import { useCommand, useMessages } from "../../../../plugin-api/ui"
+import type { STRETCH_BOTH, Stretch } from "../../../base"
 import { Stand } from "../../../base/ui"
 import { SLIDE_SET } from "../commands"
 import { kit } from "../kit"
@@ -28,7 +29,17 @@ export interface SelectedItem {
   rotation: number
   kind: string // アイテムの種類の id
   props: Readonly<Record<string, unknown>>
+  rotates: boolean // 回せるか（回すつまみと、角度・水平に戻すを出すか）
+  stretch: Stretch | typeof STRETCH_BOTH // 大きさを変えられる向き（比を保つ形は角のつまみだけ）
 }
+
+// 大きさを変えられる向き stretch で出すつまみ（幅だけなら左右の辺、比を保つなら角だけ）
+const gripsFor = (stretch: Stretch | typeof STRETCH_BOTH) =>
+  stretch === "width"
+    ? GRIPS.filter(g => g.at[1] === 50)
+    : stretch === "ratio"
+      ? GRIPS.filter(g => g.at[0] !== 50 && g.at[1] !== 50)
+      : GRIPS
 
 export function Selection({ item, hidden }: { item: SelectedItem; hidden: boolean }) {
   const { rect, rotation } = item
@@ -49,7 +60,7 @@ export function Selection({ item, hidden }: { item: SelectedItem; hidden: boolea
         >
           {/* 線は端の丸い点で形を変えるので、枠の 8 つのつまみは出さない */}
           {!isLine &&
-            GRIPS.map(g => (
+            gripsFor(item.stretch).map(g => (
               <div
                 key={g.id}
                 className={styles.grip}
@@ -58,15 +69,17 @@ export function Selection({ item, hidden }: { item: SelectedItem; hidden: boolea
                 style={{ left: `${g.at[0]}%`, top: `${g.at[1]}%` }}
               />
             ))}
-          <div className={styles.rotate} data-rotate title={t("Rotate")}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M19 12a7 7 0 1 1-2.1-5M19 4v4h-4" />
-            </svg>
-          </div>
+          {item.rotates && (
+            <div className={styles.rotate} data-rotate title={t("Rotate")}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M19 12a7 7 0 1 1-2.1-5M19 4v4h-4" />
+              </svg>
+            </div>
+          )}
         </div>
       )}
       {!hidden && <PointHandles item={item} />}
-      <Bar item={item} />
+      {(item.rotates || showsGroupBar([item.kind])) && <Bar item={item} />}
     </>
   )
 }
@@ -78,7 +91,7 @@ function Bar({ item }: { item: SelectedItem }) {
     <Stand anchor={item.id} side="above" through label={t("Change on slide")}>
       <div className={styles.barBox}>
         <div className={styles.bar} data-bar role="toolbar" aria-label={t("Change on slide")}>
-          {!isLineKind(item.kind) ? (
+          {!item.rotates ? null : !isLineKind(item.kind) ? (
             <button
               type="button"
               className={styles.button}

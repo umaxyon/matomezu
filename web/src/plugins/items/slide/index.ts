@@ -2,9 +2,11 @@
 // 置き場はページの slide で、ページのタイプが選ぶ（タイプの slide.allowed）。描いて操作を受けるレイヤー（book-layers）と、そのコマンドとキーも持つ
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { SLIDE_MOVE, SLIDE_PLACE, SLIDE_REMOVE, SLIDE_REORDER, SLIDE_RESIZE, SLIDE_UPDATE } from "./actions"
+import { ON_SLIDE_CHECK } from "./check"
 import {
   SLIDE_BACKWARD,
   SLIDE_DELETE,
+  SLIDE_DROP,
   SLIDE_FORWARD,
   SLIDE_KEYS,
   SLIDE_MOVE_TO,
@@ -33,6 +35,7 @@ export const SLIDE_PLUGIN = defineBuiltin(
     tokens: [SLIDE_INK],
     actions: [SLIDE_PLACE, SLIDE_MOVE, SLIDE_RESIZE, SLIDE_UPDATE, SLIDE_REORDER, SLIDE_REMOVE],
     commands: [
+      SLIDE_DROP,
       SLIDE_PUT,
       SLIDE_MOVE_TO,
       SLIDE_RESHAPE,
@@ -46,6 +49,7 @@ export const SLIDE_PLUGIN = defineBuiltin(
     ],
     keys: SLIDE_KEYS,
     keyScopes: [SLIDE_KEY_SCOPE, SLIDE_TEXT_KEY_SCOPE],
+    checks: [ON_SLIDE_CHECK],
   }),
 )
 
@@ -66,6 +70,7 @@ declare module "../../../core/catalog" {
     "@matomezu/slide:slide-remove": typeof SLIDE_REMOVE
   }
   interface CommandTable {
+    "@matomezu/slide:slide-drop": typeof SLIDE_DROP
     "@matomezu/slide:slide-put": typeof SLIDE_PUT
     "@matomezu/slide:slide-move-to": typeof SLIDE_MOVE_TO
     "@matomezu/slide:slide-reshape": typeof SLIDE_RESHAPE

@@ -60,9 +60,9 @@ function reveal(el: HTMLElement | null): void {
 }
 
 // エントリ 1 つのタイプと名前（ページはそのタイプ、バインダは入れるページのタイプ。参照エントリは指す先の物。指す先の行が無ければ null）
-function shownOf(e: LineupEntry, { pages, folders }: Library): { type: string; title: string } | null {
-  if (e.kind === "page") return { type: e.type, title: e.title }
-  if (e.kind === "binder") return { type: e.pageType, title: e.title }
+function shownOf(e: LineupEntry, { pages, folders }: Library): ReturnType<typeof referenceLook> {
+  if (e.kind === "page") return { kind: e.kind, type: e.type, title: e.title }
+  if (e.kind === "binder") return { kind: e.kind, type: e.pageType, title: e.title }
   return referenceLook({ pages, folders }, e)
 }
 
@@ -77,7 +77,7 @@ export function PageTabs() {
   const openReferenceMenu = useContextMenu(REFERENCE_CONTEXT)
   const pages = useMatomezuState(s => s.pages)
   const folders = useMatomezuState(s => s.folders)
-  const icons = useUiCatalog().pageTypeIcons // タイプのアイコン（名乗らないタイプは通常のファイル）
+  const { pageTypeIcons, binderTypeIcons } = useUiCatalog()
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
   const lineup = book ? lineupOf(book) : []
@@ -115,7 +115,8 @@ export function PageTabs() {
     >
       {lineup.map(e => {
         const look = shownOf(e, { pages, folders })
-        const icon = (look && icons.get(look.type)) ?? <FileIcon />
+        const binderIcon = look?.kind === "binder" ? binderTypeIcons.get(look.type) : undefined
+        const icon = binderIcon ?? (look && pageTypeIcons.get(look.type)) ?? <FileIcon />
         return (
           <span key={e.id} className={styles.slot} ref={tabDrag.slot(e.id)} data-carried={drag?.id === e.id}>
             <button

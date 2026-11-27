@@ -583,8 +583,21 @@ func TestTheScreenPurgesWhatIsRightInsideTheUnreadableFolder(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/unreadable/purge", `{"id":"p0"}`, nil); got != `{"ok":false,"reason":"not-inside"}` || rowOf(h, "p0") == nil {
 		t.Fatalf("purge a page outside = %s, p0 %s", got, rowOf(h, "p0"))
 	}
+	events := listen(t, s.URL)
+	next(t, events)
 	if _, got := send(t, "POST", s.URL+"/api/unreadable/purge", `{"id":"p1"}`, nil); got != `{"ok":true}` {
 		t.Fatalf("purge = %s", got)
+	}
+	// 窓に、常駐が自分で行った変わり（by host）として知らせる
+	changed := ""
+	for changed == "" {
+		if l, ok := strings.CutPrefix(next(t, events), "changed "); ok {
+			changed = l
+		}
+	}
+	var notice struct{ By string }
+	if err := json.Unmarshal([]byte(changed), &notice); err != nil || notice.By != "host" {
+		t.Fatalf("the changed notice of the purge = %s", changed)
 	}
 	if got := unreadableRefs(t, h); len(got) != 0 || rowOf(h, "p1") != nil {
 		t.Fatalf("after purging: unreadable %v, p1 %s", got, rowOf(h, "p1"))

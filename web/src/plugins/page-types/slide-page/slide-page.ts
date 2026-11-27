@@ -1,4 +1,4 @@
-// スライドのページのタイプ: ページ 1 枚がスライド 1 枚で、中身はページの slide（描画シェイプの並び）だけで出来ている。ページの items に置く箱や線などのアイテムは置かない。
+// スライドのページのタイプ: ページ 1 枚がスライド 1 枚で、中身はページの slide（ケイパビリティ on-slide を持つ形: 描画シェイプとスクラップボックスの並び）だけで出来ている。ページの items に置く箱や線などのアイテムは置かない。
 // 描画シェイプは押し合わず、紙をはみ出てもよい（紙は表示の範囲で、スライドとして見せるときははみ出た所が切れる）。
 // プレゼンテーションは専用（slide）で、紙のプレゼンテーション（paper）の置く・動かす・大きさを変えるアクションは付かない
 import { DIAGRAM_THEME_TYPE, itemMinimapMarks, PAGE_PAPER_COLOR, PAGE_THEME, PAPER_IDS } from "../../base"
@@ -18,6 +18,7 @@ const SLIDE_ITEMS = [
   "@matomezu/slide:slide-line",
   "@matomezu/slide:slide-ellipse",
   "@matomezu/slide:slide-rectangle",
+  "@matomezu/scrap:shape-scrap-box",
 ] as const
 
 export const SLIDE_PAGE = kit.definePageType({

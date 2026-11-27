@@ -12,6 +12,7 @@ import {
 import { useCoreCatalog } from "../../../../plugin-api/ui"
 import { BACKGROUND_PRINT, settingValue, slideOffsetOf } from "../../../base"
 import type { PrintSheetProps } from "../../../base/ui"
+import { sizedShapes } from "../layer"
 import { rotationOf } from "../rect"
 import { useSlideItemView } from "./item-view"
 import { SlideItemBox } from "./SlideItemBox"
@@ -25,7 +26,7 @@ export function SlideSheet({ zoom, page }: PrintSheetProps) {
   const offset = slideOffsetOf(catalog, page as ItemPage)
   return (
     <>
-      {slideOf(page as ItemPage).map(shape => (
+      {sizedShapes(catalog, slideOf(page as ItemPage)).map(shape => (
         <SheetShape key={shape.id} shape={shape} offset={offset} zoom={zoom} />
       ))}
     </>
