@@ -11,7 +11,7 @@ import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { workroomActivityOf, workroomWorkIn, workroomWorkOf } from "../../../web/src/plugins/base/participant/activity"
 import { myWorkdeskIn } from "../../../web/src/plugins/base/participant/my-workdesk"
 import { workShiftIn } from "../../../web/src/plugins/base/participant/work-shift"
-import { workTitleIn } from "../../../web/src/plugins/base/participant/work-title"
+import { leftTitleIn, workTitleIn } from "../../../web/src/plugins/base/participant/work-title"
 import { workerBookOf, workerBookReadsOf } from "../../../web/src/plugins/base/participant/worker-book"
 import { CURRENT_WORK, currentTicketOf } from "../../../web/src/plugins/taskboard/current-work"
 import { nextWorkOf, workingTicketsOf } from "../../../web/src/plugins/taskboard/current-work/work"
@@ -356,6 +356,15 @@ test("作業名: 作業中なら題名とワークルームの名前、空きな
   const noAnswer = { ...CORE_CATALOG, subjects: new Map() } as CoreCatalog
   expect(title(noAnswer, ja)).toEqual({ kind: "title", title: "ひよこ" })
   expect(title(CORE_CATALOG, { ...ja, "@matomezu/base:session-rename": false })).toEqual({ kind: "off" })
+})
+
+test("外れた会話の名前: ワークルームの名前に外れた印を付け、設定が止めていれば off", () => {
+  const ja = { "@matomezu/base:lang": "matomezu:ja" }
+  expect(leftTitleIn(CORE_CATALOG, ja, "ひよこ")).toEqual({ kind: "title", title: "ひよこ（外れた）" })
+  expect(leftTitleIn(CORE_CATALOG, {}, "ひよこ")).toEqual({ kind: "title", title: "ひよこ (left)" })
+  expect(leftTitleIn(CORE_CATALOG, { ...ja, "@matomezu/base:session-rename": false }, "ひよこ")).toEqual({
+    kind: "off",
+  })
 })
 
 test("今の作業が替わったか: 覚えていない・替わっていなければ聞かない。替わった・新しく振られたら 4 つ、終わったら 2 つの選べる事で 1 度だけ聞く", () => {
