@@ -294,7 +294,8 @@ test("いる参加者を外して入れると、そのワークルームの引�
   const key = { subject: "@matomezu/taskboard:ticket", id: "t1" }
   const records = store.state.getState().records
   const was = records[WORKROOM]?.[room] as object
-  store.state.setState({
+  // 引継ぎ対象チケットは作業の替わりのフォローステップが書く物なので、ここでは置き場所に直に置く
+  ;(store.state as unknown as { setState: (s: object) => void }).setState({
     records: { ...records, [WORKROOM]: { ...records[WORKROOM], [room]: { ...was, work: key, handoffTarget: key } } },
   })
   const next = request({ ...WHO, link: "L2" }).result.participant
