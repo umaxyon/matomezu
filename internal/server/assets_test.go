@@ -199,7 +199,7 @@ func TestDropUnusedAssetsAtStart(t *testing.T) {
 	if _, err := h.ImportAsset(rasterBytes(t, "png", 5, 5)); err != nil {
 		t.Fatal(err)
 	}
-	args, _ := json.Marshal(map[string]any{"folder": imagesFolder(t, h), "type": "@matomezu/image:image", "fields": map[string]string{"asset": used.Asset}})
+	args, _ := json.Marshal(map[string]any{"folder": imagesFolder(t, h), "type": "@matomezu/image:image", "fields": map[string]any{"asset": used.Asset, "width": used.Width, "height": used.Height}})
 	if out, err := h.Perform(performOne("@matomezu/base:page-create", args, nil)); err != nil || !out.OK {
 		t.Fatalf("page-create: %v %+v", err, out)
 	}
