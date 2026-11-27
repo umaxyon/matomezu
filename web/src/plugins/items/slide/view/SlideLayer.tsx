@@ -9,7 +9,6 @@
 // ドラッグの途中の様子はビューに持ち、離したときに 1 回だけコマンドを呼ぶ（元に戻すのも 1 回）
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import {
-  areaOf,
   type ItemId,
   NO_PAGE,
   NO_PAPER,
@@ -24,7 +23,6 @@ import {
   type StageView,
   slideIsBackground,
   slideOf,
-  within,
 } from "../../../../plugin-api"
 import {
   useActions,
@@ -201,17 +199,8 @@ function SlidePageView({
   const placeFile = (d: FileDrop) =>
     drop.run({ page: d.page, item: d.item as ItemId, props: d.props, at: d.at, shift: d.shift })
   const files = useFileDrop(e => paperAt(e) ?? NO_PAPER, placeFile)
-  // Ctrl+V で貼ったファイルも、最後にポインタが在った所に置く（紙の上でなければ、スライドの左上に）
-  useFilePasteAt(
-    SLIDE_PASTE_FILES.id,
-    p => {
-      const at = paperAt(p)
-      const area = areaOf(stage)
-      if (!at || area === NO_PAPER) return NO_PAPER
-      return within({ x: at.x + offset.x, y: at.y + offset.y }, area) ? at : NO_PAPER
-    },
-    placeFile,
-  )
+  // Ctrl+V で貼ったファイルも、最後にポインタが在った所に置く（紙の外でも、はみ出て映らなくてもその所。ポインタが窓の中を動いていなければ、スライドの左上に）
+  useFilePasteAt(SLIDE_PASTE_FILES.id, p => paperAt(p) ?? NO_PAPER, placeFile)
   const finish = () => {
     drag.current = null
     setLive(null)

@@ -294,14 +294,15 @@ test("ほかの常駐でコピーした物はトーストで断る。写しで�
   stop()
 })
 
-test("待っているコピーは、イベントが来ないまま次のタイマーで捨てる。待っていなければ、イベントは何もしない", async () => {
+test("待っているコピーは、イベントが来ないまま次のタイマーになったら、クリップボード無しで行う（窓の写しに置く）。遅れて来たイベントでは 2 度行わない", async () => {
   const store = readyClip()
   store.actions.select("s1", [place(store as never, NEST, { at: { x: 0, y: 0 } })])
   expect(store.clipboardEvent("copy", transfer(), HOST)).toBe(false)
   store.actions.pressKey("Mod+C", ["stage"])
-  await new Promise(done => setTimeout(done, 0))
-  expect(store.clipboardEvent("copy", transfer(), HOST)).toBe(false)
   expect(frameClip(store)).toBeUndefined()
+  await new Promise(done => setTimeout(done, 0))
+  expect(frameClip(store)?.shapes).toHaveLength(1)
+  expect(store.clipboardEvent("copy", transfer(), HOST)).toBe(false)
 })
 
 test("クリップボードのイベントの外で呼んだキーの貼り付け（イベントを起こさないキーに替えたとき）は、窓の写しを貼る", () => {
