@@ -114,8 +114,9 @@ export const PAPER_PLACE = kit.defineCommand({
   when: ctx => hasOpenedPage(ctx) && ctx.stage.placing !== NO_PLACING,
 })
 
-// 外から落としたファイルから作ったアイテム item（項目の値 props）を、左上がポインタ pointer の所から右へ shift（紙の px）の所に来るよう置く
-// （置き方は PAPER_PLACE と同じ。置こうとしている物は変えない）。ファイルを取り込む間に開いているページが替わっていたら（落としたページ page でなければ）置かない
+// 外から落としたか貼ったファイルから作ったアイテム item（項目の値 props）を、左上がポインタ pointer の所から右へ shift（紙の px）の所に来るよう置く
+// （置き方は PAPER_PLACE と同じ。置こうとしている物は変えない）。pointer が NO_PAPER なら（貼ったときに、ポインタが紙の上を通っていない）、ページの最初の空きに置く。
+// ファイルを取り込む間に開いているページが替わっていたら（落としたページ page でなければ）置かない
 export const PAPER_DROP = kit.defineCommand({
   id: "paper-drop",
   performs: [ITEM_PLACE.id],
@@ -125,9 +126,25 @@ export const PAPER_DROP = kit.defineCommand({
   run: (
     ctx,
     a,
-    args: { page: string; pointer: Point; shift: number; item: string; props: Readonly<Record<string, unknown>> },
+    args: {
+      page: string
+      pointer: Point | typeof NO_PAPER
+      shift: number
+      item: string
+      props: Readonly<Record<string, unknown>>
+    },
   ) => {
     if (!hasOpenedPage(ctx) || ctx.page.id !== args.page) return
+    if (args.pointer === NO_PAPER) {
+      const done = a.perform(
+        ITEM_PLACE.id,
+        { item: args.item, props: args.props, crowd: "push" },
+        { page: ctx.page.id },
+      )
+      if (done.ok) a.select([done.result.item])
+      else a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("No free spot")) })
+      return
+    }
     const at = ctx.toPaper(args.pointer)
     const shifted = at === NO_PAPER ? NO_PAPER : { x: at.x + args.shift, y: at.y }
     placeItem(ctx, a, shifted, shifted, args)

@@ -33,9 +33,24 @@ import {
   useStage,
   useToPaper,
 } from "../../../../plugin-api/ui"
-import { NO_SIZE, PLACE_OFFSET, slideOffsetOf, stretchOf, writesSize } from "../../../base"
-import { modPressed, PaperFrame, useFileDrop, useFollowsSelection } from "../../../base/ui"
-import { SLIDE_DELETE, SLIDE_DROP, SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "../commands"
+import { NO_SIZE, PLACE_OFFSET, paperSize, slideOffsetOf, stretchOf, writesSize } from "../../../base"
+import {
+  type FileDrop,
+  modPressed,
+  PaperFrame,
+  useFileDrop,
+  useFilePasteAt,
+  useFollowsSelection,
+} from "../../../base/ui"
+import {
+  SLIDE_DELETE,
+  SLIDE_DROP,
+  SLIDE_MOVE_TO,
+  SLIDE_PASTE_FILES,
+  SLIDE_PUT,
+  SLIDE_RESHAPE,
+  SLIDE_SET,
+} from "../commands"
 import {
   CLICK,
   drawnPlacement,
@@ -181,9 +196,19 @@ function SlidePageView({
   }
   // 外から落としたファイルのスクラップを、左上が落とした所に来るよう置く
   const drop = useCommand(SLIDE_DROP.id)
-  const files = useFileDrop(
-    e => paperAt(e) ?? NO_PAPER,
-    d => drop.run({ page: d.page, item: d.item as ItemId, props: d.props, at: d.at, shift: d.shift }),
+  const placeFile = (d: FileDrop) =>
+    drop.run({ page: d.page, item: d.item as ItemId, props: d.props, at: d.at, shift: d.shift })
+  const files = useFileDrop(e => paperAt(e) ?? NO_PAPER, placeFile)
+  // Ctrl+V で貼ったファイルも、最後にポインタが在った所に置く（紙の上でなければ、スライドの左上に）
+  useFilePasteAt(
+    SLIDE_PASTE_FILES.id,
+    p => {
+      const at = paperAt(p)
+      if (!at || page === NO_PAGE) return NO_PAPER
+      const paper = paperSize(catalog, page)
+      return at.x >= 0 && at.y >= 0 && at.x <= paper.w && at.y <= paper.h ? at : NO_PAPER
+    },
+    placeFile,
   )
   const finish = () => {
     drag.current = null

@@ -160,6 +160,7 @@ export {
   useDrawnMinimap,
   useEndWhenBlocked,
   useFileDrop,
+  useFilePasteAt,
   useFolderEntries,
   useFollowsSelection,
   useHighlightRanges,

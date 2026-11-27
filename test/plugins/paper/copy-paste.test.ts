@@ -235,3 +235,68 @@ test("写した入れ物を選んだまま貼ると、その中でなく隣に�
   expect(shapesOf(page(store as never))).toHaveLength(2)
   expect(shapeOf(page(store as never), made as string).parent).toBe(PAGE_ITSELF)
 })
+
+// OS のクリップボード: キーはクリップボードのイベントを待ち、そのイベントの運ぶ物に書き・読む
+const transfer = (files: File[] = []) => {
+  const data = new Map<string, string>()
+  return {
+    data,
+    getData: (format: string) => data.get(format) ?? "",
+    setData: (format: string, value: string) => void data.set(format, value),
+    files,
+  }
+}
+const HOST = "http://localhost:1"
+
+test("キーのコピーはクリップボードのイベントを待って OS のクリップボードに書き、別の窓のキーの貼り付けがそれを貼る", () => {
+  const from = ready()
+  const a = place(from as never, NEST, { at: { x: 0, y: 0 } })
+  from.actions.select("s1", [a])
+  expect(from.actions.pressKey("Mod+C", ["stage"])).toBe("waits")
+  expect(frameClip(from)).toBeUndefined() // イベントが来るまで行わない
+  const carried = transfer()
+  expect(from.actions.clipboardEvent("copy", carried, HOST)).toBe(true)
+  expect(frameClip(from)?.shapes.map(s => s.id)).toEqual([a])
+  expect(JSON.parse(carried.data.get("application/x-matomezu") ?? "{}")).toMatchObject({
+    host: HOST,
+    kind: "@matomezu/paper:clip",
+  })
+
+  const to = ready()
+  expect(to.actions.pressKey("Mod+V", ["stage"])).toBe("waits")
+  expect(to.actions.clipboardEvent("paste", carried, HOST)).toBe(true)
+  expect(shapesOf(page(to as never))).toHaveLength(1)
+  expect(frameClip(to)?.shapes).toHaveLength(1) // 窓の写しにも置く（右クリックの貼り付けで貼れる）
+})
+
+test("ほかの常駐でコピーした物はトーストで断る。写しでない物にファイルがあれば、紙のビューに渡す", () => {
+  const from = ready()
+  from.actions.select("s1", [place(from as never, NEST, { at: { x: 0, y: 0 } })])
+  from.actions.pressKey("Mod+C", ["stage"])
+  const carried = transfer()
+  from.actions.clipboardEvent("copy", carried, "http://other:1")
+
+  const to = ready()
+  to.actions.pressKey("Mod+V", ["stage"])
+  expect(to.actions.clipboardEvent("paste", carried, HOST)).toBe(true)
+  expect(shapesOf(page(to as never))).toHaveLength(0)
+  expect(toasts(to)).toBe(1)
+
+  const got: (readonly File[])[] = []
+  const stop = to.actions.receivePastedFiles("s1", "@matomezu/paper:paper-paste-clipboard", files => got.push(files))
+  const image = new File(["x"], "a.png", { type: "image/png" })
+  to.actions.pressKey("Mod+V", ["stage"])
+  to.actions.clipboardEvent("paste", transfer([image]), HOST)
+  expect(got).toEqual([[image]])
+  stop()
+})
+
+test("待っているコピーは、イベントが来ないまま次のタイマーで捨てる。待っていなければ、イベントは何もしない", async () => {
+  const store = ready()
+  store.actions.select("s1", [place(store as never, NEST, { at: { x: 0, y: 0 } })])
+  expect(store.actions.clipboardEvent("copy", transfer(), HOST)).toBe(false)
+  store.actions.pressKey("Mod+C", ["stage"])
+  await new Promise(done => setTimeout(done, 0))
+  expect(store.actions.clipboardEvent("copy", transfer(), HOST)).toBe(false)
+  expect(frameClip(store)).toBeUndefined()
+})

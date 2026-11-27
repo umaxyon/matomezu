@@ -41,6 +41,7 @@ export type {
   ThemeId,
   WidgetId,
 } from "../core/catalog"
+export { type Clipboard, type ClipboardUse, NO_CLIP_DATA, NO_CLIPBOARD, OTHER_HOST } from "../core/clipboard"
 export { HEX, isLight, isPaletteName, PALETTE } from "../core/color"
 export type { CoreCatalog, ItemProps } from "../core/core-catalog"
 export { pageType } from "../core/core-catalog"

@@ -10,6 +10,7 @@ import {
   SLIDE_FORWARD,
   SLIDE_KEYS,
   SLIDE_MOVE_TO,
+  SLIDE_PASTE_FILES,
   SLIDE_PUT,
   SLIDE_RESHAPE,
   SLIDE_SET,
@@ -36,6 +37,7 @@ export const SLIDE_PLUGIN = defineBuiltin(
     actions: [SLIDE_PLACE, SLIDE_MOVE, SLIDE_RESIZE, SLIDE_UPDATE, SLIDE_REORDER, SLIDE_REMOVE],
     commands: [
       SLIDE_DROP,
+      SLIDE_PASTE_FILES,
       SLIDE_PUT,
       SLIDE_MOVE_TO,
       SLIDE_RESHAPE,
@@ -71,6 +73,7 @@ declare module "../../../core/catalog" {
   }
   interface CommandTable {
     "@matomezu/slide:slide-drop": typeof SLIDE_DROP
+    "@matomezu/slide:slide-paste-files": typeof SLIDE_PASTE_FILES
     "@matomezu/slide:slide-put": typeof SLIDE_PUT
     "@matomezu/slide:slide-move-to": typeof SLIDE_MOVE_TO
     "@matomezu/slide:slide-reshape": typeof SLIDE_RESHAPE

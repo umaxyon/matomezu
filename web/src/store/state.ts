@@ -459,6 +459,8 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   visible?: () => boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。無ければいつも見えている）
   search?: (query: WideSearchQuery) => Promise<WideSearchAnswer> // ホストの言葉の検索（横断検索）。無ければ、どの言葉にも横断検索の当たりなし
   copyText?: (text: string) => Promise<void> // ブラウザのクリップボードに文字を書く。無ければ、書けないとして投げる（E404）
+  // ブラウザに copy のイベントを起こしてもらう（メニューから呼んだコピーを、キーと同じクリップボードの道で行うため）。起きたか返す。無ければ起こせない
+  requestCopyEvent?: () => boolean
   // アセット（画像のバイト列）をホストに置く口と、中身を読む URL。無ければ、置くと投げ（E416）、URL は NO_ASSET_URL
   assetsHost?: { put(bytes: Blob): Promise<AssetPut>; url(id: string): string }
   command?: string // 利用者が端末で打つ matomezu の名前。無ければ matomezu

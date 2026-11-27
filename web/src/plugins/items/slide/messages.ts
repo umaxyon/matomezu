@@ -18,6 +18,7 @@ export const SLIDE_MESSAGES = defineMessages({
   Backward: { en: "Backward", ja: "1 つ後ろへ" },
   "To back": { en: "To back", ja: "最背面へ" },
   Delete: { en: "Delete", ja: "消す" },
+  Paste: { en: "Paste", ja: "貼り付け" },
   Cancel: { en: "Cancel", ja: "キャンセル" },
   "Slide text editing in place": { en: "Slide text editing in place", ja: "文字枠のその場の編集" },
   "Cannot place here": { en: "Cannot place here", ja: "ここには置けません" },

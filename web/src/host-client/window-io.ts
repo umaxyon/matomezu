@@ -7,6 +7,7 @@ const COMMAND_META = "matomezu-command"
 
 export interface WindowIo {
   copyText?: (text: string) => Promise<void>
+  requestCopyEvent?: () => boolean
   setWindowTitle: (title: string) => void
   windowTitle: () => string
   reloadWindow: () => void
@@ -19,6 +20,8 @@ export function browserWindowIo(): WindowIo {
   return {
     ...(command ? { command } : {}),
     ...(clipboard ? { copyText: (text: string) => clipboard.writeText(text) } : {}),
+    // メニューから呼んだコピーにも copy のイベントを起こす（押した処理の中で呼べば、ブラウザがイベントを起こす。Chromium で確かめた。古い口だが、代わりの口は独自の形式を書けない）
+    requestCopyEvent: () => document.execCommand("copy"),
     setWindowTitle: title => {
       document.title = title
     },
