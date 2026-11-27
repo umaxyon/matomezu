@@ -361,7 +361,7 @@ test("作業名: 作業中なら題名とワークルームの名前、空きな
 test("今の作業が替わると、同じ書き込みでワークルームのレコードに今の作業と離れた作業を写し、その AI に 1 通だけ知らせる（誰が替えても）", () => {
   const { act, user, room, doing, add, world } = board()
   const a = room("ひよこ")
-  const roomRecord = () => world().records[WORKROOM.id]?.[a] as { work?: unknown; left?: unknown }
+  const roomRecord = () => world().records[WORKROOM.id]?.[a] as { work?: unknown; handoffTarget?: unknown }
   const texts = (d: Done) =>
     ((d as Done & { hostMessages?: { workroom: string; text: string }[] }).hostMessages ?? [])
       .filter(m => m.workroom === a)
@@ -369,7 +369,7 @@ test("今の作業が替わると、同じ書き込みでワークルームの�
   // 利用者が振った: 空きから作業へ。離れた作業は無いので、会話を空にする頼み方は添えない
   const t1 = add({ name: "一", lane: doing, assignees: [a] })
   expect(roomRecord().work).toEqual({ subject: TICKET.id, id: t1 })
-  expect(roomRecord().left).toBeUndefined()
+  expect(roomRecord().handoffTarget).toBeUndefined()
   // 替わらない書き込みでは知らせない
   expect(texts(user("ticket-update", { name: "一の二" }, { record: t1 }))).toEqual([])
   // AI 自身が替えた: 知らせは行った AI にも届き（常駐が答えの notice で渡す）、離れた作業を覚える
@@ -377,8 +377,8 @@ test("今の作業が替わると、同じ書き込みでワークルームの�
   const [changed] = texts(act(ai(a), "ticket-start", {}, { record: t2 }))
   expect(changed).toContain("Your current work changed from T-0001")
   expect(changed).toContain(`read_records with kind "${TICKET.id}" and id "${t2}"`)
-  expect(changed).toContain("@matomezu/base:clear-request")
-  expect(roomRecord()).toMatchObject({ work: { id: t2 }, left: { id: t1 } })
+  expect(changed).toContain("@matomezu/base:refresh-request")
+  expect(roomRecord()).toMatchObject({ work: { id: t2 }, handoffTarget: { id: t1 } })
   // 担当で作業中の物が残っていれば、それが次の作業になる
   expect(texts(user("ticket-complete", {}, { record: t2 }))[0]).toContain("changed from T-0002")
   // 終わって空きになった: 今の作業は消え、離れた作業は終わった物
@@ -386,7 +386,7 @@ test("今の作業が替わると、同じ書き込みでワークルームの�
   expect(ended).toContain("no current work")
   expect(ended).toContain('read_folder with folder "my-workdesk"')
   expect(roomRecord().work).toBeUndefined()
-  expect(roomRecord().left).toEqual({ subject: TICKET.id, id: t1 })
+  expect(roomRecord().handoffTarget).toEqual({ subject: TICKET.id, id: t1 })
 })
 
 test("ワークルームの作業は、答える種類のうち機能台帳の並びで最初に作業中と答えた物。どれも作業中でなければ空き", () => {

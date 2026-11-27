@@ -386,6 +386,8 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 		Prompt     string   `json:"prompt"` // ターンの入力
 		// ChatThread は、この会話を動かすチャットスレッドの id（AI の側の部品が読む。分からなければ空）
 		ChatThread string `json:"chatThread"`
+		// Refreshable は、AI のプログラムが会話を空にできると名乗った（その部品がリフレッシュリクエストを受けて空にする。refresh.go）
+		Refreshable bool `json:"refreshable"`
 	}
 	if r.ContentLength != 0 && !readJSON(w, r, &req) {
 		return
@@ -413,6 +415,12 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	if err := o.Hub.NoteChatThread(req.SessionID, req.ChatThread); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	if req.Refreshable && len(req.Candidates) == 0 {
+		if err := o.Hub.NoteRefreshable(req.SessionID); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 	if lent {
 		done.ForAI = strings.TrimSpace(wokenText + "\n" + done.ForAI)

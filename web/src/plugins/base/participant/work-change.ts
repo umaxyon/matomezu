@@ -1,7 +1,7 @@
 // 今の作業が替わったとき: ワークルームの作業を答える種類（workroomWork を持つ種類。カレントワークなど）が変わったら、同じ書き込みで、
-// 作業が替わったワークルームのレコードに今の作業（work）と離れた作業（left）を写し、その AI に知らせる常駐メッセージを 1 通送るフォローステップ。
+// 作業が替わったワークルームのレコードに今の作業（work）と引継ぎ対象チケット（handoffTarget。その前の作業のレコード）を写し、その AI に知らせる常駐メッセージを 1 通送るフォローステップ。
 // 誰が替えても（その AI 自身・利用者・ほかの AI）ここが動く。行った AI には、常駐がアクションの答えの notice で渡す。
-// 離れた作業には、AI が会話を空にする頼み（clear-request）で引き継ぎのページを書ける（ほかのアクションでは書けない。認可ステップ worker-book）
+// 引継ぎ対象チケットのワーカーブックには、AI がリフレッシュリクエストのアクション（refresh-request）で引継ぎページを書ける（ほかのアクションでは書けない。認可ステップ worker-book）
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { AnyRecordRead, RecordRead } from "../../../core/def/action"
 import type { FollowStepDef, HostMessage } from "../../../core/def/follow-step"
@@ -17,7 +17,7 @@ import {
   workroomWorkIn,
   workroomWorkReadsOf,
 } from "./activity"
-import { CLEAR_REQUEST_ID } from "./clear-request-id"
+import { REFRESH_REQUEST_ID } from "./refresh-request-id"
 import { WORKROOM } from "./workroom"
 
 const sameKey = (a: WorkKey | undefined, b: WorkKey | undefined) =>
@@ -53,12 +53,12 @@ export const FOLLOW_WORK_CHANGED: FollowStepDef = {
       const key = now.kind === "working" ? now.key : undefined
       const was = room.data.work
       if (sameKey(was, key)) continue
-      const left = was ?? room.data.left
-      const { work: _work, left: _left, ...rest } = room.data
+      const target = was ?? room.data.handoffTarget
+      const { work: _work, handoffTarget: _handoffTarget, ...rest } = room.data
       records.push({
         subject: WORKROOM.id,
         id: room.data.id,
-        record: { ...rest, ...(key ? { work: key } : {}), ...(left ? { left } : {}) },
+        record: { ...rest, ...(key ? { work: key } : {}), ...(target ? { handoffTarget: target } : {}) },
       })
       const title = (k: WorkKey) => {
         const name = workRecordNameOf(ctx.catalog, read, k)
@@ -75,7 +75,7 @@ export const FOLLOW_WORK_CHANGED: FollowStepDef = {
 }
 
 // 作業が now に替わったときの AI への文。from は替わる前の作業の名前（空きから替わったなら空）、to は今の作業の名前（空きなら空）、
-// idle は空きになったワークルームの AI に添える文（aiWorkroomIdle。無ければ空）。作業から離れたなら、引き継ぎを書いて会話を空にする頼み方を添える
+// idle は空きになったワークルームの AI に添える文（aiWorkroomIdle。無ければ空）。作業から離れたなら、引継ぎページを書いて会話をリフレッシュする頼み方を添える
 function workChangeText(now: WorkroomWork, from: string, to: string, idle: string): string {
   const desk = `read_folder with folder "${MY_WORKDESK}"`
   const head =
@@ -83,5 +83,5 @@ function workChangeText(now: WorkroomWork, from: string, to: string, idle: strin
       ? `${from ? `${from} ended` : "Your current work ended"}: your workroom has no current work now.${idle ? ` ${idle}` : ""} Your workdesk now shows your workroom's own worker book: read it (${desk}).`
       : `${from ? `Your current work changed from ${from} to ${to}.` : `Your current work is now ${to}.`} Read it: read_records with kind "${now.key.subject}" and id "${now.key.id}". Then read your worker book (the book of your current work): ${desk}. To write to the user about this work (to consult or to ask), add a page to that worker book with worker-page-add instead of making a book with book-create.`
   if (!from) return head
-  return `${head} If your conversation should be cleared for what comes next, perform ${CLEAR_REQUEST_ID} with a handoff page: the state of ${from} (what you were asked, what you found, what is left), added to its worker book; the conversation is then cleared after this turn.`
+  return `${head} If your conversation should be cleared for what comes next, perform ${REFRESH_REQUEST_ID} with the handoff page of ${from} (its state: what you were asked, what you found, what is left), added to its worker book; the conversation is then cleared after this turn.`
 }

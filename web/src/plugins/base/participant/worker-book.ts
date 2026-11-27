@@ -11,7 +11,7 @@ import type { RecordReader } from "../../../core/record-source"
 import { kit } from "../kit"
 import { TICKETS_HISTORY } from "../library/backyards"
 import { workRecordNameOf, workRecordNameReadsOf, workroomWorkIn, workroomWorkReadsOf } from "./activity"
-import { CLEAR_REQUEST_ID } from "./clear-request-id"
+import { REFRESH_REQUEST_ID } from "./refresh-request-id"
 import { WORKROOM } from "./workroom"
 
 // 機能台帳 catalog で、ワーカーブックを引くのに読む種類（ワークルームの作業を答える種類と作業のレコードの名前を引く種類が読む物と、ワークルーム）
@@ -57,17 +57,17 @@ export function foundWorkerBookOf(folders: Folders, key: WorkKey): FoundWorkerBo
 }
 
 // AI の行う者 actor がアクション action で、バックヤードのブック entry を書けるか: tickets-history のブックなら、自分のワークルームのワーカーブック（workKey が同じ）だけ。
-// 会話を空にする頼み（clear-request）は、自分のワークルームが離れた作業（ワークルームのレコードの left）のワーカーブックにも書ける（引き継ぎのページ）。
+// リフレッシュリクエストのアクション（refresh-request）は、自分のワークルームの引継ぎ対象チケット（ワークルームのレコードの handoffTarget）のワーカーブックにも書ける（引継ぎページ）。
 // ほかのバックヤードのブックと、利用者は止めない
 function writable(input: PermissionInput, actor: Actor, action: string, entry: BackyardEntry | undefined): boolean {
   if (!entry || entry.backyard !== TICKETS_HISTORY.id || !isAI(actor)) return true
   const room = workroomOfActor(actor)
   if (room === NO_WORKROOM) return false
   if (sameWorkKey(workerBookOf(input.catalog, input.read, room).workKey, entry.workKey)) return true
-  if (action !== CLEAR_REQUEST_ID) return false
+  if (action !== REFRESH_REQUEST_ID) return false
   const record = WORKROOM.record.safeParse(input.read.record(WORKROOM.id, room))
-  const left = record.success ? record.data.left : undefined
-  return left !== undefined && sameWorkKey(left, entry.workKey)
+  const target = record.success ? record.data.handoffTarget : undefined
+  return target !== undefined && sameWorkKey(target, entry.workKey)
 }
 
 // ワーカーブック: tickets-history のブック（とその中のページ）を書けるのは、そのブックがワーカーブックのワークルームの AI と、利用者だけ（ほかの AI は読むだけ）。
@@ -76,7 +76,7 @@ export const WORKER_BOOK = kit.definePermission({
   id: "worker-book",
   title: "Another workroom's worker book",
   aiDescription:
-    "the book is the worker book of another workroom's current work (or of a work no workroom has now); you can read it and answer its notes and marks, but only the AI whose current work it is, and the user, can change it (the AI whose workroom left that work can add its handoff page with clear-request)",
+    "the book is the worker book of another workroom's current work (or of a work no workroom has now); you can read it and answer its notes and marks, but only the AI whose current work it is, and the user, can change it (the AI whose workroom had that work just before can add its handoff page with refresh-request)",
   readsSubjects: workerBookReadsOf,
   denies: (q, input) =>
     (q.kind === "page" || q.kind === "folder") &&

@@ -37,9 +37,21 @@ func selfExecutable() string {
 
 // claudeCodeCmd は、Claude Code のプラグインが呼ぶコマンドの組
 type claudeCodeCmd struct {
-	MCP   claudeMCPCmd   `cmd:"" name:"mcp" help:"Serve the MCP tools for Claude Code (with the development server when the project is the matomezu repository)."`
-	Hook  claudeHookCmd  `cmd:"" help:"Claude Code's hooks."`
-	Watch claudeWatchCmd `cmd:"" help:"Claude Code's monitor: print one line for each thing that should wake this session (with --via mod, for the plugin's mod in Claude Desktop, which submits each line as a prompt)."`
+	MCP        claudeMCPCmd        `cmd:"" name:"mcp" help:"Serve the MCP tools for Claude Code (with the development server when the project is the matomezu repository)."`
+	Hook       claudeHookCmd       `cmd:"" help:"Claude Code's hooks."`
+	Watch      claudeWatchCmd      `cmd:"" help:"Claude Code's monitor: print one line for each thing that should wake this session (with --via mod, for the plugin's mod in Claude Desktop, which submits each line as a prompt)."`
+	RefreshDue claudeRefreshDueCmd `cmd:"" name:"refresh-due" help:"For the plugin's mod at the end of a turn: print the text to submit after clearing the conversation when the session's AI asked to have its conversation refreshed (refresh-request), or nothing."`
+}
+
+type claudeRefreshDueCmd struct {
+	Session string `required:"" help:"The session id."`
+}
+
+// Run は、ターンの終わりに、セッションの AI が受けたリフレッシュリクエストを常駐に訊き、あれば空にしたあとに打つ文を 1 行出す（無い・常駐が立っていなければ何も出さない）
+func (c claudeRefreshDueCmd) Run() error {
+	claudeDev()
+	refreshDue(os.Stdout, c.Session, runningAPI("api/ai/refresh-due"))
+	return nil
 }
 
 // claudeDev は、Claude Code が開いているプロジェクトが matomezu のリポジトリなら、開発の常駐を使い（起動し直すことがある）、その根を返す。
@@ -112,7 +124,7 @@ type claudePromptCmd struct{}
 // Run は、ターンの始まりを知らせ、待つアノテーションを添える
 func (claudePromptCmd) Run() error {
 	claudeDev()
-	hookPrompt(hookHost(claudelaunch.HooksSendHost), claudelaunch.HookSetsTitle, claudelaunch.Woken, claudelaunch.ChatThread)
+	hookPrompt(hookHost(claudelaunch.HooksSendHost), claudelaunch.HookSetsTitle, claudelaunch.Woken, claudelaunch.ChatThread, true)
 	return nil
 }
 
@@ -209,7 +221,7 @@ type codexPromptCmd struct{}
 // Run は、ターンの始まりを知らせ、待つアノテーションを添える
 func (codexPromptCmd) Run() error {
 	codexDev()
-	hookPrompt(hookHost(codexlaunch.HooksSendHost), codexlaunch.HookSetsTitle, nil, nil)
+	hookPrompt(hookHost(codexlaunch.HooksSendHost), codexlaunch.HookSetsTitle, nil, nil, false)
 	return nil
 }
 
@@ -241,8 +253,9 @@ func (c opencodeMCPCmd) Run() error {
 
 // hookPrompt は、話しかけのフック: 待つアノテーションの文を添えて、ターンの始まりを常駐に知らせ、フックの答えを出す（host は AI のプログラムのプロセス id、分からなければ空。
 // titled は、答えに会話の題名 sessionTitle を書くか。woken は、フックが --woken を渡せない AI のプログラムが、裏の知らせで始まったターンを入力から見分ける物。渡せるなら nil。
-// thread は、AI のプログラムのプロセス id とセッション id からチャットスレッドの id を読む物。読めない AI のプログラムは nil）
-func hookPrompt(host string, titled bool, woken func(prompt string) bool, thread func(host, session string) string) {
+// thread は、AI のプログラムのプロセス id とセッション id からチャットスレッドの id を読む物。読めない AI のプログラムは nil。
+// refreshable は、AI のプログラムが、プラグインの部品で会話を空にできるか（リフレッシュリクエストを受けられると名乗る））
+func hookPrompt(host string, titled bool, woken func(prompt string) bool, thread func(host, session string) string, refreshable bool) {
 	hook := stdinHook()
 	var notes bytes.Buffer
 	writeAnnotations(&notes, hook.SessionID)
@@ -251,6 +264,7 @@ func hookPrompt(host string, titled bool, woken func(prompt string) bool, thread
 	hook.Woken = hook.Woken || (woken != nil && woken(hook.Prompt))
 	hook.Rename = renameAdeWorkspace
 	hook.Thread = thread
+	hook.Refreshable = refreshable
 	talked(os.Stdout, hook, notes.String(), formatHook, runningAPI("api/ai/talked"))
 }
 

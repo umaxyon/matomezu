@@ -103,7 +103,14 @@ type Output struct {
 	AIEditTickets []AIEditTicketChange        `json:"aiEditTickets,omitempty"` // レコードが対象のアクションが返した、AI 編集チケットの変え方の並び（レコードと同じ 1 回の書き込みで、順に当てる）
 	AIMessages    []AIMessage                 `json:"aiMessages,omitempty"`    // レコードが対象のアクションが返した、送る AI 間メッセージ（行ったのは参加の確定した AI。常駐が書き込みと一緒に送る）
 	HostMessages  []HostMessage               `json:"hostMessages,omitempty"`  // フォローステップが返した、送る常駐メッセージ（常駐が書き込みと一緒に送る）
-	Needs         []string                    `json:"needs,omitempty"`         // 断りが needs-rows のとき、行を足して行い直すブックの id（フォローステップがバックヤードの中に行う事の先）
+	// RefreshRequest は、書庫かレコードが対象のアクションが返したリフレッシュリクエスト（行ったのはワークルームに入っている AI。バルクに 1 つまで。常駐が、書き込めたら行った参加者に覚える）
+	RefreshRequest *RefreshRequest `json:"refreshRequest,omitempty"`
+	Needs          []string        `json:"needs,omitempty"` // 断りが needs-rows のとき、行を足して行い直すブックの id（フォローステップがバックヤードの中に行う事の先）
+}
+
+// RefreshRequest は、行った AI の会話をこのターンの終わりに空にする頼み（Text は、空にしたあとの新しい会話に打つ英語の文）
+type RefreshRequest struct {
+	Text string `json:"text"`
 }
 
 // HostMessage は、フォローステップが送る常駐メッセージ 1 通（Workroom は宛先のワークルームの id。送り手は常駐）

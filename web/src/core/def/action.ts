@@ -143,6 +143,15 @@ export interface Done<T extends ActionTarget, R, Sc = "book", Tk = unknown> {
   aiEditTickets?: T extends SubjectId ? readonly AIEditTicketChange[] : never
   // レコードが対象のアクションだけが書ける、送る AI 間メッセージの並び（AIMessage）
   aiMessages?: T extends SubjectId ? readonly AIMessage[] : never
+  // リフレッシュリクエスト（RefreshRequest）。書庫が対象のアクションとレコードが対象のアクションが書ける
+  refreshRequest?: T extends SubjectId | "library" ? RefreshRequest : never
+}
+
+// リフレッシュリクエスト: 行った AI の会話を、このターンの終わりに空にする頼み。text は、空にしたあとの新しい会話に打つ英語の文。
+// 返せるのは、行う者がワークルームに入っている AI のときだけで、1 つのアクションバルクに 1 つまで。
+// 常駐は、アクションバルクが通ったときだけ行った参加者に覚え、AI のプログラムの部品が訊いたときに渡す（空にできると名乗っていない参加者なら、バルクごと断る）
+export interface RefreshRequest {
+  text: string
 }
 
 // run が断るときに、断った理由を添える値。declined は AI への説明に載る英語の文（ぶつかった相手や、代わりに入る所など。画面には出さない）。

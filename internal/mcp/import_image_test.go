@@ -62,8 +62,8 @@ func TestImportImageRefusals(t *testing.T) {
 		}
 	}
 	for answer, want := range map[string]string{
-		`{"ok":false,"reason":"too-large"}`: "too-large:",
-		`{"ok":false,"reason":"not-image"}`: "not-image:",
+		`{"ok":false,"reason":"too-large"}`:                             "too-large:",
+		`{"ok":false,"reason":"not-image"}`:                             "not-image:",
 		`{"ok":false,"reason":"not-joined","detail":"call join first"}`: "not-joined: call join first",
 	} {
 		if text, failed := importImageCall(t, &fakeAPI{answer: answer}, `{"svg":"x"}`); failed || !strings.HasPrefix(text, want) {

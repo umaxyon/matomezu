@@ -93,9 +93,9 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   Session: { en: "Session", ja: "セッション" },
   "Cancel a join request": { en: "Cancel a join request", ja: "参加要求をキャンセルする" },
   "Add a page to the worker book": { en: "Add a page to the worker book", ja: "ワーカーブックにページを足す" },
-  "Write the handoff and clear the conversation": {
-    en: "Write the handoff and clear the conversation",
-    ja: "引き継ぎを書いて会話を空にする",
+  "Write the handoff page and refresh the conversation": {
+    en: "Write the handoff page and refresh the conversation",
+    ja: "引継ぎページを書いて会話をリフレッシュする",
   },
   "Another workroom's worker book": { en: "Another workroom's worker book", ja: "ほかのワークルームのワーカーブック" },
   "A page's name cannot start with the book's name": {

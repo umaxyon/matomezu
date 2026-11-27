@@ -62,6 +62,8 @@ type participantNote struct {
 	WakeSession     string `json:"wakeSession,omitempty"`     // 起こす知らせの宛て先のセッション id（join の頼みに MCP が添えた、AI のプログラムが MCP を立てたときの物。プロセスが替わるとフックが移す。followHost。watch.go）
 	SessionPid      string `json:"sessionPid,omitempty"`      // セッションと同じだけ生きるプロセスだと MCP が名乗ったプロセス id（居なくなったら退室。名乗った呼び出しが書き、起こす知らせの宛て先を移すときに消す）
 	SessionPidSpace string `json:"sessionPidSpace,omitempty"` // そのプロセス id が通じる範囲の印（常駐の印と同じときだけ、居るかを確かめる）
+	Refreshable     bool   `json:"refreshable,omitempty"`     // 結んだ会話の AI のプログラムが、会話を空にできると名乗った（話しかけのフックが添える。refresh.go）
+	RefreshDue      string `json:"refreshDue,omitempty"`      // 受けたリフレッシュリクエストの、空にしたあとの新しい会話に打つ文（AI のプログラムの部品が訊いたら渡して消す。refresh.go）
 }
 
 // live は、窓に知らせる参加者の様子（モデルとブランチ。空は省く）

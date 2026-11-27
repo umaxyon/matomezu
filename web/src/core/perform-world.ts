@@ -10,6 +10,7 @@ import {
   type ActionTarget,
   type AIEditTicketChange,
   type AIMessage,
+  type RefreshRequest,
   takesBook,
 } from "./def/action"
 import type { HostMessage } from "./def/follow-step"
@@ -68,6 +69,7 @@ export type PerformedIn =
       counters?: Counters // レコードが対象のアクションが進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）
       aiEditTickets?: readonly AIEditTicketChange[] // レコードが対象のアクションが返した、AI 編集チケットの変え方の並び（レコードと同じ 1 回の書き込みで当てる）
       aiMessages?: readonly AIMessage[] // レコードが対象のアクションが返した、送る AI 間メッセージの並び（常駐がバルクの書き込みと一緒に送る）
+      refreshRequest?: RefreshRequest // 書庫かレコードが対象のアクションが返したリフレッシュリクエスト（常駐が、バルクが通ったら行った参加者に覚える）
       // records のうち、フォローステップが応じて変えたレコード（core/follow.ts。常駐は、行う者に関わらず、これが編集ロックに当たれば断る）
       followed?: readonly { subject: string; id: string }[]
       // フォローステップがバックヤードの中で消したページ・フォルダと、名前を変えたブックと、アノテーションを消したページ（常駐は、行う者に関わらず、これが編集ロックに当たれば断る）
@@ -218,6 +220,7 @@ function changedLibrary(naming: Naming, world: World, done: ReturnType<typeof pe
     result: done.result,
     ...(noChanges(changes) ? {} : { changes }),
     ...(Object.keys(changed).length === 0 ? {} : { annotations: changed }),
+    ...(done.refreshRequest ? { refreshRequest: done.refreshRequest } : {}),
   }
 }
 
@@ -262,6 +265,7 @@ function changedBook(naming: Naming, world: World, book: Book, done: ReturnType<
     result: done.result,
     ...(noChanges(changes) ? {} : { changes }),
     ...(Object.keys(changed).length === 0 ? {} : { annotations: changed }),
+    ...(done.refreshRequest ? { refreshRequest: done.refreshRequest } : {}),
   }
 }
 
@@ -395,6 +399,7 @@ function performRecord(
     ...(records.length > 0 && Object.keys(used).length > 0 ? { counters: { [target]: used } } : {}),
     ...(done.aiEditTickets ? { aiEditTickets: done.aiEditTickets } : {}),
     ...(done.aiMessages ? { aiMessages: done.aiMessages } : {}),
+    ...(done.refreshRequest ? { refreshRequest: done.refreshRequest } : {}),
   }
 }
 

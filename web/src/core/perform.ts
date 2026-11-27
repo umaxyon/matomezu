@@ -3,7 +3,7 @@
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
 
 import type { z } from "zod"
-import { NO_WORKROOM, workroomOfActor } from "./actor"
+import { isAI, NO_WORKROOM, workroomOfActor } from "./actor"
 import { type Annotation, annotationsSettle, type PageAnnotations } from "./annotation"
 import { findPage, foundPage, keepsPageTypes, keepsTypesIn, NO_PAGE, outsideHolds, pageSettles, putPage } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
@@ -18,6 +18,7 @@ import {
   type Declined,
   type Done,
   type OtherRecord,
+  type RefreshRequest,
   type SubjectData,
   takesBook,
 } from "./def/action"
@@ -126,6 +127,7 @@ export type Performed<Id extends ActionId, S = SubjectOf<Id>> =
       others?: readonly OtherRecord<never>[]
       aiEditTickets?: readonly AIEditTicketChange[]
       aiMessages?: readonly AIMessage[]
+      refreshRequest?: RefreshRequest
     }
   | Refused
 
@@ -252,6 +254,11 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
   const messages = isRecordTarget(ctx.catalog, action.target) ? (ran.aiMessages ?? []) : []
   if (messages.length > 0 && workroomOfActor(ctx.actor) === NO_WORKROOM)
     return { ok: false, reason: "refused", detail: "only an AI in a workroom sends AI messages" }
+  // リフレッシュリクエストは、書庫かレコードが対象のアクションで、行う者がワークルームに入っている AI のときだけ
+  const refresh =
+    action.target === "library" || isRecordTarget(ctx.catalog, action.target) ? ran.refreshRequest : undefined
+  if (refresh && (!isAI(ctx.actor) || workroomOfActor(ctx.actor) === NO_WORKROOM))
+    return { ok: false, reason: "refused", detail: "only an AI in a workroom asks to have its conversation refreshed" }
   if (isRecordTarget(ctx.catalog, action.target)) {
     const changes = recordChanges(ctx, action, subject, done.next, others)
     if (!changes) return { ok: false, reason: "refused" }
@@ -272,6 +279,7 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
       ? { aiEditTickets: ran.aiEditTickets }
       : {}),
     ...(messages.length > 0 ? { aiMessages: messages } : {}),
+    ...(refresh ? { refreshRequest: refresh } : {}),
   } as Performed<Id, S>
 }
 

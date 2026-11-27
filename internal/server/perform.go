@@ -128,6 +128,12 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, *envelopesRefused)
 		return *envelopesRefused, nil
 	}
+	// リフレッシュリクエストは、会話を空にできると名乗った参加者のときだけ受ける（でなければ、何も変えずにバルクごと断る。refresh.go）
+	if refused := h.refreshRefused(out.RefreshRequest, p.Participant); refused != nil {
+		h.remember(p.Key, *refused)
+		h.ack(p, *refused)
+		return *refused, nil
+	}
 	hostEnvelopes, err := h.hostEnvelopes(out.HostMessages, in.Actor)
 	if err != nil {
 		return Performed{}, err
@@ -165,6 +171,9 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.deliverHost(e)
 	}
 	h.wakeOnParticipants(requested, cancelled)
+	if err := h.keepRefresh(out.RefreshRequest, p.Participant); err != nil {
+		return Performed{}, err
+	}
 	h.remember(p.Key, done)
 	h.ack(p, done)
 	return done, nil
