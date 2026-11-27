@@ -476,6 +476,8 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   requestCopyEvent?: () => boolean
   // キー key でブラウザが起こすクリップボードのイベント（起こさなければ undefined）。無ければ、どのキーも起こさないとして、クリップボードを使うコマンドもその場で行う
   clipboardEventOf?: (key: string) => ClipboardUse | undefined
+  // キーで待たせたクリップボードを使うコマンドが、ブラウザのクリップボードのイベントを待つ長さ（ミリ秒）。無ければ次のタイマーまで
+  clipboardEventWaitMs?: number
   // アセット（画像のバイト列）をホストに置く口と、中身を読む URL。無ければ、置くと投げ（E416）、URL は NO_ASSET_URL
   assetsHost?: { put(bytes: Blob): Promise<AssetPut>; url(id: string): string }
   command?: string // 利用者が端末で打つ matomezu の名前。無ければ matomezu

@@ -360,3 +360,17 @@ test("OS のクリップボードから読んだ物は、形の崩れた写し�
   ).toBeNull()
   expect(clipOfData(CORE_CATALOG, "x")).toBeNull()
 })
+
+test("イベントが遅れて来るブラウザでも（Mac の Chrome は Command+V のあと 20 ms ほど）、待つ長さのうちに来れば、その中の OS のクリップボードから貼る", async () => {
+  const from = readyClip()
+  from.actions.select("s1", [place(from as never, NEST, { at: { x: 0, y: 0 } })])
+  from.actions.pressKey("Mod+C", ["stage"])
+  const carried = transfer()
+  from.clipboardEvent("copy", carried, HOST)
+
+  const to = sizedStore({ clipboardEventOf: key => CLIPBOARD_KEYS[key], clipboardEventWaitMs: 100 })
+  expect(to.actions.pressKey("Mod+V", ["stage"])).toBe("waits")
+  await new Promise(done => setTimeout(done, 20))
+  expect(to.clipboardEvent("paste", carried, HOST)).toBe(true)
+  expect(shapesOf(page(to as never))).toHaveLength(1)
+})

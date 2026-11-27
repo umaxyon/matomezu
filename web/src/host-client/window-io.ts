@@ -10,6 +10,7 @@ export interface WindowIo {
   copyText?: (text: string) => Promise<void>
   requestCopyEvent?: () => boolean
   clipboardEventOf?: (key: string) => ClipboardUse | undefined
+  clipboardEventWaitMs?: number
   setWindowTitle: (title: string) => void
   windowTitle: () => string
   reloadWindow: () => void
@@ -25,6 +26,7 @@ export function browserWindowIo(): WindowIo {
     // メニューから呼んだコピーにも copy のイベントを起こす（押した処理の中で呼べば、Chromium はイベントを起こす。古い口だが、代わりの口は独自の形式を書けない）
     requestCopyEvent: () => document.execCommand("copy"),
     clipboardEventOf: key => CLIPBOARD_KEYS[key],
+    clipboardEventWaitMs: CLIPBOARD_EVENT_WAIT_MS,
     setWindowTitle: title => {
       document.title = title
     },
@@ -34,7 +36,11 @@ export function browserWindowIo(): WindowIo {
 }
 
 // ブラウザがクリップボードのイベントを起こすキーと、起こすイベント（Mac の Command は Mod。Windows の Insert・Delete の組も起こす）。
-// Chromium では、イベントはキーを押した処理の続きで、次のタイマーより前に来る（インスタンスは、来なければ次のタイマーでクリップボード無しで行う）
+// イベントの来る早さはブラウザで違う（Linux の Chromium ではキーを押した処理の続きで来るが、Mac の Chrome では Command+V が編集のメニューを通るので 20 ms ほどあとに来る）
+// キーで待たせたコマンドが、そのイベントを待つ長さ（ミリ秒）。来なければ、インスタンスはクリップボード無しで行う（イベントを起こさないブラウザでも、窓の写しで効くように）。
+// 遅いブラウザでも来るよう、人が待ったと感じない長さで大きめに取る
+export const CLIPBOARD_EVENT_WAIT_MS = 300
+
 export const CLIPBOARD_KEYS: Readonly<Record<string, ClipboardUse>> = {
   "Mod+C": "copy",
   "Mod+Insert": "copy",

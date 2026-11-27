@@ -602,7 +602,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   }
   let toasts = 0 // トーストの id の番号（出すたびに 1 つ進める）
   // クリップボードを使うコマンドの、続くブラウザのクリップボードのイベントを待っている物（キーを押した時か、メニューから copy を起こしてもらう時に置く）。
-  // イベントは次のタイマーより前に来る（ホストクライアントの clipboardEventOf の表が確かめた事）。来ないブラウザでは、次のタイマーでクリップボード無しで行う（窓の写しを使う）。
+  // イベントを待つのは、ホストクライアントが言う長さ（clipboardEventWaitMs。無ければ次のタイマーまで）。来なければ、そこでクリップボード無しで行う（窓の写しを使う）。
   // 行う時に待ちを空にするので、イベントが遅れて来ても 2 度は行わない
   // ran は、イベントの中で行ったときの、行えたか
   let waiting: { stage: string; id: CommandId; args: unknown[]; use: ClipboardUse; ran?: boolean } | null = null
@@ -612,7 +612,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (waiting !== w) return
       waiting = null
       runCommand(w.stage, w.id, ...w.args)
-    }, 0)
+    }, options.clipboardEventWaitMs ?? 0)
   }
   // 今行っている、クリップボードのイベントの中のコマンドに渡す物（イベントの外なら null）
   let inEvent: { transfer: ClipTransfer; host: string } | null = null
