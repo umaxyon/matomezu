@@ -2,7 +2,7 @@
 // 「画面を分割」では、ブックスクリーンが上に縮み終えてから、書庫のスクリーンが右から入る
 import { BOOK_SCREEN_URL, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
-import { track } from "./helpers/motion"
+import { motionAt, passesMidway, track } from "./helpers/motion"
 import { fromMenu } from "./helpers/stage-menu"
 import { storedBooks } from "./helpers/stored"
 
@@ -29,12 +29,17 @@ test("「画面を分割」では、ブックスクリーンが上に縮み終�
   await settled(page)
   const { width, height } = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }))
   const menu = await fromMenu(page, "画面を分割")
-  const [frames] = await Promise.all([track(page, { book: BOOK, plain: PLAIN }), menu.click()])
-  // ブックスクリーンは縮む途中を通り、その間、書庫のスクリーンは右の外にいる
-  const shrinking = frames.filter(f => f.book && f.book.height > height * 0.55 && f.book.height < height * 0.95)
-  expect(shrinking.length).toBeGreaterThan(0)
-  for (const f of shrinking) expect(f.plain === null || f.plain.left >= width - 1).toBe(true)
-  expect(frames.some(f => f.plain && f.plain.left > 10 && f.plain.left < width - 10)).toBe(true)
+  const [motion] = await Promise.all([track(page, { book: BOOK, plain: PLAIN }), menu.click()])
+  // ブックスクリーンは縮む途中を通り、縮み終える前は、書庫のスクリーンは右の外にいる
+  expect(passesMidway(motion, "book", "height", b => b.height > height * 0.55 && b.height < height * 0.95)).toBe(true)
+  for (const f of motion.frames.filter(f => f.book && f.book.height > height * 0.55))
+    expect(f.plain === null || f.plain.left >= width - 1).toBe(true)
+  const shrunk = motionAt(motion, "book", "height", "end")
+  const enters = motionAt(motion, "plain", "transform", "start")
+  expect(shrunk).toBeDefined()
+  expect(enters).toBeDefined()
+  expect(enters!).toBeGreaterThanOrEqual(shrunk!)
+  expect(passesMidway(motion, "plain", "transform", p => p.left > 10 && p.left < width - 10)).toBe(true)
 })
 
 test("書庫のスクリーンからブックを開くと、ブックスクリーンが書庫の上を右から滑り込み、書庫は動かない。閉じると右へ出ていく", async ({
@@ -46,13 +51,13 @@ test("書庫のスクリーンからブックを開くと、ブックスクリ�
   await expect(library).toBeVisible()
   await settled(page)
   const width = await page.evaluate(() => innerWidth)
-  const [frames] = await Promise.all([
+  const [motion] = await Promise.all([
     track(page, { book: BOOK, center: "section[data-held]" }),
     library.getByRole("button", { name: "残課題" }).dblclick(),
   ])
-  expect(frames.some(f => f.book && f.book.left > 10 && f.book.left < width - 10)).toBe(true)
+  expect(passesMidway(motion, "book", "transform", b => b.left > 10 && b.left < width - 10)).toBe(true)
   // 滑り込む間、後ろ（コントロールセンターの側）は左に寄ったまま
-  for (const f of frames) if (f.book && f.book.left > 10 && f.center) expect(f.center.left).toBe(0)
+  for (const f of motion.frames) if (f.book && f.book.left > 10 && f.center) expect(f.center.left).toBe(0)
   await settled(page)
   await expect(library).toBeHidden()
 
@@ -60,7 +65,7 @@ test("書庫のスクリーンからブックを開くと、ブックスクリ�
     track(page, { leaving: "[data-leaving]" }),
     page.locator("[data-footer-close]").locator("visible=true").click(),
   ])
-  expect(out.some(f => f.leaving && f.leaving.left > 10 && f.leaving.left < width - 10)).toBe(true)
+  expect(passesMidway(out, "leaving", "book-leave", l => l.left > 10 && l.left < width - 10)).toBe(true)
   await settled(page)
   await expect(library).toBeVisible()
 })
@@ -134,7 +139,7 @@ test("ブックスクリーンの下の段の郵便箱を閉じると、郵便�
   await expect(panes).toHaveCount(1)
   await settled(page)
   const height = await page.evaluate(() => innerHeight)
-  const [frames] = await Promise.all([
+  const [{ frames }] = await Promise.all([
     track(page, {
       book: BOOK,
       center: 'section [data-top="true"][data-row="false"]',
@@ -180,15 +185,15 @@ test("上の段のブックスクリーンを閉じると、下の段の郵便�
   page,
 }) => {
   await bookOverMailbox(page, ["行き先"])
-  const [frames] = await Promise.all([
+  const [motion] = await Promise.all([
     track(page, { leaving: "[data-over][data-leaving]", mailbox: 'section [data-row="true"]' }),
     page.getByRole("button", { name: "スクリーンを閉じる" }).filter({ visible: true }).first().click(),
   ])
   // 郵便箱は飛ばずに滑って出ていく（右の外へ着くまでに、間の位置を通る）
   const width = await page.evaluate(() => innerWidth)
-  expect(frames.some(f => (f.mailbox?.left ?? 0) > 0 && (f.mailbox?.left ?? width) < width * 0.8)).toBe(true)
-  expect(frames.some(f => (f.leaving?.left ?? 0) > 0)).toBe(true)
-  expect(frames.at(-1)).toEqual({ leaving: null, mailbox: null })
+  expect(passesMidway(motion, "mailbox", "transform", m => m.left > 0 && m.left < width * 0.8)).toBe(true)
+  expect(passesMidway(motion, "leaving", "book-leave", l => l.left > 0)).toBe(true)
+  expect(motion.frames.at(-1)).toEqual({ leaving: null, mailbox: null })
   const tile = (name: string) => page.getByRole("button", { name, exact: true }).filter({ visible: true }).first()
   await expect(tile("プロジェクト")).toHaveAttribute("aria-pressed", "true")
 })

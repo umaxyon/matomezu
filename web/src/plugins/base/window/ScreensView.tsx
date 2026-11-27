@@ -117,9 +117,11 @@ export function ScreensView() {
     shown: new Set(plainScreens.filter(id => rowOf(id) !== null || (!splitting && id === top?.id))),
   }
   // ブックスクリーンと並べていたステージを並べないスクリーンを閉じて、ブックスクリーンが窓いっぱいに戻るとき（unmixing）は、閉じた物が右へ出ていき終えるまで、
-  // コントロールセンターの側を並べていたときの見せ方のまま残し（後ろのコントロールセンターを見せない）、ブックスクリーンはそのあとで伸びる
+  // コントロールセンターの側を並べていたときの見せ方のまま残し（後ろのコントロールセンターを見せない）、ブックスクリーンも並びの行の位置と高さのまま残す。
+  // 閉じた物がみな出ていき終えたら（leaving が空になったら）、ブックスクリーンが伸びる（出ていく物の動きの終わりを合図にし、重くてコマが遅れても順が崩れない）
   const lastMixed = useRef<string | undefined>(splitBook)
-  const [unmixing, setUnmixing] = useState<string | undefined>(undefined)
+  const lastBookRows = useRef<ReadonlyMap<string, Row | null>>(new Map())
+  const [unmixing, setUnmixing] = useState<{ book: string; row: Row | null } | undefined>(undefined)
   const wasMixed = lastMixed.current
   if (
     wasMixed !== undefined &&
@@ -127,22 +129,17 @@ export function ScreensView() {
     currentKind === "book-screen" &&
     recentBook === wasMixed &&
     gone.length > 0 &&
-    unmixing !== wasMixed
+    unmixing?.book !== wasMixed
   )
-    setUnmixing(wasMixed)
-  if (unmixing !== undefined && (mixed || recentBook !== unmixing)) setUnmixing(undefined)
+    setUnmixing({ book: wasMixed, row: lastBookRows.current.get(wasMixed) ?? null })
+  if (unmixing !== undefined && (mixed || recentBook !== unmixing.book)) setUnmixing(undefined)
+  // みな出ていき終えたら、同じ描き直しで伸ばす（出ていき終えた物が消えたコマと、伸び始めるコマをそろえる）
+  else if (unmixing !== undefined && leaving.length === 0) {
+    setUnmixing(undefined)
+    setInstant(true)
+  }
   lastMixed.current = splitBook
-  useEffect(() => {
-    if (unmixing === undefined) return
-    const timer = setTimeout(
-      () => {
-        setUnmixing(undefined)
-        setInstant(true)
-      },
-      reduced() ? 0 : SLIDE_MS,
-    )
-    return () => clearTimeout(timer)
-  }, [unmixing])
+  lastBookRows.current = new Map(stageScreens.map(id => [id, rowOf(id)]))
   const looksMixed = mixed || unmixing !== undefined
   // 窓いっぱいに見せるブックスクリーンが替わったら、新しく見せる物を、ほかのスクリーンの上に出す（over。その間、コントロールセンターの側は動かさずに残す）。
   // 並びの外から来た物は右から滑り込み、並びの中にいた物（下の行の □ で広げた）はその場から伸びる。閉じたスクリーンの後ろから出てきたときは、動かさない
@@ -194,15 +191,12 @@ export function ScreensView() {
     )
     return () => clearTimeout(timer)
   }, [over])
-  useEffect(() => {
-    if (leaving.length === 0) return
-    const timer = setTimeout(() => setLeaving([]), reduced() ? 0 : SLIDE_MS)
-    return () => clearTimeout(timer)
-  }, [leaving])
+  // 閉じた物は、右へ出ていき終えたら描くのをやめる
+  const left = (id: string) => setLeaving(now => now.filter(l => l.screen.id !== id))
   return (
     <>
       {stageScreens.map(id => {
-        const row = rowOf(id)
+        const row = unmixing?.book === id ? unmixing.row : rowOf(id)
         return (
           <BookScreen
             key={id}
@@ -213,7 +207,6 @@ export function ScreensView() {
             footer={footer}
             currentInRow={row !== null && id === current}
             fresh={!first.current?.includes(id)}
-            growsLate={id === unmixing}
             closing={instant && over === undefined}
             over={over?.id === id}
             slidesOver={over?.id === id && over.slides}
@@ -265,6 +258,7 @@ export function ScreensView() {
               flash={0}
               slides
               late={false}
+              onLeft={() => left(l.screen.id)}
             />
           ))}
         </div>
@@ -324,7 +318,6 @@ function BookScreen({
   footer,
   currentInRow,
   fresh,
-  growsLate,
   over,
   slidesOver,
   closing,
@@ -338,7 +331,6 @@ function BookScreen({
   footer: boolean
   currentInRow: boolean
   fresh: boolean
-  growsLate: boolean // 閉じた物が右へ出ていき終えてから、窓いっぱいへ伸びる
   over: boolean
   slidesOver: boolean
   closing: boolean
@@ -392,7 +384,7 @@ function BookScreen({
       data-shown={shown}
       data-row={inRow}
       data-in={entered}
-      data-late={waits || growsLate}
+      data-late={waits}
       data-over={over}
       data-moves={moves}
       data-footer={footer}
@@ -439,7 +431,7 @@ function useSlideOutWhenClosed(
 }
 
 // ステージを並べないスクリーン 1 枚。slides なら、描いた次のコマで右から滑り込ませる（late なら、上の物が縮むのを待ってから）。
-// closed を渡すと、閉じたスクリーンを、位置を戻した形で描いた次のコマに右へ滑り出させる（最初から右に描くと、動かずに消える）。
+// closed を渡すと、閉じたスクリーンを、位置を戻した形で描いた次のコマに右へ滑り出させる（最初から右に描くと、動かずに消える）。滑り出し終えたら onLeft を呼ぶ。
 // row があれば、上下に分けた並びの位置と高さで描く（無ければ、窓いっぱい）。重なりは layer。見えていない物は、操作も読み上げも受けない。
 // flash が増えると、枠を一瞬光らせて消す
 function PlainScreen({
@@ -452,6 +444,7 @@ function PlainScreen({
   slides,
   late,
   closed,
+  onLeft,
   onPress,
 }: {
   screen: string
@@ -463,6 +456,7 @@ function PlainScreen({
   slides: boolean
   late: boolean
   closed?: OpenedScreen
+  onLeft?: () => void
   onPress?: () => void
 }) {
   // 並びから外れて見えなくなった物（閉じずに開いたまま）は、閉じる物と同じく右へ滑り出て、また見せるときに右から滑り込む
@@ -481,6 +475,23 @@ function PlainScreen({
   // 縮むのを待つのは、滑り込む 1 回だけ（入ったあとの位置の変わりは待たない）
   const [waits, setWaits] = useState(late && slides)
   useSlideFrames(entered, goal, setEntered, waits, setWaits)
+  // 閉じた物の滑り出しの終わり。動きを減らす設定ではすぐ。終わりの知らせが来ない（描かれずに動かないなど）ときも、滑り出してから滑る時間の何倍かで終える
+  const leftOnce = useRef(false)
+  const leave = () => {
+    if (leftOnce.current) return
+    leftOnce.current = true
+    onLeft?.()
+  }
+  const leaveRef = useRef(leave)
+  leaveRef.current = leave
+  useEffect(() => {
+    if (!closed || (entered && !reduced())) return
+    const timer = setTimeout(() => leaveRef.current(), reduced() ? 0 : SLIDE_MS * 4)
+    return () => clearTimeout(timer)
+  }, [closed, entered])
+  const slidOut = (e: TransitionEvent<HTMLDivElement>) => {
+    if (closed && !entered && e.target === e.currentTarget && e.propertyName === "transform") leave()
+  }
   const place = {
     zIndex: layer,
     ...(at ? { "--row-top": `${(at.index * 100) / at.of}%`, "--row-height": `${100 / at.of}%` } : {}),
@@ -497,6 +508,8 @@ function PlainScreen({
       style={place}
       inert={!shown}
       onPointerDownCapture={onPress}
+      onTransitionEnd={slidOut}
+      onTransitionCancel={slidOut}
     >
       <ScreenView screen={screen} {...(closed ? { closed } : {})} />
       {flash > 0 ? <span key={flash} className={styles.flash} aria-hidden="true" /> : null}
