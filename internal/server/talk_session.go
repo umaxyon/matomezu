@@ -156,6 +156,25 @@ func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk
 			}
 		}
 	}
+	// ターンが始まったセッションの AI は生きているので、結ばれた参加者（受け入れ済みで準備中でない）が呼ばれたとして数える
+	// （道具を呼ばないターンでも、有効時間を過ぎた参加者が生きている印に戻る。行列の AI 間メッセージは渡さないので、Called は使わない）
+	if len(candidates) == 0 {
+		now := time.Now()
+		for _, s := range records {
+			n := h.participantNotes[s.ID]
+			if n.SessionID != sessionID || !s.accepted() || !n.ready() {
+				continue
+			}
+			before, _ := time.Parse(time.RFC3339Nano, n.Called)
+			n.Called = storage.Stamp(now)
+			h.participantNotes[s.ID] = n
+			if now.Sub(before) >= callsAnnounceGap {
+				changed = true
+				h.broadcast("participant-calls", map[string]any{"participant": s.ID, "at": n.Called})
+				h.kickRooms() // 有効時間を過ぎていた参加者が、また生きている
+			}
+		}
+	}
 	unbound := false
 	if !bound {
 		for _, s := range records {

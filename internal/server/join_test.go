@@ -419,7 +419,7 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 	if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:session-rename":null}},"lang":"ja","now":"2026-11-08T01:02:00.000Z"}`); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("settings-set back = %s", got)
 	}
-	// 伝えたときが最後に呼ばれた時刻になり、準備中でなくなる。そのあとのターンの始まりは時刻を進めない
+	// 伝えたときが最後に呼ばれた時刻になり、準備中でなくなる。そのあとのターンの始まりも、呼ばれたとして時刻を進める
 	at := hub.ParticipantCalls()[joined.Participant]
 	if at == "" {
 		t.Fatal("the welcome did not set the last called time")
@@ -428,8 +428,8 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 		t.Fatalf("ready after the welcome = %v", ready)
 	}
 	talk(`{"sessionId":"S9"}`)
-	if now := hub.ParticipantCalls()[joined.Participant]; now != at {
-		t.Fatalf("a talk moved the time: %q -> %q", at, now)
+	if now := hub.ParticipantCalls()[joined.Participant]; now < at {
+		t.Fatalf("a talk moved the time back: %q -> %q", at, now)
 	}
 	// 伝えたので、MCP の返事には添えない
 	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: joined.Participant}); h.Get(aiwire.NoticeHeader) != "" {

@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
+	"github.com/umaxyon/matomezu/internal/storage"
 )
 
 // claudeIn は、プロセス id host のプログラムが会話 session で MCP を立てた AI（Claude Code の形: join はセッション id を運ばず、フックが link で結ぶ）として参加を頼み、
@@ -163,5 +165,38 @@ func TestJoinBySessionNameOfAnEndedSessionAsksAgain(t *testing.T) {
 		if row.ID == first.Participant && row.State != "" {
 			t.Fatalf("the ended participant stayed: %+v", row)
 		}
+	}
+}
+
+// ターンの始まりは、そのセッションに結ばれた参加者が呼ばれたとして数える（道具を呼ばないターンでも生きている印に戻る）。記録から拾った候補を送るだけの呼び出しは数えない
+func TestTurnStartCountsAsACall(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	a := claudeIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	old := storage.Stamp(time.Now().Add(-3 * time.Hour))
+	setCalled := func() {
+		hub.mu.Lock()
+		n := hub.participantNotes[a]
+		n.Called = old
+		hub.participantNotes[a] = n
+		hub.mu.Unlock()
+	}
+	called := func() string {
+		hub.mu.Lock()
+		defer hub.mu.Unlock()
+		return hub.participantNotes[a].Called
+	}
+	setCalled()
+	talkedAs(t, s.URL, `{"sessionId":"SA","host":"100","candidates":["LZ"]}`)
+	if called() != old {
+		t.Fatalf("candidates counted: %s", called())
+	}
+	talkedAs(t, s.URL, `{"sessionId":"SA","host":"100"}`)
+	if at, _ := time.Parse(time.RFC3339Nano, called()); time.Since(at) > time.Minute {
+		t.Fatalf("turn start not counted: %s", called())
+	}
+	setCalled()
+	talkedAs(t, s.URL, `{"sessionId":"SX","host":"999"}`)
+	if called() != old {
+		t.Fatalf("other session counted: %s", called())
 	}
 }
