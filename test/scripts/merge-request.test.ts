@@ -57,7 +57,7 @@ test("並んでいる印を読み、プロセスの無い印と読めない印�
 
 test("外された物には、重ねた main を添えて次にする事を返し、入った物には返さない", () => {
   expect(nextStep({ name: "x", sha, kind: "failed", base: "c".repeat(40), logs: "/l", why: [] })).toStartWith(
-    "次: main cccccccc を取り込み、落ちたテストだけ流す。",
+    "次: main cccccccc を取り込み、落ちたテストを流して原因を調べ、直して並び直す",
   )
   expect(nextStep({ name: "x", sha, kind: "conflict", files: ["a"] })).toBe("次: main を取り込んで衝突を解き、並び直す")
   expect(nextStep({ name: "x", sha, kind: "main-side", why: "dirty" })).toBe(

@@ -12,13 +12,13 @@
 //   2. ブランチを SHA に直し、main の上に順に重ねる。マージのコミットのはじめの親はブランチ（main にはマージのコミットを作らない）。
 //      衝突したブランチは外して残りで続ける。サブのブランチの ref は動かさない。
 //      ソースから作る engine.js は、衝突したのがそれだけのときと、両側が変えてきれいにマージできたときに作り直して重ねる
-//   3. lint → typecheck → bun test → go test を流し、どれも通れば e2e。落ちたテストは 1 回だけ流し直す。
-//      流し直して通り、落ちたテストが全部 FLAKY_LIST にあれば「揺れた」として通す。一覧に無い物があれば外し、流し直した結果を添えて返す
+//   3. lint → typecheck → bun test → go test を流し、どれも通れば e2e。落ちたテストがあれば外す。
+//      落ちたテストは 1 回だけ流し直し、その結果（通れば揺れの疑い）を添えて返す。原因を調べて直すのは、頼んだブランチの側
 //   4. 通れば main を fast-forward する。main がその間に進んでいたら、重ねる所からやり直す
 //   5. 2 件以上を重ねて落ちたら、1 件ずつ順に 2〜4 を流す（通った物は入る）
 //   6. --push なら、main が進んだときに origin へ push する。失敗したら要約に出し、0 以外で終わる
 //   7. 入った差分で、bun install・web/dist のビルド・Go の常駐の入れ替え・Claude Code のプラグインのキャッシュの入れ直しを決めて行う
-// 終わりに、入った物・外した物・揺れたテスト・push・作り直した物を数行で出し、ブランチごとに 1 行を HISTORY に足す。全部が入り push もできれば 0 で終わる
+// 終わりに、入った物・外した物・重ねたときだけ落ちた物・push・作り直した物を数行で出し、ブランチごとに 1 行を HISTORY に足す。全部が入り push もできれば 0 で終わる
 import { execFileSync, spawn, spawnSync } from "node:child_process"
 import {
   appendFileSync,
@@ -176,32 +176,8 @@ export type StepResult = {
   step: string
   ok: boolean
   failures: Failure[]
-  flaky: Failure[]
   log: string
   rerun: "none" | "passed" | "failed"
-}
-
-// 揺れるテストの一覧。1 行に「ステップ名 ファイル:テスト名」（e2e の行番号は動くので書かない。go はファイルでなくパッケージ）。
-// # で始まる行と空の行は読まない。キューは、重ねる main の側の物だけを読む（ブランチが自分で足して通せない）
-export const FLAKY_LIST = "scripts/merge-queue-flaky.txt"
-
-export function flakyKey(f: Failure): string | undefined {
-  const where = f.step === "e2e" ? f.where.replace(/:\d+$/, "") : f.where
-  return where && f.title ? `${f.step} ${where}:${f.title}` : undefined
-}
-
-export function parseFlakyList(text: string): Set<string> {
-  return new Set(
-    text
-      .split("\n")
-      .map(l => l.trim())
-      .filter(l => l !== "" && !l.startsWith("#")),
-  )
-}
-
-function flakyListAt(main: string, base: string): Set<string> {
-  const r = spawnSync("git", ["show", `${base}:${FLAKY_LIST}`], { cwd: main, encoding: "utf8" })
-  return r.status === 0 ? parseFlakyList(r.stdout) : new Set()
 }
 
 // bun test の出力から落ちたテスト（where はテストのファイル）
@@ -403,44 +379,29 @@ const E2E: Step = {
   }),
 }
 
-// 落ちたテストは 1 回だけ流し直す。流し直して通っても、通しにするのは落ちたテストが全部 flakyList にあるときだけ。
-// 一覧に無い物があれば、それを落ちとして返す（rerun が passed なら揺れの候補）
-export async function runStep(
-  s: Step,
-  queue: string,
-  logs: string,
-  flakyList = new Set<string>(),
-): Promise<StepResult> {
+// 落ちたテストは 1 回だけ流し直す。流し直して通っても落ちとし、rerun に流し直した結果を返す
+export async function runStep(s: Step, queue: string, logs: string): Promise<StepResult> {
   const log = join(logs, `${s.step}.log`)
   const env = s.env?.(logs) ?? {}
   const result = (r: Omit<StepResult, "step">): StepResult => ({ step: s.step, ...r })
-  if ((await run(s.cmd, queue, log, env)) === 0)
-    return result({ ok: true, failures: [], flaky: [], log, rerun: "none" })
+  if ((await run(s.cmd, queue, log, env)) === 0) return result({ ok: true, failures: [], log, rerun: "none" })
   const out = readFileSync(log, "utf8")
   const failures = s.failures(out, logs)
   const whole = failures.length > 0 && (s.complete?.(out, logs, failures) ?? true)
   const reruns = whole ? s.rerun?.(failures) : undefined
-  if (!reruns) return result({ ok: false, failures, flaky: [], log, rerun: "none" })
+  if (!reruns) return result({ ok: false, failures, log, rerun: "none" })
   for (const [i, cmd] of reruns.entries()) {
     const again = join(logs, `${s.step}.rerun${i}.log`)
     if ((await run(cmd, queue, again, env)) !== 0) {
       const still = s.failures(readFileSync(again, "utf8"), logs)
-      return result({
-        ok: false,
-        failures: still.length > 0 ? still : failures,
-        flaky: [],
-        log: again,
-        rerun: "failed",
-      })
+      return result({ ok: false, failures: still.length > 0 ? still : failures, log: again, rerun: "failed" })
     }
   }
-  const unlisted = failures.filter(f => !flakyList.has(flakyKey(f) ?? ""))
-  if (unlisted.length > 0) return result({ ok: false, failures: unlisted, flaky: [], log, rerun: "passed" })
-  return result({ ok: true, failures: [], flaky: failures, log, rerun: "passed" })
+  return result({ ok: false, failures, log, rerun: "passed" })
 }
 
 // 軽い物は全部流して落ちた所をまとめて返し、どれも通ったときだけ e2e を流す
-async function testAll(queue: string, logs: string, flakyList: Set<string>): Promise<StepResult[]> {
+async function testAll(queue: string, logs: string): Promise<StepResult[]> {
   mkdirSync(logs, { recursive: true })
   if ((await run(["bun", "install", "--frozen-lockfile"], queue, join(logs, "install.log"))) !== 0)
     return [
@@ -448,21 +409,20 @@ async function testAll(queue: string, logs: string, flakyList: Set<string>): Pro
         step: "install",
         ok: false,
         failures: [{ step: "install", where: "", title: "bun install" }],
-        flaky: [],
         log: join(logs, "install.log"),
         rerun: "none",
       },
     ]
   const results: StepResult[] = []
-  for (const s of LIGHT_STEPS) results.push(await runStep(s, queue, logs, flakyList))
-  if (results.every(r => r.ok)) results.push(await runStep(E2E, queue, logs, flakyList))
+  for (const s of LIGHT_STEPS) results.push(await runStep(s, queue, logs))
+  if (results.every(r => r.ok)) results.push(await runStep(E2E, queue, logs))
   return results
 }
 
 // ---- 取り込み ----
 
 export type Attempt =
-  | { kind: "merged"; stacked: Stacked; flaky: Failure[] }
+  | { kind: "merged"; stacked: Stacked }
   | { kind: "failed"; stacked: Stacked; base: string; logs: string; results: StepResult[] }
   | { kind: "nothing"; stacked: Stacked }
   | { kind: "stopped"; reason: string; stacked?: Stacked }
@@ -474,13 +434,13 @@ async function attempt(o: Options, candidates: Candidate[]): Promise<Attempt> {
     stacked = stack(o.queue, base, candidates, regenerateWith(join(o.logs, "regenerate")))
     if (stacked.onTip.length === 0) return { kind: "nothing", stacked }
     const logs = join(o.logs, short(stacked.tip))
-    const results = await testAll(o.queue, logs, flakyListAt(o.main, base))
+    const results = await testAll(o.queue, logs)
     if (!results.every(r => r.ok)) return { kind: "failed", stacked, base, logs, results }
     const ff = fastForward(o.main, base, stacked.tip)
     if (ff === "dirty")
       return { kind: "stopped", reason: "main の worktree の追跡するファイルに未コミットがある", stacked }
     if (ff === "failed") return { kind: "stopped", reason: "main を fast-forward できなかった", stacked }
-    if (ff === "done") return { kind: "merged", stacked, flaky: results.flatMap(r => r.flaky) }
+    if (ff === "done") return { kind: "merged", stacked }
   }
   return { kind: "stopped", reason: `main が進み続け ${MAX_ROUNDS} 回 ff できなかった`, stacked }
 }
@@ -635,7 +595,7 @@ function ensureQueue(main: string, queue: string): void {
 
 const describe = (f: Failure) => `${f.step}: ${[f.where, f.title].filter(Boolean).join(" ")}`
 
-const RERUN_NOTE = { none: "", passed: "（流し直しで通った。一覧に無い）", failed: "（流し直しても落ちた）" }
+const RERUN_NOTE = { none: "", passed: "（流し直しで通った。揺れの疑い）", failed: "（流し直しても落ちた）" }
 
 // 落ちたステップの理由。読み取れた落ちが無ければログのパス
 const whyOf = (results: StepResult[]) =>
@@ -732,7 +692,6 @@ export async function collect(
     if (a.kind === "merged") {
       outcomes.push(...a.stacked.onTip.map(c => ({ ...c, kind: "merged" as const })))
       regenerated.push(...a.stacked.regenerated)
-      flaky.push(...a.flaky)
     }
     if (a.kind === "stopped") stopped(a.stacked?.onTip ?? [], a.reason)
     return a.kind !== "stopped"

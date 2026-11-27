@@ -70,7 +70,7 @@ export function refusal(s: Situation): string | undefined {
 // 外された物に添える次の事
 export function nextStep(o: Outcome): string | undefined {
   if (o.kind === "failed")
-    return `次: main ${o.base.slice(0, 8)} を取り込み、落ちたテストだけ流す。揺れなら並び直し、落ちれば直して並び直す。組み合わせで迷えば、相手のブランチのサブか main_manager に相談する`
+    return `次: main ${o.base.slice(0, 8)} を取り込み、落ちたテストを流して原因を調べ、直して並び直す（流し直しで通った物も、揺れの原因を直す）。組み合わせで迷えば、相手のブランチのサブか main_manager に相談する`
   if (o.kind === "conflict") return "次: main を取り込んで衝突を解き、並び直す"
   if (o.kind === "main-side") return "次: main の側の都合なので、main_manager に知らせる"
   return undefined

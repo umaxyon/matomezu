@@ -12,12 +12,10 @@ import {
   collect,
   errorLines,
   fastForward,
-  flakyKey,
   GENERATED,
   git,
   goFailures,
   historyLine,
-  parseFlakyList,
   playwrightFailures,
   pushMain,
   type Regenerate,
@@ -298,41 +296,19 @@ function tmp() {
   return d
 }
 
-test("落ちたテストが揺れるテストの一覧にあり、流し直して通れば、通しにして揺れたとする", async () => {
+test("落ちたテストは流し直して通っても落ちとし、流し直しで通ったと返す", async () => {
   const d = tmp()
-  const r = await runStep(fakeStep(d, 1), d, d, new Set(["fake x:t"]))
-  expect(r.ok).toBe(true)
-  expect(r.rerun).toBe("passed")
-  expect(r.flaky).toEqual([{ step: "fake", where: "x", title: "t" }])
-})
-
-test("一覧に無いテストは、流し直して通っても落ちとし、流し直しで通ったと返す", async () => {
-  const d = tmp()
-  const r = await runStep(fakeStep(d, 1), d, d, new Set(["fake x:other"]))
+  const r = await runStep(fakeStep(d, 1), d, d)
   expect(r.ok).toBe(false)
   expect(r.rerun).toBe("passed")
   expect(r.failures).toEqual([{ step: "fake", where: "x", title: "t" }])
-  expect(r.flaky).toEqual([])
 })
 
-test("流し直してもまた落ちれば、一覧にあっても落ちとする", async () => {
+test("流し直してもまた落ちれば、流し直しても落ちたと返す", async () => {
   const d = tmp()
-  const r = await runStep(fakeStep(d, 2), d, d, new Set(["fake x:t"]))
+  const r = await runStep(fakeStep(d, 2), d, d)
   expect(r.ok).toBe(false)
   expect(r.rerun).toBe("failed")
-  expect(r.flaky).toEqual([])
-})
-
-test("揺れるテストの一覧の鍵は、ステップとファイル（go はパッケージ）とテスト名。e2e の行番号は見ない", () => {
-  expect(flakyKey({ step: "e2e", where: "e2e/a.spec.ts:12", title: "x > y" })).toBe("e2e e2e/a.spec.ts:x > y")
-  expect(flakyKey({ step: "unit", where: "test/a.test.ts", title: "t" })).toBe("unit test/a.test.ts:t")
-  expect(flakyKey({ step: "go", where: "matomezu/internal/host", title: "TestX" })).toBe(
-    "go matomezu/internal/host:TestX",
-  )
-  // ファイルかテスト名の無い落ち（ビルドの失敗など）は一覧に書けない
-  expect(flakyKey({ step: "go", where: "matomezu/internal/host", title: "" })).toBeUndefined()
-  expect(flakyKey({ step: "e2e", where: "", title: "no report" })).toBeUndefined()
-  expect([...parseFlakyList("# 説明\n\n e2e e2e/a.spec.ts:x > y \n")]).toEqual(["e2e e2e/a.spec.ts:x > y"])
 })
 
 test("流し直す手が無いか、落ちを全部は読み取れていなければ流し直さない", async () => {
@@ -419,7 +395,6 @@ const failedOf = (onTip: Candidate[]): Attempt => ({
       step: "unit",
       ok: false,
       failures: [{ step: "unit", where: "t.test.ts", title: "x" }],
-      flaky: [],
       log: "/l/unit.log",
       rerun: "passed",
     },
@@ -429,7 +404,7 @@ const failedOf = (onTip: Candidate[]): Attempt => ({
 test("重ねて落ちたら 1 件ずつ試し、落ちた物に重ねた main とログを付け、途中で main の側で止まれば残りも止めた物とする", async () => {
   const [a, b, c, d] = ["a", "b", "c", "d"].map(cand) as [Candidate, Candidate, Candidate, Candidate]
   const tries: Record<string, Attempt> = {
-    a: { kind: "merged", stacked: stackedOf([a]), flaky: [] },
+    a: { kind: "merged", stacked: stackedOf([a]) },
     b: failedOf([b]),
     c: { kind: "stopped", reason: "dirty", stacked: stackedOf([c]) },
   }
@@ -443,7 +418,7 @@ test("重ねて落ちたら 1 件ずつ試し、落ちた物に重ねた main �
   expect(r.outcomes[1]).toMatchObject({
     base: "b".repeat(40),
     logs: "/l",
-    why: ["unit: t.test.ts x（流し直しで通った。一覧に無い）"],
+    why: ["unit: t.test.ts x（流し直しで通った。揺れの疑い）"],
   })
   expect(r.outcomes[3]).toMatchObject({ why: "dirty" })
 })
