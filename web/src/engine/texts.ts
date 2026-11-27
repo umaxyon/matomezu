@@ -59,7 +59,7 @@ export function workTitle(of: Assembled, settings: string, workroom: string, nam
   )
 }
 
-// engine.ts の matomezuLeftTitle の中身: ワークルームの名前 name から外れたセッションに書く名前（WorkTitle の JSON）
+// engine.ts の matomezuLeftTitle の中身: ワークルームの名前 name から外れたセッションに書く名前（作業名ではない。WorkTitle の型の JSON）
 export function leftTitle(of: Assembled, settings: string, name: string): string {
   return JSON.stringify(leftTitleIn(of.catalog.core, restoreSettings(JSON.parse(settings)), name))
 }

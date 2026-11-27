@@ -19,7 +19,7 @@ export const SESSION_RENAME = kit.defineSetting({
 const IDLE_TITLE = kit.message("{name} (idle)")
 const LEFT_TITLE = kit.message("{name} (left)")
 
-// 作業名。off は、利用者の設定が書くのを止めている（名前を書かない）
+// セッション名に書く名前（作業名か、外れた会話の名前）。off は、利用者の設定が書くのを止めている（名前を書かない）
 export type WorkTitle = { kind: "title"; title: string } | { kind: "off" }
 
 // 利用者の設定 settings で、ワークルーム（id と名前 name）に参加しているセッションの作業名。
