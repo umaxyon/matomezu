@@ -38,6 +38,7 @@ type SessionTalk struct {
 	Unbound   bool      `json:"unbound"`
 	ForAI     string    `json:"forAi,omitempty"`     // AI にだけ伝える英語の文: 前の会話から移した参加者（carriedText）と、ターンの入力が通り道に貸した知らせの文（WokenBy）なら wokenText
 	WorkTitle string    `json:"workTitle,omitempty"` // 作業名（WorkTitle。書かないなら空）
+	LeftTitle string    `json:"leftTitle,omitempty"` // ワークルームから外れたセッションに 1 度だけ書く名前（セッション名だけに書き、ADE のワークスペースの表示名には書かない。departure.go）
 }
 
 // wokenText は、ターンの入力が通り道に貸した知らせの文（幾つかを改行でつないだ物も。知らせが利用者の入力の道で届いた）ときに AI に伝える文。入力だけでは利用者の言葉と見分けが付かないので、ハーネスの側から添える
@@ -156,6 +157,31 @@ func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk
 			}
 		}
 	}
+	// ターンが始まったセッションの AI は生きているので、結ばれた参加者（受け入れ済みで準備中でない）が呼ばれたとして数える
+	// （道具を呼ばないターンでも、有効時間を過ぎた参加者が生きている印に戻る。行列の AI 間メッセージは渡さないので、Called は使わない）
+	if len(candidates) == 0 {
+		now := time.Now()
+		for _, s := range records {
+			n := h.participantNotes[s.ID]
+			if n.SessionID != sessionID || !s.accepted() || !n.ready() {
+				continue
+			}
+			before, _ := time.Parse(time.RFC3339Nano, n.Called)
+			n.Called = storage.Stamp(now)
+			h.participantNotes[s.ID] = n
+			if now.Sub(before) >= callsAnnounceGap {
+				changed = true
+				h.broadcast("participant-calls", map[string]any{"participant": s.ID, "at": n.Called})
+				h.kickRooms() // 有効時間を過ぎていた参加者が、また生きている
+			}
+		}
+	}
+	// 誰にも結ばれていない会話の参加者が外れていれば、ターンの始まりに 1 度だけ AI に伝え、外れたと分かるセッション名を渡す（departure.go）
+	var departed, leftTitle string
+	if !bound && len(candidates) == 0 {
+		leftTitle = h.departedTitleHeld(sessionID)
+		departed = h.tellDepartureHeld(h.departureOfSessionHeld(sessionID))
+	}
 	unbound := false
 	if !bound {
 		for _, s := range records {
@@ -200,7 +226,10 @@ func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk
 	if told == nil {
 		told = []Welcome{}
 	}
-	return SessionTalk{Welcomes: told, Unbound: unbound, ForAI: strings.Join(carried, "\n"), WorkTitle: h.WorkTitle(sessionID)}, nil
+	if departed != "" {
+		carried = append(carried, departed)
+	}
+	return SessionTalk{Welcomes: told, Unbound: unbound, ForAI: strings.Join(carried, "\n"), WorkTitle: h.WorkTitle(sessionID), LeftTitle: leftTitle}, nil
 }
 
 // soleWorkerHeld は、セッション sessionID に結ばれた、受け入れ済みでワークルームに入っている参加者がちょうど 1 人なら、その参加者の id とワークルームの id と名前（h.mu を持って呼ぶ）

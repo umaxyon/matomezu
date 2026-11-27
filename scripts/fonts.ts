@@ -2,7 +2,7 @@
 //   bun scripts/fonts.ts copy <dir>  ふつう（400）と太字（700）の woff2 と、それを読む noto-sans-jp.css と、画面が先に読む字の範囲を指す字 first.txt を <dir> に置く
 //   bun scripts/fonts.ts widths [<file>]  字の幅の表（無ければ web/src/plugins/base/text/noto-sans-jp.ts）を、配る woff2 から作り直す
 // 幅は配るファイルそのものから読むので、測る字と描く字が同じになる
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import * as fontkit from "fontkit"
 
@@ -15,12 +15,15 @@ function faces(weight: number): string {
   return readFileSync(join(PACKAGE, `${weight}.css`), "utf8").replace(/, url\([^)]*\.woff\) format\('woff'\)/g, "")
 }
 
+// その太さで配る woff2 の名前: @font-face が指す物だけ（パッケージには、1 つのファイルで日本語を読む別の形 japanese も入っているが、指さないので配らない）
+function served(weight: number): string[] {
+  return [...faces(weight).matchAll(/url\(\.\/files\/([^)]+\.woff2)\)/g)].map(m => m[1] ?? "")
+}
+
 function copy(dir: string) {
   mkdirSync(join(dir, "files"), { recursive: true })
   for (const weight of WEIGHTS) {
-    for (const f of readdirSync(join(PACKAGE, "files"))) {
-      if (f.endsWith(`-${weight}-normal.woff2`)) copyFileSync(join(PACKAGE, "files", f), join(dir, "files", f))
-    }
+    for (const f of served(weight)) copyFileSync(join(PACKAGE, "files", f), join(dir, "files", f))
   }
   writeFileSync(join(dir, "noto-sans-jp.css"), WEIGHTS.map(faces).join("\n"))
   writeFileSync(join(dir, "first.txt"), firstText(faces(400)))
@@ -59,8 +62,7 @@ function firstText(css: string): string {
 // 字ごとの幅（1 em を 1000 にした値）を、続く字が同じ幅の並び [最初の字, 字の数, 幅] にまとめる
 function runs(weight: number): number[] {
   const widths = new Map<number, number>()
-  for (const f of readdirSync(join(PACKAGE, "files"))) {
-    if (!f.endsWith(`-${weight}-normal.woff2`)) continue
+  for (const f of served(weight)) {
     const font = fontkit.openSync(join(PACKAGE, "files", f)) as fontkit.Font
     const scale = 1000 / font.unitsPerEm
     for (const cp of font.characterSet) widths.set(cp, Math.round(font.glyphForCodePoint(cp).advanceWidth * scale))

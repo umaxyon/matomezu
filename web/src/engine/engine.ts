@@ -55,6 +55,7 @@ import {
 import {
   isAdminWorkroom,
   joinedText,
+  leftTitle,
   myWorkdesk,
   visitorJoinedText,
   windowWarningLines,
@@ -294,6 +295,12 @@ let lastAdded: readonly Plugin[] = []
 ;(
   globalThis as { matomezuWorkTitle?: (settings: string, workroom: string, name: string) => string }
 ).matomezuWorkTitle = (settings, workroom, name) => workTitle(assembled, settings, workroom, name)
+
+// ワークルームの名前から外れた（別の会話が入った・利用者が外した）セッションに書く名前（利用者の設定が書くのを止めていれば off。常駐が、話しかけのフックに答える）
+;(globalThis as { matomezuLeftTitle?: (settings: string, name: string) => string }).matomezuLeftTitle = (
+  settings,
+  name,
+) => leftTitle(assembled, settings, name)
 
 // ワークルームの今の作業が替わったか（常駐が、ターンの終わりに AI のプログラムの部品に答える。before は前のターンの終わりの印）。作業はレコードから決まるので、常駐が読み口を置いている間に呼ぶ
 ;(

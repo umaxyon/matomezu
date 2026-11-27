@@ -250,7 +250,7 @@ func (h *Hub) settleNotes() error {
 	return h.putParticipantNotes()
 }
 
-// SessionParticipant は、セッション id session が結ばれた参加者の id。受け入れ済みで準備中でない参加者が、ちょうど 1 人のときだけ返す（ほかは空。
+// SessionParticipant は、セッション id session が結ばれた参加者の id（無ければ、AI のプログラムのプロセス id host の参加者。hostParticipantHeld）。受け入れ済みで準備中でない参加者が、ちょうど 1 人のときだけ返す（ほかは空。
 // フックは会話に出た link の参加者のどれにも同じセッション id を結ぶので、1 人に決まらなければ選ばない）。
 // 返すときは、起こす知らせの宛て先を、この呼び出しの AI のプログラムのプロセス id host とセッション id に書き直す（起動し直した AI のプログラムは、プロセス id が変わる）
 func (h *Hub) SessionParticipant(session, host string) string {
@@ -265,6 +265,9 @@ func (h *Hub) SessionParticipant(session, host string) string {
 	defer h.mu.Unlock()
 	found := h.sessionParticipantHeld(records, session)
 	if found == "" {
+		found = h.hostParticipantHeld(records, host)
+	}
+	if found == "" {
 		return ""
 	}
 	n := h.participantNotes[found]
@@ -277,6 +280,26 @@ func (h *Hub) SessionParticipant(session, host string) string {
 			fmt.Fprintln(os.Stderr, "could not save the wake target of participant", found, ":", err)
 		}
 		h.signalWakes(found)
+	}
+	return found
+}
+
+// hostParticipantHeld は、参加者 records のうち、AI のプログラムのプロセス id host の、受け入れ済みで準備中でない参加者の id（host が空か、無いか、2 人以上なら空。h.mu を持って呼ぶ）。
+// MCP を立てたあとに会話のセッションが変わり（再開した AI のプログラムで /clear したなど）、フックが参加者をプロセス id で新しいセッションに移したとき、
+// MCP が添えるセッション id は古いままなので、プロセス id で引く
+func (h *Hub) hostParticipantHeld(records []participantRecord, host string) string {
+	if host == "" {
+		return ""
+	}
+	found := ""
+	for _, s := range records {
+		if n := h.participantNotes[s.ID]; n.Host != host || !s.accepted() || !n.ready() {
+			continue
+		}
+		if found != "" {
+			return ""
+		}
+		found = s.ID
 	}
 	return found
 }

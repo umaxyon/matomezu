@@ -78,3 +78,18 @@ func TestJoinAfterTheMCPRestartedAnswersWithTheSessionParticipant(t *testing.T) 
 		t.Fatalf("join = %s, want %s", got, a)
 	}
 }
+
+// MCP を立てたあとに会話のセッションが変わり、フックが参加者をプロセス id で新しいセッションに移したあとも、古いセッション id の呼び出しは、プロセス id でその参加者になる
+// （再開した Claude Code で /clear したとき。MCP は参加の id を持たず、立てたときのセッション id を添え続ける）。ほかのプロセス id では参加者にならない
+func TestCallFromTheOldSessionIsTheParticipantOfItsHost(t *testing.T) {
+	s, _ := joinWorld(t, joinStore(t))
+	claudeIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	claudeIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	talkedAs(t, s.URL, `{"sessionId":"SA2","host":"100"}`)
+	if sent := sendWith(t, s.URL, map[string]string{aiwire.HostSessionHeader: "SA", aiwire.HostHeader: "100"}, "すずめ"); !sent.OK {
+		t.Fatalf("old session, same host: %+v", sent)
+	}
+	if sent := sendWith(t, s.URL, map[string]string{aiwire.HostSessionHeader: "SA", aiwire.HostHeader: "999"}, "すずめ"); sent.Reason != "not-joined" {
+		t.Fatalf("old session, other host: %+v", sent)
+	}
+}

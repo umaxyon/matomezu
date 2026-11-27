@@ -31,6 +31,7 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   "Leave it as it is": { en: "Leave it as it is", ja: "そのまま" },
   No: { en: "No", ja: "いいえ" },
   "{name} (idle)": { en: "{name} (idle)", ja: "{name}（空き）" },
+  "{name} (left)": { en: "{name} (left)", ja: "{name}（外れた）" },
   "Joined matomezu. Workroom name: {name}": {
     en: "Joined matomezu. Workroom name: {name}",
     ja: "matomezu に参加しました。ワークルーム名: {name}",
