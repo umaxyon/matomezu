@@ -10,6 +10,26 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   "Request to participate": { en: "Request to participate", ja: "参加を要求する" },
   "Write a rejoin": { en: "Write a rejoin", ja: "参加の頼み直しを書く" },
   "Name sessions by work": { en: "Name sessions by work", ja: "セッション名を作業名にする" },
+  "Your current work changed from {from} to {to}. What should happen?": {
+    en: "Your current work changed from {from} to {to}. What should happen?",
+    ja: "今の作業が {from} から {to} に替わりました。どうしますか？",
+  },
+  "Your current work is now {to}. What should happen?": {
+    en: "Your current work is now {to}. What should happen?",
+    ja: "今の作業が {to} になりました。どうしますか？",
+  },
+  "{from} ended. Clear the conversation?": {
+    en: "{from} ended. Clear the conversation?",
+    ja: "{from} が終わりました。会話を空にしますか？",
+  },
+  "Clear the conversation and read the worker book": {
+    en: "Clear the conversation and read the worker book",
+    ja: "会話を空にして、ワーカーブックを読ませる",
+  },
+  "Only clear the conversation": { en: "Only clear the conversation", ja: "会話を空にするだけ" },
+  "Only read the worker book": { en: "Only read the worker book", ja: "ワーカーブックを読ませるだけ" },
+  "Leave it as it is": { en: "Leave it as it is", ja: "そのまま" },
+  No: { en: "No", ja: "いいえ" },
   "{name} (idle)": { en: "{name} (idle)", ja: "{name}（空き）" },
   "Joined matomezu. Workroom name: {name}": {
     en: "Joined matomezu. Workroom name: {name}",

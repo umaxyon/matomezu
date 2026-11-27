@@ -6,7 +6,7 @@ import type { ActionContext, ActionDef, EntryWhere, LibraryTargets, Where } from
 import type { PlaceEntry, PlaceEntryKind, PlaceFolder, PlacePermissionCheck } from "./def/permission"
 import { binnedBetween, type EntryKind, isWithin } from "./entries"
 import { type Folder, type Folders, isOpenRole, type Library, type PageRow } from "./folders"
-import { libraryOf } from "./folders-books"
+import { bookOf, libraryOf } from "./folders-books"
 import { bookIdOf, foldersOver, inTrash, isKeptSystemFolder, permissionFoldersOf, systemFolderOf } from "./folders-tree"
 import type { AskedPage, AskedPlace } from "./inspect"
 import { splitId } from "./names"
@@ -142,7 +142,6 @@ function newPageOf(catalog: CoreCatalog, type: string): ItemPage | undefined {
 // 書庫が対象のアクションが変える物 targets（許可スコープから出した物）を、書庫 library で行う前に問う相手の並び（書庫に無いブックには問わない。
 // 作るブックは空のブック NEW_BOOK、作るページはそのタイプの空のページで問う）
 export function libraryAsksOf(catalog: CoreCatalog, library: Library, targets: LibraryTargets): LibraryAsk[] {
-  const books = libraryOf(library)
   const pages = (targets.pages ?? []).flatMap((p): EntryAsk[] => {
     const into =
       p.into === undefined
@@ -169,7 +168,8 @@ export function libraryAsksOf(catalog: CoreCatalog, library: Library, targets: L
   ]
   const found = named.flatMap((a): LibraryAsk[] => {
     if (!("book" in a)) return [a]
-    const book = books[a.book]
+    // 名指したブックだけを組む（書庫の全部のブックは組まない）
+    const book = bookOf(library, a.book)
     return book ? [{ book, where: a.where }] : []
   })
   return targets.creates.some(c => c.kind === "book") ? [...found, { book: NEW_BOOK, where: {} }] : found

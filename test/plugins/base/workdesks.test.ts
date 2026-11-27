@@ -9,7 +9,7 @@ import { entryPlaceOf } from "../../../web/src/plugins/base/library/outline"
 import { LIBRARY_PLACE_OPEN } from "../../../web/src/plugins/base/library/screen"
 import { LIBRARY_APPEARANCE, LIBRARY_FOLDER, LIBRARY_UNFOLDED } from "../../../web/src/plugins/base/library/state"
 import { WORKROOMS } from "../../../web/src/plugins/base/library/system-folders"
-import { deskBookRowId, deskRowId } from "../../../web/src/plugins/base/library/workdesk-rows"
+import { deskBookRowId, deskRowId, workdesksIn } from "../../../web/src/plugins/base/library/workdesk-rows"
 import { ADMIN_MARK, PARTICIPANT } from "../../../web/src/plugins/base/participant"
 import {
   ownBookPagesOf,
@@ -197,4 +197,13 @@ test("置き場所を書庫で開く（library-place-open）: ワーカーブッ
     folder: deskRowId("r2"),
     picked: deskBookRowId("r2"),
   })
+})
+
+test("書庫の画面の作業机（workdesksIn）: 同じレコードと書庫の表からは出し直さず同じ並びを返し、レコードが変われば出し直す", () => {
+  const rs = records()
+  const first = workdesksIn(CORE_CATALOG, { records: rs, folders })
+  expect(workdesksIn(CORE_CATALOG, { records: rs, folders })).toBe(first)
+  const next = workdesksIn(CORE_CATALOG, { records: records("r1"), folders })
+  expect(next).not.toBe(first)
+  expect(next.map(d => d.room)).toEqual(["r1", "r2", "r3"])
 })
