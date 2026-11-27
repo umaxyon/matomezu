@@ -18,6 +18,9 @@ const (
 	SessionPidSpaceHeader = "X-Matomezu-Session-Pid-Space"
 	// ModelHeader は、MCP が、呼び出しが運んだモデルを添えるヘッダ（値は URL エンコード。参加の id と一緒に、呼び出しの _meta にモデルがあったときだけ）
 	ModelHeader = "X-Matomezu-Model"
+	// WorkTitleHeader は、ホストが、呼び出しの参加者のセッション名に書く作業名を返すヘッダ（値は URL エンコード。書かないなら無い。
+	// 呼び出しを終えたあとの作業名。MCP は、変わったら ADE のワークスペースの表示名に書く）
+	WorkTitleHeader = "X-Matomezu-Work-Title"
 )
 
 // BulkMax は、AI が perform の 1 回で並べて頼めるアクションの数

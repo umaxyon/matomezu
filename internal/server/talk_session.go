@@ -260,6 +260,29 @@ func (h *Hub) soleWorkerHeld(sessionID string) (participant, room, name string, 
 	return participant, room, name, name != ""
 }
 
+// ParticipantWorkTitle は、参加者 id のセッション名に書く作業名（ワークルームに入っていないか、書かないなら空）
+func (h *Hub) ParticipantWorkTitle(id string) string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	room := h.actorOfParticipantHeld(id).Workroom
+	if room == "" {
+		return ""
+	}
+	rooms, err := h.workroomsHeld()
+	if err != nil {
+		return ""
+	}
+	name := roomName(rooms, room)
+	if name == "" {
+		return ""
+	}
+	title, ok, err := h.engine.WorkTitle(h.settings, room, name, recordSource{h})
+	if err != nil || !ok {
+		return ""
+	}
+	return title
+}
+
 // WorkTitle は、セッション sessionID の作業名: そのセッションに結ばれた、受け入れ済みでワークルームに入っている参加者がちょうど 1 人なら、
 // そのワークルームの名前と作業から作った名前（エンジンの WorkTitle）。そうでない・利用者の設定が書くのを止めている・作れないなら空（フックは名前を書かない。
 // 利用者が付けたセッション名を消さないため）

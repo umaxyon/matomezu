@@ -119,12 +119,15 @@ func (claudeStopCmd) Run() error {
 	return nil
 }
 
-type claudePromptCmd struct{}
+type claudePromptCmd struct {
+	// Refreshable は、フックを呼ぶプラグインが、リフレッシュリクエストを受けて会話を空にする部品（mod）を持つ（プラグインの hooks.json が渡す。同じ版のプラグインが名乗りと空にする事を揃えて持つ）
+	Refreshable bool `help:"The plugin calling this hook clears the conversation on a refresh request (its mod), so tell matomezu the session can be refreshed."`
+}
 
 // Run は、ターンの始まりを知らせ、待つアノテーションを添える
-func (claudePromptCmd) Run() error {
+func (c claudePromptCmd) Run() error {
 	claudeDev()
-	hookPrompt(hookHost(claudelaunch.HooksSendHost), claudelaunch.HookSetsTitle, claudelaunch.Woken, claudelaunch.ChatThread, true)
+	hookPrompt(hookHost(claudelaunch.HooksSendHost), claudelaunch.HookSetsTitle, claudelaunch.Woken, claudelaunch.ChatThread, c.Refreshable)
 	return nil
 }
 
@@ -254,7 +257,7 @@ func (c opencodeMCPCmd) Run() error {
 // hookPrompt は、話しかけのフック: 待つアノテーションの文を添えて、ターンの始まりを常駐に知らせ、フックの答えを出す（host は AI のプログラムのプロセス id、分からなければ空。
 // titled は、答えに会話の題名 sessionTitle を書くか。woken は、フックが --woken を渡せない AI のプログラムが、裏の知らせで始まったターンを入力から見分ける物。渡せるなら nil。
 // thread は、AI のプログラムのプロセス id とセッション id からチャットスレッドの id を読む物。読めない AI のプログラムは nil。
-// refreshable は、AI のプログラムが、プラグインの部品で会話を空にできるか（リフレッシュリクエストを受けられると名乗る））
+// refreshable は、フックを呼んだプラグインが、リフレッシュリクエストを受けて会話を空にすると名乗ったか（プラグインがフックの引数で渡す））
 func hookPrompt(host string, titled bool, woken func(prompt string) bool, thread func(host, session string) string, refreshable bool) {
 	hook := stdinHook()
 	var notes bytes.Buffer

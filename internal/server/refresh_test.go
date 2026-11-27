@@ -2,6 +2,8 @@ package server
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -106,5 +108,29 @@ func TestAIPerformsActionsInABulk(t *testing.T) {
 	}
 	if got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-update","actions":[`+add("four")+`]}`, as); !strings.Contains(got, `"reason":"bad-args"`) {
 		t.Fatalf("action and actions = %s", got)
+	}
+}
+
+// AI の呼び出しの答えの見出しには、呼び出しのあとの作業名が載る（作業を替えた perform の答えには、替えたあとの名前）
+func TestAICallsCarryTheWorkTitle(t *testing.T) {
+	s, _ := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	noticeOf(t, s.URL, a)
+	as := map[string]string{aiwire.ParticipantHeader: a}
+	titleOf := func(h http.Header) string {
+		v, _ := url.QueryUnescape(h.Get(aiwire.WorkTitleHeader))
+		return v
+	}
+	_, h := call(t, "GET", s.URL+"/api/ai/books", "", as)
+	if got := titleOf(h); !strings.HasPrefix(got, "ひよこ") {
+		t.Fatalf("work title before = %q", got)
+	}
+	var project string
+	for id := range recordsOf(t, s.URL, "@matomezu/taskboard:project") {
+		project = id
+	}
+	_, h = call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/taskboard:ticket-add","args":{"project":"`+project+`","name":"xyz","assignees":["ひよこ"]}}`, as)
+	if got := titleOf(h); !strings.Contains(got, "xyz") {
+		t.Fatalf("work title after ticket-add = %q", got)
 	}
 }

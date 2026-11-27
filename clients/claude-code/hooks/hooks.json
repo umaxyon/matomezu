@@ -7,7 +7,9 @@
         "hooks": [{ "type": "command", "command": "matomezu claude-code hook permission" }]
       }
     ],
-    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "matomezu claude-code hook prompt" }] }],
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "matomezu claude-code hook prompt --refreshable" }] }
+    ],
     "SessionStart": [{ "hooks": [{ "type": "command", "command": "matomezu claude-code hook model" }] }],
     "Stop": [{ "hooks": [{ "type": "command", "command": "matomezu claude-code hook stop" }] }],
     "PostModelSwitch": [{ "hooks": [{ "type": "command", "command": "matomezu claude-code hook model" }] }]
