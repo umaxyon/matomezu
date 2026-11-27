@@ -153,6 +153,7 @@ export {
   useBookOpenChoice,
   useCloseLeftSidePanel,
   useCloseRightSidePanel,
+  useContextGauge,
   useControlCenterMaximize,
   useControlCenterMaximized,
   useCopyText,

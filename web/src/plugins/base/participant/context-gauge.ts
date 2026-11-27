@@ -1,11 +1,38 @@
-// コンテキストの棒: 参加者の会話の今のコンテキストの量を、物差しに対する割合と数で見せる形。物差しの選びと 9 割の判断は、ここ 1 か所で決める
+// コンテキストの棒: 参加者の会話の今のコンテキストの量を、物差しに対する割合と数で見せる形。物差しの選びと 9 割の判断は、ここ 1 か所で決める。
+// 物差しは利用者の設定の項目 context-scale で選ぶ（自動か、決まった量）
+import { z } from "zod"
 import type { ContextUse } from "../../../store/state"
+import { kit } from "../kit"
 
 // 会話の今のコンテキストの量が分からない（知らされていない・読めない）ときと、棒を出さないときの値
 export const NO_CONTEXT_USE = "none"
 
 // 物差しの選び方: auto は AI の側の物差し（自動で縮める所、無ければモデルの上限。ContextUse の aiScale）、数はその量（トークン）
 export type ContextScale = "auto" | number
+
+// 選べる物差しの量（トークン）
+export const CONTEXT_SCALE_CHOICES = [200_000, 300_000, 500_000, 1_000_000] as const
+
+// コンテキストの棒の物差し（利用者の設定の項目）: auto か、CONTEXT_SCALE_CHOICES の量
+export const CONTEXT_SCALE = kit.defineSetting({
+  id: "context-scale",
+  title: "Context scale",
+  help: kit.message(
+    "Auto: Claude Code's autoCompactWindow setting, or the model's limit without it (1M for every Claude model now). Claude only for now",
+  ),
+  schema: z.union([z.literal("auto"), ...CONTEXT_SCALE_CHOICES.map(n => z.literal(n))]),
+  default: "auto",
+  optionTitles: {
+    auto: kit.message("Auto"),
+    "200000": kit.message("200K"),
+    "300000": kit.message("300K"),
+    "500000": kit.message("500K"),
+    "1000000": kit.message("1M"),
+  },
+})
+
+// 利用者の設定の項目 context-scale の値 value を物差しにする（数でなければ auto）
+export const contextScaleOf = (value: unknown): ContextScale => (typeof value === "number" ? value : "auto")
 
 // 棒と数を赤にする、物差しに対する割合
 const NEAR_FULL = 0.9

@@ -501,6 +501,7 @@ test("matomezu/ui が出す名前", () => {
     "useCloseLeftSidePanel",
     "useCloseRightSidePanel",
     "useCommand",
+    "useContextGauge",
     "useContextMenu",
     "useControlCenterMaximize",
     "useControlCenterMaximized",
