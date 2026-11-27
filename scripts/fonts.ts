@@ -1,5 +1,5 @@
 // 箱の文字のフォント Noto Sans JP（@fontsource/noto-sans-jp。字の範囲ごとに分けた woff2）を画面に配り、字の幅の表を作る。
-//   bun scripts/fonts.ts copy <dir>  ふつう（400）と太字（700）の woff2 と、それを読む noto-sans-jp.css を <dir> に置く
+//   bun scripts/fonts.ts copy <dir>  ふつう（400）と太字（700）の woff2 と、それを読む noto-sans-jp.css と、画面が先に読む字の範囲を指す字 first.txt を <dir> に置く
 //   bun scripts/fonts.ts widths [<file>]  字の幅の表（無ければ web/src/plugins/base/text/noto-sans-jp.ts）を、配る woff2 から作り直す
 // 幅は配るファイルそのものから読むので、測る字と描く字が同じになる
 import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
@@ -23,6 +23,37 @@ function copy(dir: string) {
     }
   }
   writeFileSync(join(dir, "noto-sans-jp.css"), WEIGHTS.map(faces).join("\n"))
+  writeFileSync(join(dir, "first.txt"), firstText(faces(400)))
+}
+
+// 画面が、ページを描く前に先に読む字の範囲: @fontsource は番号の大きい範囲ほどよく使う字を入れる（[119] がかなと句読点、[118] が英数字、小さい番号は使うことの少ない漢字）。
+// 番号の大きい方から FIRST_RANGES 個と latin を先に読む
+const FIRST_RANGES = 25
+// 範囲の名前（[119] なら "119"、latin なら "latin"）と、その範囲の字
+function rangesOf(css: string): { name: string; points: number[] }[] {
+  return [...css.matchAll(/noto-sans-jp-\[?([0-9a-z]+)\]?-\d+-normal \*\/[^}]*unicode-range:([^;]*);/g)].map(m => ({
+    name: m[1] ?? "",
+    points: (m[2] ?? "").split(",").flatMap(part => {
+      const [from, to] = part.trim().replace(/^U\+/i, "").split("-")
+      const start = Number.parseInt(from ?? "", 16)
+      const end = to === undefined ? start : Number.parseInt(to, 16)
+      return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+    }),
+  }))
+}
+// 先に読む範囲ごとに、その範囲だけに入る字を 1 字ずつ並べた文（画面は、この字を描くための範囲を読む）
+function firstText(css: string): string {
+  const ranges = rangesOf(css)
+  const numbered = ranges.filter(r => /^\d+$/.test(r.name)).sort((a, b) => Number(b.name) - Number(a.name))
+  const first = [...numbered.slice(0, FIRST_RANGES), ...ranges.filter(r => r.name === "latin")]
+  const count = new Map<number, number>()
+  for (const r of ranges) for (const p of r.points) count.set(p, (count.get(p) ?? 0) + 1)
+  return first
+    .map(r => {
+      const own = r.points.find(p => count.get(p) === 1) ?? r.points[0]
+      return own === undefined ? "" : String.fromCodePoint(own)
+    })
+    .join("")
 }
 
 // 字ごとの幅（1 em を 1000 にした値）を、続く字が同じ幅の並び [最初の字, 字の数, 幅] にまとめる
