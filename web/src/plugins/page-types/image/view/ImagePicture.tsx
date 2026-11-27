@@ -8,7 +8,8 @@ import { IMAGE_MARGIN } from "../image"
 import { kit } from "../kit"
 import styles from "./ImagePicture.module.css"
 
-export function ImagePicture({ asset }: { asset: string }) {
+// margin は画像を収める、紙の端からの余白（無ければ IMAGE_MARGIN）
+export function ImagePicture({ asset, margin = IMAGE_MARGIN }: { asset: string; margin?: number }) {
   const url = useAssetUrl()(asset)
   const [broken, setBroken] = useState<string>(NO_ASSET_URL) // 読めなかった URL
   const [loaded, setLoaded] = useState<string>(NO_ASSET_URL) // 読み終えた URL
@@ -16,7 +17,7 @@ export function ImagePicture({ asset }: { asset: string }) {
   // 描く画像が無ければ、描き終えている
   usePrintHold(!shown || loaded === url)
   return (
-    <div className={styles.box} style={{ "--image-margin": `${IMAGE_MARGIN}px` } as CSSProperties}>
+    <div className={styles.box} style={{ "--image-margin": `${margin}px` } as CSSProperties}>
       {shown ? (
         <img
           className={styles.image}

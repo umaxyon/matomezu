@@ -31,11 +31,16 @@ export function imagePrintSheets(catalog: CoreCatalog, page: ItemPage): PrintShe
   return printSheetsOf(paper, [{ x: 0, y: 0, w: paper.w, h: paper.h }], NO_GROW, NO_EXTENT)
 }
 
-// 画像のプレゼンテーション: 紙の上に画像 1 枚を描く。印刷は、画像を読み終えるまで刷らない（ビューが usePrintHold で待たせる）
+// 画像のプレゼンテーション: 紙の上に画像 1 枚を描く。印刷は、画像を読み終えるまで刷らない（ビューが usePrintHold で待たせる）。
+// スクラップは紙でなく画像の上で切り抜く（範囲は画像の px）
 export const IMAGE_PRESENTATION = kit.definePresentation({
   id: "image",
   printSheets: imagePrintSheets,
+  scrapSpace: (_catalog, page) => imageSizeOf(page),
 })
+
+// ビューが開く右クリックのメニュー: 紙の画面（ui.tsx で core/catalog.ts に書き足す）
+export const IMAGE_CONTEXT = kit.name("image-context")
 
 // 画像を取り込むダイアログ（受けたフォルダに、選んだファイルを 1 枚 1 ページで取り込む。base の新しいページの値を受ける）
 export const IMPORT_IMAGES_DIALOG = kit.defineDialogWith<NewPageDialogArgs>()({

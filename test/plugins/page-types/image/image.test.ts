@@ -6,7 +6,10 @@ import { type ActionContext, ANY_PAGE_TYPE } from "../../../../web/src/core/def/
 import { HOME_ID } from "../../../../web/src/core/folders"
 import { withChanges } from "../../../../web/src/core/folders-changes"
 import { type PerformedIn, performIn, permittedIn, type World } from "../../../../web/src/core/perform-world"
+import type { ItemPage } from "../../../../web/src/core/placed"
 import { BUILTIN_CONTROL_CENTER } from "../../../../web/src/plugins"
+import { pageArea } from "../../../../web/src/plugins/base/place/grow"
+import { scrapSpaceOf, wholePage } from "../../../../web/src/plugins/base/scrap/scrap"
 import { IMAGE, IMAGES, imageSizeOf, NO_IMAGE_SIZE } from "../../../../web/src/plugins/page-types/image/image"
 import { worldOf } from "../../../../web/src/store/world"
 import { CORE_CATALOG, newStore, sequence, settleIn } from "../../../support"
@@ -134,4 +137,13 @@ test("画像のページは、作るときに画像の幅と高さを受ける�
   expect(run(world, "page-create", { folder: images, type: IMAGE.id, fields: { asset: ASSET } }).ok).toBe(false)
   expect(imageSizeOf(world.pages[img]!)).toEqual({ w: 40, h: 20 })
   expect(imageSizeOf({})).toBe(NO_IMAGE_SIZE)
+})
+
+test("スクラップを切り抜く広さは、画像のページでは画像の幅と高さ（ずらさない）、ほかのタイプではページの広さ。切り抜いた直後の範囲はその全体", () => {
+  const { world, img } = prepared()
+  const image = world.pages[img] as ItemPage
+  expect(scrapSpaceOf(CORE_CATALOG, image)).toEqual({ size: { w: 40, h: 20 }, shift: { x: 0, y: 0 } })
+  expect(wholePage(CORE_CATALOG, image)).toEqual({ x: 0, y: 0, w: 40, h: 20 })
+  const drawing = { id: "d", type: DRAWING, title: "d", paper: "@matomezu/base:a4", items: [] } as unknown as ItemPage
+  expect(scrapSpaceOf(CORE_CATALOG, drawing).size).toEqual(pageArea(CORE_CATALOG, drawing).size)
 })

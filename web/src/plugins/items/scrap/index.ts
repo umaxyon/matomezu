@@ -41,7 +41,7 @@ export const SCRAP_BOX = kit.defineShape({
   scrapFrame: true,
   dialogs: { edit: SCRAP_BOX_EDIT_DIALOG.id },
   props: ScrapSchema.extend({ line: z.union([z.literal(NO_LINE), ColorSchema]).optional() }).describe(
-    "A view of a part of another page, drawn live from that page (nothing is copied): page is that page's id, area the part shown in that page's own pixels (x and y from its top-left), scale how much it is enlarged (1 is the same size). Its size is area × scale, so w and h are not kept: item-resize with w changes scale (the height follows). It shows No Data while the page does not exist. line is the border around it: without it the theme's line colour, \"none\" for no border, or a colour (a theme colour name or #rrggbb)",
+    "A view of a part of another page, drawn live from that page (nothing is copied): page is that page's id, area the part shown in that page's own pixels (x and y from its top-left; on an image page, the image's own pixels, without the paper's margin), scale how much it is enlarged (1 is the same size). Its size is area × scale, so w and h are not kept: item-resize with w changes scale (the height follows). It shows No Data while the page does not exist. line is the border around it: without it the theme's line colour, \"none\" for no border, or a colour (a theme colour name or #rrggbb)",
   ),
   size: DEFAULT,
   min: MIN,

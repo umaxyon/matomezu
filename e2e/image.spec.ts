@@ -1,7 +1,10 @@
 // 画像の取り込み: 書庫の「画像」のフォルダの右クリックの「画像を取り込む…」で OS のファイルの窓が開き、選んだファイル 1 つが画像のページ 1 枚になる（名前は拡張子を取ったファイル名）。
 // 名前が重なれば 1 件ずつ「番号を付ける・上書き・やめる」を聞く（上書きは、利用者だけのアクション page-create-over）。開いたページは画像を描く。「画像」の外の右クリックには出ない
-import { expect, test } from "./fixtures"
+import { drawingPage, testBook } from "../test/lineup"
+import { bookScreenUrl, expect, test } from "./fixtures"
 import { panel } from "./helpers/note"
+import { leftPanel } from "./helpers/outbox"
+import { items, onPaper } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 
 const PNG = Buffer.from(
@@ -103,4 +106,50 @@ test("画像のページの印刷は、画像を読み終えるまで印刷の�
   await expect(print).toBeDisabled()
   release()
   await expect(print).toBeEnabled()
+})
+
+test.describe("画像のページのスクラップ", () => {
+  test.use({ books: [testBook("img-scrap-book", "置く先の図", [drawingPage("img-scrap-page")])] })
+
+  test("画像のページを切り抜くと範囲は画像だけで、図面に置くと紙の余白なしに画像を縦横の比のまま描く", async ({
+    page,
+  }) => {
+    await page.goto("/")
+    await page.bringToFront()
+    await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+    const home = page.getByRole("list", { name: "書庫 の中身" })
+    await home.getByRole("button", { name: "画像", exact: true }).click({ button: "right" })
+    const picked = page.waitForEvent("filechooser")
+    await page.getByRole("menu").getByRole("menuitem", { name: "画像を取り込む…" }).click()
+    await (await picked).setFiles([{ name: "横長.svg", mimeType: "image/svg+xml", buffer: SVG }])
+    await home.getByRole("button", { name: "画像", exact: true }).dblclick()
+    await page.getByRole("list", { name: "画像 の中身" }).getByRole("button", { name: "横長", exact: true }).dblclick()
+
+    // 画面を右クリックして切り抜く。範囲を選ぶ所の絵は、画像だけ（40 × 20 の比）
+    await expect(page.locator("img[src^='api/assets/']")).toHaveCount(1)
+    await page.getByRole("region", { name: "ステージ" }).click({ button: "right" })
+    await page.getByRole("menu").getByRole("menuitem", { name: "スクラップを切り抜く" }).click()
+    const cut = page.getByRole("dialog", { name: "スクラップを切り抜く" })
+    const area = (await cut.locator("[data-scrap-area]").boundingBox())!
+    expect(area.width / area.height).toBeCloseTo(2, 1)
+    await cut.getByRole("button", { name: "トレイに入れる" }).click()
+    await expect(cut).toBeHidden()
+
+    // 図面のブックを開き、スクラップトレイから置く
+    await page.goto(bookScreenUrl("img-scrap-book"))
+    const tabs = (await page.locator("[data-page-tabs]").first().boundingBox())!
+    await page.mouse.move(tabs.x + tabs.width - 20, tabs.y + tabs.height / 2)
+    await page.getByRole("button", { name: "スクラップトレイを開く" }).click()
+    const rows = leftPanel(page).locator("[data-scrap-row]")
+    await rows.first().getByRole("button").first().click()
+    const at = await onPaper(page, 250, 300)
+    await page.mouse.click(at.x, at.y)
+    const placed = items(page).filter({ has: page.locator('[data-scrap="shown"]') })
+    await expect(placed).toHaveCount(1)
+    await expect(placed.locator("img")).toBeVisible()
+    const box = (await placed.boundingBox())!
+    expect(box.width / box.height).toBeCloseTo(2, 1)
+    const img = (await placed.locator("img").boundingBox())!
+    expect(img.width).toBeCloseTo(box.width, -1)
+  })
 })

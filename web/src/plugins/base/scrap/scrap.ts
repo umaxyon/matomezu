@@ -2,7 +2,7 @@
 // スクラップトレイは、切り抜いて、まだ置いていないスクラップを集めておく所（対象の定義 scrap のレコード。利用者が消すまで残る）。
 // 置いたスクラップ（スクラップフレームのアイテムの項目）は、スクラップトレイのスクラップの値を写して持ち、スクラップトレイとはつながらない
 import { z } from "zod"
-import type { CoreCatalog } from "../../../core/core-catalog"
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Point, Rect, Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
 import { kit } from "../kit"
@@ -42,7 +42,7 @@ export const SCRAP = kit.defineSubject({
   id: "scrap",
   title: "Scrap",
   aiDescription:
-    "A scrap in the user's scrap tray: a view cut out of a page (page: the page's id, area: the part shown, in the page's own pixels, scale: 1 is the same size), kept until the user places it on a page or removes it. Only the user cuts scraps out and removes them. Listed newest first.",
+    "A scrap in the user's scrap tray: a view cut out of a page (page: the page's id, area: the part shown, in the page's own pixels (on an image page, the image's own pixels), scale: 1 is the same size), kept until the user places it on a page or removes it. Only the user cuts scraps out and removes them. Listed newest first.",
   record: ScrapSchema.extend({ id: z.string().min(1), cutAt: z.string() }),
   keys: {
     cutAt: { type: "text", of: s => s.cutAt },
@@ -90,10 +90,26 @@ export const areaOnPage = (area: Rect, shift: Point): Rect => ({ ...area, x: are
 // ページの上の位置を、範囲（ページの中身の位置）にする
 export const areaOfPage = (rect: Rect, shift: Point): Rect => ({ ...rect, x: rect.x - shift.x, y: rect.y - shift.y })
 
-// 切り抜いた直後の範囲: ページ全体
+declare module "../../../core/catalog" {
+  interface PresentationExtras {
+    // スクラップを切り抜く広さを、ページの広さでなく自分で決めるプレゼンテーション（画像のページなど）の、その広さ。スクラップの範囲はこの広さの上の座標で持ち、
+    // 描くのはプレゼンテーションのビューの定義の scrapView。無ければ、ページの広さ（可変ページは中身をずらす前の位置）の上で切り抜き、印刷区画のビューで描く
+    scrapSpace?(catalog: CoreCatalog, page: ItemPage): Size
+  }
+}
+
+// ページ page のスクラップを切り抜く広さと、範囲をその広さの上の位置にするためにずらす量（scrapSpace を持つプレゼンテーションはずらさない）
+export function scrapSpaceOf(catalog: CoreCatalog, page: ItemPage): { size: Size; shift: Point } {
+  const own = catalog.presentations.get(pageType(catalog, page.type).presentation)?.scrapSpace
+  return own
+    ? { size: own(catalog, page), shift: { x: 0, y: 0 } }
+    : { size: pageArea(catalog, page).size, shift: shiftOf(catalog, page) }
+}
+
+// 切り抜いた直後の範囲: 切り抜く広さ全体
 export function wholePage(catalog: CoreCatalog, page: ItemPage): Rect {
-  const size = pageArea(catalog, page).size
-  return areaOfPage({ x: 0, y: 0, w: size.w, h: size.h }, shiftOf(catalog, page))
+  const { size, shift } = scrapSpaceOf(catalog, page)
+  return areaOfPage({ x: 0, y: 0, w: size.w, h: size.h }, shift)
 }
 
 // 範囲の一番小さい大きさ（ページの px）
