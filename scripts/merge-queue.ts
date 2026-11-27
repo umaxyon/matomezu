@@ -13,7 +13,8 @@
 //      衝突したブランチは外して残りで続ける。サブのブランチの ref は動かさない。
 //      ソースから作る engine.js は、衝突したのがそれだけのときと、両側が変えてきれいにマージできたときに作り直して重ねる
 //   3. lint → typecheck → bun test → go test を流し、どれも通れば e2e。落ちたテストがあれば外す。
-//      落ちたテストは 1 回だけ流し直し、その結果（通れば揺れの疑い）を添えて返す。原因を調べて直すのは、頼んだブランチの側
+//      落ちたテストは 1 回だけ流し直し、その結果（通れば揺れの疑い）を添えて返す。原因を調べて直すのは、頼んだブランチの側。
+//      はじめの回の e2e の跡（e2e/.results の error-context など と json の報告）は、ログの置き場の e2e.results と e2e.first.json に残す
 //   4. 通れば main を fast-forward する。main がその間に進んでいたら、重ねる所からやり直す
 //   5. 2 件以上を重ねて落ちたら、1 件ずつ順に 2〜4 を流す（通った物は入る）
 //   6. --push なら、main が進んだときに origin へ push する。失敗したら要約に出し、0 以外で終わる
@@ -23,6 +24,8 @@ import { execFileSync, spawn, spawnSync } from "node:child_process"
 import {
   appendFileSync,
   closeSync,
+  copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   openSync,
@@ -326,6 +329,8 @@ export type Step = {
   complete?: (out: string, logs: string, failures: Failure[]) => boolean
   // 落ちたテストだけを流し直すコマンド。無ければ流し直さない
   rerun?: (failures: Failure[]) => string[][] | undefined
+  // 落ちたら、流し直す前に、はじめの回の跡（次に流すと上書きされる物）を logs に写す。外されたブランチが原因を調べるのに使う
+  keep?: (queue: string, logs: string) => void
   env?: (logs: string) => Record<string, string>
 }
 
@@ -373,6 +378,11 @@ const E2E: Step = {
     fs.every(f => f.where !== "")
       ? [["bunx", "playwright", "test", "--reporter=list,json", ...fs.map(f => f.where)]]
       : undefined,
+  keep: (queue, logs) => {
+    const results = join(queue, "e2e", ".results")
+    if (existsSync(results)) cpSync(results, join(logs, "e2e.results"), { recursive: true })
+    if (existsSync(pwJson(logs, "e2e"))) copyFileSync(pwJson(logs, "e2e"), pwJson(logs, "e2e.first"))
+  },
   env: logs => ({
     PLAYWRIGHT_JSON_OUTPUT_FILE: pwJson(logs, "e2e"),
     PLAYWRIGHT_JSON_OUTPUT_NAME: pwJson(logs, "e2e"),
@@ -389,6 +399,7 @@ export async function runStep(s: Step, queue: string, logs: string): Promise<Ste
   const failures = s.failures(out, logs)
   const whole = failures.length > 0 && (s.complete?.(out, logs, failures) ?? true)
   const reruns = whole ? s.rerun?.(failures) : undefined
+  s.keep?.(queue, logs)
   if (!reruns) return result({ ok: false, failures, log, rerun: "none" })
   for (const [i, cmd] of reruns.entries()) {
     const again = join(logs, `${s.step}.rerun${i}.log`)
