@@ -245,6 +245,8 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:library-entry-open",
       "@matomezu/base:library-entry-open-split",
       "-",
+      "@matomezu/image:scrap-make",
+      "-",
       "@matomezu/base:library-book-new",
       "@matomezu/base:library-folder-new",
       "@matomezu/base:library-page-new",

@@ -197,6 +197,7 @@ export {
   tooClose,
   unpinPage,
   visitorName,
+  wholeScrapOf,
   widenForCaption,
   wordLinksOf,
   wrap,

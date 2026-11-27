@@ -92,4 +92,5 @@ export {
   scrapScaleFits,
   scrapScaleMin,
   scrapSize,
+  wholeScrapOf,
 } from "./scrap"

@@ -11,6 +11,7 @@ import { pageIn } from "../../core/folders"
 import { outsideBinderIn } from "../../core/folders-tree"
 import { LIBRARY_HISTORY, NO_HISTORY } from "../../core/history"
 import { actionQuery, type Inspected, inspect, openedQuery, withoutPermissions } from "../../core/inspect"
+import { openablePage } from "../../core/library"
 import { splitId } from "../../core/names"
 import { openedAnswer } from "../../core/perform-permit"
 import { permittedIn } from "../../core/perform-world"
@@ -109,6 +110,7 @@ export function screenCommandContext(
     libraryHistory: state.history[LIBRARY_HISTORY] ?? NO_HISTORY,
     folders: state.folders,
     pageTitle: page => titleOf(state, "page", page, namingOf(catalog, settings)) ?? NO_NAME,
+    pageOf: page => openablePage(state, page)?.page ?? NO_PAGE,
     // スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値
     pluginState: def =>
       stateRead(

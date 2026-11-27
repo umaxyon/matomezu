@@ -496,6 +496,7 @@ export {
   scrapScaleFits,
   scrapScaleMin,
   scrapSize,
+  wholeScrapOf,
 } from "./scrap"
 export type { SearchableDef } from "./search"
 export type { Font, Weight } from "./text"

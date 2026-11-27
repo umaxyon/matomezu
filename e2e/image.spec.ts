@@ -123,7 +123,14 @@ test.describe("画像のページのスクラップ", () => {
     await page.getByRole("menu").getByRole("menuitem", { name: "画像を取り込む…" }).click()
     await (await picked).setFiles([{ name: "横長.svg", mimeType: "image/svg+xml", buffer: SVG }])
     await home.getByRole("button", { name: "画像", exact: true }).dblclick()
-    await page.getByRole("list", { name: "画像 の中身" }).getByRole("button", { name: "横長", exact: true }).dblclick()
+    const images = page.getByRole("list", { name: "画像 の中身" })
+
+    // 書庫の画像のページの右クリックの「スクラップを作る」: ダイアログを開かずに、画像全体をスクラップトレイに入れる
+    await images.getByRole("button", { name: "横長", exact: true }).click({ button: "right" })
+    await page.getByRole("menu").getByRole("menuitem", { name: "スクラップを作る" }).click()
+    await expect(page.getByText("スクラップトレイに入れました")).toBeVisible()
+    await page.keyboard.press("Escape")
+    await images.getByRole("button", { name: "横長", exact: true }).dblclick()
 
     // 画面を右クリックして切り抜く。範囲を選ぶ所の絵は、画像だけ（40 × 20 の比）
     await expect(page.locator("img[src^='api/assets/']")).toHaveCount(1)
@@ -141,6 +148,7 @@ test.describe("画像のページのスクラップ", () => {
     await page.mouse.move(tabs.x + tabs.width - 20, tabs.y + tabs.height / 2)
     await page.getByRole("button", { name: "スクラップトレイを開く" }).click()
     const rows = leftPanel(page).locator("[data-scrap-row]")
+    await expect(rows).toHaveCount(2) // 書庫から作った物と、切り抜いた物
     await rows.first().getByRole("button").first().click()
     const at = await onPaper(page, 250, 300)
     await page.mouse.click(at.x, at.y)

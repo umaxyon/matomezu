@@ -131,6 +131,13 @@ export function wholePage(catalog: CoreCatalog, page: ItemPage): Rect {
   return areaOfPage({ x: 0, y: 0, w: size.w, h: size.h }, shift)
 }
 
+// ページ page（id は pageId）全体を、倍率 1 で見るスクラップ（書庫から作るスクラップ）
+export const wholeScrapOf = (catalog: CoreCatalog, pageId: string, page: ItemPage): Scrap => ({
+  page: pageId,
+  area: wholePage(catalog, page),
+  scale: 1,
+})
+
 // 範囲の一番小さい大きさ（ページの px）
 export const SCRAP_AREA_MIN = 16
 
