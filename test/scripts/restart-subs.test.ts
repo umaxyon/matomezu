@@ -4,8 +4,11 @@ import {
   lastAssistantText,
   lastModel,
   launchArgs,
+  launchCommand,
+  launchedEnv,
   launchedWith,
   NG_MARK,
+  parseEnv,
   parseTarget,
   projectDir,
   READY_MARK,
@@ -164,4 +167,17 @@ test("結果はサブごとに 1 行にまとめ、止めたサブは理由の�
   expect(resultLine(["sub5_work", "sub3_work"], results, "参加した")).toBe(
     "結果: sub5_work 参加した / sub3_work 止めた: 起動した claude の引数が違う",
   )
+})
+
+test("--env は起動の文の前に付け、起動した claude の環境変数にそのとおりあるかを確かめる", () => {
+  const env = [parseEnv("CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1")]
+  expect(launchCommand(["--model", "claude-opus-5-5"], env)).toBe(
+    "CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1 scripts/claude-relay.sh --model claude-opus-5-5",
+  )
+  expect(launchCommand(["--model", "m"], [])).toBe("scripts/claude-relay.sh --model m")
+  expect(launchedEnv("PATH=/bin\0CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1\0", env)).toBe(true)
+  expect(launchedEnv("PATH=/bin\0CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=10\0", env)).toBe(false)
+  expect(() => parseEnv("x=1")).toThrow()
+  expect(() => parseEnv("A=a b")).toThrow()
+  expect(() => parseEnv("A=$(rm)")).toThrow()
 })

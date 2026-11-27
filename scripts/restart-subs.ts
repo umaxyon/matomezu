@@ -1,10 +1,11 @@
 // Orca の端末で動くサブの Claude Code を、まとめて再起動する
-//   bun scripts/restart-subs.ts [--dry-run] [--timeout-min <分>] <サブ>...
+//   bun scripts/restart-subs.ts [--dry-run] [--timeout-min <分>] [--env <KEY=VAL>]... <サブ>...
+//   --env: 起動する claude に渡す環境変数（Code Mode などを試すとき）。渡したサブだけに効き、次に --env なしで起動し直せば外れる
 //   <サブ> は sub4（sub4_work の略）・sub4_work・main_manager などのワークルーム名、モデルを指定するなら sub6:claude-fable-5-2（無ければ最後の会話のモデル）
 // サブごとに並行して、次の順に進める。どこかで止まったサブは、そこで止めて理由を出す
 //   1. 再起動の準備（引き継ぎを書き、未コミットを残さない）を頼み、手が空くのを待つ
 //   2. 最後の返事が READY_MARK で終わり、追跡するファイルに変更が無ければ /exit を送り、claude が終わるのを待つ
-//   3. scripts/claude-relay.sh --model <モデル> を送り、起動した claude の引数がそのとおりかを確かめ（違えば止める）、/reload-plugins と /mcp reconnect を送り、引き継ぎを読んで join するよう頼む。
+//   3. scripts/claude-relay.sh --model <モデル> を送り（--env があれば KEY=VAL を前に付ける）、起動した claude の引数と環境変数がそのとおりかを確かめ（違えば止める）、/reload-plugins と /mcp reconnect を送り、引き継ぎを読んで join するよう頼む。
 //      join の合言葉（link）はここで作り、開発の常駐に前もって承認させておく（画面で受け入れずに入る。開発用の口 /api/dev/rejoin-pass）
 //   4. join が参加者 id を返したら、手が空くのを待ち、ターンの始まりのフックが参加を伝えたか（セッションと参加者を結んだか）を BOUND_WAIT_MS まで待つ。
 //      合言葉の受け入れの起こす知らせで、watch がターンを始めるはず。伝えなければ、もう一言（CONFIRM_PROMPT）送る。結ぶのはそのフックなので、
@@ -182,6 +183,26 @@ export function launchArgs(model: string): string[] {
   return ["--model", model]
 }
 
+// --env で渡せる環境変数。端末に打ち込むので、引用の要らない文字だけにする
+const ENV_PAIR = /^([A-Z_][A-Z0-9_]*)=([A-Za-z0-9_.:/@%+,-]*)$/
+
+export function parseEnv(pair: string): [string, string] {
+  const m = pair.match(ENV_PAIR)
+  if (!m) throw new Error(`--env は KEY=VAL（KEY は大文字と _、VAL は引用の要らない文字）: ${pair}`)
+  return [m[1] as string, m[2] as string]
+}
+
+// 端末に打ち込む起動の文
+export function launchCommand(args: string[], env: [string, string][]): string {
+  return [...env.map(([k, v]) => `${k}=${v}`), "scripts/claude-relay.sh", ...args].join(" ")
+}
+
+// 起動した claude の /proc/<pid>/environ に、env がどれもそのとおりにあるか
+export function launchedEnv(environ: string, env: [string, string][]): boolean {
+  const got = new Set(environ.split("\0"))
+  return env.every(([k, v]) => got.has(`${k}=${v}`))
+}
+
 // /proc/<pid>/cmdline の中身を、引数の並びにする
 function argvOf(cmdline: string): string[] {
   const argv = cmdline.split("\0")
@@ -337,7 +358,10 @@ async function waitIdle(handle: string, timeoutMs: number): Promise<void> {
   )
 }
 
-async function restart(target: Target, opts: { dryRun: boolean; timeoutMs: number }): Promise<void> {
+async function restart(
+  target: Target,
+  opts: { dryRun: boolean; timeoutMs: number; env: [string, string][] },
+): Promise<void> {
   const log = (s: string) => console.log(`[${target.workroom}] ${s}`)
   const sub = findSub(target.workroom)
   const term = { handle: sub.handle }
@@ -381,7 +405,7 @@ async function restart(target: Target, opts: { dryRun: boolean; timeoutMs: numbe
   await sleep(3000)
   await orca(["terminal", "send", "--terminal", term.handle, "--text", "\x15"])
   const args = launchArgs(model)
-  await send(term.handle, ["scripts/claude-relay.sh", ...args].join(" "))
+  await send(term.handle, launchCommand(args, opts.env))
   await until("claude の起動", 120_000, () => claudePids(cwd).length === 1)
   const [launched] = claudePids(cwd)
   const cmdline = readFileSync(`/proc/${launched}/cmdline`, "utf8")
@@ -390,7 +414,9 @@ async function restart(target: Target, opts: { dryRun: boolean; timeoutMs: numbe
       `起動した claude の引数が違う: ${JSON.stringify(argvOf(cmdline))}。端末を見る\n${await terminalTail(term.handle)}`,
     )
   }
-  log("claude の起動の引数を確かめた")
+  if (!launchedEnv(readFileSync(`/proc/${launched}/environ`, "utf8"), opts.env))
+    throw new Error(`起動した claude に環境変数が渡っていない: ${launchCommand([], opts.env)}`)
+  log(opts.env.length > 0 ? "claude の起動の引数と環境変数を確かめた" : "claude の起動の引数を確かめた")
   await sleep(5000)
   await waitIdle(term.handle, 120_000)
   for (const cmd of ["/reload-plugins", `/mcp reconnect ${MCP_SERVER}`]) {
@@ -438,12 +464,15 @@ if (import.meta.main) {
   const dryRun = args.includes("--dry-run")
   const ti = args.indexOf("--timeout-min")
   const timeoutMs = (ti >= 0 ? Number(args[ti + 1]) : 30) * 60_000
-  const targets = args.filter((a, i) => !a.startsWith("--") && !(ti >= 0 && i === ti + 1)).map(parseTarget)
+  const env = args.flatMap((a, i) => (args[i - 1] === "--env" ? [parseEnv(a)] : []))
+  const targets = args
+    .filter((a, i) => !a.startsWith("--") && !(ti >= 0 && i === ti + 1) && args[i - 1] !== "--env")
+    .map(parseTarget)
   if (targets.length === 0) {
-    console.error("使い方: bun scripts/restart-subs.ts [--dry-run] [--timeout-min <分>] <サブ>...")
+    console.error("使い方: bun scripts/restart-subs.ts [--dry-run] [--timeout-min <分>] [--env <KEY=VAL>]... <サブ>...")
     process.exit(2)
   }
-  const results = await Promise.allSettled(targets.map(t => restart(t, { dryRun, timeoutMs })))
+  const results = await Promise.allSettled(targets.map(t => restart(t, { dryRun, timeoutMs, env })))
   let failed = 0
   results.forEach((r, i) => {
     if (r.status === "rejected") {
