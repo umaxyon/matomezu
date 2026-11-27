@@ -171,6 +171,7 @@ test("フックが知らせた会話のコンテキストの量は、参加者�
   await expect(byMatomezu).toHaveCount(0)
   await tell({ used: 120_000, aiScale: 300_000, byMatomezu: 30_000 })
   await expect(byMatomezu).toHaveCount(1)
+  await expect(bar).toHaveAttribute("title", "matomezu 25% / その他 75%")
   const box = (e: Locator) =>
     e.evaluate(el => ({
       color: getComputedStyle(el).backgroundColor,
@@ -184,6 +185,7 @@ test("フックが知らせた会話のコンテキストの量は、参加者�
   expect(rest.width / mine.width).toBeCloseTo(3, 1)
   await tell({ used: 120_400, aiScale: 300_000 })
   await expect(byMatomezu).toHaveCount(0)
+  await expect(bar).not.toHaveAttribute("title")
   const amount = bar.getByText("120k")
   const calm = await amount.evaluate(e => getComputedStyle(e).color)
   await tell({ used: 280_000, aiScale: 300_000 })

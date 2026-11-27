@@ -102,12 +102,12 @@
   height: 100%;
   background: var(--skin-accent);
 }
-/* 棒のうち matomezu が使っている分（左から）。アクセントの濃い色 */
+/* 棒のうち matomezu が使っている分（左から）。アクセントの明るい色 */
 .byMatomezu {
   display: block;
   flex: none;
   height: 100%;
-  background: color-mix(in srgb, var(--skin-accent) 60%, #000);
+  background: color-mix(in srgb, var(--skin-accent) 50%, #fff);
 }
 .amount {
   flex: none;
