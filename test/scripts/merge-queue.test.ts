@@ -278,7 +278,11 @@ test("bun test の集計と読み取った落ちが合わないか、テスト�
 })
 
 // 流すたびに数を 1 つ足し、決まった回までは落ちる偽のステップ
-function fakeStep(dir: string, failTimes: number, opts: { complete?: boolean; rerun?: boolean } = {}): Step {
+function fakeStep(
+  dir: string,
+  failTimes: number,
+  opts: { complete?: boolean; rerun?: boolean; kept?: string[] } = {},
+): Step {
   const counter = join(dir, "count")
   const script = `n=$(cat ${counter} 2>/dev/null || echo 0); n=$((n+1)); echo $n > ${counter}; [ $n -gt ${failTimes} ]`
   return {
@@ -287,6 +291,7 @@ function fakeStep(dir: string, failTimes: number, opts: { complete?: boolean; re
     failures: () => [{ step: "fake", where: "x", title: "t" }],
     complete: () => opts.complete ?? true,
     rerun: opts.rerun === false ? undefined : () => [["sh", "-c", script]],
+    keep: () => opts.kept?.push(readFileSync(counter, "utf8").trim()),
   }
 }
 
@@ -302,6 +307,16 @@ test("落ちたテストは流し直して通っても落ちとし、流し直�
   expect(r.ok).toBe(false)
   expect(r.rerun).toBe("passed")
   expect(r.failures).toEqual([{ step: "fake", where: "x", title: "t" }])
+})
+
+test("落ちたら、流し直す前に、はじめの回の跡を残す", async () => {
+  const d = tmp()
+  const kept: string[] = []
+  await runStep(fakeStep(d, 1, { kept }), d, d)
+  expect(kept).toEqual(["1"])
+  const passed: string[] = []
+  await runStep(fakeStep(tmp(), 0, { kept: passed }), d, d)
+  expect(passed).toEqual([])
 })
 
 test("流し直してもまた落ちれば、流し直しても落ちたと返す", async () => {

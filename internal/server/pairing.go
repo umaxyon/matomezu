@@ -70,9 +70,12 @@ type incomingPairing struct {
 	nonce   string // B の乱数
 	ip      string
 	at      time.Time
-	request string                   // 載せたペアリングの頼みの id（reveal のあと）
+	request string                   // 載せたペアリングの頼みの id（reveal のあと。載せているあいだは requestPutting）
 	decided chan peer.PairingOutcome // 利用者が答えたら 1 つ入る
 }
+
+// requestPutting は、reveal を受けて頼みをレコードに載せているあいだの incomingPairing.request
+const requestPutting = "putting"
 
 // HostPairing は、A が頼んでいるペアリングの様子（窓に見せる）
 type HostPairing struct {
@@ -275,6 +278,15 @@ func (h *Hub) kickPeers() {
 // followPeers は、ペアリングしたホストと頼みの変わりに応じる: 答えを待っている頼みが消えたら答えを決め、利用者が解いたペアリングしたホストを相手に知らせる
 func (h *Hub) followPeers(e *hostEntrance) {
 	ps := e.peers
+	// 答えを決めるのは、レコードを読む前に載せ終えていた頼みだけ（読んだあとに載った頼みは、読んだレコードに無くても消えていない）
+	ps.mu.Lock()
+	asked := map[*incomingPairing]string{}
+	for _, in := range ps.incoming {
+		if in.request != "" && in.request != requestPutting {
+			asked[in] = in.request
+		}
+	}
+	ps.mu.Unlock()
 	requests := h.pairingRequestRecords()
 	paired := h.pairedHostRecords()
 	now := map[string]pairedHostRecord{}
@@ -283,7 +295,8 @@ func (h *Hub) followPeers(e *hostEntrance) {
 	}
 	ps.mu.Lock()
 	for from, in := range ps.incoming {
-		if in.request == "" || slices.ContainsFunc(requests, func(r pairingRequestRecord) bool { return r.ID == in.request }) {
+		id, ok := asked[in]
+		if !ok || in.request != id || slices.ContainsFunc(requests, func(r pairingRequestRecord) bool { return r.ID == id }) {
 			continue
 		}
 		outcome := peer.PairingDeclined
@@ -531,7 +544,7 @@ func (h *Hub) pairingReveal(w http.ResponseWriter, r *http.Request, e *hostEntra
 		refusePairing(w, http.StatusForbidden, "commit-mismatch")
 		return
 	}
-	in.request = "pending"
+	in.request = requestPutting
 	in.decided = make(chan peer.PairingOutcome, 1)
 	ps.mu.Unlock()
 	self := h.HostStatus()
