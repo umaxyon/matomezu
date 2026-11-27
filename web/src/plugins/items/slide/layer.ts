@@ -1,6 +1,7 @@
 // スライドのレイヤーが描く物と、離したときに渡す値: ドラッグの途中の様子を重ねた形、複数を選んだときの全体の四角、選んだ 1 つ、
 // ドラッグ枠で選ぶ物、なぞった点から置く四角と項目
 import type { CoreCatalog, ItemId, PlacedShape, Point, Rect } from "../../../plugin-api"
+import { NO_SIZE, placedSize } from "../../base"
 import {
   boundsOf,
   drawnRect,
@@ -130,3 +131,10 @@ export function selectedItemOf(current: PlacedShape | undefined) {
       }
     : null
 }
+
+// 描く形の並び: どの形にも、描く大きさ（base の placedSize。大きさが項目で決まる形は項目から）を w・h に書く。データには戻さない
+export const sizedShapes = (catalog: CoreCatalog, shapes: readonly PlacedShape[]): PlacedShape[] =>
+  shapes.map(s => {
+    const size = placedSize(catalog, s)
+    return size === NO_SIZE ? s : { ...s, w: size.w, h: size.h }
+  })

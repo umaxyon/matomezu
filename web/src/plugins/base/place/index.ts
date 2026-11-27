@@ -63,4 +63,4 @@ export {
 } from "./placed"
 export type { Axis, Gap } from "./push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./push"
-export { CANNOT_RESIZE, type Edges, itemSize, minSize, resizedBy, widenForCaption } from "./size"
+export { CANNOT_RESIZE, type Edges, itemSize, minSize, resizedBy, sizedTo, widenForCaption, writesSize } from "./size"

@@ -171,6 +171,7 @@ export {
   sheetShapes,
   sheetsOfShape,
   shownRects,
+  sizedTo,
   slideOffsetOf,
   softBreakOf,
   splitWords,
@@ -194,6 +195,7 @@ export {
   wordLinksOf,
   wrap,
   wrapRich,
+  writesSize,
 } from "../plugins/base"
 
 // プラグインに公開する共通の処理（base の utils に書き出した物は、そのまま出る）

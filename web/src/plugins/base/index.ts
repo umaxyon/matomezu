@@ -469,12 +469,14 @@ export {
   shapeDefOf,
   shapeThemeFits,
   shownRects,
+  sizedTo,
   slideOffsetOf,
   tidyPage,
   toData,
   tooClose,
   unpinPage,
   widenForCaption,
+  writesSize,
 } from "./place"
 export type { PrintSheets, SheetPurpose } from "./print-preview"
 export {

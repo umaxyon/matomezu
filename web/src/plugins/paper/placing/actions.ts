@@ -29,13 +29,14 @@ import {
   settleChildren,
   shapeDefOf,
   shapeThemeFits,
+  sizedTo,
   widenForCaption,
 } from "../../base"
 import { kit } from "../kit"
 import { pasted } from "./clip"
 import { ancestorsOf, CROWD_AI, CrowdSchema, crowded, movedShapes, NO_FREE_SPOT, PointSchema } from "./crowd"
 import { DIRS } from "./drag"
-import { freeAt, moveItems, parsePlaced, sizedTo, subtreeOf } from "./items"
+import { freeAt, moveItems, parsePlaced, subtreeOf } from "./items"
 
 // 項目を変えたあとに形が中身を整えるメソッド（定義オブジェクトの拡張ポイントに、紙のプラグインの id を頭に付けて書き足す）。
 // before は変える前の形。無ければそのまま

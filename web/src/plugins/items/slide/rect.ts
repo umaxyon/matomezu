@@ -202,7 +202,7 @@ export function movedPoint(
   return { rect: next, points: fractions }
 }
 
-// 形のアイテムの四角（書いていない幅・高さは 0）
+// 形のアイテムの四角（書いていない幅・高さは 0。描く形は layer.ts の sizedShapes で大きさを書いてから渡す）
 export const rectOf = (shape: PlacedShape): Rect => ({ x: shape.x, y: shape.y, w: shape.w ?? 0, h: shape.h ?? 0 })
 // 始めの点 start から今の点 at への縦横を、長い方に揃えた終わりの点
 export function squaredEnd(start: Point, at: Point): Point {

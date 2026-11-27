@@ -63,13 +63,6 @@ export function stretchedBy(
   return resizedBy(catalog, item, edges, by, paper, ratio)
 }
 
-// アイテム item を大きさ size にした物（大きさを項目に写す形〈定義の resizedTo〉は写した項目にし、w・h を書かない）
-export function sizedTo(catalog: CoreCatalog, item: PlacedShape, size: Size): PlacedShape {
-  const def = shapeDefOf(catalog, item.item)
-  const write = def !== NO_SHAPE_DEF ? def.resizedTo : undefined
-  return write ? (write(item as never, size) as PlacedShape) : { ...item, w: size.w, h: size.h }
-}
-
 // ドラッグ中のアイテム id の通り道を覚え直す（drag.ts の track）
 export function trackDrag(catalog: CoreCatalog, page: ItemPage, id: string, prev: Point, by: Point, came: Came): Came {
   const frame = frameAround(catalog, page, id)

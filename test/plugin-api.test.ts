@@ -273,6 +273,7 @@ test("matomezu が出す名前", () => {
     "shownRects",
     "shownType",
     "siblingsOf",
+    "sizedTo",
     "slideIsBackground",
     "slideOf",
     "slideOffsetOf",
@@ -307,6 +308,7 @@ test("matomezu が出す名前", () => {
     "workroomOfActor",
     "wrap",
     "wrapRich",
+    "writesSize",
     "z",
   ])
 })

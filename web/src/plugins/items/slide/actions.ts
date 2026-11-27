@@ -10,7 +10,7 @@ import {
   shapeSchema,
   slideOf,
 } from "../../../plugin-api"
-import { nextItemId } from "../../base"
+import { NO_SIZE, nextItemId, placedSize, sizedTo, writesSize } from "../../base"
 import { kit } from "./kit"
 import { ORDERS } from "./order"
 import { scaledFontSize } from "./rect"
@@ -83,19 +83,19 @@ export const SLIDE_PLACE = kit.defineAction({
   ]),
   permissionScope: "page",
   run: (page, args, ctx) => {
-    const def = SLIDE_ITEMS.find(d => d.id === args.item)
-    if (!def) return null
-    const w = args.w ?? def.size.w
-    const h = args.h ?? def.size.h
-    const shape: Shape = {
+    const def = ctx.catalog.items.get(args.item)
+    if (def?.kind !== "shape") return null
+    const placed: Shape = {
       id: nextItemId(page, ctx.newId),
       x: args.at?.x ?? 0,
       y: args.at?.y ?? 0,
       item: args.item,
-      w,
-      h,
       props: { ...args.props },
     }
+    // 大きさが項目で決まる形（大きさを項目に写す形）は、w・h を受けず、書かない
+    const writes = writesSize(ctx.catalog, args.item)
+    if (writes && (args.w !== undefined || args.h !== undefined)) return null
+    const shape: Shape = writes ? placed : { ...placed, w: args.w ?? def.size.w, h: args.h ?? def.size.h }
     if (!fits(ctx.catalog, shape)) return null
     return { next: withSlide(page, [...shapes(page), shape]), result: { item: shape.id } }
   },
@@ -139,15 +139,24 @@ export const SLIDE_RESIZE = kit.defineAction({
   run: (page, args, ctx) => {
     if (args.w === undefined && args.h === undefined) return null
     const next = change(ctx.catalog, page, args.item, s => {
-      const oldW = s.w ?? 0
-      const oldH = s.h ?? 0
+      const now = placedSize(ctx.catalog, s as PlacedShape)
+      if (now === NO_SIZE) return null
+      const at = { x: args.at?.x ?? s.x, y: args.at?.y ?? s.y }
+      // 大きさを項目に写す形は、項目に写す（w・h は書かない）
+      if (writesSize(ctx.catalog, s.item))
+        return {
+          ...(sizedTo(ctx.catalog, s as PlacedShape, { w: args.w ?? now.w, h: args.h ?? now.h }) as Shape),
+          ...at,
+        }
+      const oldW = now.w
+      const oldH = now.h
       const w = args.w ?? oldW
       const h = args.h ?? oldH
       // 文字枠の文字の大きさ（無ければ既定の 24）を、幅の倍率で変える
       const scaled = args.scale && s.item === TEXT_FRAME.id && oldW > 0
       const fontSize = typeof s.props.fontSize === "number" ? s.props.fontSize : DEFAULT_FONT_SIZE
       const props = scaled ? { ...s.props, fontSize: scaledFontSize(fontSize, w, oldW) } : s.props
-      return { ...s, x: args.at?.x ?? s.x, y: args.at?.y ?? s.y, w: round(w), h: round(h), props }
+      return { ...s, ...at, w: round(w), h: round(h), props }
     })
     return next && { next, result: {} }
   },
