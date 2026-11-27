@@ -30,6 +30,8 @@ type Perform struct {
 	By         string `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。窓からは受けない）
 	// Participant は、AI の口が受け取った参加者の id（窓からは受けない）
 	Participant string `json:"-"`
+	// ended は、常駐がセッションが終わったと見て参加者を外す頼みか（leave だけが入れる。外れた記録の訳。departure.go）
+	ended bool
 }
 
 // performOne は、アクション 1 つのバルクの頼み
@@ -148,7 +150,9 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		return Performed{}, err
 	}
 	h.acts++
+	leaving, leavingRooms := h.leavingParticipants(out.Records)
 	h.applyWrites(plan, out, p, by, act)
+	h.noteDepartures(leaving, leavingRooms, p) // 消えた参加者を、その会話に伝えるまで覚える（departure.go。知らせの行列の stale より先）
 	h.dropGonePendingHeld() // 受け手が退室した承認待ちは、知らせずに消す（pending_message.go）
 	for _, e := range envelopes {
 		h.deliver(e)

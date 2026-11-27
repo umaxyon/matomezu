@@ -111,7 +111,7 @@ type Hub struct {
 	participantNotes map[string]participantNote        // 参加者の id → 常駐だけが持つ参加者の記録（join.go。結ぶのは join_session.go、呼ばれたのは join_calls.go）
 	joinMu           sync.Mutex                        // 参加の頼みを 1 つずつ受ける（join.go）
 	rejoin           rejoinPasses                      // 開発用の、前もって承認した再参加（rejoin_pass.go。リリースの実行ファイルには無い）
-	gone             map[string]goneState              // 表に無い参加の id の、断り・キャンセルの伝え方（join_calls.go・watch.go。残さない）
+	departures       []departure                       // 外れた・断られた・キャンセルされた参加者の、その会話にまだ伝えていない記録（古い順。departure.go。置き場所に残す）
 	heardModels      map[string]heardModel             // セッション id → 誰にも結ばれていないうちにフックが知らせたモデル（model.go。残さない）
 	clients          map[string]*client
 	wakeLines        map[*wakeLine]struct{}    // AI を起こす知らせの通り道（watch.go）
@@ -212,6 +212,16 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 			return nil, err
 		}
 	}
+	departed, err := store.Departures(user)
+	if err != nil {
+		return nil, err
+	}
+	var departures []departure
+	if departed != nil {
+		if err := json.Unmarshal(departed, &departures); err != nil {
+			return nil, fmt.Errorf("the departures cannot be read: %w", err)
+		}
+	}
 	stored, err := store.AIEditTickets()
 	if err != nil {
 		return nil, err
@@ -222,7 +232,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 			return nil, fmt.Errorf("the AI edit tickets cannot be read: %w", err)
 		}
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, pageWarnings: map[string]string{}, settings: settings, annotations: annotations, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, pageWarnings: map[string]string{}, settings: settings, annotations: annotations, participantNotes: notes, departures: departures, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
 	if err := h.loadTables(); err != nil {
 		return nil, err
 	}
