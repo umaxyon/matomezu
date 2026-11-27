@@ -60,7 +60,7 @@ export const PARTICIPANT = kit.defineSubject({
     .strictObject({
       id: z.string().min(1),
       state: z.enum(PARTICIPANT_STATES),
-      ai: z.string(), // AI の名前（claude・codex など）
+      ai: z.string(), // AI のプログラムが MCP で名乗った名前と版（claude-code 2.1.332・codex-mcp-client 0.172.0 など）
       model: z.string(),
       env: z.string(), // 環境名
       sessionName: z.string(), // 元のセッション名（空でもよい）

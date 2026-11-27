@@ -88,6 +88,7 @@ type Output struct {
 	SystemFolder  string                      `json:"systemFolder,omitempty"` // 名前が重なる断り（title-taken）で、重なった相手がシステムフォルダのときの、その印（定義の id）
 	At            *int                        `json:"at,omitempty"`           // 断られたアクションが何番目か（常駐のログにだけ使う）
 	Result        json.RawMessage             `json:"result,omitempty"`       // 最後のアクションの結果
+	Results       []json.RawMessage           `json:"results,omitempty"`      // アクションごとの結果（バルクの順）
 	Pages         []RowChange                 `json:"pages,omitempty"`        // 変わった・足した・無くなったページ
 	Folders       []RowChange                 `json:"folders,omitempty"`      // 変わった・足した・無くなったフォルダ
 	Created       []string                    `json:"created,omitempty"`      // そのうち新しく足したページ・フォルダの id（世界のどこにも無い id であること）
@@ -103,7 +104,6 @@ type Output struct {
 	AIMessages    []AIMessage                 `json:"aiMessages,omitempty"`    // レコードが対象のアクションが返した、送る AI 間メッセージ（行ったのは参加の確定した AI。常駐が書き込みと一緒に送る）
 	HostMessages  []HostMessage               `json:"hostMessages,omitempty"`  // フォローステップが返した、送る常駐メッセージ（常駐が書き込みと一緒に送る）
 	Needs         []string                    `json:"needs,omitempty"`         // 断りが needs-rows のとき、行を足して行い直すブックの id（フォローステップがバックヤードの中に行う事の先）
-	WorkMark      string                      `json:"workMark,omitempty"`      // 行った AI のワークルームの今の作業がこのバルクで替わったときの、新しい印（その参加者の AI が知っている今の作業の印に書く。中身は見ない）
 }
 
 // HostMessage は、フォローステップが送る常駐メッセージ 1 通（Workroom は宛先のワークルームの id。送り手は常駐）

@@ -23,7 +23,7 @@ func TestHostMessageWakesTheAssignedAI(t *testing.T) {
 		t.Fatalf("ticket-add = %d %s", code, got)
 	}
 	woke := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{}))
-	if len(woke) != 1 || !strings.HasPrefix(woke[0], `matomezu: "Your current ticket is now`) {
+	if len(woke) != 1 || !strings.HasPrefix(woke[0], `matomezu: "Your current work is now`) {
 		t.Fatalf("wakes of すずめ = %q", woke)
 	}
 	got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/taskboard:ticket-add","args":{"project":"`+project+`","name":"y","assignees":["ひよこ"]}}`, map[string]string{aiwire.ParticipantHeader: a})

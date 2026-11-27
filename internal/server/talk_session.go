@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
@@ -276,30 +275,4 @@ func (h *Hub) WorkTitle(sessionID string) string {
 		return ""
 	}
 	return title
-}
-
-// WorkShift は、セッション sessionID のターンの終わりに、今の作業が替わったかの答え: そのセッションに結ばれた、ワークルームに入っている参加者がちょうど 1 人なら、
-// その参加者に覚えた AI が知っている今の作業の印と今の作業を比べ、替わっていれば利用者に聞く問いを返す（nil なら聞かない）。今の印を覚え直すので、1 つの替わりには 1 度だけ答える。
-// その AI 自身のアクションが替えた作業は、Perform が印を進めているので問いにならない。
-// 初めてのターンの終わりは、覚えるだけで聞かない。問いを出す・セッションを新しくするのは AI のプログラムの部品が行う
-func (h *Hub) WorkShift(sessionID string) (*engine.WorkShiftAsk, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	participant, room, _, ok := h.soleWorkerHeld(sessionID)
-	if !ok {
-		return nil, nil
-	}
-	n := h.participantNotes[participant]
-	shift, err := h.engine.WorkShift(h.settings, room, n.Work, recordSource{h})
-	if err != nil {
-		return nil, err
-	}
-	if shift.Mark != n.Work {
-		n.Work = shift.Mark
-		h.participantNotes[participant] = n
-		if err := h.putParticipantNotes(); err != nil {
-			return nil, err
-		}
-	}
-	return shift.Ask, nil
 }

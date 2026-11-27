@@ -13,8 +13,8 @@ import { WORKROOM } from "./workroom"
 // 参加者の種類の id（参加者の種類は participant/index.ts が定め、そこがこのファイルを読むので、名前で引く）
 const PARTICIPANT_ID = kit.name("participant")
 
-// 会話を空にできる AI のプログラム（参加者の ai。そのプラグインの mod が、ターンの終わりに空にする）
-const CLEARABLE_AI = "claude"
+// 会話を空にできる AI のプログラムの名前（参加者の ai は MCP が名乗る名前と版。この名前で始まる物。そのプラグインの mod が、ターンの終わりに空にする）
+const CLEARABLE_AI = "claude-code"
 
 export const CLEAR_REQUEST = kit.defineAction({
   id: "clear-request",
@@ -36,7 +36,7 @@ export const CLEAR_REQUEST = kit.defineAction({
     const occupant = read
       .find(PARTICIPANT_ID, [{ key: "workroom", eq: room }])
       .find(p => (p as { state?: unknown }).state === "joined") as { ai?: unknown } | undefined
-    if (occupant?.ai !== CLEARABLE_AI)
+    if (typeof occupant?.ai !== "string" || !occupant.ai.startsWith(CLEARABLE_AI))
       return { declined: "your AI program cannot have its conversation cleared from matomezu (only Claude Code can)" }
     const title = workRecordNameOf(ctx.catalog, read, left)?.label ?? left.id
     return withWorkerPage(library, left, title, page, ctx)

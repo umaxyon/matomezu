@@ -207,47 +207,6 @@ func (e *Engine) MyWorkdesk(workroom string, folders []json.RawMessage, src Sour
 	return out, err
 }
 
-// WorkShiftChoice は、今の作業が替わったときの問いの選べる事 1 つ（利用者の言語の文と、セッションを新しくするか・ワーカーブックを読ませるか）
-type WorkShiftChoice struct {
-	Label string `json:"label"`
-	Clear bool   `json:"clear"`
-	Read  bool   `json:"read"`
-}
-
-// WorkShiftAsk は、今の作業が替わったときに利用者に聞く問い（Read は、読ませるを選んだときに AI に打つ英語の文。
-// Answered は、利用者が選べる事の外に書いた答えの前に付けて AI に打つ英語の文）
-type WorkShiftAsk struct {
-	Question string            `json:"question"`
-	Choices  []WorkShiftChoice `json:"choices"`
-	Read     string            `json:"read"`
-	Answered string            `json:"answered"`
-}
-
-// WorkShift は、ターンの終わりに今の作業が替わったかの答え: 次に覚える印 Mark（作業を答える種類が無ければ空）と、替わっていれば問い Ask
-type WorkShift struct {
-	Mark string        `json:"mark"`
-	Ask  *WorkShiftAsk `json:"ask,omitempty"`
-}
-
-// WorkShift は、ワークルーム workroom の今の作業と、前のターンの終わりの印 before（覚えていなければ空）から、今の作業が替わったかの答え。
-// 問いの文は利用者の設定 settings の言語で作る。作業はレコードから決まるので、レコードを引く口 src を渡す
-func (e *Engine) WorkShift(settings json.RawMessage, workroom, before string, src Source) (out WorkShift, err error) {
-	if len(settings) == 0 {
-		settings = json.RawMessage("null")
-	}
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.source = src
-	defer func() { e.source = nil }()
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("engine: %v", r)
-		}
-	}()
-	err = json.Unmarshal([]byte(e.workShift(string(settings), workroom, before)), &out)
-	return out, err
-}
-
 // IsAdminWorkroom は、ワークルーム（id）が、このホストの管理者のワークルームか（管理者の印が指す）。同じホストの管理者の AI 間メッセージに、利用者の頼みの印を付けるかを決める。
 // 管理者の印はレコードから決まるので、レコードを引く口 src を渡す
 func (e *Engine) IsAdminWorkroom(workroom string, src Source) (admin bool, err error) {

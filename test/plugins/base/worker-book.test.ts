@@ -263,7 +263,7 @@ describe("引き継ぎを書いて会話を空にする頼み（clear-request）
     const world = yardWorld()
     const records = {
       [WORKROOM]: { r1: room("r1"), r2: room("r2", opts.left === false ? {} : { left: roomKey("r1") }) },
-      [PARTICIPANT]: { p2: person(opts.ai ?? "claude") },
+      [PARTICIPANT]: { p2: person(opts.ai ?? "claude-code 2.1.332") },
     }
     return performIn(
       { ...world, records: records as never },
@@ -284,7 +284,8 @@ describe("引き継ぎを書いて会話を空にする頼み（clear-request）
     const done = ask()
     expect(done.ok).toBe(true)
     expect(lineupOf(done)).toEqual(["p1", expect.any(String)])
-    expect(ask({ action: "@matomezu/base:worker-page-add" }).ok).toBe(true)
+    // worker-page-add は自分のワークルームのワーカーブックに書き、離れた作業のブックは変えない
+    expect(lineupOf(ask({ action: "@matomezu/base:worker-page-add" }))).toBeUndefined()
     const direct = performIn(
       { ...yardWorld(), records: { [WORKROOM]: { r1: room("r1"), r2: room("r2", { left: roomKey("r1") }) } } as never },
       "@matomezu/base:page-add",
@@ -297,6 +298,9 @@ describe("引き継ぎを書いて会話を空にする頼み（clear-request）
 
   test("離れた作業が無い・会話を空にできない AI（Claude Code でない）なら、理由を添えて断る", () => {
     expect(ask({ left: false })).toMatchObject({ ok: false, detail: expect.stringContaining("has not left a work") })
-    expect(ask({ ai: "codex" })).toMatchObject({ ok: false, detail: expect.stringContaining("only Claude Code") })
+    expect(ask({ ai: "codex-mcp-client 0.172.0" })).toMatchObject({
+      ok: false,
+      detail: expect.stringContaining("only Claude Code"),
+    })
   })
 })

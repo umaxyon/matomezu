@@ -208,7 +208,7 @@ func TestPerformingAnAction(t *testing.T) {
 		t.Fatalf("call with a notice = %v", r)
 	}
 	got = talk(t, api, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"perform","arguments":{"args":{}}}}`)
-	if r := got[0]["result"].(map[string]any); r["isError"] != false || !strings.HasPrefix(textOf(got[0]), "bad-args: action is needed\nthe arguments of perform (JSON Schema): ") {
+	if r := got[0]["result"].(map[string]any); r["isError"] != false || textOf(got[0]) != "bad-args: give action (with args), or actions, not both" {
 		t.Fatalf("perform without action = %v", r)
 	}
 }

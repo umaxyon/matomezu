@@ -57,7 +57,8 @@ export interface Input {
 type Output =
   | {
       ok: true
-      result: unknown
+      result: unknown // 最後のアクションの結果
+      results: readonly unknown[] // アクションごとの結果（バルクの順）
       pages: readonly RowChange[]
       folders: readonly RowChange[]
       created: readonly string[]
@@ -208,6 +209,7 @@ export function perform(of: Assembled, input: Input): Output {
   return {
     ok: true,
     result: done.results.at(-1),
+    results: done.results,
     pages: rowChanges(changes.pages),
     folders: rowChanges(changes.folders),
     created: createdOn(tables, changes),
