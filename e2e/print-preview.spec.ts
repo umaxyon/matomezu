@@ -279,7 +279,7 @@ test("マークダウンの画像は、紙の残りに半分以上入れば縮�
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
-  const add = await newBook(page, "画像", "マークダウン")
+  const add = await newBook(page, "画像のメモ", "マークダウン")
   await add.getByRole("button", { name: "作成" }).click()
   await expect(add).toBeHidden()
   const field = page.getByRole("region", { name: "ソース" }).getByRole("textbox")

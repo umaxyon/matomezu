@@ -167,18 +167,20 @@ func TestTheAIReadsAFolderOneLevelDeep(t *testing.T) {
 	}
 	s, hub := newServerOn(t, Options{}, store)
 	hub.mu.Lock()
-	moved, docs, rooms := hub.inUnreadable("bx"), hub.folders[storage.HomeID].entries[0], hub.folders[storage.HomeID].entries[1]
+	home := hub.folders[storage.HomeID].entries
+	moved, docs, rooms, images := hub.inUnreadable("bx"), home[0], home[1], home[2]
 	hub.mu.Unlock()
 	if !moved {
 		t.Fatal("the unreadable book bx is not in the unreadable folder")
 	}
-	home := `{"id":"library-home","kind":"home","path":[{"id":"library-home"}],"lineup":[` +
+	lineup := `{"id":"library-home","kind":"home","path":[{"id":"library-home"}],"lineup":[` +
 		`{"kind":"folder","id":"` + docs + `","title":"Documents","systemFolder":"@matomezu/base:documents"},` +
 		`{"kind":"folder","id":"` + rooms + `","title":"Workrooms","systemFolder":"@matomezu/base:workrooms"},` +
+		`{"kind":"folder","id":"` + images + `","title":"Images","systemFolder":"@matomezu/image:images"},` +
 		`{"kind":"folder","id":"d1","title":"D1"},{"kind":"page","id":"h1","title":"H1","type":"@matomezu/drawing:drawing"}]}`
 	for path, want := range map[string]string{
-		"/api/ai/folder": home,
-		"/api/ai/folder?folder=" + storage.HomeID: home,
+		"/api/ai/folder": lineup,
+		"/api/ai/folder?folder=" + storage.HomeID: lineup,
 		"/api/ai/folder?folder=d1": `{"id":"d1","kind":"folder","title":"D1","path":[{"id":"library-home"},{"id":"d1","title":"D1"}],"lineup":[` +
 			`{"kind":"book","id":"b1","title":"T"},{"kind":"folder","id":"d2","title":"D2"},{"kind":"binder","id":"n1","title":"N1","pageType":"@matomezu/slide-page:slide"}]}`,
 		"/api/ai/folder?folder=d2": `{"id":"d2","kind":"folder","title":"D2","path":[{"id":"library-home"},{"id":"d1","title":"D1"},{"id":"d2","title":"D2"}],"lineup":[` +

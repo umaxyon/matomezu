@@ -6,7 +6,15 @@ import { pagesOf } from "../../web/src/core/book"
 import { HOME_ID } from "../../web/src/core/folders"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
-import { isEnabled, isShown } from "../../web/src/store/commands"
+import {
+  commandLook,
+  isActive,
+  isEnabled,
+  isShown,
+  LOOK_ACTIVE,
+  LOOK_ENABLED,
+  LOOK_SHOWN,
+} from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS } from "../sample-books"
@@ -105,6 +113,26 @@ test("認可ステップは、作るページのタイプを行う前に見ら�
   expect(command()).toEqual({ shown: true, enabled: true })
   expect(command({ type: "@matomezu/drawing:drawing" })).toEqual({ shown: true, enabled: true })
   expect(command({ type: MARKDOWN })).toEqual({ shown: true, enabled: false })
+  // 1 度に問う commandLook も、出たまま押せないを同じに分ける。ステージのどのコマンドも、別々に問うのと同じ答え
+  const looked = (id: string, ...given: [] | [unknown]) => {
+    const look = commandLook(store, store.state.getState(), "s1", id as never, ...given)
+    return {
+      shown: (look & LOOK_SHOWN) !== 0,
+      enabled: (look & LOOK_ENABLED) !== 0,
+      active: (look & LOOK_ACTIVE) !== 0,
+    }
+  }
+  expect(looked("@matomezu/base:page-new", { type: MARKDOWN })).toEqual({ shown: true, enabled: false, active: false })
+  const state = store.state.getState()
+  for (const [id, def] of store.catalog.store.commands) {
+    if (def.from === "screen") continue
+    expect({ id, ...looked(id) }).toEqual({
+      id,
+      shown: isShown(store, state, "s1", id as never),
+      enabled: isEnabled(store, state, "s1", id as never),
+      active: isActive(store, state, "s1", id as never),
+    })
+  }
   expect(store.actions.perform("@matomezu/base:page-add", { type: MARKDOWN }, { book })).toEqual({
     ok: false,
     reason: "denied",

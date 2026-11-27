@@ -219,12 +219,31 @@ const ask = (c: Called, method: "when" | "enabled" | "active"): boolean | undefi
   (c.def[method] as ((ctx: ScreenCommandContext) => boolean) | undefined)?.(c.ctx)
 
 // コマンドが行うアクション（performs）を、どれも許可スコープの所（ブック・ページ・アノテーションが対象でなければコントロールセンター）で使えるか（認可ステップは見ない）
-function performable(c: Called, arg?: unknown): boolean {
+// answers は、同じ組・同じ引数で解いた答えを、出すかと押せるかで使い回す覚え（アクション → 答え）
+function performable(c: Called, arg?: unknown, answers?: Answers): boolean {
   const on = "stage" in c.ctx ? askedIn(c.ctx) : undefined
   const where = whereOf(c, arg)
   return (c.def.performs ?? []).every(
-    action => withoutPermissions(openedAnswer(c.ctx.catalog, action, on, where, c.ctx)).value === true,
+    action => withoutPermissions(answerOf(c, action, on, where, answers)).value === true,
   )
+}
+
+// 1 つのボタンを 1 つの状態で問う間の、アクションごとの openedAnswer の答え
+type Answers = Map<string, Inspected<boolean>>
+
+// アクション action の openedAnswer（answers があれば、解いた物を覚えて使い回す）
+function answerOf(
+  c: Called,
+  action: string,
+  on: ReturnType<typeof askedIn> | undefined,
+  where: Where | undefined,
+  answers?: Answers,
+): Inspected<boolean> {
+  const was = answers?.get(action)
+  if (was) return was
+  const made = openedAnswer(c.ctx.catalog, action, on, where, c.ctx)
+  answers?.set(action, made)
+  return made
 }
 
 // 使えるかを問う所: コマンドの許可スコープの所。書いていない・引数がまだ無くて分からないなら、開いているページ（ページのタイプで決まるアクションを、ブック全体として問わないように）
@@ -252,7 +271,7 @@ export function isShown(defs: Assembled, state: MatomezuState, at: string, id: C
 // ブック・ページ・アノテーションが対象のアクションは、今のブックの許可スコープの所で問う。
 // 許可スコープを書いたコマンドが行う、一覧が対象のアクション（戻す・やり直すの置き直しなど）は、開いているブック（ブックの外のページを開いていれば、そのページ）のその所を変える物として扱う
 // スクリーンから呼ぶコマンドが行うアクションと引数を名乗れば（performsWith）、その引数で行うときと同じに問い、名乗ったどれかが止められれば押せない
-function permitted(c: Called, state: MatomezuState, given: Given): boolean {
+function permitted(c: Called, state: MatomezuState, given: Given, answers?: Answers): boolean {
   const arg = given[0]
   const actions = c.def.performs ?? []
   if (actions.length === 0) return true
@@ -275,7 +294,7 @@ function permitted(c: Called, state: MatomezuState, given: Given): boolean {
   const answer = (action: string): Inspected<boolean> =>
     on && onOpened(action)
       ? inspect(ctx.catalog, openedQuery(action, on, where), ctx)
-      : openedAnswer(ctx.catalog, action, on, where, ctx)
+      : answerOf(c, action, on, where, answers)
   const runs = c.def.from !== "screen" && c.def.denied === "runs" // 認可ステップに止められても押せる
   return actions.some(
     action =>
@@ -315,4 +334,21 @@ export function isPermitted(defs: Assembled, state: MatomezuState, at: string, i
 export function isActive(defs: Assembled, state: MatomezuState, at: string, id: CommandId): boolean {
   const c = called(defs, state, at, id)
   return c !== null && (ask(c, "active") ?? false)
+}
+
+// 出すか・押せるか・押されているかを 1 度に問った答えの印（isShown・isEnabled・isActive と同じ答え。ボタンが 1 つの値で受け、変わったときだけ描き直す）
+export const LOOK_SHOWN = 1
+export const LOOK_ENABLED = 2
+export const LOOK_ACTIVE = 4
+
+// isShown・isEnabled・isActive を 1 度に問う（when・accepts・アクションの答えを 1 回ずつだけ解く）。答えは LOOK_* の和
+export function commandLook(defs: Assembled, state: MatomezuState, at: string, id: CommandId, ...given: Given): number {
+  const c = called(defs, state, at, id)
+  if (c === null) return 0
+  const active = (ask(c, "active") ?? false) ? LOOK_ACTIVE : 0
+  if (ask(c, "when") !== true || !accepted(c, given)) return active
+  const answers: Answers = new Map()
+  if (!performable(c, given[0], answers)) return active
+  const enabled = permitted(c, state, given, answers) && (ask(c, "enabled") ?? true)
+  return LOOK_SHOWN | (enabled ? LOOK_ENABLED : 0) | active
 }

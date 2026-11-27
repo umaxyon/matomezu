@@ -10,7 +10,7 @@ import (
 )
 
 // ビジター: as visitor で頼み、窓でビジターとして受け入れると、起こす知らせはビジターと言い、フックの参加の知らせはワークルームの名前を持たずに（利用者の言語の文も、ビジターの文）
-// ビジターの文を添える。参加が確定したビジターは、AI 間メッセージも show も断られ（理由 visitor）、アクションは core が断る（理由 visitor）
+// ビジターの文を添える。参加が確定したビジターは、AI 間メッセージも show も画像を置くのも断られ（理由 visitor）、アクションは core が断る（理由 visitor）
 func TestVisitorIsToldAndOnlyReads(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	line := hub.OpenWakesWith("300", "", WakeLimits{})
@@ -47,6 +47,9 @@ func TestVisitorIsToldAndOnlyReads(t *testing.T) {
 	visitor := map[string]string{aiwire.ParticipantHeader: joined.Participant}
 	if got, _ := call(t, "POST", s.URL+"/api/ai/show", `{"book":"b1"}`, visitor); !strings.Contains(got, `"reason":"visitor"`) {
 		t.Fatalf("show = %s", got)
+	}
+	if got, _ := call(t, "POST", s.URL+"/api/ai/assets", `<svg xmlns="http://www.w3.org/2000/svg" width="8" height="4"/>`, visitor); !strings.Contains(got, `"reason":"visitor"`) {
+		t.Fatalf("assets = %s", got)
 	}
 	if got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-create","args":{"title":"x"}}`, visitor); !strings.Contains(got, `"detail":"visitor:`) {
 		t.Fatalf("perform = %s", got)

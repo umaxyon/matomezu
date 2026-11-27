@@ -225,3 +225,15 @@ func (e *Engine) PurgedRows(pages, folders []json.RawMessage, id string) (out Se
 	}
 	return got.Settled, !got.None, nil
 }
+
+// AssetsInUse は、ページの行の全部 pages が指すアセットの id（Ids）と、全部のページで答えられたか（Sure。答えられないページがあれば false で、消してはいけない）
+type AssetsInUse struct {
+	IDs  []string `json:"ids"`
+	Sure bool     `json:"sure"`
+}
+
+// AssetsInUse は、ページの行の全部 pages が指すアセット（ページのタイプが答える。core/assets.ts）
+func (e *Engine) AssetsInUse(pages []json.RawMessage) (out AssetsInUse, err error) {
+	err = e.checked(pages, func(s string) string { return e.assetsInUse(s) }, &out)
+	return out, err
+}

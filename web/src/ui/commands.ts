@@ -3,7 +3,15 @@
 // 向け先が無い所（ステージの外で見るだけに描くページの中）では、どのコマンドも出ず、呼んでも行わない
 
 import type { MessageKey } from "../core/i18n/i18n"
-import { type CommandArgs, type CommandId, commandDef, isActive, isEnabled, isShown } from "../store/commands"
+import {
+  type CommandArgs,
+  type CommandId,
+  commandDef,
+  commandLook,
+  LOOK_ACTIVE,
+  LOOK_ENABLED,
+  LOOK_SHOWN,
+} from "../store/commands"
 import { useAt } from "./scope"
 import { useInstance, useMatomezuState, useStoreActions } from "./store-context"
 
@@ -20,9 +28,11 @@ export function useCommand<Id extends CommandId>(id: Id, ...given: [arg?: Comman
   const defs = useInstance()
   const at = useAt()
   const def = commandDef(defs, id)
-  const shown = useMatomezuState(s => at !== null && isShown(defs, s, at, id, ...given))
-  const enabled = useMatomezuState(s => at !== null && isEnabled(defs, s, at, id, ...given))
-  const active = useMatomezuState(s => at !== null && isActive(defs, s, at, id))
+  // 出すか・押せるか・押されているかを 1 度に問い、その印が変わったときだけ描き直す
+  const look = useMatomezuState(s => (at === null ? 0 : commandLook(defs, s, at, id, ...given)))
+  const shown = (look & LOOK_SHOWN) !== 0
+  const enabled = (look & LOOK_ENABLED) !== 0
+  const active = (look & LOOK_ACTIVE) !== 0
   const { command } = useStoreActions()
   return {
     title: def.title,
