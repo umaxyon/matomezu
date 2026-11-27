@@ -61,7 +61,7 @@
 }
 .tab[aria-selected="true"] {
   color: var(--skin-text);
-  background: var(--skin-stage);
+  background: color-mix(in srgb, var(--skin-accent) 25%, var(--skin-stage));
   border-color: var(--skin-border);
 }
 /* ＋とそのメニューの置き場所 */

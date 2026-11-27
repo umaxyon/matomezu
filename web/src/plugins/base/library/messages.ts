@@ -14,6 +14,7 @@ export const LIBRARY_MESSAGES = defineMessages({
   "Add system folders": { en: "Add system folders", ja: "システムフォルダを足す" },
   Move: { en: "Move", ja: "移動" },
   "Move and replace": { en: "Move and replace", ja: "上書きして移動" },
+  "New page and replace": { en: "New page and replace", ja: "上書きして新しいページ" },
   Rename: { en: "Rename", ja: "名前を変更" },
   Open: { en: "Open", ja: "開く" },
   "Open split": { en: "Open split", ja: "分割で開く" },
