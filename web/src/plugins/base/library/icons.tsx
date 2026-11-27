@@ -8,12 +8,13 @@ import { ReferenceIcon } from "../page-tabs/ReferenceIcon"
 import { BirdFaceView } from "../participant/BirdFaceView"
 import { asBird } from "../participant/birds"
 import { BookIcon, BookOpenIcon } from "../utils/book-icons"
-import { FolderIcon, FolderOpenIcon } from "../utils/folder-icons"
+import { DocumentsFolderIcon, FolderIcon, FolderOpenIcon, WorkroomsFolderIcon } from "../utils/folder-icons"
 import { icon } from "../utils/icon"
 import { LIBRARY_REDO, LIBRARY_UNDO } from "./commands"
 import styles from "./LibraryView.module.css"
 import type { LibraryRow } from "./outline"
 import { LIBRARY_OPEN, LIBRARY_REFERENCE_CHOOSE } from "./screen"
+import { DOCUMENTS, WORKROOMS } from "./system-folders"
 
 const BINDER = icon(
   <>
@@ -41,18 +42,25 @@ const ICONS = { folder: <FolderIcon />, book: <BookIcon />, binder: BINDER, page
 
 export const iconOf = (kind: EntryKind) => ICONS[kind]
 
-// 行 row のアイコンを、className（styles.icon か styles.bigIcon）の枠に描く。作業机は、そのワークルームの鳥の顔。ロック中のページ・ブックは、右上に小さな鍵を重ねる。ページは、タイプが pageTypeIcons で名乗ったアイコン（ページタブと同じ絵。
-// 枠いっぱいに広げ、絵が決めていない線は引かない）。ブックは固定色の本の絵（base の BookIcon）、フォルダは固定色のフォルダの絵（FolderIcon）で、open（ツリーで中を見せている）なら開いた本・開いたフォルダ。名乗らないタイプ・バインダは、種類の絵
+export const LIBRARY_SYSTEM_FOLDER_ICONS = {
+  [DOCUMENTS.id]: <DocumentsFolderIcon />,
+  [WORKROOMS.id]: <WorkroomsFolderIcon />,
+}
+
+// 作業机はそのワークルームの鳥の顔、システムフォルダとページはプラグインが名乗った絵。
+// 本と通常のフォルダはツリーの開閉で絵を替える。ロック中のページ・ブックは右上に小さな鍵を重ねる
 export function RowIcon({
   row,
   className,
   open = false,
 }: {
-  row: Pick<LibraryRow, "kind" | "type"> & Partial<Pick<LibraryRow, "locked" | "desk">>
+  row: Pick<LibraryRow, "kind" | "type" | "systemFolder" | "desk"> & { locked?: boolean }
   className: string | undefined
   open?: boolean
 }) {
-  const typed = useUiCatalog().pageTypeIcons.get(row.type)
+  const ui = useUiCatalog()
+  const typed = ui.pageTypeIcons.get(row.type)
+  const folderIcon = row.systemFolder === undefined ? undefined : ui.systemFolderIcons.get(row.systemFolder)
   const bird = row.desk && asBird(row.desk.bird)
   const picture = bird ? (
     <BirdFaceView bird={bird} palette={row.desk?.palette} size={className === styles.bigIcon ? 40 : 16} />
@@ -63,11 +71,7 @@ export function RowIcon({
       <BookIcon />
     )
   ) : row.kind === "folder" ? (
-    open ? (
-      <FolderOpenIcon />
-    ) : (
-      <FolderIcon />
-    )
+    (folderIcon ?? (open ? <FolderOpenIcon /> : <FolderIcon />))
   ) : row.kind === "page" && typed !== undefined ? (
     typed
   ) : row.kind === "reference" ? (

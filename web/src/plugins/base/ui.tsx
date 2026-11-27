@@ -24,6 +24,7 @@ import {
   LIBRARY_REMOVE_DIALOG,
   LIBRARY_RENAME_DIALOG,
   LIBRARY_SCREEN_VIEW,
+  LIBRARY_SYSTEM_FOLDER_ICONS,
   LibraryNewBookDialog,
   LibraryNewFolderDialog,
   LibraryRemoveDialog,
@@ -327,6 +328,7 @@ export { defineWorkspace, STAGE_BASE_SLOTS } from "./workspace/ui"
 
 import { SCRAP_DIALOG_VIEWS, SCRAP_TRAY_BUTTON, SCRAP_TRAY_TAB } from "./scrap/ui"
 export const BASE_UI = definePluginUi(BASE, {
+  systemFolderIcons: LIBRARY_SYSTEM_FOLDER_ICONS,
   dialogViews: {
     ...PAGE_DIALOG_VIEWS,
     ...BOOK_LOOK_DIALOG_VIEWS,

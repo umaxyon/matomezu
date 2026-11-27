@@ -2,6 +2,7 @@
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
+import { withSystemFolders } from "../../../web/src/core/entries"
 import { HOME_ID } from "../../../web/src/core/folders"
 import { treeRowsOf } from "../../../web/src/plugins/base/library/outline"
 import { LIBRARY_TREE_WIDTH, LIBRARY_UNFOLDED } from "../../../web/src/plugins/base/library/state"
@@ -9,6 +10,7 @@ import { DEFAULT_TREE_WIDTH } from "../../../web/src/plugins/base/library/tree-w
 import { NO_DESKS } from "../../../web/src/plugins/base/library/workdesk-rows"
 import { pluginValueOf, WINDOW_PLACE } from "../../../web/src/store/plugin-state"
 import { SAMPLE_BOOKS } from "../../sample-books"
+import { sequence } from "../../support"
 import { renderScreen } from "../../ui/support"
 
 afterEach(cleanup)
@@ -50,4 +52,38 @@ test("ツリーの幅は窓のプラグイン状態の値で、境目のダブ�
   fireEvent.doubleClick(library().querySelector("[data-tree-splitter]") as HTMLElement)
   expect(pluginValueOf(store.state.getState().pluginValues, WINDOW_PLACE, LIBRARY_TREE_WIDTH)).toBeUndefined()
   expect(library().style.getPropertyValue("--library-tree-width")).toBe(`${DEFAULT_TREE_WIDTH}px`)
+})
+
+test("書庫ではシステムフォルダごとのアイコンを出し、ツリーを開いても同じ絵を使う", () => {
+  const store = renderScreen({ books: SAMPLE_BOOKS })
+  const perform = store.actions.perform as (id: string, args: unknown) => { ok: boolean }
+  act(() => {
+    expect(perform("@matomezu/base:folder-create", { title: "普通のフォルダ", into: HOME_ID }).ok).toBe(true)
+    const state = store.state.getState()
+    const filled = withSystemFolders(state, store.catalog.core, sequence("system-folder"))
+    if (!filled) throw new Error("no system folders")
+    store.receive(
+      {
+        pages: Object.values(filled.next.pages),
+        folders: Object.values(filled.next.folders),
+        settings: { ...state.settings, "@matomezu/base:lang": "matomezu:ja" },
+      },
+      [],
+    )
+  })
+  fireEvent.click(screen.getAllByRole("button", { name: "書庫", hidden: true })[0] as HTMLElement)
+  const tree = within(screen.getByRole("navigation", { name: "フォルダ", hidden: true }))
+  const icon = (name: string) => tree.getByRole("button", { name, hidden: true }).querySelector("svg")
+  expect(icon("普通のフォルダ")?.querySelector('[fill="#D4A13B"]')).toBeTruthy()
+  for (const [name, fill] of [
+    ["ドキュメント", "#657B98"],
+    ["ワークルーム", "#775AA7"],
+    ["画像", "#377E68"],
+  ] as const) {
+    const before = icon(name)
+    expect(before?.querySelector(`[fill="${fill}"]`)).toBeTruthy()
+    const markup = before?.outerHTML
+    fireEvent.click(tree.getByRole("button", { name: `${name} の中を出す`, hidden: true }))
+    expect(icon(name)?.outerHTML).toBe(markup)
+  }
 })
