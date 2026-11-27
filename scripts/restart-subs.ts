@@ -1,11 +1,12 @@
 // Orca の端末で動くサブの Claude Code を、まとめて再起動する
-//   bun scripts/restart-subs.ts [--dry-run] [--timeout-min <分>] [--env <KEY=VAL>]... <サブ>...
+//   bun scripts/restart-subs.ts [--dry-run] [--timeout-min <分>] [--env <KEY=VAL>]... [--no-relay] <サブ>...
 //   --env: 起動する claude に渡す環境変数（Code Mode などを試すとき）。渡したサブだけに効き、次に --env なしで起動し直せば外れる
+//   --no-relay: claude-relay.sh を通さず claude を直に起動する。次に付けずに起動し直せば中継に戻る
 //   <サブ> は sub4（sub4_work の略）・sub4_work・main_manager などのワークルーム名、モデルを指定するなら sub6:claude-fable-5-2（無ければ最後の会話のモデル）
 // サブごとに並行して、次の順に進める。どこかで止まったサブは、そこで止めて理由を出す
 //   1. 再起動の準備（引き継ぎを書き、未コミットを残さない）を頼み、手が空くのを待つ
 //   2. 最後の返事が READY_MARK で終わり、追跡するファイルに変更が無ければ /exit を送り、claude が終わるのを待つ
-//   3. scripts/claude-relay.sh --model <モデル> を送り（--env があれば KEY=VAL を前に付ける）、起動した claude の引数と環境変数がそのとおりかを確かめ（違えば止める）、/reload-plugins と /mcp reconnect を送り、引き継ぎを読んで join するよう頼む。
+//   3. scripts/claude-relay.sh --model <モデル> を送り（--env があれば KEY=VAL を前に付け、--no-relay なら claude を直に）、起動した claude の引数と環境変数がそのとおりかを確かめ（違えば止める）、/reload-plugins と /mcp reconnect を送り、引き継ぎを読んで join するよう頼む。
 //      join の合言葉（link）はここで作り、開発の常駐に前もって承認させておく（画面で受け入れずに入る。開発用の口 /api/dev/rejoin-pass）
 //   4. join が参加者 id を返したら、手が空くのを待ち、ターンの始まりのフックが参加を伝えたか（セッションと参加者を結んだか）を BOUND_WAIT_MS まで待つ。
 //      合言葉の受け入れの起こす知らせで、watch がターンを始めるはず。伝えなければ、もう一言（CONFIRM_PROMPT）送る。結ぶのはそのフックなので、
@@ -193,8 +194,13 @@ export function parseEnv(pair: string): [string, string] {
 }
 
 // 端末に打ち込む起動の文
-export function launchCommand(args: string[], env: [string, string][]): string {
-  return [...env.map(([k, v]) => `${k}=${v}`), "scripts/claude-relay.sh", ...args].join(" ")
+export function launchCommand(args: string[], env: [string, string][], relay = true): string {
+  return [...env.map(([k, v]) => `${k}=${v}`), relay ? "scripts/claude-relay.sh" : "claude", ...args].join(" ")
+}
+
+// 起動した claude の /proc/<pid>/environ が、中継を通したか（claude-relay.sh は ANTHROPIC_BASE_URL を中継に向ける）
+export function launchedThroughRelay(environ: string): boolean {
+  return environ.split("\0").some(e => e.startsWith("ANTHROPIC_BASE_URL="))
 }
 
 // 起動した claude の /proc/<pid>/environ に、env がどれもそのとおりにあるか
@@ -360,7 +366,7 @@ async function waitIdle(handle: string, timeoutMs: number): Promise<void> {
 
 async function restart(
   target: Target,
-  opts: { dryRun: boolean; timeoutMs: number; env: [string, string][] },
+  opts: { dryRun: boolean; timeoutMs: number; env: [string, string][]; relay: boolean },
 ): Promise<void> {
   const log = (s: string) => console.log(`[${target.workroom}] ${s}`)
   const sub = findSub(target.workroom)
@@ -405,7 +411,7 @@ async function restart(
   await sleep(3000)
   await orca(["terminal", "send", "--terminal", term.handle, "--text", "\x15"])
   const args = launchArgs(model)
-  await send(term.handle, launchCommand(args, opts.env))
+  await send(term.handle, launchCommand(args, opts.env, opts.relay))
   await until("claude の起動", 120_000, () => claudePids(cwd).length === 1)
   const [launched] = claudePids(cwd)
   const cmdline = readFileSync(`/proc/${launched}/cmdline`, "utf8")
@@ -414,8 +420,11 @@ async function restart(
       `起動した claude の引数が違う: ${JSON.stringify(argvOf(cmdline))}。端末を見る\n${await terminalTail(term.handle)}`,
     )
   }
-  if (!launchedEnv(readFileSync(`/proc/${launched}/environ`, "utf8"), opts.env))
+  const environ = readFileSync(`/proc/${launched}/environ`, "utf8")
+  if (!launchedEnv(environ, opts.env))
     throw new Error(`起動した claude に環境変数が渡っていない: ${launchCommand([], opts.env)}`)
+  if (!opts.relay && launchedThroughRelay(environ))
+    throw new Error("--no-relay なのに起動した claude に ANTHROPIC_BASE_URL がある")
   log(opts.env.length > 0 ? "claude の起動の引数と環境変数を確かめた" : "claude の起動の引数を確かめた")
   await sleep(5000)
   await waitIdle(term.handle, 120_000)
@@ -469,10 +478,14 @@ if (import.meta.main) {
     .filter((a, i) => !a.startsWith("--") && !(ti >= 0 && i === ti + 1) && args[i - 1] !== "--env")
     .map(parseTarget)
   if (targets.length === 0) {
-    console.error("使い方: bun scripts/restart-subs.ts [--dry-run] [--timeout-min <分>] [--env <KEY=VAL>]... <サブ>...")
+    console.error(
+      "使い方: bun scripts/restart-subs.ts [--dry-run] [--timeout-min <分>] [--env <KEY=VAL>]... [--no-relay] <サブ>...",
+    )
     process.exit(2)
   }
-  const results = await Promise.allSettled(targets.map(t => restart(t, { dryRun, timeoutMs, env })))
+  const results = await Promise.allSettled(
+    targets.map(t => restart(t, { dryRun, timeoutMs, env, relay: !args.includes("--no-relay") })),
+  )
   let failed = 0
   results.forEach((r, i) => {
     if (r.status === "rejected") {

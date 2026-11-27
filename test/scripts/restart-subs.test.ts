@@ -6,6 +6,7 @@ import {
   launchArgs,
   launchCommand,
   launchedEnv,
+  launchedThroughRelay,
   launchedWith,
   NG_MARK,
   parseEnv,
@@ -180,4 +181,12 @@ test("--env は起動の文の前に付け、起動した claude の環境変数
   expect(() => parseEnv("x=1")).toThrow()
   expect(() => parseEnv("A=a b")).toThrow()
   expect(() => parseEnv("A=$(rm)")).toThrow()
+})
+
+test("--no-relay は claude を直に起動し、起動した claude に中継の ANTHROPIC_BASE_URL が無いかを確かめる", () => {
+  expect(launchCommand(["--model", "m"], [parseEnv("CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1")], false)).toBe(
+    "CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1 claude --model m",
+  )
+  expect(launchedThroughRelay("PATH=/bin\0ANTHROPIC_BASE_URL=http://127.0.0.1:18951/x\0")).toBe(true)
+  expect(launchedThroughRelay("PATH=/bin\0")).toBe(false)
 })
