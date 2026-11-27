@@ -50,6 +50,6 @@ AI が案（案 1・案 2 など）を出したあと、ユーザーの指摘で
 - 平行作業の worktree では、その worktree のファイルに足してコミットする。main に取り込んで番号がぶつかったら、main で振り直す
 - 判断の基準（`.claude/judgment-principles.md`）は、取り込みで事例が増えたときに、main_manager が番号を振り直したあとで直す（平行作業の worktree では直さない）。新しい学びは、近い基準に番号を足すか基準を足す。規約と subagent の定義に入った学びは載せない。上限は 6,000 字で、超えたら足さずにまとめる
 
-## 平行作業の worktree の起動し直し
+## 平行作業の worktree の出直し
 
-平行作業の worktree のセッションが手すきになり、その取り込みを済ませたら、main のセッション（main_manager）は聞かずに `bun scripts/restart-subs.ts` でそのセッションを起動し直す。
+平行作業の worktree のセッションが手すきになり、その取り込みを済ませたら、main のセッション（main_manager）は聞かずに `bun scripts/restart-subs.ts` でそのセッションを clear で出直させる（/clear で会話を空にし、参加はそのまま続ける）。claude を起動し直すのは、環境変数やモデルなど、プロセスの中身を替えるときだけにする。

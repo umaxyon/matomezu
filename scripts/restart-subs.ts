@@ -541,7 +541,7 @@ async function relaunchAndRejoin(
   }
 }
 
-// clear で出直す型: /clear で会話を空にし、引き継ぎを読むよう頼む。参加者は M-0238 の仕組みで新しい会話に移るので join し直さない。
+// clear で出直す型: /clear で会話を空にし、引き継ぎを読むよう頼む。サーバーが /clear で置き換えた会話の参加者を新しい会話に移すので、join し直さない。
 // 移ったことは、頼んだターンのフックが伝える「参加しました」のワークルーム名で確かめる
 async function clearAndContinue(
   handle: string,
