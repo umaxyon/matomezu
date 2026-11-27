@@ -127,6 +127,15 @@ const giveCookie = async (host: Host, context: BrowserContext) => {
   if (!done.ok()) throw new Error(`cookie: ${done.status()}`)
 }
 
+// MATOMEZU_E2E_CPU_THROTTLE=4 のように数を置くと、窓の CPU をその倍だけ遅くする（重いときにだけ揺れるテストを手元で出す）。1 未満と数でない値は掛けない
+const CPU_THROTTLE = Number(process.env.MATOMEZU_E2E_CPU_THROTTLE)
+
+async function throttleCPU(page: Page) {
+  if (!(CPU_THROTTLE >= 1)) return
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: CPU_THROTTLE })
+}
+
 export const test = base.extend<
   {
     books: readonly object[]
@@ -189,10 +198,15 @@ export const test = base.extend<
     await use(async () => {
       const context = await browser.newContext()
       await giveCookie(host, context)
-      return startingAtFirstBook(await context.newPage())
+      const page = await context.newPage()
+      await throttleCPU(page)
+      return startingAtFirstBook(page)
     })
   },
-  page: async ({ page }, use) => use(startingAtFirstBook(page)),
+  page: async ({ page }, use) => {
+    await throttleCPU(page)
+    await use(startingAtFirstBook(page))
+  },
   reset: [
     async ({ host, books, outsidePages, enabledPlugins }, use) => {
       const done = await fetch(`${host.url}/api/reset-for-test`, {
