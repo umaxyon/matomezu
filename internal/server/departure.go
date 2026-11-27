@@ -272,7 +272,7 @@ func departureText(d departure) string {
 	case departDeclined:
 		return declinedText
 	default:
-		return "The user removed you from matomezu" + in + ": you are no longer a participant, and every action is refused now (not-joined). " +
-			"Tell the user; do not join again unless the user asks."
+		return "You are no longer a participant of matomezu" + in + ". The reason is known: the user removed you on the matomezu screen. " +
+			"Every action is refused now (not-joined). Tell the user this reason; do not join again unless the user asks."
 	}
 }
