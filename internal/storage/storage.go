@@ -190,6 +190,13 @@ type Storage interface {
 	// RanOnce は、初めて起動したときに 1 度だけ行うアクション（runsOnceAtStart）のうち、行ったと記録した物の id、MarkRanOnce は 1 つ記録する
 	RanOnce() (map[string]bool, error)
 	MarkRanOnce(id string) error
+	// PutAsset はアセットを置く（同じ id がもう在れば何もしない。中身で決まる id なので、在れば同じ物）
+	PutAsset(a Asset) error
+	// Asset は id のアセット（中身も。無ければ nil）
+	Asset(id string) (*Asset, error)
+	// AssetIDs は置いてある全部のアセットの id、RemoveAssets は ids のアセットを消す
+	AssetIDs() ([]string, error)
+	RemoveAssets(ids []string) error
 	// Open は、ブック id を開いた時刻を at にする
 	Open(id, at string) error
 	Close() error

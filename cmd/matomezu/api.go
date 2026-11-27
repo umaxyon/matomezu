@@ -32,6 +32,14 @@ func (a *httpAPI) Get(path string, header http.Header) (json.RawMessage, http.He
 }
 
 func (a *httpAPI) Post(path string, body any, header http.Header) (json.RawMessage, http.Header, error) {
+	if raw, ok := body.(mcp.Bytes); ok {
+		h := header.Clone()
+		if h == nil {
+			h = http.Header{}
+		}
+		h.Set("Content-Type", "application/octet-stream")
+		return a.do(http.MethodPost, path, raw, h)
+	}
 	b, err := json.Marshal(body)
 	if err != nil {
 		return nil, nil, err
@@ -125,7 +133,7 @@ func request(s *home.Server, method, path string, body []byte, timeout time.Dura
 		req.Header[k] = v
 	}
 	req.Header.Set("Authorization", "Bearer "+s.Token)
-	if body != nil {
+	if body != nil && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	return (&http.Client{Timeout: timeout}).Do(req)

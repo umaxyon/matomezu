@@ -69,6 +69,7 @@ function searchIn(instance: MatomezuInstance | undefined, q: WideSearchQuery): W
 export function memoryClient(books: readonly Book[] = [], settings?: Settings): MemoryClient {
   const kept = new Map(books.map(b => [b.id, b]))
   let connected: MatomezuInstance | undefined
+  const assets: Blob[] = []
   const host: MemoryClient = {
     books: kept,
     settings,
@@ -92,6 +93,12 @@ export function memoryClient(books: readonly Book[] = [], settings?: Settings): 
     answerMessage: async () => {}, // 常駐を持たないので、承認待ちの AI 間メッセージも無い
     visible: () => true,
     search: async q => searchIn(connected, q),
+    // アセットのメモリ版: 置いた順の番号を 64 桁の 16 進にした id で持つ（中身は見分けず、大きさは 1×1）
+    putAsset: async bytes => {
+      assets.push(bytes)
+      return { ok: true, asset: assets.length.toString(16).padStart(64, "0"), mime: bytes.type, width: 1, height: 1 }
+    },
+    assetUrl: id => `memory:${id}`,
     connect: instance => {
       connected = instance
       const stop = persist(instance, {

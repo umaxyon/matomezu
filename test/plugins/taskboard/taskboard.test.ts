@@ -390,3 +390,32 @@ test("ticket-update は、今の値をそのまま送れば通る（消したレ
   expect(user("ticket-update", { tags: [] }, { record: t }).ok).toBe(true)
   expect(user("ticket-update", { tags: [tag] }, { record: t }).ok).toBe(false)
 })
+
+test("ticket-update の bodyEdits は本文に 1 回だけある所を順に置き換え、bodyAppend は末尾の新しい行に足す。無い・2 回ある・body と一緒は断り、何も変えない", () => {
+  const { user, projects, tickets } = ready()
+  user("project-add", {})
+  const p = projects()[0] as Project
+  expect(user("ticket-add", { project: p.id, name: "a", body: "## やる事\n- 一つ\n- 二つ" }).ok).toBe(true)
+  const t = tickets()[0]?.id as string
+  const body = () => (tickets()[0] as unknown as { body: string }).body
+  expect(
+    user("ticket-update", { bodyEdits: [{ find: "一つ", replace: "ひとつ" }], bodyAppend: "- 三つ" }, { record: t }).ok,
+  ).toBe(true)
+  expect(body()).toBe("## やる事\n- ひとつ\n- 二つ\n- 三つ")
+  expect(user("ticket-update", { bodyEdits: [{ find: "四つ", replace: "x" }] }, { record: t }).ok).toBe(false)
+  expect(user("ticket-update", { bodyEdits: [{ find: "- ", replace: "* " }] }, { record: t }).ok).toBe(false)
+  expect(user("ticket-update", { body: "x", bodyAppend: "y" }, { record: t }).ok).toBe(false)
+  expect(
+    user(
+      "ticket-update",
+      {
+        bodyEdits: [
+          { find: "二つ", replace: "2" },
+          { find: "無い", replace: "" },
+        ],
+      },
+      { record: t },
+    ).ok,
+  ).toBe(false)
+  expect(body()).toBe("## やる事\n- ひとつ\n- 二つ\n- 三つ")
+})
