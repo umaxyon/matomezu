@@ -52,6 +52,7 @@ const names = (m: object) => Object.keys(m).sort()
 
 test("matomezu が出す名前", () => {
   expect(names(api)).toEqual([
+    "ANY_PAGE_TYPE",
     "AlignSchema",
     "AnchorsArg",
     "BACKGROUND_PRINT",
@@ -84,6 +85,7 @@ test("matomezu が出す名前", () => {
     "NO_AI_UI",
     "NO_ANCHORS",
     "NO_AREA",
+    "NO_ASSET_URL",
     "NO_BINDER",
     "NO_BOOK",
     "NO_BRANCH",
@@ -188,6 +190,7 @@ test("matomezu が出す名前", () => {
     "findBinder",
     "findPage",
     "findShape",
+    "foldersOver",
     "followConnectors",
     "frameAround",
     "frameOf",
@@ -486,6 +489,7 @@ test("matomezu/ui が出す名前", () => {
     "useArrangedScreens",
     "useArrivalMarquee",
     "useAskHosts",
+    "useAssetUrl",
     "useAtCornerBubble",
     "useBodyGrips",
     "useBook",
@@ -500,6 +504,7 @@ test("matomezu/ui が出す名前", () => {
     "useControlCenterMaximized",
     "useCopyText",
     "useCoreCatalog",
+    "useCreatePageAsking",
     "useDrawnMinimap",
     "useEditLock",
     "useElapsed",
@@ -509,6 +514,7 @@ test("matomezu/ui が出す名前", () => {
     "useHighlightRanges",
     "useHostPeers",
     "useHostStatus",
+    "useImportAsset",
     "useInPlaceInput",
     "useItem",
     "useKindView",

@@ -6,6 +6,7 @@
 // 計算は同じフォルダの役割ごとのファイルにあり、ここは台帳アセンブルの結果（assembled）を渡して呼ぶ。常駐が呼ぶ口（globalThis に置く matomezu で始まる関数）は、全部ここに置く
 
 import { talkActions } from "../core/annotation"
+import { assetsInUse } from "../core/assets"
 import { hostActions } from "../core/hosts"
 import { endActions, joinActions } from "../core/participant"
 import { checkRecords, restoreRecords } from "../core/records"
@@ -122,6 +123,10 @@ let lastAdded: readonly Plugin[] = []
 // ブックの外のページを今の機能台帳で確かめ、読めるが機能台帳に無い物を持つページ（W007）の id → warning の 1 行を返す（常駐が一覧に持つ）
 ;(globalThis as { matomezuCheckOutsidePages?: (pages: string) => string }).matomezuCheckOutsidePages = pages =>
   checkOutsidePageLines(assembled, pages)
+
+// ページの行の全部が指すアセットの id と、全部のページで答えられたか（{ ids, sure }。常駐が起動のときに、指されないアセットを消すのに使う。core/assets.ts）
+;(globalThis as { matomezuAssetsInUse?: (pages: string) => string }).matomezuAssetsInUse = pages =>
+  JSON.stringify(assetsInUse(assembled.catalog.core, JSON.parse(pages) as unknown[]))
 
 // 残したフォルダの行の全部（書庫ホーム・フォルダ・ブック・バインダ）とページの行の id の全部が木の決まりを守るかを確かめ、破れていれば warning（W030）の 1 行を、守っていれば空の文字列を返す
 // （常駐が一覧に持つ。データには手を付けない）

@@ -12,6 +12,7 @@ import {
   git,
   goFailures,
   playwrightFailures,
+  pushMain,
   type Regenerate,
   rebuildsFor,
   runStep,
@@ -307,4 +308,22 @@ test("流し直す手が無いか、落ちを全部は読み取れていなけ�
     const r = await runStep(fakeStep(d, 1, opts), d, d)
     expect(r.ok).toBe(false)
   }
+})
+
+test("main を origin へ push し、origin の main が進む", () => {
+  const { main, commit } = repo()
+  const origin = join(dirname(main), "origin.git")
+  execFileSync("git", ["init", "-q", "--bare", origin])
+  git(main, "remote", "add", "origin", origin)
+  const sha = commit("b.txt", "b\n", "b")
+  expect(pushMain(main)).toEqual({ ok: true })
+  expect(git(origin, "rev-parse", "refs/heads/main")).toBe(sha)
+})
+
+test("push できなければ理由の 1 行を返す", () => {
+  const { main } = repo()
+  git(main, "remote", "add", "origin", join(dirname(main), "missing.git"))
+  const r = pushMain(main)
+  expect(r.ok).toBe(false)
+  if (!r.ok) expect(r.why).not.toBe("")
 })

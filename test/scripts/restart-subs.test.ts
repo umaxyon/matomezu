@@ -4,13 +4,18 @@ import {
   lastAssistantText,
   lastModel,
   launchArgs,
+  launchCommand,
+  launchedEnv,
+  launchedThroughRelay,
   launchedWith,
   NG_MARK,
+  parseEnv,
   parseTarget,
   projectDir,
   READY_MARK,
   readiness,
   rejoinPrompt,
+  resultLine,
   toldJoinedSince,
   workroomOf,
 } from "../../scripts/restart-subs"
@@ -153,4 +158,35 @@ test("フックが参加を伝えたかは、since より後に足した知ら�
   expect(toldJoinedSince([old, other].join("\n"), since)).toBe(false)
   const now = told("2026-11-25T14:00:06Z", "You joined matomezu. Workroom name: sub4_work")
   expect(toldJoinedSince([old, other, now].join("\n"), since)).toBe(true)
+})
+
+test("結果はサブごとに 1 行にまとめ、止めたサブは理由のはじめの行だけ", () => {
+  const results: PromiseSettledResult<unknown>[] = [
+    { status: "fulfilled", value: undefined },
+    { status: "rejected", reason: new Error("起動した claude の引数が違う\n端末の末尾") },
+  ]
+  expect(resultLine(["sub5_work", "sub3_work"], results, "参加した")).toBe(
+    "結果: sub5_work 参加した / sub3_work 止めた: 起動した claude の引数が違う",
+  )
+})
+
+test("--env は起動の文の前に付け、起動した claude の環境変数にそのとおりあるかを確かめる", () => {
+  const env = [parseEnv("CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1")]
+  expect(launchCommand(["--model", "claude-opus-5-5"], env)).toBe(
+    "CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1 scripts/claude-relay.sh --model claude-opus-5-5",
+  )
+  expect(launchCommand(["--model", "m"], [])).toBe("scripts/claude-relay.sh --model m")
+  expect(launchedEnv("PATH=/bin\0CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1\0", env)).toBe(true)
+  expect(launchedEnv("PATH=/bin\0CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=10\0", env)).toBe(false)
+  expect(() => parseEnv("x=1")).toThrow()
+  expect(() => parseEnv("A=a b")).toThrow()
+  expect(() => parseEnv("A=$(rm)")).toThrow()
+})
+
+test("--no-relay は claude を直に起動し、起動した claude に中継の ANTHROPIC_BASE_URL が無いかを確かめる", () => {
+  expect(launchCommand(["--model", "m"], [parseEnv("CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1")], false)).toBe(
+    "CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1 claude --model m",
+  )
+  expect(launchedThroughRelay("PATH=/bin\0ANTHROPIC_BASE_URL=http://127.0.0.1:18951/x\0")).toBe(true)
+  expect(launchedThroughRelay("PATH=/bin\0")).toBe(false)
 })

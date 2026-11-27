@@ -97,9 +97,10 @@ test("たなのフォルダは、組んだときから書庫ホームの先頭�
     here.actions.openScreen("ex15:shelf-screen", {})
   })
   const shelf = screen.getByRole("heading", { name: "たな" }).closest("section") as HTMLElement
-  expect([...shelf.querySelectorAll("li")].slice(0, 3).map(li => li.textContent)).toEqual([
+  expect([...shelf.querySelectorAll("li")].slice(0, 4).map(li => li.textContent)).toEqual([
     "ドキュメント",
     "ワークルーム",
+    "画像",
     "たなのフォルダ",
   ])
 })
