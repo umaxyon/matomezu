@@ -271,12 +271,19 @@ export const PARTICIPANT_ACCEPT = kit.defineAction({
         ? [{ subject: ADMIN_MARK.id, id: "admin", record: { id: "admin", workroom, by: "auto" as const } }]
         : []
     if (!("newWorkroom" in args)) {
-      if (ctx.records?.[WORKROOM.id]?.[args.workroom] === undefined) return { declined: "the workroom is not there" }
+      const entered = ctx.records?.[WORKROOM.id]?.[args.workroom]
+      if (entered === undefined) return { declined: "the workroom is not there" }
       const out = leaving(ctx, args.workroom, args.occupant)
       if (out === null) return { declined: "a participant is in the workroom already" }
+      // 入った参加者は前の作業を知らないので、引継ぎ対象チケットを外す（引継ぎページを書けるのは、その作業をしていた会話だけ）
+      const room = WORKROOM.record.safeParse(entered)
+      const forgot =
+        room.success && room.data.handoffTarget
+          ? (({ handoffTarget: _, ...kept }) => [{ subject: WORKROOM.id, id: args.workroom, record: kept }])(room.data)
+          : []
       return {
         next: joined(args.workroom),
-        others: [...out.map(id => ({ id, record: "removed" as const })), ...admin(args.workroom, undefined)],
+        others: [...out.map(id => ({ id, record: "removed" as const })), ...forgot, ...admin(args.workroom, undefined)],
         result: { workroom: args.workroom },
       }
     }
