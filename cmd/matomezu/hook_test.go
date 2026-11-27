@@ -326,3 +326,24 @@ func TestStopRenamesTheAdeWorkspace(t *testing.T) {
 		t.Fatalf("renamed %v", renamed)
 	}
 }
+
+// ターンの終わりに今の作業が替わったか: 常駐に訊き、問いがあればその JSON を 1 行出す。問いが無い・常駐が無い・セッションが無ければ何も出さない
+func TestWorkShiftPrintsTheQuestionOnly(t *testing.T) {
+	var out bytes.Buffer
+	var asked map[string]any
+	api := func(body []byte) ([]byte, error) {
+		_ = json.Unmarshal(body, &asked)
+		return []byte(`{"ask":{"question":"Q","choices":[{"label":"はい","clear":true,"read":false}],"read":""}}`), nil
+	}
+	workShift(&out, "S1", api)
+	if asked["sessionId"] != "S1" || out.String() != `{"question":"Q","choices":[{"label":"はい","clear":true,"read":false}],"read":""}`+"\n" {
+		t.Fatalf("asked %v, out %q", asked, out.String())
+	}
+	out.Reset()
+	workShift(&out, "S1", func([]byte) ([]byte, error) { return []byte(`{"ask":null}`), nil })
+	workShift(&out, "S1", nil)
+	workShift(&out, "", api)
+	if out.String() != "" {
+		t.Fatalf("out %q", out.String())
+	}
+}

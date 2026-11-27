@@ -58,6 +58,7 @@ import {
   visitorJoinedText,
   windowWarningLines,
   workroomActivities,
+  workShift,
   workTitle,
 } from "./texts"
 
@@ -288,6 +289,11 @@ let lastAdded: readonly Plugin[] = []
 ;(
   globalThis as { matomezuWorkTitle?: (settings: string, workroom: string, name: string) => string }
 ).matomezuWorkTitle = (settings, workroom, name) => workTitle(assembled, settings, workroom, name)
+
+// ワークルームの今の作業が替わったか（常駐が、ターンの終わりに AI のプログラムの部品に答える。before は前のターンの終わりの印）。作業はレコードから決まるので、常駐が読み口を置いている間に呼ぶ
+;(
+  globalThis as { matomezuWorkShift?: (settings: string, workroom: string, before: string) => string }
+).matomezuWorkShift = (settings, workroom, before) => workShift(assembled, settings, workroom, before)
 
 // ワークルームそれぞれの作業の様子（working・idle・unknown。常駐が、ほかのホストに見せるワークルームの一覧に使う）。作業はレコードから決まるので、常駐が読み口を置いている間に呼ぶ
 ;(globalThis as { matomezuWorkroomActivities?: (workrooms: string) => string }).matomezuWorkroomActivities =

@@ -13,6 +13,7 @@ import {
   READS_ADMIN,
   VISITOR_JOINED_MESSAGE,
   workroomActivitiesFrom,
+  workShiftIn,
   workTitleIn,
 } from "../plugins/base"
 import type { Assembled } from "../store/plugin"
@@ -55,6 +56,12 @@ export function workTitle(of: Assembled, settings: string, workroom: string, nam
   return JSON.stringify(
     workTitleIn(of.catalog.core, restoreSettings(JSON.parse(settings)), source, { id: workroom, name }),
   )
+}
+
+// engine.ts の matomezuWorkShift の中身: ワークルーム workroom の今の作業と、前のターンの終わりの印 before から、今の作業が替わったかの答え（WorkShift の JSON）。レコードはホストの読み口から引く
+export function workShift(of: Assembled, settings: string, workroom: string, before: string): string {
+  const source = hostSource({}) ?? sourceOf({})
+  return JSON.stringify(workShiftIn(of.catalog.core, restoreSettings(JSON.parse(settings)), source, workroom, before))
 }
 
 // engine.ts の matomezuMyWorkdesk の中身: ワークルーム workroom の作業机（MyWorkdesk の JSON）。folders は書庫のフォルダの行の全部。レコードはホストの読み口から引く
