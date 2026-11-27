@@ -70,17 +70,17 @@ export const SLIDE_PLACE = kit.defineAction({
   run: (page, args, ctx) => {
     const def = ctx.catalog.items.get(args.item)
     if (def?.kind !== "shape" || !placeableOn(ctx.catalog, page, args.item)) return null
-    const placed: Shape = {
+    // 大きさが項目で決まる形（大きさを項目に写す形）は、w・h を受けず、書かない
+    const writes = writesSize(ctx.catalog, args.item)
+    if (writes && (args.w !== undefined || args.h !== undefined)) return null
+    const shape: Shape = {
       id: nextItemId(page, ctx.newId),
       x: args.at?.x ?? 0,
       y: args.at?.y ?? 0,
       item: args.item,
+      ...(writes ? {} : { w: args.w ?? def.size.w, h: args.h ?? def.size.h }),
       props: { ...(args.props ?? {}) },
     }
-    // 大きさが項目で決まる形（大きさを項目に写す形）は、w・h を受けず、書かない
-    const writes = writesSize(ctx.catalog, args.item)
-    if (writes && (args.w !== undefined || args.h !== undefined)) return null
-    const shape: Shape = writes ? placed : { ...placed, w: args.w ?? def.size.w, h: args.h ?? def.size.h }
     if (!fits(ctx.catalog, shape)) return null
     return { next: withSlide(page, [...shapes(page), shape]), result: { item: shape.id } }
   },

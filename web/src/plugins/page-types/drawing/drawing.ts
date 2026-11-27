@@ -26,7 +26,7 @@ const ITEMS = [
   "@matomezu/line:connector-line",
 ] as const
 
-// 背景に置く形（ページの slide。背景編集モードで置く。描画シェイプ）
+// 背景に置く形（ページの slide。背景編集モードで置く。ケイパビリティ on-slide を持つ形: 描画シェイプとスクラップボックス）
 const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-text",
   "@matomezu/slide:slide-free-line",

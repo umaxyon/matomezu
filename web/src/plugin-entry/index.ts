@@ -47,6 +47,7 @@ export type {
   SettingReader,
   SheetPurpose,
   SoftBreak,
+  Stretch,
   TextBlock,
   VisitorRow,
   Weight,

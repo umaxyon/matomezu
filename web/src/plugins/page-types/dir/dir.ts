@@ -13,7 +13,7 @@ import { dirPrintSheets } from "./print"
 import { DIR_TOOLS } from "./tools"
 
 // ディレクトリ構成図のキーの範囲（このプレゼンテーションで描いている間に探す）
-// 背景に置く形（ページの slide。背景編集モードで置く。描画シェイプ）
+// 背景に置く形（ページの slide。背景編集モードで置く。ケイパビリティ on-slide を持つ形: 描画シェイプとスクラップボックス）
 const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-text",
   "@matomezu/slide:slide-free-line",

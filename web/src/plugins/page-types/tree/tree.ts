@@ -14,7 +14,7 @@ import { laidOrigin, laidPage, treePrintSheets } from "./print"
 import { TREE_TOOLS } from "./tools"
 
 // ツリーのキーの範囲（ツリーのプレゼンテーションで描いている間に探す）
-// 背景に置く形（ページの slide。背景編集モードで置く。描画シェイプ）
+// 背景に置く形（ページの slide。背景編集モードで置く。ケイパビリティ on-slide を持つ形: 描画シェイプとスクラップボックス）
 const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-text",
   "@matomezu/slide:slide-free-line",

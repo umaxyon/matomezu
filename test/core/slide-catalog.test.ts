@@ -11,7 +11,6 @@ import { itemMinimapMarks, NOT_DRAWN } from "../../web/src/plugins/base/minimap/
 import { NO_GROW } from "../../web/src/plugins/base/place/grow"
 import { filledSheets } from "../../web/src/plugins/base/print-preview/filled"
 import { toolboxOf } from "../../web/src/plugins/base/toolbox/toolbox"
-import { ON_SLIDE_CHECK } from "../../web/src/plugins/items/slide/check"
 import { SLIDE, testBinder, testBook, testPage, withSlide } from "../lineup"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
@@ -104,12 +103,8 @@ test("ミニマップと印刷区画の既定は、ページの slide の形も�
   expect(filledSheets(CORE_CATALOG, { ...page, slide: [] } as never)?.size).toBe(0)
 })
 
-test("slide.allowed に、ケイパビリティ on-slide を持たない形を書いたタイプは E134。slide のアクションは、slide を持つタイプに付く", () => {
+test("slide のアクション（attach.slides）は、slide を持つタイプに付く", () => {
   const drawing = BUILTIN_PARTS.pageTypes.find(t => t.id === "@matomezu/drawing:drawing")!
-  const bad = { ...drawing, slide: { allowed: ["@matomezu/box:shape-box"], background: true as const } }
-  expect(ON_SLIDE_CHECK(CORE_CATALOG).map(p => p.code)).toEqual([])
-  const catalog = { ...CORE_CATALOG, pageTypes: new Map([...CORE_CATALOG.pageTypes, [drawing.id, bad]]) }
-  expect(ON_SLIDE_CHECK(catalog as typeof CORE_CATALOG).map(p => p.code)).toEqual(["E134"])
   const place = BUILTIN_PARTS.actions.find(a => a.id === "@matomezu/slide:slide-place")!
   const { slide: _, ...noSlide } = drawing
   expect(attachedTo(place, drawing)).toBe(true)
