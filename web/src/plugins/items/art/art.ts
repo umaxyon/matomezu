@@ -48,7 +48,7 @@ function art<const Name extends PictureName, const Title extends keyof typeof AR
     // キャプションで幅は広げず（折り返す）、行が増えたら縦に広げる
     captionWidth: () => minWidth(picture),
     captionHeight: s => artSize(picture, s.props.caption, s.w).h,
-    "@matomezu/paper:stretch": "width",
+    stretch: "width",
     "@matomezu/paper:settle": s => ({ ...s, h: artSize(picture, s.props.caption, s.w).h }),
     dialogs: { add: add.id, edit: ART_EDIT_DIALOG.id },
     tokens: [],

@@ -106,3 +106,4 @@ export const PRINT_PREVIEW_PANEL = defineWidget({
 export const SHEET_CONTENT = defineWidget({ id: kit.name("sheet-content"), slots: [SHEET_LAYERS], view: SheetContent })
 
 export { NOT_MEASURED, type PrintMeasured, type PrintMeasureProps, type PrintSheetProps } from "./PrintPreviewView"
+export { usePrintHold } from "./print-hold"

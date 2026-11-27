@@ -81,4 +81,16 @@ export const SCRAP_OPEN_ORIGINAL = kit.defineCommand({
   // スクラップフレームの形のときだけ出す
   accepts: (ctx, { item }) => scrapOf(ctx, item) !== null,
 })
-export { SCRAP, SCRAP_CUT, SCRAP_REMOVE, type Scrap, ScrapSchema, scrapSize } from "./scrap"
+export {
+  SCRAP,
+  SCRAP_CUT,
+  SCRAP_REMOVE,
+  SCRAP_SCALE_MAX,
+  SCRAP_SCALE_TOO_SMALL,
+  type Scrap,
+  ScrapSchema,
+  scrapScaleFits,
+  scrapScaleMin,
+  scrapSize,
+  wholeScrapOf,
+} from "./scrap"

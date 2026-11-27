@@ -209,7 +209,13 @@ export {
   WorkerBookPages,
   type WorkroomActions,
 } from "./participant/ui"
-export { NOT_MEASURED, type PrintMeasured, type PrintMeasureProps, type PrintSheetProps } from "./print-preview/ui"
+export {
+  NOT_MEASURED,
+  type PrintMeasured,
+  type PrintMeasureProps,
+  type PrintSheetProps,
+  usePrintHold,
+} from "./print-preview/ui"
 export { ScrapForm, ScrapView, type ScrapViewProps } from "./scrap/ui"
 export { ChoiceSetting } from "./settings/ui"
 export {

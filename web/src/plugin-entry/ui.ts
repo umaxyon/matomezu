@@ -180,6 +180,7 @@ export {
   usePageTheme,
   usePageThemes,
   usePaperControls,
+  usePrintHold,
   useRevealable,
   useRightSidePanel,
   useScreenSplit,

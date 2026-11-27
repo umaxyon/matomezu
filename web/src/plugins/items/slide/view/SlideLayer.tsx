@@ -3,8 +3,9 @@
 // 置けるアイテムが slide だけのタイプでは何も無い所も（選びを外す）。それ以外はステージ（と下のレイヤー）へ通す。
 // アイテムは書いた位置と大きさ（紙の左上から。負でも、紙より大きくてもよい）に置き、角度（rotation）は枠の中心でかける。紙の外にはみ出た部分は切る（切るのはアイテムを描く所だけで、選んだ物のつまみは切らない）。
 // 置こうとしている間は、紙の上でドラッグした四角（直線は線、自由な線はなぞった跡）に置く。押しただけなら、そのアイテムの置くときの大きさで押した所に置く。文字枠を置いたら、そのまま文字を打てる。
+// 大きさが項目で決まる形（スクラップトレイから置くスクラップ）は、なぞらずに、押した所にその項目のまま置く。
 // アイテムを押すと選び、ドラッグで動かす。何も無い所からのドラッグ枠と、Ctrl（Mac は Command）を押しながらの押しで複数を選び、選んだ物は全体を囲む点線の枠で一緒に動かす（大きさ・回すつまみは 1 つを選んだときだけ）。右クリックでメニュー（@matomezu/slide:item-context）を開く。選んだアイテムは 8 つのつまみで大きさを変え（角は枠と文字を一緒に、辺は幅か高さだけ）、
-// 右上の角の斜め外のつまみで回す（Shift で 15 度ずつ）。文字枠はダブルクリックで文字を書き換える（外を押すと決め、Escape でやめる）。
+// 右上の角の斜め外のつまみで回す（Shift で 15 度ずつ。回せる形だけ）。比を保つ形（base の stretch が ratio。スクラップ）は角のつまみだけで、比を保って大きさを変える。文字枠はダブルクリックで文字を書き換える（外を押すと決め、Escape でやめる）。
 // ドラッグの途中の様子はビューに持ち、離したときに 1 回だけコマンドを呼ぶ（元に戻すのも 1 回）
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import {
@@ -12,6 +13,7 @@ import {
   NO_PAGE,
   NO_PAPER,
   NO_PLACING,
+  NO_PROPS,
   NO_STAGE,
   NOTHING_OPENED,
   openedPage,
@@ -31,7 +33,7 @@ import {
   useStage,
   useToPaper,
 } from "../../../../plugin-api/ui"
-import { slideOffsetOf } from "../../../base"
+import { slideOffsetOf, stretchOf, writesSize } from "../../../base"
 import { modPressed, PaperFrame, useFollowsSelection } from "../../../base/ui"
 import { SLIDE_DELETE, SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "../commands"
 import {
@@ -43,6 +45,7 @@ import {
   movesBy,
   selectedItemOf,
   shownShapes,
+  sizedShapes,
   sweptSelection,
 } from "../layer"
 import {
@@ -101,7 +104,7 @@ type Drag =
       grip: Grip
       min: number
       text: boolean
-      square: boolean // 楕円・長方形（角を引くとき、Ctrl か Command で縦横をそろえられる）
+      keep: "ratio" | "square" | "free" // 角を引くとき: ratio は比を保つ形（スクラップ）、square は楕円・長方形（Ctrl か Command で縦横をそろえられる）
     }
   | { kind: "rotate"; pointer: number; item: string; start: Point; center: Point; rotation: number; rect: Rect }
   | { kind: "draw"; pointer: number; item: ItemId; start: Point }
@@ -144,7 +147,7 @@ function SlidePageView({
   const [shift, setShift] = useState<{ ids: ReadonlySet<string>; by: Point } | null>(null) // 動かしている途中の、動かす物と動いた量
   const [dragFrame, setDragFrame] = useState<Rect | null>(null) // ドラッグ枠の途中の四角（紙の上）
   const typeNext = useRef(false) // 置いた文字枠で、そのまま文字を打つ
-  const shapes = page === NO_PAGE ? [] : slideOf(page)
+  const shapes = page === NO_PAGE ? [] : sizedShapes(catalog, slideOf(page))
   // 位置をデータに持たないプレゼンテーション（ツリー）が、可変ページで中身をずらした量。slide の形は、データの座標のまま、この分ずらして描く
   const offset = page === NO_PAGE ? { x: 0, y: 0 } : slideOffsetOf(catalog, page)
   const chosen = shapes.filter(s => stage.selection.includes(s.id)) // 選んでいるアイテム（重ねの順）
@@ -208,7 +211,7 @@ function SlidePageView({
         grip: found?.grip ?? {},
         min: minOf(selected.item),
         text: selected.item === TEXT,
-        square: squarable(selected.item),
+        keep: stretchOf(catalog, selected.item) === "ratio" ? "ratio" : squarable(selected.item) ? "square" : "free",
       }
       return
     }
@@ -303,7 +306,8 @@ function SlidePageView({
       const moved = movedPoint(d.rect, d.rotation, d.points, d.index, to, d.min)
       setLive({ item: d.item, rect: moved.rect, points: moved.points, rotation: 0 })
     } else if (d.kind === "grip") {
-      const to = resizedRect(d.rect, d.rotation, d.grip, by, d.min, d.square && (e.ctrlKey || e.metaKey))
+      const keep = d.keep === "square" && !(e.ctrlKey || e.metaKey) ? "free" : d.keep
+      const to = resizedRect(d.rect, d.rotation, d.grip, by, d.min, keep)
       setLive({ item: d.item, rect: to, scaled: to.scaled && d.text })
     } else if (d.kind === "rotate") {
       const rotation = rotatedTo(d.rotation, d.center, d.start, at, e.shiftKey ? 15 : undefined)
@@ -346,7 +350,8 @@ function SlidePageView({
   }
   // なぞった点 points に、置こうとしているアイテム item を置く（なぞれていなければ、置くときの大きさで始めの点に置く）
   const placeDrawn = (item: ItemId, points: readonly Point[]) => {
-    const placed = drawnPlacement(catalog, item, points, stage.zoom)
+    const given = stage.placing !== NO_PLACING && stage.placing.props !== NO_PROPS ? stage.placing.props : undefined
+    const placed = drawnPlacement(catalog, item, points, stage.zoom, given)
     if (!placed) return
     if (item === TEXT) typeNext.current = true
     put.run({ item, ...placed })
@@ -376,8 +381,9 @@ function SlidePageView({
   const current = selected && shown.find(s => s.id === selected.id)
   // 複数を選んでいるとき: 全体を囲む四角と、バーに渡す物
   const group = groupOf(shown, stage.selection)
-  const ghost = drawn && placing ? { item: placing, points: drawn } : null
-  const item: SelectedItem | null = selectedItemOf(current)
+  // なぞる途中の見え方（大きさが項目で決まる形は、なぞらずに押した所に置くので出さない）
+  const ghost = drawn && placing && !writesSize(catalog, placing) ? { item: placing, points: drawn } : null
+  const item: SelectedItem | null = selectedItemOf(catalog, current)
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: 選ぶ・動かす・大きさを変える・回すのはポインタの操作で、キーの操作はコマンドとキーバインドが受ける
     <div

@@ -60,7 +60,7 @@ export function ImportImagesDialog({ args, onClose }: DialogProps<NewPageDialogA
         type: IMAGE.id,
         title: titleOf(file, t("Image")),
         orientation: done.width > done.height ? "landscape" : "portrait",
-        fields: { asset: done.asset },
+        fields: { asset: done.asset, width: done.width, height: done.height },
       })
     }
     onClose()

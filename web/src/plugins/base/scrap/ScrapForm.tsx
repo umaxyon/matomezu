@@ -11,11 +11,10 @@ import { PageScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useActions } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { pageArea } from "../place/grow"
 import { useResize } from "../utils/useResize"
 import styles from "./ScrapForm.module.css"
-import { DrawnSheet } from "./ScrapView"
-import { areaOfPage, areaOnPage, movedArea, type Scrap, shiftOf } from "./scrap"
+import { ScrapSheet } from "./ScrapView"
+import { areaOfPage, areaOnPage, movedArea, type Scrap, scrapSpaceOf } from "./scrap"
 
 // ページの絵を収める大きさ（px。置かれた所の広さを測れるまで）
 const PICTURE = { w: 420, h: 320 }
@@ -54,12 +53,13 @@ export function ScrapForm({
     }),
   )
   const { outermost, page } = found
-  const area = outermost && page ? pageArea(catalog, page).size : undefined
+  const space = outermost && page ? scrapSpaceOf(catalog, page) : undefined
+  const area = space?.size
   // 測ってから描くプレゼンテーションは、描いてみて分かった広さ（DrawnSheet が知らせる）
   const [drawn, setDrawn] = useState<Size | null>(null)
   const size = drawn ?? area
   // ページの絵の上の位置 = 範囲 + ずらした量
-  const shift = page ? shiftOf(catalog, page) : { x: 0, y: 0 }
+  const shift = space?.shift ?? { x: 0, y: 0 }
   // 絵を収める広さ: 絵を置く所（フォームの残りの広さ）を測る
   const room = useRef<HTMLDivElement | null>(null)
   const [picture, setPicture] = useState<Size>(PICTURE)
@@ -93,7 +93,7 @@ export function ScrapForm({
             <>
               <PageScope outermost={outermost} page={page.id} zoom={fit}>
                 <div className={styles.scaled} style={{ transform: `scale(${fit})` }}>
-                  <DrawnSheet page={page} size={size} onSize={setDrawn} />
+                  <ScrapSheet page={page} size={size} onSize={setDrawn} />
                 </div>
               </PageScope>
               <div

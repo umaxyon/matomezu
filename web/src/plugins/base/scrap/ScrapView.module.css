@@ -33,3 +33,9 @@
   visibility: hidden;
   pointer-events: none;
 }
+
+/* scrapView で描く、切り抜く広さ（中身は広さいっぱいに描く） */
+.space {
+  position: relative;
+  overflow: hidden;
+}

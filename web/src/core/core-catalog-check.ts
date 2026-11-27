@@ -251,10 +251,12 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   // ページ・ブックの設定の項目は持つ所（holder）を書き、利用者の設定の項目は書かない（書き違えると、どこにも持たれない項目になる）
   for (const d of parts.settings) if (d.holder === undefined) problems.push(problem("E064", { id: d.id }))
   for (const d of parts.userSettings) if (d.holder !== undefined) problems.push(problem("E065", { id: d.id }))
-  // 許可スコープが "book" のアクションは、ページを名指さないので、ページのタイプで決まる付く先（items・presentations・annotations）を持てない
+  // 許可スコープが "book" のアクションは、ページを名指さないので、ページのタイプで決まる付く先（items・presentations・slides・annotations）を持てない
   for (const a of parts.actions)
     if (changesBookOnly(a) && a.attach) {
-      const typed = (["items", "presentations", "annotations"] as const).filter(k => a.attach?.[k] !== undefined)
+      const typed = (["items", "presentations", "slides", "annotations"] as const).filter(
+        k => a.attach?.[k] !== undefined,
+      )
       if (typed.length > 0) problems.push(problem("E063", { id: a.id, attach: typed.join(", ") }))
     }
   // ブック自身だけを変えるアクション（許可スコープが "book"）は、どのページのタイプでも決まらないので、タイプは足せも外せもしない

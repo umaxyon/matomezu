@@ -10,9 +10,8 @@ import {
   useTokenScope,
   useUiCatalog,
 } from "../../../plugin-api/ui"
-import { type Edges, NO_SHAPE_DEF, NO_SIZE, placedSize, shapeDefOf } from "../../base"
+import { type Edges, NO_SHAPE_DEF, NO_SIZE, placedSize, shapeDefOf, stretchOf } from "../../base"
 import { useAnchorRef } from "../../base/ui"
-import { kit } from "../kit"
 import styles from "./PaperView.module.css"
 
 // 形のビューに渡す中身: 形の定義の content に宣言したフィールドの名前 → その値
@@ -115,9 +114,8 @@ export function Item({
   const size = placedSize(catalog, item)
   const View = ui?.view as ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode) | undefined
   const tokens = useTokenScope(item.item) // そのアイテムのプラグインのテーマキー（--<名前>）
-  // 幅だけを変えられる形（@matomezu/paper:stretch）は左右の辺だけ、比を保つ形は角だけをつかめる
-  const def = shapeDefOf(catalog, item.item)
-  const stretch = def !== NO_SHAPE_DEF ? def[kit.name("stretch")] : undefined
+  // 幅だけを変えられる形（base の stretch）は左右の辺だけ、比を保つ形は角だけをつかめる
+  const stretch = stretchOf(catalog, item.item)
   const grips =
     stretch === "width"
       ? GRIPS.filter(g => !g.edges.y)

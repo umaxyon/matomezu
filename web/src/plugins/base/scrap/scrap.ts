@@ -2,17 +2,30 @@
 // スクラップトレイは、切り抜いて、まだ置いていないスクラップを集めておく所（対象の定義 scrap のレコード。利用者が消すまで残る）。
 // 置いたスクラップ（スクラップフレームのアイテムの項目）は、スクラップトレイのスクラップの値を写して持ち、スクラップトレイとはつながらない
 import { z } from "zod"
-import type { CoreCatalog } from "../../../core/core-catalog"
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Point, Rect, Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
 import { kit } from "../kit"
 import { pageArea, paperSize } from "../place/grow"
 
-// 倍率の範囲（1 が等倍）
-export const SCRAP_SCALE_MIN = 0.1
+// 倍率の上限（1 が等倍）
 export const SCRAP_SCALE_MAX = 4
+// 置いた大きさ（見る範囲 × 倍率）の、短い辺の下限（px。つかめて、見分けられる大きさ）
+export const SCRAP_MIN_SIDE = 24
 
-// スクラップのデータの形: 指すページの id、見る範囲（ページの中身の位置。可変ページの中身をずらす前の位置で持つ）、倍率
+// 見る範囲 area の倍率の下限: 置いた短い辺が SCRAP_MIN_SIDE になる倍率（等倍でもそれに届かない小さな範囲は、等倍）
+export const scrapScaleMin = (area: Pick<Rect, "w" | "h">): number =>
+  Math.min(1, SCRAP_MIN_SIDE / Math.min(area.w, area.h))
+
+// スクラップの倍率が、見る範囲で決まる下限以上か（スクラップを持つ形が、自分の形の確かめに足す）
+export const scrapScaleFits = (s: Pick<Scrap, "area" | "scale">): boolean => s.scale >= scrapScaleMin(s.area)
+export const SCRAP_SCALE_TOO_SMALL = {
+  message: `The scrap's shorter side, area × scale, must be at least ${SCRAP_MIN_SIDE} pixels`,
+  path: ["scale"],
+}
+
+// スクラップのデータの形: 指すページの id、見る範囲（ページの中身の位置。可変ページの中身をずらす前の位置で持つ）、倍率。
+// 倍率の下限は見る範囲で決まる（scrapScaleFits。この形を広げて使う所が、広げたあとに確かめる）
 export const ScrapSchema = z.strictObject({
   page: z.string().min(1),
   area: z.strictObject({
@@ -21,14 +34,17 @@ export const ScrapSchema = z.strictObject({
     w: z.number().positive(),
     h: z.number().positive(),
   }),
-  scale: z.number().min(SCRAP_SCALE_MIN).max(SCRAP_SCALE_MAX),
+  scale: z.number().positive().max(SCRAP_SCALE_MAX),
 })
 export type Scrap = z.output<typeof ScrapSchema>
 
 // スクラップトレイから紙 paper に置くときのスクラップ: 紙の幅・高さの半分に収まるよう倍率を下げる（上げはしない。倍率の下限より下げない）
 export const scrapToPlace = (scrap: Scrap, paper: Size): Scrap => ({
   ...scrap,
-  scale: Math.max(SCRAP_SCALE_MIN, Math.min(scrap.scale, paper.w / 2 / scrap.area.w, paper.h / 2 / scrap.area.h)),
+  scale: Math.max(
+    scrapScaleMin(scrap.area),
+    Math.min(scrap.scale, paper.w / 2 / scrap.area.w, paper.h / 2 / scrap.area.h),
+  ),
 })
 
 // スクラップを置いたときの大きさ（見る範囲 × 倍率。小数は切り上げる）
@@ -42,8 +58,11 @@ export const SCRAP = kit.defineSubject({
   id: "scrap",
   title: "Scrap",
   aiDescription:
-    "A scrap in the user's scrap tray: a view cut out of a page (page: the page's id, area: the part shown, in the page's own pixels, scale: 1 is the same size), kept until the user places it on a page or removes it. Only the user cuts scraps out and removes them. Listed newest first.",
-  record: ScrapSchema.extend({ id: z.string().min(1), cutAt: z.string() }),
+    "A scrap in the user's scrap tray: a view cut out of a page (page: the page's id, area: the part shown, in the page's own pixels (on an image page, the image's own pixels), scale: 1 is the same size), kept until the user places it on a page or removes it. Only the user cuts scraps out and removes them. Listed newest first.",
+  record: ScrapSchema.extend({ id: z.string().min(1), cutAt: z.string() }).refine(
+    scrapScaleFits,
+    SCRAP_SCALE_TOO_SMALL,
+  ),
   keys: {
     cutAt: { type: "text", of: s => s.cutAt },
     page: { type: "text", of: s => s.page },
@@ -59,7 +78,7 @@ export const SCRAP_CUT = kit.defineAction({
   aiDescription: "Cut a scrap out of a page into the scrap tray (only the user).",
   target: SCRAP.id,
   userOnly: true,
-  args: ScrapSchema,
+  args: ScrapSchema.refine(scrapScaleFits, SCRAP_SCALE_TOO_SMALL),
   run: (now, args, ctx) => {
     if (now !== "none") return null
     const next = { id: ctx.newId(), ...args, cutAt: ctx.now }
@@ -90,11 +109,34 @@ export const areaOnPage = (area: Rect, shift: Point): Rect => ({ ...area, x: are
 // ページの上の位置を、範囲（ページの中身の位置）にする
 export const areaOfPage = (rect: Rect, shift: Point): Rect => ({ ...rect, x: rect.x - shift.x, y: rect.y - shift.y })
 
-// 切り抜いた直後の範囲: ページ全体
-export function wholePage(catalog: CoreCatalog, page: ItemPage): Rect {
-  const size = pageArea(catalog, page).size
-  return areaOfPage({ x: 0, y: 0, w: size.w, h: size.h }, shiftOf(catalog, page))
+declare module "../../../core/catalog" {
+  interface PresentationExtras {
+    // スクラップを切り抜く広さを、ページの広さでなく自分で決めるプレゼンテーション（画像のページなど）の、その広さ。スクラップの範囲はこの広さの上の座標で持ち、
+    // 描くのはプレゼンテーションのビューの定義の scrapView。無ければ、ページの広さ（可変ページは中身をずらす前の位置）の上で切り抜き、印刷区画のビューで描く
+    scrapSpace?(catalog: CoreCatalog, page: ItemPage): Size
+  }
 }
+
+// ページ page のスクラップを切り抜く広さと、範囲をその広さの上の位置にするためにずらす量（scrapSpace を持つプレゼンテーションはずらさない）
+export function scrapSpaceOf(catalog: CoreCatalog, page: ItemPage): { size: Size; shift: Point } {
+  const own = catalog.presentations.get(pageType(catalog, page.type).presentation)?.scrapSpace
+  return own
+    ? { size: own(catalog, page), shift: { x: 0, y: 0 } }
+    : { size: pageArea(catalog, page).size, shift: shiftOf(catalog, page) }
+}
+
+// 切り抜いた直後の範囲: 切り抜く広さ全体
+export function wholePage(catalog: CoreCatalog, page: ItemPage): Rect {
+  const { size, shift } = scrapSpaceOf(catalog, page)
+  return areaOfPage({ x: 0, y: 0, w: size.w, h: size.h }, shift)
+}
+
+// ページ page（id は pageId）全体を、倍率 1 で見るスクラップ（書庫から作るスクラップ）
+export const wholeScrapOf = (catalog: CoreCatalog, pageId: string, page: ItemPage): Scrap => ({
+  page: pageId,
+  area: wholePage(catalog, page),
+  scale: 1,
+})
 
 // 範囲の一番小さい大きさ（ページの px）
 export const SCRAP_AREA_MIN = 16

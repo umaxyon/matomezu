@@ -7,7 +7,7 @@
 // 初めから出ていなければ（AI が印刷プレビューで開いたときなど）、出す。
 // 右サイドパネルに出している間、刷れるなら（測り終え、並べる物がある）、刷る物（PrintOutput）を置いておき、刷れるかをステージの状態に置く（印刷のコマンドが読む）
 
-import { type ComponentType, type CSSProperties, useEffect, useMemo, useRef } from "react"
+import { type ComponentType, type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { pagesOf } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
@@ -38,6 +38,7 @@ import { NOT_MEASURED, type PrintMeasured } from "./measures-state"
 import { PrintOutput } from "./PrintOutput"
 import styles from "./PrintPreviewView.module.css"
 import { PRINT_PREVIEW_PANEL_ID, printCheckOpen } from "./panel-id"
+import { PrintHolds } from "./print-hold"
 import { sheetLabels } from "./print-pages"
 import { Printing } from "./printing"
 import { SheetFrame } from "./SheetFrame"
@@ -158,9 +159,14 @@ function PrintPreviewBody({ id }: { id: string }) {
     if (layout && !pending && layout.sheets.length > 0) setPreviewArea(id, layout.size)
   }, [layout, pending, id, setPreviewArea])
   // 刷れるか（測り終え、並べる印刷区画が 1 つ以上ある。印刷のコマンドが読む）
+  // 印刷区画の中で読み込みを待っている物（print-hold.tsx）も、無くなるまで刷れない。表は描いたすぐあとに埋まるので、刷れるかを置くときに読む
+  const waiting = useMemo(() => new Set<string>(), [])
+  const [holds, setHolds] = useState(0)
+  const onHoldsChange = useCallback(() => setHolds(waiting.size), [waiting])
   const ready = !!layout && !pending && layout.sheets.length > 0
   const setPrintReady = useSetPrintReady()
-  useEffect(() => setPrintReady(ready), [ready, setPrintReady])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: holds は、待っている物の表が変わったら置き直すための物
+  useEffect(() => setPrintReady(ready && waiting.size === 0), [ready, holds, waiting, setPrintReady])
   const shown = panel !== NO_RIGHT_SIDE_PANEL && panel.widget === PRINT_PREVIEW_PANEL_ID
   // 初めは、並べる向きと交わる辺を表示領域に合わせる（幅に合わせる。print-preview-fit）。右サイドパネルが出て表示領域が狭まり終えてから合わせ、
   // そのあと表示領域の大きさが変わっても、倍率を変えていなければ合わせ直す
@@ -275,26 +281,28 @@ function PrintPreviewBody({ id }: { id: string }) {
           } as CSSProperties
         }
       >
-        {layout.sheets.map(s => (
-          <div
-            key={keyOf(s)}
-            className={styles.sheet}
-            style={{ left: s.x, top: s.y, width: s.w, height: s.h }}
-            data-sheet={s.index}
-            data-sheet-page={s.page}
-          >
-            <SheetFrame
-              zoom={zoom}
-              entry={entryOf(s.page)}
-              page={pageOf(s.page)}
-              sheet={s}
-              measured={measures[s.page]?.data ?? NOT_MEASURED}
-              labels={labelsOf(s)}
-            />
-          </div>
-        ))}
+        <PrintHolds waiting={waiting} onChange={onHoldsChange}>
+          {layout.sheets.map(s => (
+            <div
+              key={keyOf(s)}
+              className={styles.sheet}
+              style={{ left: s.x, top: s.y, width: s.w, height: s.h }}
+              data-sheet={s.index}
+              data-sheet-page={s.page}
+            >
+              <SheetFrame
+                zoom={zoom}
+                entry={entryOf(s.page)}
+                page={pageOf(s.page)}
+                sheet={s}
+                measured={measures[s.page]?.data ?? NOT_MEASURED}
+                labels={labelsOf(s)}
+              />
+            </div>
+          ))}
+        </PrintHolds>
       </div>
-      {shown && ready && opened && (
+      {shown && ready && waiting.size === 0 && opened && (
         <PrintOutput
           stage={id}
           sheets={layout.sheets.map(s => ({

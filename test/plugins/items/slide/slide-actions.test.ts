@@ -192,3 +192,31 @@ test("ロック中のページでは、描画シェイプを動かせず消せ�
   expect(s.perform("@matomezu/base:page-unlock", {}, { page: s.page }).ok).toBe(true)
   expect(s.perform(SLIDE_MOVE.id, { item, at: { x: 0, y: 0 } }, { page: s.page }).ok).toBe(true)
 })
+
+const SCRAP_BOX = "@matomezu/scrap:shape-scrap-box"
+const SCRAP = { page: "p-other", area: { x: 0, y: 0, w: 400, h: 200 }, scale: 0.5 }
+
+test("スクラップボックスも slide に置ける: w・h は受けず書かず（大きさは見る範囲 × 倍率）、大きさを変えると倍率に写して比を保ち、回せない", () => {
+  const s = setup()
+  const on = { page: s.page }
+  expect(s.perform(SLIDE_PLACE.id, { item: SCRAP_BOX, at: { x: 10, y: 20 }, w: 100, props: SCRAP }, on).ok).toBe(false)
+  const placed = s.perform(SLIDE_PLACE.id, { item: SCRAP_BOX, at: { x: 10, y: 20 }, props: SCRAP }, on)
+  expect(placed.ok).toBe(true)
+  const id = (placed.result as { item: string }).item
+  const box = () => s.slide().find(x => x.id === id)!
+  expect(box()).toEqual({ id, x: 10, y: 20, item: SCRAP_BOX, props: SCRAP })
+  expect(s.perform(SLIDE_RESIZE.id, { item: id, w: 400, h: 999 }, on).ok).toBe(true)
+  expect(box()).toEqual({ id, x: 10, y: 20, item: SCRAP_BOX, props: { ...SCRAP, scale: 1 } })
+  expect(s.perform(SLIDE_UPDATE.id, { item: id, props: { rotation: 30 } }, on).ok).toBe(false)
+  // 倍率の下限は、置いた短い辺が 24px（見る範囲の高さ 200 なら 0.12）
+  expect(s.perform(SLIDE_UPDATE.id, { item: id, props: { scale: 0.11 } }, on).ok).toBe(false)
+  expect(s.perform(SLIDE_UPDATE.id, { item: id, props: { scale: 0.12 } }, on).ok).toBe(true)
+})
+
+test("slide に置けるのは、ページのタイプの slide.allowed のアイテムだけ（項目は、そのアイテムの項目の形で確かめる）", () => {
+  const s = setup()
+  const on = { page: s.page }
+  expect(s.perform(SLIDE_PLACE.id, { item: "@matomezu/box:shape-box", props: {} }, on).ok).toBe(false)
+  expect(s.perform(SLIDE_PLACE.id, { item: TEXT, props: { text: 1 } }, on).ok).toBe(false)
+  expect(s.perform(SLIDE_PLACE.id, { item: LINE }, on).ok).toBe(true) // 項目が無ければ既定
+})

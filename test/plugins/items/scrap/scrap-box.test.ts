@@ -8,11 +8,12 @@ import type { PlacedShape } from "../../../../web/src/core/placed"
 import type { Book } from "../../../../web/src/core/schema/book"
 import { NO_PLACING } from "../../../../web/src/core/stage"
 import { screenOf } from "../../../../web/src/core/window"
-import { CANNOT_RESIZE, type Edges, placedSize, resizedBy } from "../../../../web/src/plugins/base"
+import { CANNOT_RESIZE, type Edges, placedSize, resizedBy, sizedTo } from "../../../../web/src/plugins/base"
 import { floorsOf } from "../../../../web/src/plugins/base/place/size"
 import { SCRAP } from "../../../../web/src/plugins/base/scrap/scrap"
 import { SCRAP_BOX } from "../../../../web/src/plugins/items/scrap"
 import { lineColor } from "../../../../web/src/plugins/items/scrap/ScrapBoxView"
+import { sizedShapes } from "../../../../web/src/plugins/items/slide/layer"
 import { PLACE_OFFSET, placingShape } from "../../../../web/src/plugins/paper/placing/items"
 import { placedOf, sizedStore } from "../../../support"
 
@@ -82,7 +83,7 @@ test("item-resize は、スクラップボックスの幅を倍率に写す（�
   expect(box().props).toEqual({ ...ONE, scale: 1 })
   expect([box().w, box().h]).toEqual([undefined, undefined])
   expect(placedSize(store.catalog.core, box())).toEqual({ w: 400, h: 200 })
-  expect(resize({ w: 30 }).ok).toBe(false) // 倍率 0.075 は下限 0.1 より小さい
+  expect(resize({ w: 30 }).ok).toBe(false) // 倍率 0.075 は下限 0.12（置いた短い辺が 24px）より小さい
   expect(box().props).toEqual({ ...ONE, scale: 1 })
 })
 
@@ -103,4 +104,16 @@ test("角をつかむと、向かいの角を止めて比を保つ。紙の端�
 test("スクラップボックスは、押されても縮まない（縮めてよい下限が今の大きさ）", () => {
   const { store, page, box } = placedOne()
   expect(floorsOf(store.catalog.core, page()).get(box().id)).toEqual({ w: 200, h: 100 })
+})
+
+test("スライドの描く形の並びは、大きさが項目で決まる形にも描く大きさを書く。base の sizedTo は、そういう形を項目に写し w・h を書かない", () => {
+  const catalog = sizedStore().catalog.core
+  const box = { id: "s1", x: 5, y: 6, item: BOX, props: ONE } as unknown as PlacedShape
+  const text = { id: "t1", x: 0, y: 0, item: "@matomezu/slide:slide-text", w: 30, h: 40, props: { text: "a" } }
+  const [drawn, other] = sizedShapes(catalog, [box, text as unknown as PlacedShape])
+  expect([drawn!.w, drawn!.h]).toEqual([200, 100])
+  expect(other).toEqual(text as unknown as PlacedShape)
+  const grown = sizedTo(catalog, box, { w: 400, h: 1 })
+  expect(grown.w).toBeUndefined()
+  expect(placedSize(catalog, grown)).toEqual({ w: 400, h: 200 })
 })

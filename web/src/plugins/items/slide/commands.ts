@@ -1,7 +1,7 @@
 // スライドのコマンド: 画面の操作（置く・動かす・大きさを変える・項目を変える・消す）から、スライドのアクション（slide プラグイン）を呼ぶ。
 // 位置と大きさは、プレゼンテーションが決めた紙の上の px で受け取る。置けたら置くのをやめ、置いたアイテムを選ぶ
 import { type ItemId, NO_PLACING, NOTHING_OPENED, type Rect, slideOf } from "../../../plugin-api"
-import { hasOpenedPage } from "../../base"
+import { hasOpenedPage, writesSize } from "../../base"
 
 import { SLIDE_MOVE, SLIDE_PLACE, SLIDE_REMOVE, SLIDE_REORDER, SLIDE_RESIZE, SLIDE_UPDATE } from "./actions"
 import { kit } from "./kit"
@@ -31,7 +31,7 @@ function selectedOnSlide(ctx: Ctx): string[] {
   return ctx.stage.selection.filter(id => ids.has(id))
 }
 
-// 置こうとしているアイテムを、枠 rect に置く。props はそのアイテムの項目（文字枠なら text など）。置けなければトーストで知らせる
+// 置こうとしているアイテムを、枠 rect に置く。props はそのアイテムの項目（文字枠なら text など）。大きさが項目で決まる形（スクラップ）は、左上だけを渡す。置けなければトーストで知らせる
 export const SLIDE_PUT = kit.defineCommand({
   id: "slide-put",
   performs: [PLACE],
@@ -45,10 +45,9 @@ export const SLIDE_PUT = kit.defineCommand({
       {
         item: args.item,
         at: { x: args.rect.x, y: args.rect.y },
-        w: args.rect.w,
-        h: args.rect.h,
+        ...(writesSize(ctx.catalog, args.item) ? {} : { w: args.rect.w, h: args.rect.h }),
         props: args.props,
-      } as never,
+      },
       { page: ctx.page.id },
     )
     if (!done.ok) {
