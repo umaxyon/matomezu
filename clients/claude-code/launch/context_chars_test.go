@@ -20,7 +20,6 @@ const (
 	hookJSONLine    = `{"type":"attachment","isSidechain":false,"attachment":{"type":"hook_additional_context","content":["You joined matomezu. Workroom name: a"],"hookName":"UserPromptSubmit","toolUseID":"hook-1","hookEvent":"UserPromptSubmit"}}`                    // 37
 	hookSayLine     = `{"type":"attachment","isSidechain":false,"attachment":{"type":"hook_system_message","content":"matomezu に参加しました","hookName":"UserPromptSubmit","toolUseID":"h2","hookEvent":"UserPromptSubmit"}}`                                                   // 16
 	otherJSONLine   = `{"type":"attachment","isSidechain":false,"attachment":{"type":"hook_additional_context","content":["The memory index is big"],"hookName":"PostToolUse:Edit"}}`                                                                                      // 23
-	snapshotLine    = `{"type":"attachment","isSidechain":false,"attachment":{"type":"prompt_snapshot","systemPrompt":["You are an agent"]}}`                                                                                                                              // 0
 	compactLine     = `{"type":"system","subtype":"compact_boundary","isSidechain":false,"compactMetadata":{"trigger":"auto","preTokens":267299}}`
 	sideLine        = `{"type":"user","isSidechain":true,"message":{"role":"user","content":"ignored text"}}`
 	blobLine        = `{"type":"api-request-blob","message":{"role":"system","content":"not in the conversation"}}`
@@ -68,7 +67,7 @@ func TestReadContextChars(t *testing.T) {
 		"hook json":     {lines(hookJSONLine, hookSayLine, otherJSONLine), ContextChars{Total: 37 + 16 + 23, Matomezu: 37 + 16}},
 		"wake notice":   {lines(wakeUserLine(), queuedWakeLine()), ContextChars{Total: wakeN + runes(taskNotification+"<summary>Agent \"x\" finished</summary></task-notification>\n"+wakeText), Matomezu: 2 * wakeN}},
 		"join skill":    {lines(skillUseLine, skillResultLine, skillBodyLine, sayLine), ContextChars{Total: 19 + 30 + 18 + 5, Matomezu: 19 + 30 + 18}},
-		"not counted":   {lines(sideLine, blobLine, snapshotLine, sayLine), ContextChars{Total: 5}},
+		"not counted":   {lines(sideLine, blobLine, sayLine), ContextChars{Total: 5}},
 		"compact":       {lines(mzUseLine, mzResultLine, compactLine, sayLine), ContextChars{Total: 5}},
 		"half written":  {lines(sayLine) + mzUseLine[:30], ContextChars{Total: 5}},
 	} {
@@ -176,5 +175,62 @@ func appendTo(t *testing.T, path, text string) {
 	defer f.Close()
 	if _, err := f.WriteString(text); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// モデルに渡した物の写しの見本（中身の字数をコメントに書く）
+const (
+	promptLine1  = `{"type":"attachment","isSidechain":false,"attachment":{"type":"prompt_snapshot","systemPrompt":["You are an agent"],"reminderFold":false,"contextRendering":"announced"}}`                                                                                                                                            // 16
+	promptLine2  = `{"type":"attachment","isSidechain":false,"attachment":{"type":"prompt_snapshot","systemPrompt":["You are an agent"],"cliPrefix":"CLI","tools":[{"name":"Bash","description":"run","input_schema":{"type":"object","properties":{"command":{"type":"string","description":"cmd"}}}}],"contextRendering":"announced"}}` // 16 + 3 + 4 + 3 + 3
+	loadedLine   = `{"type":"attachment","isSidechain":false,"attachment":{"type":"deferred_tools_record","entries":[{"name":"mcp__plugin_matomezu_matomezu__join","description":"Join","input_schema":{"type":"object"},"defer_loading":true},{"name":"TaskStop","description":"Stop","input_schema":{"type":"object"}}]}}`              // 35 + 4 + 8 + 4
+	reloadedLine = `{"type":"attachment","isSidechain":false,"attachment":{"type":"deferred_tools_record","entries":[{"name":"TaskStop","description":"Stop","input_schema":{"type":"object"}}]}}`                                                                                                                                        // 8 + 4
+	copiesLine   = `{"type":"attachment","isSidechain":false,"attachment":{"type":"deferred_tools_record","entries":[],"toolInputCopies":[{"id":"toolu_1","copy":"wire"}]}}`                                                                                                                                                              // 0
+	mcpLine      = `{"type":"attachment","isSidechain":false,"attachment":{"type":"mcp_instructions_delta","addedNames":["plugin:matomezu:matomezu","other"],"addedBlocks":["## plugin:matomezu:matomezu\nshows books","## other\nx"],"removedNames":[]}}`                                                                                // 39 + 10
+	mcpAgainLine = `{"type":"attachment","isSidechain":false,"attachment":{"type":"mcp_instructions_delta","addedNames":["plugin:matomezu:matomezu"],"addedBlocks":["## plugin:matomezu:matomezu\nshows books"],"removedNames":[]}}`
+	mcpGoneLine  = `{"type":"attachment","isSidechain":false,"attachment":{"type":"mcp_instructions_delta","addedNames":[],"addedBlocks":[],"removedNames":["plugin:matomezu:matomezu"]}}`
+)
+
+// モデルに渡した物の写しは、モデルに今見えている分だけを数える: システムプロンプトの写しは最後の物だけ、後で読み込んだツールの説明とサーバーの説明は名前ごとに 1 度
+// （外したサーバーはまた足したときに数え直す）。matomezu のツールとサーバーの説明は matomezu の分、システムプロンプトは分母だけ
+func TestReadContextCharsCountsWhatTheModelSees(t *testing.T) {
+	for name, c := range map[string]struct {
+		text  string
+		chars ContextChars
+	}{
+		"latest prompt only": {lines(promptLine1, sayLine, promptLine2), ContextChars{Total: 29 + 5}},
+		"loaded tools once":  {lines(loadedLine, copiesLine, reloadedLine), ContextChars{Total: 51, Matomezu: 39}},
+		"mcp once":           {lines(mcpLine, mcpAgainLine), ContextChars{Total: 49, Matomezu: 39}},
+		"mcp removed":        {lines(mcpLine, mcpGoneLine, mcpAgainLine), ContextChars{Total: 88, Matomezu: 78}},
+		"after the boundary": {lines(promptLine2, loadedLine, mcpLine, compactLine, promptLine1, loadedLine, mcpAgainLine), ContextChars{Total: 16 + 51 + 39, Matomezu: 39 + 39}},
+	} {
+		if got := readChars(t, writeTranscript(t, c.text), ""); got.Chars != c.chars {
+			t.Errorf("%s: got %+v, want %+v", name, got.Chars, c.chars)
+		}
+	}
+}
+
+// 印は、数えたシステムプロンプトの写しの字数と、数えたツールとサーバーの名前を持ち越す。次の読みの新しい写しは入れ替える分だけを足し、
+// 同じツール・サーバーは足さない
+func TestModelSeesAcrossReads(t *testing.T) {
+	path := writeTranscript(t, lines(promptLine1, loadedLine, mcpLine))
+	first := readChars(t, path, "")
+	if first.Chars != (ContextChars{Total: 16 + 51 + 49, Matomezu: 39 + 39}) {
+		t.Fatalf("first = %+v", first)
+	}
+	appendTo(t, path, lines(promptLine2, reloadedLine, mcpAgainLine))
+	if next := readChars(t, path, first.Mark); next.Restart || next.Chars != (ContextChars{Total: 13}) {
+		t.Fatalf("next = %+v", next)
+	}
+}
+
+// matomezu のサーバーの名前は、matomezu の MCP 公開ツールの名前の前置きと同じ 2 つ
+func TestMatomezuServersMatchToolPrefixes(t *testing.T) {
+	if len(matomezuServers) != len(toolPrefixes) {
+		t.Fatal(matomezuServers)
+	}
+	for _, s := range matomezuServers {
+		if !contains(toolPrefixes, "mcp__"+strings.ReplaceAll(s, ":", "_")+"__") {
+			t.Errorf("%s has no tool prefix", s)
+		}
 	}
 }

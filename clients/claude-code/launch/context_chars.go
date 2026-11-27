@@ -2,8 +2,8 @@ package launch
 
 // matomezu の分の目安: 会話の記録（transcript の jsonl）の中身の字数と、そのうち matomezu が足した分を数える。トークンの内訳は記録に無いので、
 // 参加者リストの棒の中の matomezu の分は、この字数の割合から出す目安。
-// 分母は記録の会話の行（利用者・AI の行と、Claude Code が会話に添えた物）の字数の合計。システムプロンプト・ツールの説明など、記録の会話の行に無い分は入らないので、
-// 割合は多めに出る。Claude Code が書く写しの行（prompt_snapshot・deferred_tools_record・mcp_instructions_delta）は、会話に入る形と突き合わせられないので、分母にも分子にも入れない。
+// 分母は記録の中身の字数の合計: 会話の行（利用者・AI の行と、Claude Code が会話に添えた物）と、Claude Code が記録に書く、モデルに渡した物の写し
+// （システムプロンプトと最初から渡すツールの説明・後で読み込んだツールの説明・MCP の説明。modelSees）。記録に無い分は入らないので、割合は多めに出る。
 // 字数は、JSON を読んだあとの文字列の rune の数（バイトで数えると日本語が 3 倍に重くなる）。
 // 会話の記録の形は Claude Code が公式に約束した物ではないので、頼る所はこのファイルの名前の付いた関数に閉じ、根拠を書く。
 //
@@ -38,6 +38,9 @@ type charsMark struct {
 	At     int64    `json:"at"`               // 次に読み始める所（バイト。読み終えた最後の行の改行の後）
 	Tools  []string `json:"tools,omitempty"`  // 結果をまだ読んでいない、matomezu の MCP 公開ツールの呼び出しの id
 	Skills []string `json:"skills,omitempty"` // 中身の行をまだ読んでいない、join のスキルの呼び出しの id
+	Prompt int64    `json:"prompt,omitempty"` // 最後の圧縮の境目の後で数えた、システムプロンプトの写しの字数（新しい写しはこれと入れ替える）
+	Loaded []string `json:"loaded,omitempty"` // 最後の圧縮の境目の後で数えた、後で読み込んだツールの名前
+	MCP    []string `json:"mcp,omitempty"`    // 最後の圧縮の境目の後で数えた、説明を渡した MCP のサーバーの名前
 }
 
 // openCallsMax は、印に持つ、結果をまだ読んでいない呼び出しの id の数の上限（超えたら古い物から捨てる）
@@ -121,10 +124,14 @@ func (m *charsMark) countLine(line []byte, read *CharsRead) {
 	case l.Type == "system" && l.Subtype == compactBoundary:
 		read.Restart = true
 		read.Chars = ContextChars{}
-		m.Tools, m.Skills = nil, nil
+		m.Tools, m.Skills, m.Loaded, m.MCP = nil, nil, nil, nil
+		m.Prompt = 0
 	case l.Type == "user" || l.Type == "assistant":
 		m.countMessage(l, read)
 	case l.Type == "attachment":
+		if m.modelSees(l.Attachment, read) {
+			return
+		}
 		total, matomezu := attachmentChars(l.Attachment)
 		read.Chars.Total += total
 		read.Chars.Matomezu += matomezu
@@ -206,13 +213,7 @@ func (m *charsMark) closeSkill(id string) bool {
 	return false
 }
 
-func appendOpen(ids []string, id string) []string {
-	ids = append(ids, id)
-	if len(ids) > openCallsMax {
-		ids = ids[len(ids)-openCallsMax:]
-	}
-	return ids
-}
+func appendOpen(ids []string, id string) []string { return appendCapped(ids, id, openCallsMax) }
 
 // joinSkill は、matomezu のプラグインの join のスキルの名前（プラグインの名前 matomezu と、skills/join のフォルダの名前）
 const joinSkill = "matomezu:join"
@@ -255,9 +256,110 @@ var attachmentMeta = map[string]bool{
 	"taskId": true, "outputFilePath": true,
 }
 
-// snapshotAttachments は、Claude Code が会話の記録に書く写しの、添えた物の type（システムプロンプト・後で読むツールの説明・MCP の説明の写し）。
-// 会話に入る形と突き合わせられないので数えない
-var snapshotAttachments = map[string]bool{"prompt_snapshot": true, "deferred_tools_record": true, "mcp_instructions_delta": true}
+// modelSees は、Claude Code が記録に書く、モデルに渡した物の写し raw（type attachment の行の attachment）なら、モデルに今見えている分だけを read に足す（写しでなければ偽）。
+// 同じ物が何度も載るので、写しの種類ごとに数え方を決める。根拠は、実物の記録（圧縮の境目で区切った 70 の区切り）で見た形:
+//   - prompt_snapshot（システムプロンプト・最初から渡すツールの説明）: 区切りごとに 2 回（ツールの説明の無い物と有る物）載る。モデルに毎回渡す物の、
+//     その時点の全部の写しなので、最後の写しだけを数える（前に数えた写しの字数と入れ替える）。matomezu の分は数えない
+//   - deferred_tools_record（ToolSearch で読み込んだツールの説明）: 読み込んだときに、読み込んだツールの説明だけが載る（entries の空の行も多い）。
+//     圧縮の境目のあとは、読み込んであったツールが全部載り直す。区切りの中で同じツールが二度載ることは無かったが、名前ごとに 1 度だけ数える。
+//     matomezu の MCP 公開ツールの説明は matomezu の分
+//   - mcp_instructions_delta（MCP のサーバーの instructions）: 区切りごとに、サーバーごとに 1 度、会話に添えて知らせる。サーバーの名前ごとに 1 度だけ数え、
+//     外したと知らせた（removedNames）サーバーは、また足したときに数え直す。matomezu のサーバーの物は matomezu の分
+func (m *charsMark) modelSees(raw json.RawMessage, read *CharsRead) bool {
+	var a struct {
+		Type         string          `json:"type"`
+		SystemPrompt json.RawMessage `json:"systemPrompt"`
+		CLIPrefix    string          `json:"cliPrefix"`
+		Tools        json.RawMessage `json:"tools"`
+		Entries      []struct {
+			Name string `json:"name"`
+		} `json:"entries"`
+		AddedNames   []string `json:"addedNames"`
+		AddedBlocks  []string `json:"addedBlocks"`
+		RemovedNames []string `json:"removedNames"`
+	}
+	if json.Unmarshal(raw, &a) != nil {
+		return false
+	}
+	switch a.Type {
+	case "prompt_snapshot":
+		n := runes(a.CLIPrefix) + textChars(a.SystemPrompt, blockMeta) + textChars(a.Tools, blockMeta)
+		read.Chars.Total += n - m.Prompt
+		m.Prompt = n
+	case "deferred_tools_record":
+		var entries struct {
+			Entries []json.RawMessage `json:"entries"`
+		}
+		_ = json.Unmarshal(raw, &entries)
+		for i, e := range a.Entries {
+			if e.Name == "" || contains(m.Loaded, e.Name) {
+				continue
+			}
+			m.Loaded = appendCapped(m.Loaded, e.Name, namesMax)
+			n := textChars(entries.Entries[i], toolMeta)
+			read.Chars.Total += n
+			if _, ok := MatomezuTool(e.Name); ok {
+				read.Chars.Matomezu += n
+			}
+		}
+	case "mcp_instructions_delta":
+		for _, name := range a.RemovedNames {
+			m.MCP = remove(m.MCP, name)
+		}
+		for i, name := range a.AddedNames {
+			if i >= len(a.AddedBlocks) || contains(m.MCP, name) {
+				continue
+			}
+			m.MCP = appendCapped(m.MCP, name, namesMax)
+			n := runes(a.AddedBlocks[i])
+			read.Chars.Total += n
+			if isMatomezuServer(name) {
+				read.Chars.Matomezu += n
+			}
+		}
+	default:
+		return false
+	}
+	return true
+}
+
+// namesMax は、印に持つ、数えたツールとサーバーの名前の数の上限（超えたら古い物から捨てる。捨てた物がまた載れば二度数える）
+const namesMax = 256
+
+// toolMeta は、ツールの説明で、モデルに渡す文でない（数えない）項目
+var toolMeta = map[string]bool{"type": true, "defer_loading": true, "cache_control": true}
+
+// matomezuServers は、Claude Code が MCP の説明に付ける、matomezu の MCP のサーバーの名前（自分で登録した物と、プラグインが持つ物。toolPrefixes と同じ 2 つ）
+var matomezuServers = []string{"matomezu", "plugin:matomezu:matomezu"}
+
+func isMatomezuServer(name string) bool { return contains(matomezuServers, name) }
+
+func contains(names []string, name string) bool {
+	for _, n := range names {
+		if n == name {
+			return true
+		}
+	}
+	return false
+}
+
+func remove(names []string, name string) []string {
+	out := names[:0:0]
+	for _, n := range names {
+		if n != name {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+func appendCapped(names []string, name string, max int) []string {
+	names = append(names, name)
+	if len(names) > max {
+		names = names[len(names)-max:]
+	}
+	return names
+}
 
 // matomezuHookCommand は、matomezu のプラグインのフックのコマンドの頭（hooks/hooks.json）
 const matomezuHookCommand = "matomezu claude-code hook "
@@ -272,7 +374,7 @@ func attachmentChars(raw json.RawMessage) (total, matomezu int64) {
 		Content json.RawMessage `json:"content"`
 		Prompt  string          `json:"prompt"`
 	}
-	if json.Unmarshal(raw, &a) != nil || snapshotAttachments[a.Type] {
+	if json.Unmarshal(raw, &a) != nil {
 		return 0, 0
 	}
 	total = textChars(raw, attachmentMeta)
