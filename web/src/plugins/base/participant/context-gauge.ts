@@ -18,7 +18,7 @@ export const CONTEXT_SCALE = kit.defineSetting({
   id: "context-scale",
   title: "Context bar limit",
   help: kit.message(
-    "Auto: Claude Code's autoCompactWindow setting, or the model's limit without it (1M for every Claude model now). Claude only for now",
+    "Auto: Claude Code's autoCompactWindow setting, or the model's limit without it (1M for every Claude model now). Codex: the limit Codex shows. Claude Code and Codex only for now",
   ),
   schema: z.union([z.literal("auto"), ...CONTEXT_SCALE_CHOICES.map(n => z.literal(n))]),
   default: "auto",

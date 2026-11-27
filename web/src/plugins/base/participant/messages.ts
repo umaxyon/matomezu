@@ -56,10 +56,10 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   "Decline a participant": { en: "Decline a participant", ja: "参加者を断る" },
   "Participation lasts": { en: "Participation lasts", ja: "参加の有効時間" },
   "Context bar limit": { en: "Context bar limit", ja: "コンテキストバー上限" },
-  "Auto: Claude Code's autoCompactWindow setting, or the model's limit without it (1M for every Claude model now). Claude only for now":
+  "Auto: Claude Code's autoCompactWindow setting, or the model's limit without it (1M for every Claude model now). Codex: the limit Codex shows. Claude Code and Codex only for now":
     {
-      en: "Auto: Claude Code's autoCompactWindow setting, or the model's limit without it (1M for every Claude model now). Claude only for now",
-      ja: "自動: Claude Code の autoCompactWindow の設定、無ければモデルの上限（今の Claude はどれも 100 万）。今は Claude のみ",
+      en: "Auto: Claude Code's autoCompactWindow setting, or the model's limit without it (1M for every Claude model now). Codex: the limit Codex shows. Claude Code and Codex only for now",
+      ja: "自動: Claude Code は autoCompactWindow の設定、無ければモデルの上限（今の Claude はどれも 100 万）。Codex は Codex が示す上限。今は Claude Code と Codex のみ",
     },
   "200K": { en: "200K", ja: "20 万" },
   "300K": { en: "300K", ja: "30 万" },

@@ -97,7 +97,7 @@ type claudeHookCmd struct {
 	Model      claudeModelCmd      `cmd:"" help:"SessionStart and PostModelSwitch: tell matomezu the session's model."`
 	Permission claudePermissionCmd `cmd:"" help:"PreToolUse: let the matomezu tools that only read be used without asking."`
 	Stop       claudeStopCmd       `cmd:"" help:"Stop: write the work title to the display name of the ADE workspace this session runs in, if any, and tell matomezu how much context the session uses (prints nothing)."`
-	ContextUse claudeContextUseCmd `cmd:"" name:"context-use" help:"PostToolUse: tell matomezu how much context the session uses, read from its transcript (prints nothing)."`
+	ContextUse claudeContextUseCmd `cmd:"" name:"context-use" help:"PostToolUse and PostCompact: tell matomezu how much context the session uses, read from its transcript (prints nothing)."`
 }
 
 type claudeStopCmd struct{}
@@ -114,7 +114,7 @@ func (claudeStopCmd) Run() error {
 
 type claudeContextUseCmd struct{}
 
-// Run は、ツールを使ったあとに、コンテキストの量を知らせる
+// Run は、ツールを使ったあとと圧縮のあとに、コンテキストの量を知らせる
 func (claudeContextUseCmd) Run() error {
 	claudeDev()
 	hook := stdinHook()
@@ -245,7 +245,7 @@ type codexHookCmd struct {
 	Prompt     codexPromptCmd     `cmd:"" help:"UserPromptSubmit: tell matomezu the user talked, and add the notes that wait for AI."`
 	Model      codexModelCmd      `cmd:"" help:"SessionStart: tell matomezu the session's model and how much context it uses."`
 	Stop       codexStopCmd       `cmd:"" help:"Stop: write the work title to the display name of the ADE workspace this session runs in, if any, and tell matomezu how much context the session uses (prints nothing)."`
-	ContextUse codexContextUseCmd `cmd:"" name:"context-use" help:"PostToolUse: tell matomezu how much context the session uses, read from its rollout (prints nothing)."`
+	ContextUse codexContextUseCmd `cmd:"" name:"context-use" help:"PostToolUse and PostCompact: tell matomezu how much context the session uses, read from its rollout (prints nothing)."`
 }
 
 type codexStopCmd struct{}
@@ -262,7 +262,7 @@ func (codexStopCmd) Run() error {
 
 type codexContextUseCmd struct{}
 
-// Run は、ツールを使ったあとに、コンテキストの量を知らせる
+// Run は、ツールを使ったあとと圧縮のあとに、コンテキストの量を知らせる
 func (codexContextUseCmd) Run() error {
 	codexDev()
 	hook := stdinHook()

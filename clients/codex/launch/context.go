@@ -2,7 +2,8 @@ package launch
 
 // AI のコンテキストの大きさ: Codex の会話の記録（rollout の jsonl。フックの入力の transcript_path）から、今のコンテキストの量と、AI の側の物差し（model_context_window）を読む。
 // 会話の記録の形は Codex が公式に約束した物ではないので、頼る所はこのファイルの名前の付いた関数に閉じ、根拠を書く。
-// matomezu の分の目安は出さない: Codex は MCP 公開ツールを、exec のツールに渡す JavaScript の中から呼ぶ（Code Mode）ので、記録の行からは matomezu の呼び出しと結果を分けられない
+// matomezu の分の目安は出さない: Code Mode（exec のツールに渡す JavaScript）の中の MCP の呼び出しは、event_msg の item_completed の McpToolCall で見分けられるが、
+// 結果が切り詰められ、exec の中で捨てたり要約したりできるので、モデルに入った量の目安にならない
 
 import (
 	"bytes"
@@ -86,7 +87,7 @@ type rolloutLine struct {
 		Type string `json:"type"`
 		Info *struct {
 			LastTokenUsage struct {
-				InputTokens int64 `json:"input_tokens"`
+				TotalTokens int64 `json:"total_tokens"`
 			} `json:"last_token_usage"`
 			ModelContextWindow int64 `json:"model_context_window"`
 		} `json:"info"`
@@ -121,7 +122,7 @@ func judgeLine(line []byte) (ContextUse, lineVerdict) {
 }
 
 const (
-	// tokenCount は、Codex が返答のたびに書く、量の知らせ（type event_msg の payload.type）。info の last_token_usage が最後の呼び出しの量、
+	// tokenCount は、Codex が返答のたびと圧縮のあとに書く、量の知らせ（type event_msg の payload.type）。info の last_token_usage が最後の呼び出しの量、
 	// model_context_window がそのモデルの文脈の大きさ（Codex が自動で縮める物差し）。最初の知らせなど、info が null の物もある
 	tokenCount = "token_count"
 	// compacted は、Codex が会話を縮めたところに書く行の type（payload.replacement_history が縮めたあとの会話。そのあとの最初の返答までは、今の量が記録に無い）
@@ -129,10 +130,12 @@ const (
 )
 
 // contextOf は、量の知らせ l から今のコンテキストの量と物差しを読む（どちらかが正でなければ NoContextUse）。
-// 量は last_token_usage の input_tokens。Responses API の input_tokens は、キャッシュから読んだ分（cached_input_tokens）と書いた分（cache_write_input_tokens）を含み、
-// どれもモデルの文脈に入るので引かない（Codex の画面と scripts/relay-log が引くのは、キャッシュに無かった分を見せるため）。出力の分は次の呼び出しの input_tokens に入る
+// 量は last_token_usage の total_tokens（累積の total_token_usage ではない）。Codex の画面も、文脈の量はこれで測る（codex-rs の tui/src/token_usage.rs・tui/src/status/card.rs）。
+// 圧縮の直後に Codex が出す知らせは、input_tokens が 0 でも total_tokens に縮めたあとの推定が入る（core/src/session/mod.rs）。
+// キャッシュから読んだ分（cached_input_tokens）は、モデルの文脈に入るので引かない（Codex の画面と scripts/relay-log が引くのは、キャッシュに無かった分を見せるため）。
+// 棒は量を物差しで割っただけの占有率で、Codex の画面の残りの割合（決まった 12000 を引いて測る）とは合わせない
 func contextOf(l rolloutLine) ContextUse {
-	used, window := l.Payload.Info.LastTokenUsage.InputTokens, l.Payload.Info.ModelContextWindow
+	used, window := l.Payload.Info.LastTokenUsage.TotalTokens, l.Payload.Info.ModelContextWindow
 	if used <= 0 || window <= 0 {
 		return NoContextUse
 	}

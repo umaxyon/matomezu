@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// フックが matomezu を見つけられないときの文は、hooks.json の 8 か所（sh と PowerShell、話しかけたとき・会話を始めたとき・ツールを使ったあと・ターンの終わり）とも NotFoundMessage と同じ
+// フックが matomezu を見つけられないときの文は、hooks.json の 10 か所（sh と PowerShell、話しかけたとき・会話を始めたとき・ツールを使ったあと・圧縮のあと・ターンの終わり）とも NotFoundMessage と同じ
 func TestHooksShowTheNotFoundMessage(t *testing.T) {
 	b, err := os.ReadFile("../hooks/hooks.json")
 	if err != nil {
@@ -40,8 +40,8 @@ func TestHooksShowTheNotFoundMessage(t *testing.T) {
 			}
 		}
 	}
-	if n != 8 {
-		t.Errorf("checked %d commands, want 8", n)
+	if n != 10 {
+		t.Errorf("checked %d commands, want 10", n)
 	}
 }
 
