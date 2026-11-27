@@ -48,3 +48,14 @@ test("メニューから写した箱を、別のタブで Ctrl+V で貼る", asy
   await other.keyboard.press("Control+v")
   await expect(items(other)).toHaveCount(2)
 })
+
+test("箱を Ctrl+X で切り取って、Ctrl+V で貼る", async ({ page }) => {
+  await page.goto(BOOK_SCREEN_URL)
+  await addBox(page, 100, 150)
+  const box = (await items(page).first().boundingBox())!
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+  await page.keyboard.press("Control+x")
+  await expect(items(page)).toHaveCount(0)
+  await page.keyboard.press("Control+v")
+  await expect(items(page)).toHaveCount(1)
+})

@@ -7,6 +7,7 @@ import {
   type CommandContext,
   findShape,
   NO_CLIP_DATA,
+  NO_CLIPBOARD,
   NO_ITEM,
   NO_PAPER,
   NO_STATE,
@@ -156,7 +157,8 @@ export const PAPER_PASTE = kit.defineCommand({
 })
 
 // OS のクリップボードから貼る（キー）。matomezu の写しなら、窓の写しにも置いて、選んでいる物で決めた所に貼る（ほかの常駐の写しは、トーストで断る）。
-// 写しが無くファイルがあれば、紙のビューに渡す（ビューが画像を取り込んでスクラップを置く）
+// 写しが無くファイルがあれば、紙のビューに渡す（ビューが画像を取り込んでスクラップを置く）。
+// クリップボードの無い所で呼ばれたら（イベントを起こさないキーに替えたときなど）、窓の写しを貼る
 export const PAPER_PASTE_CLIPBOARD = kit.defineCommand({
   id: "paper-paste-clipboard",
   performs: [ITEM_PASTE.id],
@@ -164,6 +166,11 @@ export const PAPER_PASTE_CLIPBOARD = kit.defineCommand({
   title: "Paste",
   clipboard: "paste",
   run: (ctx, a) => {
+    if (a.clipboard === NO_CLIPBOARD) {
+      const clip = clipIn(ctx)
+      if (clip) pasteNearSelection(ctx, a, clip)
+      return
+    }
     const data = a.clipboard.read(CLIP_KIND)
     if (data === OTHER_HOST) {
       a.showToast({ kind: "warn", message: kit.message("It was copied in another matomezu") })

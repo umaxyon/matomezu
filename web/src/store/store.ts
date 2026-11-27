@@ -180,6 +180,16 @@ function startLang(catalog: CoreCatalog, lang: Lang | readonly string[] = []): L
   return detectLang(typeof lang === "string" ? [lang] : lang, [...catalog.languages.keys()])
 }
 
+// ブラウザがクリップボードのイベントを起こすキーと、起こすイベント（Mac の Command は Mod。Windows の Insert・Delete の組も起こす）
+const CLIPBOARD_KEYS: Readonly<Record<string, ClipboardUse>> = {
+  "Mod+C": "copy",
+  "Mod+Insert": "copy",
+  "Mod+X": "cut",
+  "Shift+Delete": "cut",
+  "Mod+V": "paste",
+  "Shift+Insert": "paste",
+}
+
 export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   options: StoreOptions<Ps>,
 ): MatomezuInstance<Ps> {
@@ -789,9 +799,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (!hit) continue
         const { command, args } = hit.binding
         const given = args === undefined ? [] : [args]
-        // クリップボードを使うコマンドは、行わずに待たせる（その場で使えなければ、次の範囲の同じキーを探す）
+        // クリップボードを使うコマンドは、ブラウザがそのキーで同じ種類のクリップボードのイベントを起こすなら、行わずに待たせる（その場で使えなければ、次の範囲の同じキーを探す）。
+        // イベントを起こさないキーに替えてあれば、下で、クリップボード無しでその場で行う
         const use = clipboardUseOf(command)
-        if (use !== undefined) {
+        const raised = CLIPBOARD_KEYS[key]
+        if (use !== undefined && raised !== undefined && (raised === "paste") === (use === "paste")) {
           const state = getState()
           if (
             !called(defs, state, stage, command as CommandId) ||

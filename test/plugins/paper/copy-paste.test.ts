@@ -300,3 +300,11 @@ test("待っているコピーは、イベントが来ないまま次のタイ�
   expect(store.actions.clipboardEvent("copy", transfer(), HOST)).toBe(false)
   expect(frameClip(store)).toBeUndefined()
 })
+
+test("クリップボードのイベントの外で呼んだキーの貼り付け（イベントを起こさないキーに替えたとき）は、窓の写しを貼る", () => {
+  const store = ready()
+  store.actions.select("s1", [place(store as never, NEST, { at: { x: 0, y: 0 } })])
+  expect(command(store, "paper-copy")).toBe(true)
+  expect(command(store, "paper-paste-clipboard")).toBe(true)
+  expect(shapesOf(page(store as never))).toHaveLength(2)
+})
