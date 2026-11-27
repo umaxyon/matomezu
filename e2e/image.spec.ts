@@ -169,6 +169,7 @@ async function dropFiles(
   target: Locator,
   at: { x: number; y: number },
   files: readonly { name: string; type: string; bytes: Buffer }[],
+  drops = true,
 ) {
   const data = await page.evaluateHandle(
     fs => {
@@ -181,7 +182,7 @@ async function dropFiles(
   )
   const init = { dataTransfer: data, clientX: at.x, clientY: at.y, bubbles: true }
   await target.dispatchEvent("dragover", init)
-  await target.dispatchEvent("drop", init)
+  if (drops) await target.dispatchEvent("drop", init)
 }
 
 test.describe("画像のファイルを落として置く", () => {
@@ -256,4 +257,45 @@ test.describe("画像のファイルを落として置く", () => {
     expect(Math.abs(box.x - at.x)).toBeLessThan(4)
     expect(Math.abs(box.y - at.y)).toBeLessThan(4)
   })
+})
+
+test("書庫の「画像」とその下に落とすとそこに取り込み、名前が重なれば聞く。外に重ねると落とす所を知らせる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const home = page.getByRole("list", { name: "書庫 の中身" })
+  const imagesRow = home.getByRole("button", { name: "画像", exact: true })
+  const center = async (l: Locator) => {
+    const b = (await l.boundingBox())!
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 }
+  }
+
+  // 「画像」の行に重ねると色が付き、落とすとそこに取り込む
+  await dropFiles(
+    page,
+    imagesRow,
+    await center(imagesRow),
+    [{ name: "写真.png", type: "image/png", bytes: PNG }],
+    false,
+  )
+  await expect(imagesRow).toHaveAttribute("data-drop", "into")
+  await dropFiles(page, imagesRow, await center(imagesRow), [{ name: "写真.png", type: "image/png", bytes: PNG }])
+  await imagesRow.dblclick()
+  const images = page.getByRole("list", { name: "画像 の中身" })
+  await expect(images.getByRole("button")).toHaveText(["写真"])
+
+  // 開いている「画像」の中に同じ名前を落とすと聞く: 番号を付ければ「写真 2」
+  await dropFiles(page, images, await center(images), [{ name: "写真.png", type: "image/png", bytes: PNG }])
+  await page.getByRole("button", { name: "番号を付ける" }).click()
+  await expect(images.getByRole("button")).toHaveText(["写真", "写真 2"])
+
+  // 「画像」の外（ドキュメント）に重ねると、取り込まずに落とす所を知らせる
+  await page.getByRole("navigation", { name: "場所" }).getByRole("button", { name: "書庫", exact: true }).click()
+  const documents = home.getByRole("button", { name: "ドキュメント", exact: true })
+  await dropFiles(page, documents, await center(documents), [{ name: "犬.svg", type: "image/svg+xml", bytes: SVG }])
+  await expect(page.getByText("画像のフォルダに落としてください")).toBeVisible()
+  await expect(documents).not.toHaveAttribute("data-drop", "into")
+  await imagesRow.dblclick()
+  await expect(images.getByRole("button")).toHaveText(["写真", "写真 2"])
 })

@@ -72,6 +72,10 @@ export const LIBRARY_MESSAGES = defineMessages({
   "Clashes with other changes": { en: "Clashes with other changes", ja: "ほかの変更とぶつかります" },
   Folders: { en: "Folders", ja: "フォルダ" },
   "Where it is": { en: "Where it is", ja: "場所" },
+  "Drop it in the {folder} folder": {
+    en: "Drop it in the {folder} folder",
+    ja: "{folder}のフォルダに落としてください",
+  },
   "Contents of {name}": { en: "Contents of {name}", ja: "{name} の中身" },
   "Show what is inside {name}": { en: "Show what is inside {name}", ja: "{name} の中を出す" },
   "Hide what is inside {name}": { en: "Hide what is inside {name}", ja: "{name} の中をしまう" },

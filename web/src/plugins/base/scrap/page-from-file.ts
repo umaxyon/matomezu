@@ -1,6 +1,7 @@
 // ファイルからページを作れるプレゼンテーション（ビューの定義の拡張ポイント pageFromFile）。外から落としたファイルをスクラップにして置くとき（file-drop.tsx）に、
 // base がファイルをアセットの置き場に置き、プレゼンテーションが言うシステムフォルダの直下に、プレゼンテーションが言う形のページを作る（中身が同じページが在れば、作らずにそれを使う）
 import type { AssetPut } from "../../../core/assets"
+import type { MessageKey } from "../../../core/catalog"
 import type { ItemPage } from "../../../core/placed"
 
 // 置き場に置けたアセット
@@ -13,16 +14,19 @@ export interface PageFromFile {
   fields: Readonly<Record<string, unknown>>
 }
 
+// ファイルからページを作れるプレゼンテーションの宣言（ビューの定義の pageFromFile）
+export interface PageFromFileDef {
+  type: string // 作るページのタイプ
+  into: string // 作る所（システムフォルダの id。その直下に作る）
+  accepts(type: string): boolean // 受けるファイルの種類（MIME の type）か
+  refusal(reason: Extract<AssetPut, { ok: false }>["reason"]): MessageKey // 置き場が断った訳の文
+  same(page: ItemPage, asset: PutAsset): boolean // 在るページ page が、置いたアセットと中身が同じページか
+  // 作るページの形。text は文言を利用者の言語の文にする
+  page(file: File, asset: PutAsset, text: (key: MessageKey) => string): PageFromFile
+}
+
 declare module "../../../core/catalog" {
   interface PresentationViewExtras {
-    pageFromFile?: {
-      type: string // 作るページのタイプ
-      into: string // 作る所（システムフォルダの id。その直下に作る）
-      accepts(type: string): boolean // 受けるファイルの種類（MIME の type）か
-      refusal(reason: Extract<AssetPut, { ok: false }>["reason"]): MessageKey // 置き場が断った訳の文
-      same(page: ItemPage, asset: PutAsset): boolean // 在るページ page が、置いたアセットと中身が同じページか
-      // 作るページの形。text は文言を利用者の言語の文にする
-      page(file: File, asset: PutAsset, text: (key: MessageKey) => string): PageFromFile
-    }
+    pageFromFile?: PageFromFileDef
   }
 }

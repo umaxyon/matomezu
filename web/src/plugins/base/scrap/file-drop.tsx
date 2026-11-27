@@ -18,6 +18,7 @@ import { useReadNaming } from "../library/hooks"
 import { PAGE_CREATE } from "../library/page-create"
 import { paperSize } from "../place/grow"
 import { useCanPlace } from "../toolbox/use-can-place"
+import type { PageFromFileDef, PutAsset } from "./page-from-file"
 import { useScrapFrame } from "./ScrapTray"
 import { type Scrap, scrapSize, scrapToPlace, wholeScrapOf } from "./scrap"
 
@@ -39,38 +40,26 @@ export function useFileDrop(
   place: (drop: FileDrop) => void,
 ): { onDragOver(e: DragEvent<HTMLElement>): void; onDrop(e: DragEvent<HTMLElement>): void } {
   const catalog = useCatalog().core
-  const views = useUiCatalog().presentationViews
   const frame = useScrapFrame()
   const canPlace = useCanPlace()
   const shown = usePage()
   const read = useReadState()
-  const { perform, showToast } = useActions()
-  const instance = useInstance()
+  const { perform } = useActions()
   const naming = useReadNaming()
   const text = useT()
   const takes = (e: DragEvent<HTMLElement>) =>
     frame !== null && canPlace && shown !== NO_PAGE && e.dataTransfer.types.includes("Files")
-  const refuse = (file: string, why: MessageKey) =>
-    showToast({
-      kind: "warn",
-      message: kit.message("Could not take {name}"),
-      params: { name: file },
-      detail: { message: why },
-    })
+  const files = useFileAsset()
 
   // ファイル 1 枚から、ページを作るか在る物を使う。そのページの id（できなければ訳を知らせて NO_PAGE）
   const pageOf = async (file: File): Promise<string | typeof NO_PAGE> => {
-    const maker = [...views.values()].find(v => v.pageFromFile?.accepts(file.type))?.pageFromFile
-    const shownName = file.name || text(kit.message("The file"))
+    const maker = files.makerOf(file.type)
     if (!maker) {
-      refuse(shownName, kit.message("It is not a kind of file that can be placed"))
+      files.refuse(file, kit.message("It is not a kind of file that can be placed"))
       return NO_PAGE
     }
-    const put = await instance.putAsset(file).catch(() => null)
-    if (put === null || !put.ok) {
-      refuse(shownName, put === null ? kit.message("The server could not take it") : maker.refusal(put.reason))
-      return NO_PAGE
-    }
+    const put = await files.put(file, maker)
+    if (put === NO_ASSET) return NO_PAGE
     const state = read()
     const same = Object.keys(state.pages).find(id => {
       const at = openablePage(state, id)
@@ -79,14 +68,14 @@ export function useFileDrop(
     if (same !== undefined) return same
     const into = Object.entries(state.folders).find(([, f]) => systemFolderOf(f) === maker.into)
     if (!into) {
-      refuse(shownName, kit.message("It could not be made"))
+      files.refuse(file, kit.message("It could not be made"))
       return NO_PAGE
     }
     const made = maker.page(file, put, key => text(key))
     const title = freeTitle(made.title, titlesIn(state, into[1], naming()))
     const done = perform(PAGE_CREATE.id, { type: maker.type, ...made, title, folder: into[0] })
     if (done.ok) return (done.result as { page: string }).page
-    refuse(shownName, kit.message("It could not be made"))
+    files.refuse(file, kit.message("It could not be made"))
     return NO_PAGE
   }
 
@@ -117,6 +106,36 @@ export function useFileDrop(
           shift += scrapSize(props).w + DROP_GAP
         }
       })()
+    },
+  }
+}
+
+// 置き場に置けなかったとき
+export const NO_ASSET = "none"
+
+// ファイルからページを作れるプレゼンテーションを探し、ファイルをアセットの置き場に置く（外から落としたファイルを、スクラップにするとき・書庫に取り込むとき）。
+// 置けなければ、訳をトーストで知らせて NO_ASSET
+export function useFileAsset() {
+  const views = useUiCatalog().presentationViews
+  const instance = useInstance()
+  const { showToast } = useActions()
+  const text = useT()
+  const refuse = (file: File, why: MessageKey) =>
+    showToast({
+      kind: "warn",
+      message: kit.message("Could not take {name}"),
+      params: { name: file.name || text(kit.message("The file")) },
+      detail: { message: why },
+    })
+  return {
+    makerOf: (type: string): PageFromFileDef | undefined =>
+      [...views.values()].find(v => v.pageFromFile?.accepts(type))?.pageFromFile,
+    refuse,
+    put: async (file: File, maker: PageFromFileDef): Promise<PutAsset | typeof NO_ASSET> => {
+      const put = await instance.putAsset(file).catch(() => null)
+      if (put?.ok) return put
+      refuse(file, put === null ? kit.message("The server could not take it") : maker.refusal(put.reason))
+      return NO_ASSET
     },
   }
 }
