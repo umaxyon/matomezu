@@ -15,7 +15,7 @@ export interface PartUi {
 }
 
 export const PART_UI = {
-  pageTypes: { views: ["pageTypeIcons"], define: ["definePageType"] },
+  pageTypes: { views: ["pageTypeIcons", "binderTypeIcons"], define: ["definePageType"] },
   controlCenters: { views: [], define: ["defineControlCenter"] },
   items: { views: ["items", "connectors"], define: ["defineShape", "defineConnector"] },
   actions: { views: [], define: ["defineAction"] },

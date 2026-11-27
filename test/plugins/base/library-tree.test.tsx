@@ -9,6 +9,7 @@ import { LIBRARY_TREE_WIDTH, LIBRARY_UNFOLDED } from "../../../web/src/plugins/b
 import { DEFAULT_TREE_WIDTH } from "../../../web/src/plugins/base/library/tree-width"
 import { NO_DESKS } from "../../../web/src/plugins/base/library/workdesk-rows"
 import { pluginValueOf, WINDOW_PLACE } from "../../../web/src/store/plugin-state"
+import { SLIDE, testBinder, testBook, testPage, withSlide } from "../../lineup"
 import { SAMPLE_BOOKS } from "../../sample-books"
 import { sequence } from "../../support"
 import { renderScreen } from "../../ui/support"
@@ -86,4 +87,24 @@ test("書庫ではシステムフォルダごとのアイコンを出し、ツ�
     fireEvent.click(tree.getByRole("button", { name: `${name} の中を出す`, hidden: true }))
     expect(icon(name)?.outerHTML).toBe(markup)
   }
+})
+
+test("書庫ではスライド全体にスクリーン、個別のページに横長の用紙を描く", () => {
+  const slide = testBinder("slides", "スライド", SLIDE, withSlide(testPage(SLIDE), []))
+  renderScreen({ books: [testBook("b1", "テストブック", [slide])] })
+  const screenStand = 'path[d="M12 18v4m-4 0h8"]'
+  expect(screen.getByRole("tab", { name: "スライド" }).querySelector(screenStand)).toBeTruthy()
+  fireEvent.click(screen.getAllByRole("button", { name: "書庫", hidden: true })[0] as HTMLElement)
+  const tree = within(screen.getByRole("navigation", { name: "フォルダ", hidden: true }))
+  const expand = (name: string) => {
+    const button = tree.queryByRole("button", { name: `${name} の中を出す`, hidden: true })
+    if (button) fireEvent.click(button)
+  }
+  expand("テストブック")
+  const deck = tree.getByRole("button", { name: "スライド", hidden: true })
+  expect(deck.querySelector(screenStand)).toBeTruthy()
+  expand("スライド")
+  const page = tree.getByRole("button", { name: "ページ 1", hidden: true })
+  expect(page.querySelector('path[d="M16 4v6h6Z"]')).toBeTruthy()
+  expect(page.querySelector(screenStand)).toBeNull()
 })

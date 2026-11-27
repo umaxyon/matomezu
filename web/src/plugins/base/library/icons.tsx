@@ -47,19 +47,20 @@ export const LIBRARY_SYSTEM_FOLDER_ICONS = {
   [WORKROOMS.id]: <WorkroomsFolderIcon />,
 }
 
-// 作業机はそのワークルームの鳥の顔、システムフォルダとページはプラグインが名乗った絵。
+// 作業机はそのワークルームの鳥の顔、システムフォルダ・ページ・バインダはプラグインが名乗った絵。
 // 本と通常のフォルダはツリーの開閉で絵を替える。ロック中のページ・ブックは右上に小さな鍵を重ねる
 export function RowIcon({
   row,
   className,
   open = false,
 }: {
-  row: Pick<LibraryRow, "kind" | "type" | "systemFolder" | "desk"> & { locked?: boolean }
+  row: Pick<LibraryRow, "kind" | "type" | "systemFolder" | "desk" | "referenceBinder"> & { locked?: boolean }
   className: string | undefined
   open?: boolean
 }) {
   const ui = useUiCatalog()
   const typed = ui.pageTypeIcons.get(row.type)
+  const binderIcon = ui.binderTypeIcons.get(row.type)
   const folderIcon = row.systemFolder === undefined ? undefined : ui.systemFolderIcons.get(row.systemFolder)
   const bird = row.desk && asBird(row.desk.bird)
   const picture = bird ? (
@@ -72,10 +73,12 @@ export function RowIcon({
     )
   ) : row.kind === "folder" ? (
     (folderIcon ?? (open ? <FolderOpenIcon /> : <FolderIcon />))
-  ) : row.kind === "page" && typed !== undefined ? (
+  ) : row.kind === "binder" ? (
+    binderIcon
+  ) : row.kind === "page" ? (
     typed
   ) : row.kind === "reference" ? (
-    <ReferenceIcon icon={typed ?? <FileIcon />} />
+    <ReferenceIcon icon={(row.referenceBinder ? (binderIcon ?? typed) : typed) ?? <FileIcon />} />
   ) : undefined
   return (
     <span className={picture === undefined ? className : `${className} ${styles.typed}`}>

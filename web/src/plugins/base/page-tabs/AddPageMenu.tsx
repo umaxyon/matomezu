@@ -51,10 +51,15 @@ export function AddPageMenu({ first }: { first: string | null }) {
 function useTypeRowLook(): (type: string) => Pick<ContextMenuRow, "label" | "icon" | "iconLook"> {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const icons = useUiCatalog().pageTypeIcons
+  const { pageTypeIcons, binderTypeIcons } = useUiCatalog()
   return type => {
     const def = catalog.pageTypes.get(type)
-    return { label: def ? t(def.title) : type, icon: icons.get(type) ?? <FileIcon />, iconLook: "picture" }
+    const binderIcon = def?.grouping === "binder" ? binderTypeIcons.get(type) : undefined
+    return {
+      label: def ? t(def.title) : type,
+      icon: binderIcon ?? pageTypeIcons.get(type) ?? <FileIcon />,
+      iconLook: "picture",
+    }
   }
 }
 

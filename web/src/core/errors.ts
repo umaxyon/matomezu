@@ -136,6 +136,7 @@ export const ERRORS = {
   E319: "plugin {plugin}: only built-in plugins may have backyards",
   E320: "follow step of plugin {plugin}: it writes in the backyard {ref}, which is not in the catalog or not its own (a follow step writes only in backyards its plugin defines)",
   E321: "plugin {plugin}: systemFolderIcons has {id}, which is not its own system folder",
+  E322: "plugin {plugin}: binderTypeIcons has {id}, which is not its own page type",
 
   E401: "the server could not give the data: {status}",
   E402: "the server does not know this browser (run matomezu open in a terminal)",

@@ -67,6 +67,7 @@ export interface LibraryRow {
   readable: boolean
   locked: boolean // ロック中のページかブック
   systemFolder?: string // システムフォルダの定義の id
+  referenceBinder?: true // バインダを指す参照エントリの行
   desk?: { bird: string; palette: string } // 作業机の行: そのワークルームの鳥と配色
   nothingIn?: true // 作業机の下の、中に出す物も開く物も無い行（実のブックがまだ無いワーカーブック）。薄くしない
 }
@@ -113,6 +114,7 @@ function referenceRowOf(library: Library, r: ReferenceEntry): LibraryRow {
     type: look?.type ?? NO_TYPE,
     readable: true,
     locked: false,
+    ...(look?.kind === "binder" ? { referenceBinder: true } : {}),
   }
 }
 

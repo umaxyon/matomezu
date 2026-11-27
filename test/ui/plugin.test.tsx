@@ -136,6 +136,13 @@ describe("見た目のプラグイン", () => {
     expect(thrown(() => assembleUi([...BUILTIN_UI, icons]))).toMatchObject({ code: "E321" })
   })
 
+  test("バインダのアイコンは、入れるページのタイプを定義したプラグインだけが名乗れる", () => {
+    const icons = definePluginUi(definePlugin({ id: "icons" }), {
+      binderTypeIcons: { "@matomezu/slide-page:slide": <span /> },
+    })
+    expect(thrown(() => assembleUi([...BUILTIN_UI, icons]))).toMatchObject({ code: "E322" })
+  })
+
   test("列挙の値のアイコンは自分が足した値にだけ付けられる（ほかのプラグインの値なら E314）", () => {
     const icons = definePluginUi(definePlugin({ id: "icons" }), {
       enumValueIcons: { "@matomezu/drawing:node-icon": <span /> },
