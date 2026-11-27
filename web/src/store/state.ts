@@ -181,11 +181,18 @@ export interface StaleBuild {
 }
 
 // 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチと、起こす知らせを渡せる matomezu watch がつながっているか（reaches。
-// つながっていなければ持たない）（知らされていない物は持たない）
+// つながっていなければ持たない）と、AI のフックが知らせた会話の今のコンテキストの量（知らされていない物は持たない）
 export interface ParticipantLive {
   readonly model?: string
   readonly branch?: string
   readonly wake?: "reaches"
+  readonly contextUse?: ContextUse
+}
+
+// 会話の今のコンテキストの量（used）と、AI の側の物差し（aiScale。自動で縮める所、無ければモデルの上限）。どちらもトークン
+export interface ContextUse {
+  readonly used: number
+  readonly aiScale: number
 }
 
 // 編集ロックの 1 つ: within（ページの id か、ブックの id）の中の物 ids（ページなら、アイテムなどとそのページのアノテーションとページそのもの。ブックなら、バインダとブックそのもの）か、対象の種類 subject のレコード ids

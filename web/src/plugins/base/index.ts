@@ -382,6 +382,9 @@ export { addPageIn, type PageFieldsWay, pageFieldsWay } from "./pages"
 export {
   adminWorkroom,
   aiUiText,
+  type ContextGauge,
+  type ContextScale,
+  contextGauge,
   type FoundWorkerBook,
   isAdminActor,
   JOINED_MESSAGE,
@@ -390,6 +393,7 @@ export {
   NO_AI_UI,
   NO_BRANCH,
   NO_CATEGORY,
+  NO_CONTEXT_USE,
   NO_MODEL,
   NO_OCCUPANT,
   NO_WORKER_BOOK,

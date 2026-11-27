@@ -65,6 +65,7 @@
 }
 .who {
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
 }
@@ -78,6 +79,38 @@
   font-size: 11px;
   color: var(--skin-text-muted);
   overflow-wrap: anywhere;
+}
+
+/* 会話の今のコンテキストの量: 行幅の細い棒と、右に数。物差しの 9 割以上で棒と数を赤に */
+.context {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+.bar {
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--skin-surface-muted);
+}
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--skin-accent);
+}
+.amount {
+  flex: none;
+  font-size: 11px;
+  color: var(--skin-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.context[data-near-full="true"] .fill {
+  background: var(--skin-danger);
+}
+.context[data-near-full="true"] .amount {
+  color: var(--skin-danger);
 }
 
 /* ビジターの節の見出し（ワークルームの行の下） */

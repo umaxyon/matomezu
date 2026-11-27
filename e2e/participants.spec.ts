@@ -147,6 +147,35 @@ test("セッション id を join で運ぶ AI（フックの無い AI）は、�
   await expect(room).toContainText("たった今")
 })
 
+test("フックが知らせた会話のコンテキストの量は、参加者リストの行のいちばん下に棒と数で出て、物差しの 9 割以上で赤になり、読めないと知らされると消える", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(BOOK_SCREEN_URL)
+  await join(page, "e2e-link-30", "context", "", "S-e2e-30")
+  await openRequest(page).then(d => d.getByRole("button", { name: "受け入れる" }).click())
+  await page.getByRole("dialog", { name: JOINED }).getByRole("button", { name: "受け入れる" }).click()
+  await closeWelcome(page)
+  await (await fromMenu(page, "コントロールセンター")).click()
+  const row = page.getByRole("listitem").filter({ hasText: "context" })
+  const bar = row.locator("[data-context-use]")
+  await expect(row).toContainText("（空き）")
+  await expect(bar).toHaveCount(0)
+  const tell = (contextUse: unknown) =>
+    page.request.post("/api/ai/context-use", { headers: aiAuth(), data: { sessionId: "S-e2e-30", contextUse } })
+  await tell({ used: 120_400, aiScale: 300_000 })
+  await expect(bar).toHaveText("120k")
+  await expect(bar).toHaveAttribute("data-near-full", "false")
+  const amount = bar.getByText("120k")
+  const calm = await amount.evaluate(e => getComputedStyle(e).color)
+  await tell({ used: 280_000, aiScale: 300_000 })
+  await expect(bar).toHaveText("280k")
+  await expect(bar).toHaveAttribute("data-near-full", "true")
+  expect(await bar.getByText("280k").evaluate(e => getComputedStyle(e).color)).not.toBe(calm)
+  await tell("unknown")
+  await expect(bar).toHaveCount(0)
+})
+
 test("保留中の参加要求は参加者の一覧に出ず、一覧が空のうちは空と出る", async ({ page }) => {
   await page.goto("/")
   await expect(page.getByText("ワークルームはありません")).toBeVisible()

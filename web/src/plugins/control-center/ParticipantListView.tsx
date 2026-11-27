@@ -1,11 +1,12 @@
 // 左の列のワークルーム/参加者の一覧。管理者の行は高く、頭に王冠。空室の行は空の丸と（空室）、準備中は鳥を薄くして（準備中）。
 // 名前の下は、参加済みと空室ではスロット workroom-row-line に置かれたウィジェットが出す（今のタスクなど。空室かも渡す）。行を選ぶボタンは行の全体に敷き、
 // その上に見た目を重ねる（スロットの物が自分のボタンを持てるように。見た目のうちボタンだけが押しを受け、ほかの所の押しは下の選ぶボタンへ通す）。
+// 行のいちばん下に、参加者の会話の今のコンテキストの量を、行幅の細い棒と数（120k。k は千）で出す（物差しの 9 割以上で赤。量が分からなければ出さない）。
 // ワークルームの下に、ビジター（ワークルームを持たない、読むだけの参加者）の節を出す（いなければ節ごと出さない）。選ぶのは、選んでいる物（PICKED）の 1 つ
 import { useState } from "react"
 import { NO_STATE } from "../../plugin-api"
 import { Slot, useMessages, usePluginState, useSetPluginState } from "../../plugin-api/ui"
-import { NO_OCCUPANT, visitorName } from "../base"
+import { contextGauge, NO_CONTEXT_USE, NO_OCCUPANT, visitorName, type WorkroomRow } from "../base"
 import { Band, Panel, PendingBalloon, useRowSlide, useVisitorRows, useWorkroomRows, VisitorIcon } from "../base/ui"
 import { BIRD_SIZE, Bird } from "./Bird"
 import { PARTICIPANT_KIND, PICKED, WORKROOM_KIND } from "./control-center"
@@ -69,6 +70,7 @@ export function ParticipantListView() {
                       props={{ workroom: row.room.id, admin: row.admin, empty: kind === "empty" }}
                     />
                   ) : null}
+                  <ContextBarView use={row.contextUse} />
                 </span>
               </div>
             </li>
@@ -105,5 +107,20 @@ export function ParticipantListView() {
         </>
       ) : null}
     </Panel>
+  )
+}
+
+// 会話の今のコンテキストの量の、行幅の細い棒と数（量が分からなければ何も出さない）。物差しは AI の側の物差し
+function ContextBarView({ use }: { use: WorkroomRow["contextUse"] }) {
+  const t = useMessages(kit)
+  const gauge = contextGauge(use, "auto")
+  if (gauge === NO_CONTEXT_USE) return null
+  return (
+    <span className={styles.context} data-context-use data-near-full={gauge.nearFull}>
+      <span className={styles.bar}>
+        <span className={styles.fill} style={{ width: `${gauge.fill * 100}%` }} />
+      </span>
+      <span className={styles.amount}>{t("{n}k", { n: gauge.thousands })}</span>
+    </span>
   )
 }
