@@ -519,6 +519,7 @@ test("matomezu/ui が出す名前", () => {
     "useEditLock",
     "useElapsed",
     "useEndWhenBlocked",
+    "useFileDrop",
     "useFolderEntries",
     "useFollowsSelection",
     "useHighlightRanges",

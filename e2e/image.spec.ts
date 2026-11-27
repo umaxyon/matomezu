@@ -1,6 +1,7 @@
 // 画像の取り込み: 書庫の「画像」のフォルダの右クリックの「画像を取り込む…」で OS のファイルの窓が開き、選んだファイル 1 つが画像のページ 1 枚になる（名前は拡張子を取ったファイル名）。
 // 名前が重なれば 1 件ずつ「番号を付ける・上書き・やめる」を聞く（上書きは、利用者だけのアクション page-create-over）。開いたページは画像を描く。「画像」の外の右クリックには出ない
-import { drawingPage, testBook } from "../test/lineup"
+import type { Locator, Page } from "@playwright/test"
+import { drawingPage, SLIDE, testBinder, testBook, testPage, withSlide } from "../test/lineup"
 import { bookScreenUrl, expect, test } from "./fixtures"
 import { panel } from "./helpers/note"
 import { leftPanel } from "./helpers/outbox"
@@ -159,5 +160,100 @@ test.describe("画像のページのスクラップ", () => {
     expect(box.width / box.height).toBeCloseTo(2, 1)
     const img = (await placed.locator("img").boundingBox())!
     expect(img.width).toBeCloseTo(box.width, -1)
+  })
+})
+
+// 要素 target の、画面の点 at に、ファイル files を外から落とす（OS のファイルのドラッグの代わりに、ファイルを持つ DataTransfer で dragover と drop を起こす）
+async function dropFiles(
+  page: Page,
+  target: Locator,
+  at: { x: number; y: number },
+  files: readonly { name: string; type: string; bytes: Buffer }[],
+) {
+  const data = await page.evaluateHandle(
+    fs => {
+      const dt = new DataTransfer()
+      for (const f of fs)
+        dt.items.add(new File([Uint8Array.from(atob(f.b64), c => c.charCodeAt(0))], f.name, { type: f.type }))
+      return dt
+    },
+    files.map(f => ({ name: f.name, type: f.type, b64: f.bytes.toString("base64") })),
+  )
+  const init = { dataTransfer: data, clientX: at.x, clientY: at.y, bubbles: true }
+  await target.dispatchEvent("dragover", init)
+  await target.dispatchEvent("drop", init)
+}
+
+test.describe("画像のファイルを落として置く", () => {
+  test.use({
+    books: [
+      [
+        testBook("drop-book", "落とす先の図", [drawingPage("drop-page")]),
+        testBook("drop-slide-book", "落とす先の発表", [
+          testBinder(
+            "drop-slides",
+            "スライド",
+            SLIDE,
+            withSlide(testPage(SLIDE, "drop-slide-p1", { title: "1", paper: "@matomezu/base:ratio-16x9" }), []),
+          ),
+        ]),
+      ],
+      { option: true },
+    ] as never,
+  })
+
+  test("図面に落とすと「画像」の直下に取り込んで落とした所にスクラップを置き、同じ画像はページを増やさず、画像でない物は断る", async ({
+    page,
+  }) => {
+    await page.goto(bookScreenUrl("drop-book"))
+    const paper = page.locator("[data-placing]:not([data-slide-layer])")
+    const at = await onPaper(page, 200, 150)
+    await dropFiles(page, paper, at, [{ name: "犬.svg", type: "image/svg+xml", bytes: SVG }])
+    const placed = items(page).filter({ has: page.locator('[data-scrap="shown"]') })
+    await expect(placed).toHaveCount(1)
+    await expect(placed.locator("img")).toBeVisible()
+    // 左上が落とした所
+    const box = (await placed.boundingBox())!
+    expect(Math.abs(box.x - at.x)).toBeLessThan(4)
+    expect(Math.abs(box.y - at.y)).toBeLessThan(4)
+
+    // 取り消すと、置いたスクラップだけが消える（取り込んだ画像のページは「画像」に残る）
+    const empty = await onPaper(page, 600, 450)
+    await page.mouse.click(empty.x, empty.y)
+    await page.keyboard.press("Control+z")
+    await expect(placed).toHaveCount(0)
+
+    // 同じ画像・別の画像・画像でない物をいっしょに落とす: 画像は右へずらして置き、画像でない物は訳を知らせて飛ばす
+    const next = await onPaper(page, 300, 300)
+    await dropFiles(page, paper, next, [
+      { name: "犬.svg", type: "image/svg+xml", bytes: SVG },
+      { name: "写真.png", type: "image/png", bytes: PNG },
+      { name: "メモ.txt", type: "text/plain", bytes: Buffer.from("x") },
+    ])
+    await expect(placed).toHaveCount(2)
+    await expect(page.getByText("メモ.txt を入れられませんでした")).toBeVisible()
+    const [first, second] = [(await placed.nth(0).boundingBox())!, (await placed.nth(1).boundingBox())!]
+    expect(Math.abs(second.x - first.x)).toBeGreaterThan(10)
+
+    // 「画像」の直下には、犬（1 枚だけ。同じ画像は増やさない）と写真
+    await page.goto("/")
+    await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+    await page.getByRole("list", { name: "書庫 の中身" }).getByRole("button", { name: "画像", exact: true }).dblclick()
+    const images = page.getByRole("list", { name: "画像 の中身" })
+    await expect(images.getByRole("button", { name: "犬", exact: true })).toHaveCount(1)
+    await expect(images.getByRole("button", { name: /^犬 / })).toHaveCount(0)
+    await expect(images.getByRole("button", { name: "写真", exact: true })).toHaveCount(1)
+  })
+
+  test("スライドに落とすと、左上が落とした所に来るスクラップを置く", async ({ page }) => {
+    await page.goto(bookScreenUrl("drop-slide-book"))
+    const layer = page.locator("[data-slide-layer]")
+    const at = await onPaper(page, 100, 80)
+    await dropFiles(page, layer, at, [{ name: "写真.png", type: "image/png", bytes: PNG }])
+    const placed = layer.locator("[data-item]").filter({ has: page.locator('[data-scrap="shown"]') })
+    await expect(placed).toHaveCount(1)
+    const box = (await placed.boundingBox())!
+    expect(Math.abs(box.x - at.x)).toBeLessThan(4)
+    expect(Math.abs(box.y - at.y)).toBeLessThan(4)
   })
 })

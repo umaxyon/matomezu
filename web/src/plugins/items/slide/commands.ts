@@ -1,6 +1,6 @@
 // スライドのコマンド: 画面の操作（置く・動かす・大きさを変える・項目を変える・消す）から、スライドのアクション（slide プラグイン）を呼ぶ。
 // 位置と大きさは、プレゼンテーションが決めた紙の上の px で受け取る。置けたら置くのをやめ、置いたアイテムを選ぶ
-import { type ItemId, NO_PLACING, NOTHING_OPENED, type Rect, slideOf } from "../../../plugin-api"
+import { type ItemId, NO_PLACING, NOTHING_OPENED, type Point, type Rect, slideOf } from "../../../plugin-api"
 import { hasOpenedPage, writesSize } from "../../base"
 
 import { SLIDE_MOVE, SLIDE_PLACE, SLIDE_REMOVE, SLIDE_REORDER, SLIDE_RESIZE, SLIDE_UPDATE } from "./actions"
@@ -58,6 +58,26 @@ export const SLIDE_PUT = kit.defineCommand({
     a.select([(done.result as { item: string }).item])
   },
   when: ctx => hasOpenedPage(ctx) && ctx.stage.placing !== NO_PLACING,
+})
+
+// 外から落としたファイルから作ったアイテム item（項目の値 props。大きさが項目で決まる形）を、左上が at（紙の上）になるよう置く（置こうとしている物は変えない）。
+// ファイルを取り込む間に開いているページが替わっていたら（落としたページ page でなければ）置かない。置けなければトーストで知らせる
+export const SLIDE_DROP = kit.defineCommand({
+  id: "slide-drop",
+  performs: [PLACE],
+  permissionScope: "opened-page",
+  placesItem: true,
+  title: "Place on slide",
+  run: (ctx, a, args: { page: string; item: ItemId; at: Point; props: Record<string, unknown> }) => {
+    if (!hasOpenedPage(ctx) || ctx.page.id !== args.page) return
+    const done = a.perform(PLACE, { item: args.item, at: args.at, props: args.props }, { page: ctx.page.id })
+    if (!done.ok) {
+      a.showToast({ kind: "warn", message: kit.message("Cannot place here") })
+      return
+    }
+    a.select([(done.result as { item: string }).item])
+  },
+  when: hasOpenedPage,
 })
 
 // アイテムを、左上が at（紙の上）になるよう動かす（複数のアイテムを一度に。画面の履歴は 1 段）

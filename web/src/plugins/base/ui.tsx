@@ -216,7 +216,7 @@ export {
   type PrintSheetProps,
   usePrintHold,
 } from "./print-preview/ui"
-export { ScrapForm, ScrapView, type ScrapViewProps } from "./scrap/ui"
+export { ScrapForm, ScrapView, type ScrapViewProps, useFileDrop } from "./scrap/ui"
 export { ChoiceSetting } from "./settings/ui"
 export {
   NOT_AWAY,

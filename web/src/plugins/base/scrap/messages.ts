@@ -6,6 +6,12 @@ export const SCRAP_MESSAGES = defineMessages({
   "Scrap tray": { en: "Scrap tray", ja: "スクラップトレイ" },
   "Cut out a scrap": { en: "Cut out a scrap", ja: "スクラップを切り抜く" },
   "Remove a scrap": { en: "Remove a scrap", ja: "スクラップを消す" },
+  "Could not take {name}": { en: "Could not take {name}", ja: "{name} を入れられませんでした" },
+  "It is not a kind of file that can be placed": {
+    en: "It is not a kind of file that can be placed",
+    ja: "置けない種類のファイルです",
+  },
+  "It could not be made": { en: "It could not be made", ja: "作れませんでした" },
   "Scrap settings": { en: "Scrap settings", ja: "スクラップの設定" },
   "Open the original page": { en: "Open the original page", ja: "元のページを開く" },
   "Put in the tray": { en: "Put in the tray", ja: "トレイに入れる" },

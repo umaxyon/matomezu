@@ -159,6 +159,7 @@ export {
   useCreatePageAsking,
   useDrawnMinimap,
   useEndWhenBlocked,
+  useFileDrop,
   useFolderEntries,
   useFollowsSelection,
   useHighlightRanges,

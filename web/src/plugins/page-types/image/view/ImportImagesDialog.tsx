@@ -3,17 +3,15 @@
 // 名前はファイル名から拡張子を取った物で、同じ名前の物がフォルダに在れば、1 件ずつ名前が重なったときの確かめを出す（base の useCreatePageAsking）。
 // 向きは画像の縦横（横長なら横、ほかは縦）。受けない画像は、ファイルごとに訳をトーストに出して飛ばす。選ぶのをやめたら閉じる
 import { useEffect, useRef } from "react"
-import type { NewPageDialogArgs } from "../../../../plugin-api"
+import type { MessageKey, NewPageDialogArgs } from "../../../../plugin-api"
 import { type DialogProps, useActions, useMessages } from "../../../../plugin-api/ui"
 import { useCreatePageAsking, useImportAsset } from "../../../base/ui"
 import { IMAGE } from "../image"
 import { kit } from "../kit"
+import { IMAGE_TYPES, putRefusal, titleOfFile } from "./from-file"
 
 // 取り込むファイルの種類（中身で見分けるのはホスト）
-const ACCEPT = "image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
-
-// ファイル名から拡張子を取った名前（残らなければ、タイプの名前）
-const titleOf = (file: File, fallback: string): string => file.name.replace(/\.[^.]+$/, "").trim() || fallback
+const ACCEPT = IMAGE_TYPES.join(",")
 
 export function ImportImagesDialog({ args, onClose }: DialogProps<NewPageDialogArgs>) {
   const input = useRef<HTMLInputElement>(null)
@@ -36,29 +34,25 @@ export function ImportImagesDialog({ args, onClose }: DialogProps<NewPageDialogA
   const importAll = async (files: readonly File[]) => {
     for (const file of files) {
       const name = file.name
-      const refused = (detail: Parameters<typeof kit.message>[0]) =>
+      const refused = (detail: MessageKey) =>
         showToast({
           kind: "warn",
           message: kit.message("Could not import {name}"),
           params: { name },
-          detail: { message: kit.message(detail) },
+          detail: { message: detail },
         })
       const done = await put(file).catch(() => null)
       if (!done) {
-        refused("The server could not take it")
+        refused(kit.message("The server could not take it"))
         continue
       }
       if (!done.ok) {
-        refused(
-          done.reason === "too-large"
-            ? "It is larger than 25MB"
-            : "It is not an image that can be imported (PNG, JPEG, GIF, WebP, SVG)",
-        )
+        refused(putRefusal(done.reason))
         continue
       }
       await create({
         type: IMAGE.id,
-        title: titleOf(file, t("Image")),
+        title: titleOfFile(file.name) || t("Image"),
         orientation: done.width > done.height ? "landscape" : "portrait",
         fields: { asset: done.asset, width: done.width, height: done.height },
       })

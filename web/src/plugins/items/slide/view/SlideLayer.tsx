@@ -34,8 +34,8 @@ import {
   useToPaper,
 } from "../../../../plugin-api/ui"
 import { NO_SIZE, PLACE_OFFSET, slideOffsetOf, stretchOf, writesSize } from "../../../base"
-import { modPressed, PaperFrame, useFollowsSelection } from "../../../base/ui"
-import { SLIDE_DELETE, SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "../commands"
+import { modPressed, PaperFrame, useFileDrop, useFollowsSelection } from "../../../base/ui"
+import { SLIDE_DELETE, SLIDE_DROP, SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "../commands"
 import {
   CLICK,
   drawnPlacement,
@@ -172,13 +172,20 @@ function SlidePageView({
   }, [selected, setEditing])
 
   // ポインタの所（back は、そこから左上へ離す画面の px）の、紙の上の点
-  const paperAt = (e: PointerEvent<Element>, back: Point = { x: 0, y: 0 }): Point | null => {
+  const paperAt = (e: { clientX: number; clientY: number }, back: Point = { x: 0, y: 0 }): Point | null => {
     const el = ref.current
     if (!el) return null
     const r = el.getBoundingClientRect()
     const at = toPaperAt({ x: e.clientX - r.left - back.x, y: e.clientY - r.top - back.y })
     return at === NO_PAPER ? null : { x: at.x - offset.x, y: at.y - offset.y }
   }
+  // 外から落としたファイルのスクラップを、左上が落とした所に来るよう置く（何枚もなら右へ並べる）
+  const drop = useCommand(SLIDE_DROP.id)
+  const files = useFileDrop(
+    e => (operable ? paperAt(e) : null),
+    (item, props, at, by, page) =>
+      drop.run({ page, item: item as ItemId, props, at: { x: Math.round(at.x + by), y: Math.round(at.y) } }),
+  )
   const finish = () => {
     drag.current = null
     setLive(null)
@@ -410,6 +417,8 @@ function SlidePageView({
       onPointerUp={onPointerUp}
       onPointerCancel={finish}
       onPointerLeave={() => setHover(null)}
+      onDragOver={operable ? files.onDragOver : undefined}
+      onDrop={operable ? files.onDrop : undefined}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
     >

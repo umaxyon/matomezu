@@ -62,10 +62,11 @@ import {
   NO_GROW,
   NO_SIZE,
   onlySelected,
+  PLACE_OFFSET,
   roomOf,
   shownRects,
 } from "../../base"
-import { modPressed, PaperFrame, useFollowsSelection } from "../../base/ui"
+import { modPressed, PaperFrame, useFileDrop, useFollowsSelection } from "../../base/ui"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
 import {
@@ -74,6 +75,7 @@ import {
   dropTarget,
   lifted,
   movableTogether,
+  PAPER_DROP,
   PAPER_EDIT,
   PAPER_MOVE,
   PAPER_PLACE,
@@ -128,6 +130,16 @@ export function PaperView() {
   const followed = useFollowsSelection()
   const placed = usePlaceTarget(placing ? pointer : null) // 置こうとしている間の、押すと置く所
   const [box, setBox] = useState<Rect | null>(null) // 範囲のドラッグの四角（紙の上）
+  // 外から落としたファイルのスクラップを、左上が落とした所に来るよう置く（何枚もなら右へ並べる。ずらす幅は紙の px なので倍率を掛ける）
+  const drop = useCommand(PAPER_DROP.id)
+  const files = useFileDrop(
+    e => {
+      const r = ref.current?.getBoundingClientRect()
+      return r ? { x: e.clientX - r.left + PLACE_OFFSET.x, y: e.clientY - r.top + PLACE_OFFSET.y } : null
+    },
+    (item, props, at, shift, page) =>
+      stage !== NO_STAGE && drop.run({ page, item, props, pointer: { x: at.x + shift * stage.zoom, y: at.y } }),
+  )
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (placing && ref.current) setPointer(local(e, ref.current))
@@ -190,6 +202,8 @@ export function PaperView() {
       onPointerDown={onPointerDown}
       onPointerUp={endSweep}
       onPointerCancel={endSweep}
+      onDragOver={files.onDragOver}
+      onDrop={files.onDrop}
     >
       <Content stage={stage} pointer={placing ? pointer : null} placed={placed} box={box} localOf={localOf} />
     </div>
