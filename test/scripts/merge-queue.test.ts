@@ -6,11 +6,15 @@ import { dirname, join } from "node:path"
 import {
   bunComplete,
   bunFailures,
+  candidateOf,
   errorLines,
   fastForward,
+  flakyKey,
   GENERATED,
   git,
   goFailures,
+  historyLine,
+  parseFlakyList,
   playwrightFailures,
   pushMain,
   type Regenerate,
@@ -18,6 +22,7 @@ import {
   runStep,
   type Step,
   stack,
+  summary,
 } from "../../scripts/merge-queue"
 
 const dirs: string[] = []
@@ -288,18 +293,41 @@ function tmp() {
   return d
 }
 
-test("落ちたテストを流し直して通れば、通しにして揺れたとする", async () => {
+test("落ちたテストが揺れるテストの一覧にあり、流し直して通れば、通しにして揺れたとする", async () => {
   const d = tmp()
-  const r = await runStep(fakeStep(d, 1), d, d)
+  const r = await runStep(fakeStep(d, 1), d, d, new Set(["fake x:t"]))
   expect(r.ok).toBe(true)
+  expect(r.rerun).toBe("passed")
   expect(r.flaky).toEqual([{ step: "fake", where: "x", title: "t" }])
 })
 
-test("流し直してもまた落ちれば落ちとする", async () => {
+test("一覧に無いテストは、流し直して通っても落ちとし、流し直しで通ったと返す", async () => {
   const d = tmp()
-  const r = await runStep(fakeStep(d, 2), d, d)
+  const r = await runStep(fakeStep(d, 1), d, d, new Set(["fake x:other"]))
   expect(r.ok).toBe(false)
+  expect(r.rerun).toBe("passed")
+  expect(r.failures).toEqual([{ step: "fake", where: "x", title: "t" }])
   expect(r.flaky).toEqual([])
+})
+
+test("流し直してもまた落ちれば、一覧にあっても落ちとする", async () => {
+  const d = tmp()
+  const r = await runStep(fakeStep(d, 2), d, d, new Set(["fake x:t"]))
+  expect(r.ok).toBe(false)
+  expect(r.rerun).toBe("failed")
+  expect(r.flaky).toEqual([])
+})
+
+test("揺れるテストの一覧の鍵は、ステップとファイル（go はパッケージ）とテスト名。e2e の行番号は見ない", () => {
+  expect(flakyKey({ step: "e2e", where: "e2e/a.spec.ts:12", title: "x > y" })).toBe("e2e e2e/a.spec.ts:x > y")
+  expect(flakyKey({ step: "unit", where: "test/a.test.ts", title: "t" })).toBe("unit test/a.test.ts:t")
+  expect(flakyKey({ step: "go", where: "matomezu/internal/host", title: "TestX" })).toBe(
+    "go matomezu/internal/host:TestX",
+  )
+  // ファイルかテスト名の無い落ち（ビルドの失敗など）は一覧に書けない
+  expect(flakyKey({ step: "go", where: "matomezu/internal/host", title: "" })).toBeUndefined()
+  expect(flakyKey({ step: "e2e", where: "", title: "no report" })).toBeUndefined()
+  expect([...parseFlakyList("# 説明\n\n e2e e2e/a.spec.ts:x > y \n")]).toEqual(["e2e e2e/a.spec.ts:x > y"])
 })
 
 test("流し直す手が無いか、落ちを全部は読み取れていなければ流し直さない", async () => {
@@ -326,4 +354,41 @@ test("push できなければ理由の 1 行を返す", () => {
   const r = pushMain(main)
   expect(r.ok).toBe(false)
   if (!r.ok) expect(r.why).not.toBe("")
+})
+
+test("<ブランチ>:<sha> はその sha を、ブランチだけならブランチの先を入れる", () => {
+  const { main } = repo()
+  const first = git(main, "rev-parse", "HEAD")
+  git(main, "branch", "feat")
+  git(main, "commit", "-q", "--allow-empty", "-m", "more")
+  git(main, "branch", "-f", "feat", "HEAD")
+  expect(candidateOf(main, `feat:${first}`)).toEqual({ name: "feat", sha: first })
+  expect(candidateOf(main, "feat")).toEqual({ name: "feat", sha: git(main, "rev-parse", "HEAD") })
+})
+
+test("落ちたブランチは重ねた main とログの置き場を添え、main の側の都合は落ちと分けて返す", () => {
+  const lines = summary({
+    outcomes: [
+      {
+        name: "a",
+        sha: "a".repeat(40),
+        kind: "failed",
+        base: "b".repeat(40),
+        logs: "/q/x",
+        why: ["unit: t.test.ts t"],
+      },
+      { name: "c", sha: "c".repeat(40), kind: "main-side", why: "main の worktree に未コミット" },
+    ],
+    regenerated: [],
+    flaky: [],
+    rebuilt: [],
+  })
+  expect(lines).toEqual([
+    "落ちた: a（main bbbbbbbb に重ねた。ログ /q/x）",
+    "  unit: t.test.ts t",
+    "main の側で止めた: c（main の worktree に未コミット）",
+  ])
+  expect(historyLine({ name: "a", sha: "a".repeat(40), kind: "merged" }, new Date("2026-01-02T03:04:05Z"))).toBe(
+    "2026-01-02T03:04:05.000Z\ta\taaaaaaaa\tmerged\t",
+  )
 })

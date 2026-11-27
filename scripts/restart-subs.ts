@@ -5,7 +5,9 @@
 //   <サブ> は sub4（sub4_work の略）・sub4_work・main_manager などのワークルーム名、モデルを指定するなら sub6:claude-fable-5-2（無ければ最後の会話のモデル）
 // サブごとに並行して、次の順に進める。どこかで止まったサブは、そこで止めて理由を出す
 //   1. 再起動の準備（引き継ぎを書き、未コミットを残さない）を頼み、手が空くのを待つ
-//   2. 最後の返事が READY_MARK で終わり、追跡するファイルに変更が無ければ /exit を送り、claude が終わるのを待つ
+//   2. 最後の返事が READY_MARK で終わり、追跡するファイルに変更が無ければ、取り込みのキューのロックを取り、/exit を送り、claude が終わるのを待つ。
+//      ロックは /reload-plugins を送り終えるまで持つ（キューが入れたあとに常駐とプラグインのキャッシュを作り直している間に起動しない）。
+//      その worktree がキューに並んでいれば（merge-request.ts の印）、はじめと /exit の前に止める（待っている結果がサブに届かなくなる）
 //   3. scripts/claude-relay.sh --model <モデル> を送り（--env があれば KEY=VAL を前に付け、--no-relay なら claude を直に）、起動した claude の引数と環境変数がそのとおりかを確かめ（違えば止める）、/reload-plugins と /mcp reconnect を送り、引き継ぎを読んで join するよう頼む。
 //      join の合言葉（link）はここで作り、開発の常駐に前もって承認させておく（画面で受け入れずに入る。開発用の口 /api/dev/rejoin-pass）
 //   4. join が参加者 id を返したら、手が空くのを待ち、ターンの始まりのフックが参加を伝えたか（セッションと参加者を結んだか）を BOUND_WAIT_MS まで待つ。
@@ -14,12 +16,13 @@
 // 終わりに、サブごとの結果を「結果: 」の 1 行にまとめて出す。全部が参加すれば 0 で終わる
 // サブは Orca にエージェントとして見えない（claude-relay.sh で起動するため）ので、Orca の端末に打ち込んで進める。
 // 端末は、そのワークルームに参加している claude のプロセスから探す（workroomOf・terminalOf）
-import { execFile, execFileSync } from "node:child_process"
+import { execFile, execFileSync, spawn } from "node:child_process"
 import { randomUUID } from "node:crypto"
 import { existsSync, readdirSync, readFileSync, readlinkSync, statSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { promisify } from "node:util"
+import { queuedRequests } from "./merge-request"
 
 export const READY_MARK = "再起動の準備OK"
 export const NG_MARK = "再起動の準備NG"
@@ -326,6 +329,26 @@ function latestTranscript(cwd: string): string | undefined {
   }
 }
 
+function queued(cwd: string): boolean {
+  return queuedRequests(commonDir(cwd)).some(r => r.worktree === cwd)
+}
+
+function commonDir(cwd: string): string {
+  return resolve(cwd, execFileSync("git", ["-C", cwd, "rev-parse", "--git-common-dir"], { encoding: "utf8" }).trim())
+}
+
+// 取り込みのキューのロック（merge-queue.ts と同じ）を取る。返す関数で外す
+async function holdQueueLock(cwd: string): Promise<() => void> {
+  const child = spawn("flock", [join(commonDir(cwd), "merge-queue.lock"), "sh", "-c", "echo locked; cat >/dev/null"], {
+    stdio: ["pipe", "pipe", "inherit"],
+  })
+  await new Promise<void>((res, rej) => {
+    child.stdout.once("data", () => res())
+    child.once("exit", code => rej(new Error(`キューのロックを取れなかった（${code}）`)))
+  })
+  return () => child.stdin.end()
+}
+
 function trackedChanges(cwd: string): string {
   return execFileSync("git", ["-C", cwd, "status", "--porcelain", "--untracked-files=no"], { encoding: "utf8" }).trim()
 }
@@ -378,6 +401,7 @@ async function restart(
   const pids = claudePids(cwd)
   log(`端末 ${term.handle}、${cwd}、モデル ${model}、claude ${pids.join(",") || "なし"}`)
   if (pids.length !== 1) throw new Error(`この worktree の claude が ${pids.length} 個`)
+  if (queued(cwd)) throw new Error("取り込みのキューに並んでいる")
   if (opts.dryRun) return
 
   const askedAt = Date.now()
@@ -402,37 +426,44 @@ async function restart(
   const changes = trackedChanges(cwd)
   if (changes) throw new Error(`未コミットの変更が残っている:\n${changes}`)
 
-  await send(term.handle, "/exit")
-  await until("claude の終わり", 60_000, () => claudePids(cwd).length === 0)
-  log("終えた")
+  log("取り込みのキューのロックを待つ")
+  const release = await holdQueueLock(cwd)
+  try {
+    if (queued(cwd)) throw new Error("取り込みのキューに並んでいる")
+    await send(term.handle, "/exit")
+    await until("claude の終わり", 60_000, () => claudePids(cwd).length === 0)
+    log("終えた")
 
-  // 終えた claude への端末の答えが、打ち込む文の途中に混ざらないよう、届き終わるまで待つ。
-  // Ctrl+U は、文より前に残った文字だけを消す。文の後ろに混ざった物は、起動の引数を確かめて止める
-  await sleep(3000)
-  await orca(["terminal", "send", "--terminal", term.handle, "--text", "\x15"])
-  const args = launchArgs(model)
-  await send(term.handle, launchCommand(args, opts.env, opts.relay))
-  await until("claude の起動", 120_000, () => claudePids(cwd).length === 1)
-  const [launched] = claudePids(cwd)
-  const cmdline = readFileSync(`/proc/${launched}/cmdline`, "utf8")
-  if (!launchedWith(cmdline, args)) {
-    throw new Error(
-      `起動した claude の引数が違う: ${JSON.stringify(argvOf(cmdline))}。端末を見る\n${await terminalTail(term.handle)}`,
-    )
-  }
-  const environ = readFileSync(`/proc/${launched}/environ`, "utf8")
-  if (!launchedEnv(environ, opts.env))
-    throw new Error(`起動した claude に環境変数が渡っていない: ${launchCommand([], opts.env)}`)
-  if (!opts.relay && launchedThroughRelay(environ))
-    throw new Error("--no-relay なのに起動した claude に ANTHROPIC_BASE_URL がある")
-  log(opts.env.length > 0 ? "claude の起動の引数と環境変数を確かめた" : "claude の起動の引数を確かめた")
-  await sleep(5000)
-  await waitIdle(term.handle, 120_000)
-  for (const cmd of ["/reload-plugins", `/mcp reconnect ${MCP_SERVER}`]) {
-    await send(term.handle, cmd)
+    // 終えた claude への端末の答えが、打ち込む文の途中に混ざらないよう、届き終わるまで待つ。
+    // Ctrl+U は、文より前に残った文字だけを消す。文の後ろに混ざった物は、起動の引数を確かめて止める
     await sleep(3000)
+    await orca(["terminal", "send", "--terminal", term.handle, "--text", "\x15"])
+    const args = launchArgs(model)
+    await send(term.handle, launchCommand(args, opts.env, opts.relay))
+    await until("claude の起動", 120_000, () => claudePids(cwd).length === 1)
+    const [launched] = claudePids(cwd)
+    const cmdline = readFileSync(`/proc/${launched}/cmdline`, "utf8")
+    if (!launchedWith(cmdline, args)) {
+      throw new Error(
+        `起動した claude の引数が違う: ${JSON.stringify(argvOf(cmdline))}。端末を見る\n${await terminalTail(term.handle)}`,
+      )
+    }
+    const environ = readFileSync(`/proc/${launched}/environ`, "utf8")
+    if (!launchedEnv(environ, opts.env))
+      throw new Error(`起動した claude に環境変数が渡っていない: ${launchCommand([], opts.env)}`)
+    if (!opts.relay && launchedThroughRelay(environ))
+      throw new Error("--no-relay なのに起動した claude に ANTHROPIC_BASE_URL がある")
+    log(opts.env.length > 0 ? "claude の起動の引数と環境変数を確かめた" : "claude の起動の引数を確かめた")
+    await sleep(5000)
     await waitIdle(term.handle, 120_000)
-    log(`${cmd} を送った`)
+    for (const cmd of ["/reload-plugins", `/mcp reconnect ${MCP_SERVER}`]) {
+      await send(term.handle, cmd)
+      await sleep(3000)
+      await waitIdle(term.handle, 120_000)
+      log(`${cmd} を送った`)
+    }
+  } finally {
+    release()
   }
   const link = randomUUID()
   await passRejoin(cwd, target.workroom, link)
