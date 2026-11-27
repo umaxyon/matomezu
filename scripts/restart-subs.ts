@@ -9,6 +9,7 @@
 //   4. join が参加者 id を返したら、手が空くのを待ち、ターンの始まりのフックが参加を伝えたか（セッションと参加者を結んだか）を BOUND_WAIT_MS まで待つ。
 //      合言葉の受け入れの起こす知らせで、watch がターンを始めるはず。伝えなければ、もう一言（CONFIRM_PROMPT）送る。結ぶのはそのフックなので、
 //      どのターンも始まらないと、画面で準備中のまま残る
+// 終わりに、サブごとの結果を「結果: 」の 1 行にまとめて出す。全部が参加すれば 0 で終わる
 // サブは Orca にエージェントとして見えない（claude-relay.sh で起動するため）ので、Orca の端末に打ち込んで進める。
 // 端末は、そのワークルームに参加している claude のプロセスから探す（workroomOf・terminalOf）
 import { execFile, execFileSync } from "node:child_process"
@@ -421,6 +422,17 @@ async function restart(target: Target, opts: { dryRun: boolean; timeoutMs: numbe
   }
 }
 
+// サブごとの結果の 1 行。done は済んだサブに付ける言葉。止めたサブは理由のはじめの行だけ（全部は止めたときに出している）
+export function resultLine(workrooms: string[], results: PromiseSettledResult<unknown>[], done: string): string {
+  const each = workrooms.map((w, i) => {
+    const r = results[i]
+    if (r?.status !== "rejected") return `${w} ${done}`
+    const why = r.reason instanceof Error ? r.reason.message : String(r.reason)
+    return `${w} 止めた: ${why.split("\n")[0]}`
+  })
+  return `結果: ${each.join(" / ")}`
+}
+
 if (import.meta.main) {
   const args = process.argv.slice(2)
   const dryRun = args.includes("--dry-run")
@@ -439,5 +451,12 @@ if (import.meta.main) {
       console.error(`[${targets[i]?.workroom}] 止めた: ${(r.reason as Error).message}`)
     }
   })
+  console.log(
+    resultLine(
+      targets.map(t => t.workroom),
+      results,
+      dryRun ? "確かめた" : "参加した",
+    ),
+  )
   process.exit(failed ? 1 : 0)
 }

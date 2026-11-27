@@ -11,6 +11,7 @@ import {
   READY_MARK,
   readiness,
   rejoinPrompt,
+  resultLine,
   toldJoinedSince,
   workroomOf,
 } from "../../scripts/restart-subs"
@@ -153,4 +154,14 @@ test("フックが参加を伝えたかは、since より後に足した知ら�
   expect(toldJoinedSince([old, other].join("\n"), since)).toBe(false)
   const now = told("2026-11-25T14:00:06Z", "You joined matomezu. Workroom name: sub4_work")
   expect(toldJoinedSince([old, other, now].join("\n"), since)).toBe(true)
+})
+
+test("結果はサブごとに 1 行にまとめ、止めたサブは理由のはじめの行だけ", () => {
+  const results: PromiseSettledResult<unknown>[] = [
+    { status: "fulfilled", value: undefined },
+    { status: "rejected", reason: new Error("起動した claude の引数が違う\n端末の末尾") },
+  ]
+  expect(resultLine(["sub5_work", "sub3_work"], results, "参加した")).toBe(
+    "結果: sub5_work 参加した / sub3_work 止めた: 起動した claude の引数が違う",
+  )
 })
