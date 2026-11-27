@@ -11,13 +11,14 @@
 //      ロックは /reload-plugins と /mcp reconnect を送り終えるまで持つ（キューが入れたあとに常駐とプラグインのキャッシュを作り直している間に出直さない）。
 //      その worktree がキューに並んでいれば（merge-request.ts の印）、はじめとロックを取ったあとに止める（待っている結果がサブに届かなくなる）
 //   clear で出直す型
-//   3. /clear・/reload-plugins・/mcp reconnect を送り、引き継ぎを読むよう頼む（continuePrompt）。参加者は前の会話から新しい会話に移る（join し直さない）
-//   4. そのターンのフックが同じワークルームへの参加を伝えたかを BOUND_WAIT_MS まで待つ。伝えなければ止める
+//   3a. /clear・/reload-plugins・/mcp reconnect を送り、引き継ぎを読むよう頼む（continuePrompt）。参加者は前の会話から新しい会話に移る（join し直さない）
+//   4a. そのターンのフックが、前の会話から同じワークルームの参加者を移したと伝えたか（CARRIED）を BOUND_WAIT_MS まで待つ。伝えなければ止める
+//       （新しく join した知らせでは通さない。移せなかったときに join し直させない）
 //   起動し直す型
-//   3. /exit を送り、claude が終わるのを待つ。scripts/claude-relay.sh --model <モデル> を送り（--env があれば KEY=VAL を前に付け、--no-relay なら claude を直に）、
+//   3b. /exit を送り、claude が終わるのを待つ。scripts/claude-relay.sh --model <モデル> を送り（--env があれば KEY=VAL を前に付け、--no-relay なら claude を直に）、
 //      起動した claude の引数と環境変数がそのとおりかを確かめ（違えば止める）、/reload-plugins と /mcp reconnect を送り、引き継ぎを読んで join するよう頼む。
 //      join の合言葉（link）はここで作り、開発の常駐に前もって承認させておく（画面で受け入れずに入る。開発用の口 /api/dev/rejoin-pass）
-//   4. join が参加者 id を返したら、手が空くのを待ち、ターンの始まりのフックが参加を伝えたか（セッションと参加者を結んだか）を BOUND_WAIT_MS まで待つ。
+//   4b. join が参加者 id を返したら、手が空くのを待ち、ターンの始まりのフックが参加を伝えたか（セッションと参加者を結んだか）を BOUND_WAIT_MS まで待つ。
 //      合言葉の受け入れの起こす知らせで、watch がターンを始めるはず。伝えなければ、もう一言（CONFIRM_PROMPT）送る。結ぶのはそのフックなので、
 //      どのターンも始まらないと、画面で準備中のまま残る
 // 終わりに、サブごとの結果を「結果: 」の 1 行にまとめて出す。全部が参加すれば 0 で終わる
@@ -126,8 +127,12 @@ const JOINED = /(?:oined matomezu\. Workroom name|matomezu に参加しました
 
 type Attachment = { type?: string; attachment?: { type?: string; content?: unknown } }
 
-// 会話の記録で、フックが足した「参加しました」の知らせのワークルーム名（since より後の物だけ。since が無ければ全部）
-function toldWorkrooms(jsonl: string, since?: number): string[] {
+// 前の会話（/clear で置き換えた会話）から参加者を移したときに、サーバーがフックの知らせの頭に付ける文（internal/server の carriedText）
+export const CARRIED = "This conversation continues an earlier one it replaced"
+
+// 会話の記録で、フックが足した「参加しました」の知らせのワークルーム名（since より後の物だけ。since が無ければ全部）。
+// carried なら、前の会話から移した知らせ（CARRIED の付いた物）だけ
+function toldWorkrooms(jsonl: string, since?: number, carried = false): string[] {
   return jsonl.split("\n").flatMap(line => {
     if (!line.includes("hook_additional_context")) return []
     try {
@@ -135,7 +140,11 @@ function toldWorkrooms(jsonl: string, since?: number): string[] {
       const a = e.attachment
       if (a?.type !== "hook_additional_context" || !Array.isArray(a.content)) return []
       if (since !== undefined && !(e.timestamp && Date.parse(e.timestamp) > since)) return []
-      return a.content.flatMap(c => (typeof c === "string" ? [JOINED.exec(c)?.[1]].filter(w => w !== undefined) : []))
+      return a.content.flatMap(c =>
+        typeof c === "string" && (!carried || c.includes(CARRIED))
+          ? [JOINED.exec(c)?.[1]].filter(w => w !== undefined)
+          : [],
+      )
     } catch {
       return []
     }
@@ -147,9 +156,9 @@ export function toldJoinedSince(jsonl: string, since: number): boolean {
   return toldWorkrooms(jsonl, since).length > 0
 }
 
-// since より後に、ターンの始まりのフックが伝えた参加のワークルーム名（最後の物）
-export function toldWorkroomSince(jsonl: string, since: number): string | undefined {
-  return toldWorkrooms(jsonl, since).at(-1)
+// since より後に、ターンの始まりのフックが「前の会話から移した」と伝えた参加のワークルーム名（最後の物。新しく join した知らせは読まない）
+export function carriedWorkroomSince(jsonl: string, since: number): string | undefined {
+  return toldWorkrooms(jsonl, since, true).at(-1)
 }
 
 export function workroomOf(jsonl: string): string | undefined {
@@ -413,24 +422,28 @@ async function reloadPlugins(handle: string, log: (s: string) => void): Promise<
   }
 }
 
-type Options = { dryRun: boolean; timeoutMs: number; env: [string, string][]; relay: boolean; relaunch: boolean }
+// 引数から読んだ物。relaunchFlag は --relaunch を付けたか
+type Args = { dryRun: boolean; timeoutMs: number; env: [string, string][]; relay: boolean; relaunchFlag: boolean }
+// サブごとの進め方。relaunch は決まった型（起動し直すか）
+type Options = Omit<Args, "relaunchFlag"> & { relaunch: boolean }
 
 // 起動し直す型にするか: --relaunch か、プロセスの中身を替える物（--env・--no-relay・モデルの指定）があるとき。ほかは clear で出直す
-export function needsRelaunch(target: Target, o: Pick<Options, "env" | "relay" | "relaunch">): boolean {
-  return o.relaunch || o.env.length > 0 || !o.relay || target.model !== undefined
+export function needsRelaunch(target: Target, a: Pick<Args, "env" | "relay" | "relaunchFlag">): boolean {
+  return a.relaunchFlag || a.env.length > 0 || !a.relay || target.model !== undefined
 }
 
-async function restart(target: Target, opts: Options): Promise<void> {
+async function refresh(target: Target, opts: Options): Promise<void> {
   const log = (s: string) => console.log(`[${target.workroom}] ${s}`)
   const sub = findSub(target.workroom)
   const term = { handle: sub.handle }
   const cwd = sub.cwd
   const transcript = transcriptOf(sub.pid, cwd)
   const model = target.model ?? (transcript ? lastModel(readFileSync(transcript, "utf8")) : undefined)
-  if (!model) throw new Error("モデルが分からない（sub:モデル で指定する）")
+  // モデルを使うのは起動し直す型だけ
+  if (!model && opts.relaunch) throw new Error("モデルが分からない（sub:モデル で指定する）")
   const pids = claudePids(cwd)
   log(
-    `端末 ${term.handle}、${cwd}、モデル ${model}、claude ${pids.join(",") || "なし"}、${opts.relaunch ? "起動し直す" : "clear で出直す"}`,
+    `端末 ${term.handle}、${cwd}、モデル ${model ?? "不明"}、claude ${pids.join(",") || "なし"}、${opts.relaunch ? "起動し直す" : "clear で出直す"}`,
   )
   if (pids.length !== 1) throw new Error(`この worktree の claude が ${pids.length} 個`)
   if (queued(cwd)) throw new Error("取り込みのキューに並んでいる")
@@ -458,7 +471,7 @@ async function restart(target: Target, opts: Options): Promise<void> {
   const changes = trackedChanges(cwd)
   if (changes) throw new Error(`未コミットの変更が残っている:\n${changes}`)
 
-  if (opts.relaunch) return relaunchAndRejoin(term.handle, cwd, model, target.workroom, opts, log)
+  if (opts.relaunch && model) return relaunchAndRejoin(term.handle, cwd, model, target.workroom, opts, log)
   return clearAndContinue(term.handle, cwd, target.workroom, log)
 }
 
@@ -553,9 +566,9 @@ async function clearAndContinue(
   log("引き継ぎを読むよう頼んだ")
   const told = () => {
     const now = latestTranscript(cwd)
-    return now ? toldWorkroomSince(readFileSync(now, "utf8"), askedAt) : undefined
+    return now ? carriedWorkroomSince(readFileSync(now, "utf8"), askedAt) : undefined
   }
-  await until("フックが参加を伝える", BOUND_WAIT_MS, () => told() !== undefined)
+  await until("フックが前の会話から参加者を移したと伝える", BOUND_WAIT_MS, () => told() !== undefined)
   if (told() !== workroom) throw new Error(`clear のあと、${workroom} でなく ${told()} に参加している。端末を見る`)
   log("参加したまま出直した（clear の前の参加者が新しい会話に移った）")
 }
@@ -586,8 +599,15 @@ if (import.meta.main) {
     )
     process.exit(2)
   }
-  const base = { dryRun, timeoutMs, env, relay: !args.includes("--no-relay"), relaunch: args.includes("--relaunch") }
-  const results = await Promise.allSettled(targets.map(t => restart(t, { ...base, relaunch: needsRelaunch(t, base) })))
+  const read: Args = {
+    dryRun,
+    timeoutMs,
+    env,
+    relay: !args.includes("--no-relay"),
+    relaunchFlag: args.includes("--relaunch"),
+  }
+  const { relaunchFlag: _, ...each } = read
+  const results = await Promise.allSettled(targets.map(t => refresh(t, { ...each, relaunch: needsRelaunch(t, read) })))
   let failed = 0
   results.forEach((r, i) => {
     if (r.status === "rejected") {

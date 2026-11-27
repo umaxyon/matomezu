@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test"
 import {
+  CARRIED,
+  carriedWorkroomSince,
   continuePrompt,
   joinedSince,
   lastAssistantText,
@@ -20,7 +22,6 @@ import {
   rejoinPrompt,
   resultLine,
   toldJoinedSince,
-  toldWorkroomSince,
   workroomOf,
 } from "../../scripts/restart-subs"
 
@@ -196,24 +197,23 @@ test("--no-relay は claude を直に起動し、起動した claude に中継�
 })
 
 test("clear で出直すのが既定で、プロセスの中身を替える物があるときだけ起動し直す", () => {
-  const base = { env: [] as [string, string][], relay: true, relaunch: false }
+  const base = { env: [] as [string, string][], relay: true, relaunchFlag: false }
   expect(needsRelaunch({ workroom: "sub4_work" }, base)).toBe(false)
-  expect(needsRelaunch({ workroom: "sub4_work" }, { ...base, relaunch: true })).toBe(true)
+  expect(needsRelaunch({ workroom: "sub4_work" }, { ...base, relaunchFlag: true })).toBe(true)
   expect(needsRelaunch({ workroom: "sub4_work" }, { ...base, env: [["A", "1"]] })).toBe(true)
   expect(needsRelaunch({ workroom: "sub4_work" }, { ...base, relay: false })).toBe(true)
   expect(needsRelaunch({ workroom: "sub4_work", model: "claude-fable-5-2" }, base)).toBe(true)
 })
 
 test("出直しの準備の頼みは型で言い分け、clear のあとの頼みは join させない", () => {
-  expect(preparePrompt("sub4_work", false)).toStartWith(
-    "出直しの準備をしてください（main_manager が会話を空にして出直させます。",
-  )
-  expect(preparePrompt("sub4_work", true)).toStartWith("再起動の準備をしてください")
-  expect(preparePrompt("sub4_work", false).split("\n").at(-1)).toContain(READY_MARK)
-  expect(continuePrompt("sub4_work")).toBe("sub4 の handoff よんで（matomezu の参加は続いているので join しない）")
+  expect(preparePrompt("sub4_work", false)).not.toBe(preparePrompt("sub4_work", true))
+  for (const relaunch of [false, true])
+    expect(preparePrompt("sub4_work", relaunch).split("\n").at(-1)).toContain(READY_MARK)
+  expect(continuePrompt("sub4_work")).toContain("join しない")
+  expect(continuePrompt("sub4_work")).not.toContain("link")
 })
 
-test("clear のあとにフックが伝えたワークルームは、since より後の知らせの最後の物で読む（前の会話から移った知らせも同じ行を持つ）", () => {
+test("clear のあとにフックが伝えたワークルームは、since より後の、前の会話から移した知らせだけで読む", () => {
   const told = (at: string, text: string) =>
     JSON.stringify({
       type: "attachment",
@@ -222,10 +222,13 @@ test("clear のあとにフックが伝えたワークルームは、since よ�
     })
   const since = Date.parse("2026-11-25T14:00:00Z")
   const old = told("2026-11-25T13:00:00Z", "You joined matomezu. Workroom name: sub4_work")
-  expect(toldWorkroomSince(old, since)).toBeUndefined()
+  expect(carriedWorkroomSince(old, since)).toBeUndefined()
+  // 新しく join した知らせは読まない
+  const joined = told("2026-11-25T14:00:03Z", "You joined matomezu. Workroom name: sub4_work")
+  expect(carriedWorkroomSince([old, joined].join("\n"), since)).toBeUndefined()
   const carried = told(
     "2026-11-25T14:00:06Z",
-    "This conversation continues an earlier one it replaced, and matomezu kept you as its participant (nothing to join again):\nYou joined matomezu. Workroom name: sub4_work",
+    `${CARRIED}, and matomezu kept you as its participant (nothing to join again):\nYou joined matomezu. Workroom name: sub4_work`,
   )
-  expect(toldWorkroomSince([old, carried].join("\n"), since)).toBe("sub4_work")
+  expect(carriedWorkroomSince([old, joined, carried].join("\n"), since)).toBe("sub4_work")
 })
