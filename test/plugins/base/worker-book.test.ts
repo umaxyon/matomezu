@@ -236,3 +236,67 @@ describe("ワーカーブックを持てる作業のレコードの種類", () =
     expect(codes(["u", "v", "none"])).toEqual(["E133", "E133", "E133"])
   })
 })
+
+describe("引き継ぎを書いて会話を空にする頼み（clear-request）", () => {
+  const PARTICIPANT = "@matomezu/base:participant"
+  const room = (id: string, extra: object = {}) => ({
+    id,
+    name: id,
+    bird: "suzume",
+    createdAt: "2026-11-01T00:00:00Z",
+    ...extra,
+  })
+  const person = (ai: string) => ({
+    id: "p2",
+    state: "joined",
+    ai,
+    model: "m",
+    env: "wsl",
+    sessionName: "",
+    link: "L",
+    workroom: "r2",
+    requestedAt: "2026-11-01T00:00:00Z",
+    joinedAt: "2026-11-01T00:00:00Z",
+  })
+  // r2 は r1 の作業から離れた（left。r1 のワーカーブック b1 が在る）
+  const ask = (opts: { left?: boolean; ai?: string; action?: string } = {}) => {
+    const world = yardWorld()
+    const records = {
+      [WORKROOM]: { r1: room("r1"), r2: room("r2", opts.left === false ? {} : { left: roomKey("r1") }) },
+      [PARTICIPANT]: { p2: person(opts.ai ?? "claude") },
+    }
+    return performIn(
+      { ...world, records: records as never },
+      opts.action ?? "@matomezu/base:clear-request",
+      { type: "@matomezu/drawing:drawing", title: "Handoff" },
+      undefined,
+      yardCtx({ kind: "ai", workroom: { id: "r2" } }),
+    )
+  }
+  const lineupOf = (done: ReturnType<typeof ask>) =>
+    done.ok
+      ? (
+          (done.changes?.folders ?? {}) as unknown as Record<string, { lineup: { id: string }[] } | undefined>
+        ).b1?.lineup.map(e => e.id)
+      : undefined
+
+  test("離れた作業のワーカーブックの最後に引き継ぎのページを足す（今の作業のブックでなくても）。ほかのアクションでは、そのブックに書けない", () => {
+    const done = ask()
+    expect(done.ok).toBe(true)
+    expect(lineupOf(done)).toEqual(["p1", expect.any(String)])
+    expect(ask({ action: "@matomezu/base:worker-page-add" }).ok).toBe(true)
+    const direct = performIn(
+      { ...yardWorld(), records: { [WORKROOM]: { r1: room("r1"), r2: room("r2", { left: roomKey("r1") }) } } as never },
+      "@matomezu/base:page-add",
+      { type: "@matomezu/drawing:drawing", title: "x" },
+      { book: "b1" },
+      yardCtx({ kind: "ai", workroom: { id: "r2" } }),
+    )
+    expect(direct).toMatchObject({ ok: false })
+  })
+
+  test("離れた作業が無い・会話を空にできない AI（Claude Code でない）なら、理由を添えて断る", () => {
+    expect(ask({ left: false })).toMatchObject({ ok: false, detail: expect.stringContaining("has not left a work") })
+    expect(ask({ ai: "codex" })).toMatchObject({ ok: false, detail: expect.stringContaining("only Claude Code") })
+  })
+})

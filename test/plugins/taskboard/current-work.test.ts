@@ -10,9 +10,9 @@ import { withCounters, withRecords } from "../../../web/src/core/records"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { workroomActivityOf, workroomWorkIn, workroomWorkOf } from "../../../web/src/plugins/base/participant/activity"
 import { myWorkdeskIn } from "../../../web/src/plugins/base/participant/my-workdesk"
-import { workShiftIn } from "../../../web/src/plugins/base/participant/work-shift"
 import { workTitleIn } from "../../../web/src/plugins/base/participant/work-title"
 import { workerBookOf, workerBookReadsOf } from "../../../web/src/plugins/base/participant/worker-book"
+import { WORKROOM } from "../../../web/src/plugins/base/participant/workroom"
 import { CURRENT_WORK, currentTicketOf } from "../../../web/src/plugins/taskboard/current-work"
 import { nextWorkOf, workingTicketsOf } from "../../../web/src/plugins/taskboard/current-work/work"
 import type { Project } from "../../../web/src/plugins/taskboard/project"
@@ -358,51 +358,35 @@ test("作業名: 作業中なら題名とワークルームの名前、空きな
   expect(title(CORE_CATALOG, { ...ja, "@matomezu/base:session-rename": false })).toEqual({ kind: "off" })
 })
 
-test("今の作業が替わったか: 覚えていない・替わっていなければ聞かない。替わった・新しく振られたら 4 つ、終わったら 2 つの選べる事で 1 度だけ聞く", () => {
-  const { user, room, doing, add, world } = board()
+test("今の作業が替わると、同じ書き込みでワークルームのレコードに今の作業と離れた作業を写し、その AI に 1 通だけ知らせる（誰が替えても）", () => {
+  const { act, user, room, doing, add, world } = board()
   const a = room("ひよこ")
-  const ja = { "@matomezu/base:lang": "matomezu:ja" }
-  let mark = ""
-  // ターンの終わり 1 回分: 覚えた印を進め、問いを返す
-  const turnEnd = (catalog: CoreCatalog = CORE_CATALOG) => {
-    const shift = workShiftIn(catalog, ja, sourceOf(world().records as Records), a, mark)
-    mark = shift.mark
-    return shift.ask
-  }
-  // 初めてのターンの終わりは覚えるだけ
-  expect(turnEnd()).toBeUndefined()
-  expect(turnEnd()).toBeUndefined()
-  // 空きから新しく振られた
+  const roomRecord = () => world().records[WORKROOM.id]?.[a] as { work?: unknown; left?: unknown }
+  const texts = (d: Done) =>
+    ((d as Done & { hostMessages?: { workroom: string; text: string }[] }).hostMessages ?? [])
+      .filter(m => m.workroom === a)
+      .map(m => m.text)
+  // 利用者が振った: 空きから作業へ。離れた作業は無いので、会話を空にする頼み方は添えない
   const t1 = add({ name: "一", lane: doing, assignees: [a] })
-  const started = turnEnd()
-  expect(started?.question).toBe("今の作業が T-0001 になりました。どうしますか？")
-  expect(started?.choices.map(c => [c.clear, c.read])).toEqual([
-    [true, true],
-    [true, false],
-    [false, true],
-    [false, false],
-  ])
-  expect(started?.read).toContain('read_folder with folder "my-workdesk"')
-  expect(started?.read).toContain(`read_records with kind "${TICKET.id}" and id "${t1}"`)
-  // 1 つの替わりには 1 度だけ
-  expect(turnEnd()).toBeUndefined()
-  // 完了して、担当で作業中のチケットが次の作業になった
-  add({ name: "二", lane: doing, assignees: [a] })
-  user("ticket-complete", {}, { record: t1 })
-  expect(turnEnd()?.question).toBe("今の作業が T-0001 から T-0002 に替わりました。どうしますか？")
-  // 終わって作業が無くなった
-  const t2 = Object.keys(world().records[TICKET.id] ?? {}).find(id => id !== t1) as string
-  user("ticket-complete", {}, { record: t2 })
-  const ended = turnEnd()
-  expect(ended?.question).toBe("T-0002 が終わりました。会話を空にしますか？")
-  expect(ended?.choices.map(c => [c.label, c.clear, c.read])).toEqual([
-    ["はい", true, false],
-    ["いいえ", false, false],
-  ])
-  // 作業を答える種類が無ければ、印を作らず聞かない
-  const none = { ...CORE_CATALOG, subjects: new Map() } as CoreCatalog
-  expect(turnEnd(none)).toBeUndefined()
-  expect(mark).toBe("")
+  expect(roomRecord().work).toEqual({ subject: TICKET.id, id: t1 })
+  expect(roomRecord().left).toBeUndefined()
+  // 替わらない書き込みでは知らせない
+  expect(texts(user("ticket-update", { name: "一の二" }, { record: t1 }))).toEqual([])
+  // AI 自身が替えた: 知らせは行った AI にも届き（常駐が答えの notice で渡す）、離れた作業を覚える
+  const t2 = add({ name: "二", lane: doing, assignees: [a] })
+  const [changed] = texts(act(ai(a), "ticket-start", {}, { record: t2 }))
+  expect(changed).toContain("Your current work changed from T-0001")
+  expect(changed).toContain(`read_records with kind "${TICKET.id}" and id "${t2}"`)
+  expect(changed).toContain("@matomezu/base:clear-request")
+  expect(roomRecord()).toMatchObject({ work: { id: t2 }, left: { id: t1 } })
+  // 担当で作業中の物が残っていれば、それが次の作業になる
+  expect(texts(user("ticket-complete", {}, { record: t2 }))[0]).toContain("changed from T-0002")
+  // 終わって空きになった: 今の作業は消え、離れた作業は終わった物
+  const [ended] = texts(user("ticket-complete", {}, { record: t1 }))
+  expect(ended).toContain("no current work")
+  expect(ended).toContain('read_folder with folder "my-workdesk"')
+  expect(roomRecord().work).toBeUndefined()
+  expect(roomRecord().left).toEqual({ subject: TICKET.id, id: t1 })
 })
 
 test("ワークルームの作業は、答える種類のうち機能台帳の並びで最初に作業中と答えた物。どれも作業中でなければ空き", () => {

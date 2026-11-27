@@ -19,6 +19,7 @@ export const CONTROL_CENTER = kit.defineControlCenter({
     "@matomezu/base:page-create",
     "@matomezu/base:page-create-over",
     "@matomezu/base:worker-page-add",
+    "@matomezu/base:clear-request",
     "@matomezu/base:entry-trash",
     "@matomezu/base:entry-restore",
     "@matomezu/base:entry-purge",

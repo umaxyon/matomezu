@@ -106,8 +106,10 @@ export const JOINED_MESSAGE = kit.message("Joined matomezu. Workroom name: {name
 export const VISITOR_JOINED_MESSAGE = kit.message("Joined matomezu as a visitor (read only)")
 
 export { workroomActivitiesFrom } from "./activity"
+export { CLEAR_REQUEST } from "./clear-request"
+export { CLEAR_REQUEST_ID } from "./clear-request-id"
 export { myWorkdeskIn } from "./my-workdesk"
-export { type WorkShift, type WorkShiftChoice, workMarkShiftIn, workShiftIn } from "./work-shift"
+export { FOLLOW_WORK_CHANGED } from "./work-change"
 export { leftTitleIn, SESSION_RENAME, workTitleIn } from "./work-title"
 export { type FoundWorkerBook, NO_WORKER_BOOK, WORKER_BOOK } from "./worker-book"
 export { FOLLOW_WORK_ENDED, FOLLOW_WORK_RENAMED, FOLLOW_WORKROOM_BOOK, WORK_SUBJECTS_CHECK } from "./worker-book-follow"
