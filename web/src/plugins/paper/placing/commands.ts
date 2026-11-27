@@ -43,10 +43,14 @@ export function placeAt(toPaperAt: (p: Point) => Point | typeof NO_PAPER, pointe
 type PlaceRun = Parameters<Parameters<typeof kit.defineCommand>[0]["run"]>
 type Placing = { item: string; props: Readonly<Record<string, unknown>> | typeof NO_PROPS }
 
-// アイテム placing を、ポインタ pointer の所に置く（PAPER_PLACE と PAPER_DROP の中身）。置けたら true（追加のダイアログを開いたときも true。置くのをやめるのは呼んだ側）
-function placeItem(ctx: PlaceRun[0], a: PlaceRun[1], pointer: Point, placing: Placing): boolean {
-  const at = placeAt(ctx.toPaper, pointer)
-  const point = ctx.toPaper(pointer)
+// アイテム placing を、左上が紙の上の at に来るよう置く（point はポインタの指す紙の上の点で、どの形の中に入れるかを決める。PAPER_PLACE と PAPER_DROP の中身）。置けたら true（追加のダイアログを開いたときも true。置くのをやめるのは呼んだ側）
+function placeItem(
+  ctx: PlaceRun[0],
+  a: PlaceRun[1],
+  at: Point | typeof NO_PAPER,
+  point: Point | typeof NO_PAPER,
+  placing: Placing,
+): boolean {
   const shape = placingShape(ctx.catalog, placing.item, placing.props)
   if (at === NO_PAPER || point === NO_PAPER || !hasOpenedPage(ctx) || !shape) return false
   const page = ctx.page
@@ -104,21 +108,29 @@ export const PAPER_PLACE = kit.defineCommand({
   title: "Place item",
   run: (ctx, a, pointer: Point) => {
     const placing = ctx.stage.placing
-    if (placing !== NO_PLACING && placeItem(ctx, a, pointer, placing)) a.stopPlacing()
+    if (placing !== NO_PLACING && placeItem(ctx, a, placeAt(ctx.toPaper, pointer), ctx.toPaper(pointer), placing))
+      a.stopPlacing()
   },
   when: ctx => hasOpenedPage(ctx) && ctx.stage.placing !== NO_PLACING,
 })
 
-// 外から落としたファイルから作ったアイテム item（項目の値 props）を、ポインタ pointer の所に置く（置き方は PAPER_PLACE と同じ。置こうとしている物は変えない）。
-// ファイルを取り込む間に開いているページが替わっていたら（落としたページ page でなければ）置かない
+// 外から落としたファイルから作ったアイテム item（項目の値 props）を、左上がポインタ pointer の所から右へ shift（紙の px）の所に来るよう置く
+// （置き方は PAPER_PLACE と同じ。置こうとしている物は変えない）。ファイルを取り込む間に開いているページが替わっていたら（落としたページ page でなければ）置かない
 export const PAPER_DROP = kit.defineCommand({
   id: "paper-drop",
   performs: [ITEM_PLACE.id],
   permissionScope: "opened-page",
   placesItem: true,
   title: "Place item",
-  run: (ctx, a, args: { page: string; pointer: Point; item: string; props: Readonly<Record<string, unknown>> }) => {
-    if (hasOpenedPage(ctx) && ctx.page.id === args.page) placeItem(ctx, a, args.pointer, args)
+  run: (
+    ctx,
+    a,
+    args: { page: string; pointer: Point; shift: number; item: string; props: Readonly<Record<string, unknown>> },
+  ) => {
+    if (!hasOpenedPage(ctx) || ctx.page.id !== args.page) return
+    const at = ctx.toPaper(args.pointer)
+    const shifted = at === NO_PAPER ? NO_PAPER : { x: at.x + args.shift, y: at.y }
+    placeItem(ctx, a, shifted, shifted, args)
   },
   when: hasOpenedPage,
 })

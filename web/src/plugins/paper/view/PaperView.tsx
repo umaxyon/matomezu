@@ -62,7 +62,6 @@ import {
   NO_GROW,
   NO_SIZE,
   onlySelected,
-  PLACE_OFFSET,
   roomOf,
   shownRects,
 } from "../../base"
@@ -107,7 +106,7 @@ interface Sweep {
 const SWEEP_START = 3
 
 // 要素の左上から見たポインタの位置
-const local = (e: PointerEvent<Element>, el: Element): Point => {
+const local = (e: { clientX: number; clientY: number }, el: Element): Point => {
   const r = el.getBoundingClientRect()
   return { x: e.clientX - r.left, y: e.clientY - r.top }
 }
@@ -130,15 +129,11 @@ export function PaperView() {
   const followed = useFollowsSelection()
   const placed = usePlaceTarget(placing ? pointer : null) // 置こうとしている間の、押すと置く所
   const [box, setBox] = useState<Rect | null>(null) // 範囲のドラッグの四角（紙の上）
-  // 外から落としたファイルのスクラップを、左上が落とした所に来るよう置く（何枚もなら右へ並べる。ずらす幅は紙の px なので倍率を掛ける）
+  // 外から落としたファイルのスクラップを、落とした所に置く（左上が落とした所に来る）
   const drop = useCommand(PAPER_DROP.id)
   const files = useFileDrop(
-    e => {
-      const r = ref.current?.getBoundingClientRect()
-      return r ? { x: e.clientX - r.left + PLACE_OFFSET.x, y: e.clientY - r.top + PLACE_OFFSET.y } : null
-    },
-    (item, props, at, shift, page) =>
-      stage !== NO_STAGE && drop.run({ page, item, props, pointer: { x: at.x + shift * stage.zoom, y: at.y } }),
+    e => local(e, e.currentTarget),
+    d => drop.run({ page: d.page, item: d.item, props: d.props, pointer: d.at, shift: d.shift }),
   )
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {

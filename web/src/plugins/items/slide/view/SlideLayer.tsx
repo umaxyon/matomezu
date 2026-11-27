@@ -179,12 +179,11 @@ function SlidePageView({
     const at = toPaperAt({ x: e.clientX - r.left - back.x, y: e.clientY - r.top - back.y })
     return at === NO_PAPER ? null : { x: at.x - offset.x, y: at.y - offset.y }
   }
-  // 外から落としたファイルのスクラップを、左上が落とした所に来るよう置く（何枚もなら右へ並べる）
+  // 外から落としたファイルのスクラップを、左上が落とした所に来るよう置く
   const drop = useCommand(SLIDE_DROP.id)
   const files = useFileDrop(
-    e => (operable ? paperAt(e) : null),
-    (item, props, at, by, page) =>
-      drop.run({ page, item: item as ItemId, props, at: { x: Math.round(at.x + by), y: Math.round(at.y) } }),
+    e => paperAt(e) ?? NO_PAPER,
+    d => drop.run({ page: d.page, item: d.item as ItemId, props: d.props, at: d.at, shift: d.shift }),
   )
   const finish = () => {
     drag.current = null

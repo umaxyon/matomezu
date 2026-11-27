@@ -491,7 +491,8 @@ export {
   sheetsOfShape,
 } from "./print-preview"
 export {
-  type PageFromFileUse,
+  type PageFromFile,
+  type PutAsset,
   SCRAP_SCALE_MAX,
   SCRAP_SCALE_TOO_SMALL,
   type Scrap,

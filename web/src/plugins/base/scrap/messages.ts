@@ -11,6 +11,8 @@ export const SCRAP_MESSAGES = defineMessages({
     en: "It is not a kind of file that can be placed",
     ja: "置けない種類のファイルです",
   },
+  "The server could not take it": { en: "The server could not take it", ja: "常駐が受け取れませんでした" },
+  "The file": { en: "The file", ja: "ファイル" },
   "It could not be made": { en: "It could not be made", ja: "作れませんでした" },
   "Scrap settings": { en: "Scrap settings", ja: "スクラップの設定" },
   "Open the original page": { en: "Open the original page", ja: "元のページを開く" },

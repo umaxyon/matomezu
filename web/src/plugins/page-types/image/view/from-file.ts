@@ -1,9 +1,8 @@
-// ファイルから画像のページを作る（base の pageFromFile。図面・スライドに落とした画像を、スクラップにして置くため）。
-// 中身が同じ画像のページが開ける所（画像のフォルダとその下）に在れば、作らずにそれを使う。無ければ画像のフォルダの直下に作る（名前が重なれば base が番号を付ける）。
-// 名前はファイル名から拡張子を取った物。名前の無いファイル（貼り付け）は「画像 2026-11-27 14:05」のように、作った日時を付ける
-import type { MessageKey } from "../../../../plugin-api"
-import type { PageFromFileUse } from "../../../base"
-import { assetOf, IMAGE, isImagesFolder } from "../image"
+// ファイルから画像のページを作る形（base の pageFromFile。図面・スライドに落とした画像を、スクラップにして置くため）。作るのは画像のフォルダの直下で、
+// アセットが同じ画像のページは同じ画像。名前はファイル名から拡張子を取った物。名前の無いファイル（貼り付け）は「画像 2026-11-27 14:05」のように、作った日時を付ける
+import type { ItemPage, MessageKey } from "../../../../plugin-api"
+import type { PageFromFile, PutAsset } from "../../../base"
+import { assetOf, IMAGE, IMAGES } from "../image"
 import { kit } from "../kit"
 
 // 取り込むファイルの種類（中身で見分けるのはホスト）
@@ -26,28 +25,14 @@ export const putRefusal = (reason: string): MessageKey =>
   )
 
 export const IMAGE_FROM_FILE = {
+  type: IMAGE.id,
+  into: IMAGES.id,
   accepts: (type: string): boolean => (IMAGE_TYPES as readonly string[]).includes(type),
-  make: async (file: File, use: PageFromFileUse): Promise<string | null> => {
-    const named = titleOfFile(file.name)
-    const shown = file.name || use.text(kit.message("Image"))
-    const done = await use.putAsset(file).catch(() => null)
-    if (!done) {
-      use.refuse(shown, kit.message("The server could not take it"))
-      return null
-    }
-    if (!done.ok) {
-      use.refuse(shown, putRefusal(done.reason))
-      return null
-    }
-    const same = use.findPage(p => p.type === IMAGE.id && assetOf(p) === done.asset)
-    if (same !== null) return same
-    const root = Object.entries(use.folders).find(([, f]) => isImagesFolder(f))?.[0]
-    if (root === undefined) return null
-    return use.createPage(root, {
-      type: IMAGE.id,
-      title: named || `${use.text(kit.message("Image"))} ${stamp(new Date())}`,
-      orientation: done.width > done.height ? "landscape" : "portrait",
-      fields: { asset: done.asset, width: done.width, height: done.height },
-    })
-  },
+  refusal: putRefusal,
+  same: (page: ItemPage, asset: PutAsset): boolean => assetOf(page) === asset.asset,
+  page: (file: File, asset: PutAsset, text: (key: MessageKey) => string): PageFromFile => ({
+    title: titleOfFile(file.name) || `${text(kit.message("Image"))} ${stamp(new Date())}`,
+    orientation: asset.width > asset.height ? "landscape" : "portrait",
+    fields: { asset: asset.asset, width: asset.width, height: asset.height },
+  }),
 }

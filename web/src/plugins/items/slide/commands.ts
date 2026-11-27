@@ -60,7 +60,7 @@ export const SLIDE_PUT = kit.defineCommand({
   when: ctx => hasOpenedPage(ctx) && ctx.stage.placing !== NO_PLACING,
 })
 
-// 外から落としたファイルから作ったアイテム item（項目の値 props。大きさが項目で決まる形）を、左上が at（紙の上）になるよう置く（置こうとしている物は変えない）。
+// 外から落としたファイルから作ったアイテム item（項目の値 props。大きさが項目で決まる形）を、左上が at（紙の上）から右へ shift の所になるよう置く（置こうとしている物は変えない）。
 // ファイルを取り込む間に開いているページが替わっていたら（落としたページ page でなければ）置かない。置けなければトーストで知らせる
 export const SLIDE_DROP = kit.defineCommand({
   id: "slide-drop",
@@ -68,9 +68,10 @@ export const SLIDE_DROP = kit.defineCommand({
   permissionScope: "opened-page",
   placesItem: true,
   title: "Place on slide",
-  run: (ctx, a, args: { page: string; item: ItemId; at: Point; props: Record<string, unknown> }) => {
+  run: (ctx, a, args: { page: string; item: ItemId; at: Point; shift: number; props: Record<string, unknown> }) => {
     if (!hasOpenedPage(ctx) || ctx.page.id !== args.page) return
-    const done = a.perform(PLACE, { item: args.item, at: args.at, props: args.props }, { page: ctx.page.id })
+    const at = { x: Math.round(args.at.x + args.shift), y: Math.round(args.at.y) }
+    const done = a.perform(PLACE, { item: args.item, at, props: args.props }, { page: ctx.page.id })
     if (!done.ok) {
       a.showToast({ kind: "warn", message: kit.message("Cannot place here") })
       return

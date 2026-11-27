@@ -1,36 +1,28 @@
-// ファイルからページを作れるプレゼンテーション（ビューの定義の拡張ポイント pageFromFile）と、作るときに使える物。
-// 外から落としたファイルをスクラップにして置くとき（file-drop.tsx）に、ページを作る
+// ファイルからページを作れるプレゼンテーション（ビューの定義の拡張ポイント pageFromFile）。外から落としたファイルをスクラップにして置くとき（file-drop.tsx）に、
+// base がファイルをアセットの置き場に置き、プレゼンテーションが言うシステムフォルダの直下に、プレゼンテーションが言う形のページを作る（中身が同じページが在れば、作らずにそれを使う）
 import type { AssetPut } from "../../../core/assets"
-import type { MessageKey } from "../../../core/catalog"
-import type { CoreCatalog } from "../../../core/core-catalog"
-import type { Folders } from "../../../core/folders"
-import type { ArgsOf } from "../../../core/perform"
 import type { ItemPage } from "../../../core/placed"
-import type { PAGE_ADD } from "../pages/page-add"
 
-// ファイルからページを作るときに使える物（プレゼンテーションの pageFromFile の make が受ける）
-export interface PageFromFileUse {
-  catalog: CoreCatalog
-  folders: Folders
-  // 書庫の、開けるページ（ゴミ箱の外）の表から、合う物の id（無ければ null）
-  findPage(match: (page: ItemPage) => boolean): string | null
-  // ファイルの中身をアセットの置き場に置く
-  putAsset(bytes: Blob): Promise<AssetPut>
-  // フォルダ folder にページを作る（名前が重なれば、聞かずに番号を付ける）。作ったページの id。断られたら、訳をトーストで知らせて null
-  createPage(folder: string, args: ArgsOf<typeof PAGE_ADD.id> & { title: string }): string | null
-  // 作れないファイルの訳をトーストで知らせる
-  refuse(file: string, why: MessageKey): void
-  // 文言を、利用者の言語の文にする
-  text(key: MessageKey, params?: Readonly<Record<string, string>>): string
+// 置き場に置けたアセット
+export type PutAsset = Extract<AssetPut, { ok: true }>
+
+// ファイルから作るページの形: 名前（名前の無いファイルでも空でない。重なれば base が番号を付ける）・向き・タイプのフィールド
+export interface PageFromFile {
+  title: string
+  orientation: "portrait" | "landscape"
+  fields: Readonly<Record<string, unknown>>
 }
 
 declare module "../../../core/catalog" {
   interface PresentationViewExtras {
-    // ファイルから、このプレゼンテーションのページを作れるプレゼンテーション: 受けるファイルの種類（MIME の type）か、と、作る関数（作ったか、在った物を使うページの id。
-    // 作れなければ use.refuse で訳を知らせて null）。名前の無いファイル（貼り付け）は、作る側が名前を決める
     pageFromFile?: {
-      accepts(type: string): boolean
-      make(file: File, use: PageFromFileUse): Promise<string | null>
+      type: string // 作るページのタイプ
+      into: string // 作る所（システムフォルダの id。その直下に作る）
+      accepts(type: string): boolean // 受けるファイルの種類（MIME の type）か
+      refusal(reason: Extract<AssetPut, { ok: false }>["reason"]): MessageKey // 置き場が断った訳の文
+      same(page: ItemPage, asset: PutAsset): boolean // 在るページ page が、置いたアセットと中身が同じページか
+      // 作るページの形。text は文言を利用者の言語の文にする
+      page(file: File, asset: PutAsset, text: (key: MessageKey) => string): PageFromFile
     }
   }
 }
