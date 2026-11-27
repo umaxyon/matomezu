@@ -406,6 +406,7 @@ export {
   type WorkroomRow,
   type WorkroomState,
   type WorkShift,
+  workMarkShiftIn,
   workroomActivitiesFrom,
   workShiftIn,
   workTitleIn,

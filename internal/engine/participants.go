@@ -214,11 +214,13 @@ type WorkShiftChoice struct {
 	Read  bool   `json:"read"`
 }
 
-// WorkShiftAsk は、今の作業が替わったときに利用者に聞く問い（Read は、読ませるを選んだときに AI に打つ英語の文）
+// WorkShiftAsk は、今の作業が替わったときに利用者に聞く問い（Read は、読ませるを選んだときに AI に打つ英語の文。
+// Answered は、利用者が選べる事の外に書いた答えの前に付けて AI に打つ英語の文）
 type WorkShiftAsk struct {
 	Question string            `json:"question"`
 	Choices  []WorkShiftChoice `json:"choices"`
 	Read     string            `json:"read"`
+	Answered string            `json:"answered"`
 }
 
 // WorkShift は、ターンの終わりに今の作業が替わったかの答え: 次に覚える印 Mark（作業を答える種類が無ければ空）と、替わっていれば問い Ask

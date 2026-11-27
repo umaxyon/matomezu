@@ -107,7 +107,7 @@ export const VISITOR_JOINED_MESSAGE = kit.message("Joined matomezu as a visitor 
 
 export { workroomActivitiesFrom } from "./activity"
 export { myWorkdeskIn } from "./my-workdesk"
-export { type WorkShift, type WorkShiftChoice, workShiftIn } from "./work-shift"
+export { type WorkShift, type WorkShiftChoice, workMarkShiftIn, workShiftIn } from "./work-shift"
 export { leftTitleIn, SESSION_RENAME, workTitleIn } from "./work-title"
 export { type FoundWorkerBook, NO_WORKER_BOOK, WORKER_BOOK } from "./worker-book"
 export { FOLLOW_WORK_ENDED, FOLLOW_WORK_RENAMED, FOLLOW_WORKROOM_BOOK, WORK_SUBJECTS_CHECK } from "./worker-book-follow"

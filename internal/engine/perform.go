@@ -103,6 +103,7 @@ type Output struct {
 	AIMessages    []AIMessage                 `json:"aiMessages,omitempty"`    // レコードが対象のアクションが返した、送る AI 間メッセージ（行ったのは参加の確定した AI。常駐が書き込みと一緒に送る）
 	HostMessages  []HostMessage               `json:"hostMessages,omitempty"`  // フォローステップが返した、送る常駐メッセージ（常駐が書き込みと一緒に送る）
 	Needs         []string                    `json:"needs,omitempty"`         // 断りが needs-rows のとき、行を足して行い直すブックの id（フォローステップがバックヤードの中に行う事の先）
+	WorkMark      string                      `json:"workMark,omitempty"`      // 行った AI のワークルームの今の作業がこのバルクで替わったときの、新しい印（その参加者の AI が知っている今の作業の印に書く。中身は見ない）
 }
 
 // HostMessage は、フォローステップが送る常駐メッセージ 1 通（Workroom は宛先のワークルームの id。送り手は常駐）

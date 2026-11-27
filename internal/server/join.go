@@ -62,7 +62,7 @@ type participantNote struct {
 	WakeSession     string `json:"wakeSession,omitempty"`     // 起こす知らせの宛て先のセッション id（join の頼みに MCP が添えた、AI のプログラムが MCP を立てたときの物。プロセスが替わるとフックが移す。followHost。watch.go）
 	SessionPid      string `json:"sessionPid,omitempty"`      // セッションと同じだけ生きるプロセスだと MCP が名乗ったプロセス id（居なくなったら退室。名乗った呼び出しが書き、起こす知らせの宛て先を移すときに消す）
 	SessionPidSpace string `json:"sessionPidSpace,omitempty"` // そのプロセス id が通じる範囲の印（常駐の印と同じときだけ、居るかを確かめる）
-	Work            string `json:"work,omitempty"`            // 前のターンの終わりの今の作業の印（エンジンの WorkShift が作る。中身は見ない。空は覚えていない）
+	Work            string `json:"work,omitempty"`            // AI が知っている今の作業の印（ターンの終わりにエンジンの WorkShift が、その AI 自身のアクションで替わったときに Perform が進める。中身は見ない。空は覚えていない）
 }
 
 // live は、窓に知らせる参加者の様子（モデルとブランチ。空は省く）

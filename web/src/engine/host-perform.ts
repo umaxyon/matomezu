@@ -1,7 +1,7 @@
 // 常駐が受けたアクションバルクを、台帳アセンブルの結果（Assembled）の機能台帳で世界（ブックと設定）に行い、変わったものを返す。
 // 台帳アセンブルの結果は、呼ぶたびに引数で受ける。振る id と時点は、受けた物が無ければここで決める
 
-import { type Actor, actorOfWire, isAI, type WireActor, workroomOfActor } from "../core/actor"
+import { type Actor, actorOfWire, isAI, NO_WORKROOM, type WireActor, workroomOfActor } from "../core/actor"
 import { type Annotations, restoreAnnotations } from "../core/annotation"
 import { findPage, foundPage, pageById, pagesOf, readLibrary } from "../core/book"
 import { bulkActionOf, type LibraryRows, performBulk } from "../core/bulk"
@@ -19,6 +19,7 @@ import type { PerformedIn, World } from "../core/perform-world"
 import { type Counters, type RecordChange, restoreCounters, restoreRecords } from "../core/records"
 import type { Book } from "../core/schema/book"
 import { langOf, restoreSettings } from "../core/settings"
+import { workMarkShiftIn } from "../plugins/base"
 import type { Assembled } from "../store/plugin"
 import { hostSource, withKeys } from "./records"
 import { type RowChange, rowChanges } from "./wire"
@@ -72,6 +73,7 @@ type Output =
       aiEditTickets?: readonly (AIEditTicketChange & { subject: string })[] // subject は、その変え方を返したアクションの対象の種類
       aiMessages?: readonly AIMessage[] // 送る AI 間メッセージ（常駐が、宛先に参加の確定した参加者がいるかを確かめ、書き込みと一緒に送る）
       hostMessages?: readonly HostMessage[] // 送る常駐メッセージ（常駐が、宛先に参加の確定した参加者がいて、行った参加者のワークルームでなければ送る）
+      workMark?: string // 行った AI のワークルームの今の作業がこのバルクで替わったときの、新しい印（常駐が、その参加者の AI が知っている今の作業の印に書く）
     }
   | {
       ok: false
@@ -205,6 +207,9 @@ export function perform(of: Assembled, input: Input): Output {
     .filter(n => n !== null)
     .join(" ")
   const changes = done.changes ?? NO_CHANGES
+  const room = workroomOfActor(actor)
+  const workMark =
+    room !== NO_WORKROOM && source && done.records ? workMarkShiftIn(catalog, source, done.records, room) : undefined
   return {
     ok: true,
     result: done.results.at(-1),
@@ -224,6 +229,7 @@ export function perform(of: Assembled, input: Input): Output {
       : {}),
     ...(done.aiMessages ? { aiMessages: done.aiMessages } : {}),
     ...(done.hostMessages ? { hostMessages: done.hostMessages } : {}),
+    ...(workMark ? { workMark } : {}),
   }
 }
 

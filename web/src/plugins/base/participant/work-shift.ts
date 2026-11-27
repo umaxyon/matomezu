@@ -1,14 +1,22 @@
-// 今の作業が替わったら聞く: ワークルームの今の作業が、前のターンの終わりから替わったかを判じ、替わっていれば利用者に聞く問いを作る。
-// 常駐が参加者ごとに前のターンの終わりの印（mark）を覚え、ターンの終わりに AI のプログラムの部品が訊く。問いを出す・セッションを新しくする・文を打つのは、その部品が行う。
-// 選べる事は、セッションを新しくするか（clear。チャットスレッドはそのまま）と、新しい作業のワーカーブックを読ませるか（read）の組。読ませる文は AI の種類を問わないので、ここが持つ
+// 今の作業が替わったら聞く: ワークルームの今の作業が、AI が知っている今の作業から替わったかを判じ、替わっていれば利用者に聞く問いを作る。
+// 常駐が参加者ごとに AI が知っている今の作業の印（mark）を覚え、ターンの終わりに AI のプログラムの部品が訊く。問いを出す・セッションを新しくする・文を打つのは、その部品が行う。
+// 印はターンの終わりと、その AI 自身のアクションバルクが今の作業を替えたとき（workMarkShiftIn）に進む。AI が自分で替えた作業は問いにならず、利用者やほかの AI が替えたときだけ聞く。
+// 選べる事は、セッションを新しくするか（clear。チャットスレッドはそのまま）と、新しい作業のワーカーブックを読ませるか（read）の組。読ませる文と、利用者が選べる事の外に書いた答えを渡す文は AI の種類を問わないので、ここが持つ
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { WorkKey } from "../../../core/folders"
 import { translate } from "../../../core/i18n/i18n"
-import { type RecordSource, readerOf } from "../../../core/record-source"
+import { overlaid, type RecordSource, readerOf } from "../../../core/record-source"
+import type { RecordChange } from "../../../core/records"
 import { langOf, type Settings } from "../../../core/settings"
 import { kit } from "../kit"
 import { MY_WORKDESK } from "../library/system-folders"
-import { workRecordNameOf, workRecordNameReadsOf, workroomWorkFrom } from "./activity"
+import {
+  type WorkroomWork,
+  workRecordNameOf,
+  workRecordNameReadsOf,
+  workroomWorkFrom,
+  workroomWorkReadsOf,
+} from "./activity"
 
 // 前のターンの終わりの印: 作業中ならその作業のレコード、空きなら idle（作業を答える種類が無ければ印を作らない）
 type WorkMark = { kind: "working"; key: WorkKey } | { kind: "idle" }
@@ -31,10 +39,35 @@ export interface WorkShiftChoice {
 }
 
 // ターンの終わりの答え: 次に覚える印 mark（作業を答える種類が無ければ空）と、替わっていれば利用者に聞く問い（ask）。
-// read は、読ませるを選んだときに AI に打つ英語の文（今の作業のレコードとワーカーブックを読ませる）
+// read は、読ませるを選んだときに AI に打つ英語の文（今の作業のレコードとワーカーブックを読ませる）。
+// answered は、利用者が選べる事の外に書いた答えの前に付けて AI に打つ英語の文（問いの文を添える）
 export interface WorkShift {
   mark: string
-  ask?: { question: string; choices: WorkShiftChoice[]; read: string }
+  ask?: { question: string; choices: WorkShiftChoice[]; read: string; answered: string }
+}
+
+const markOf = (work: WorkroomWork): string =>
+  JSON.stringify(work.kind === "working" ? { kind: "working", key: work.key } : { kind: "idle" })
+
+// アクションバルクが書いたレコード written（読み口 source はバルクの前）で、ワークルーム room の今の作業の印が替わったなら新しい印（替わらない・作業を答える種類が無ければ undefined）。
+// 常駐は、行った AI の参加者の印をこれに進める。作業を答える種類を書かないバルクは読まずに答える
+export function workMarkShiftIn(
+  catalog: CoreCatalog,
+  source: RecordSource,
+  written: readonly RecordChange[],
+  room: string,
+): string | undefined {
+  const reads = new Set(workroomWorkReadsOf(catalog))
+  const touched = written.filter(c => reads.has(c.subject))
+  if (touched.length === 0) return undefined
+  const before = workroomWorkFrom(catalog, source, room)
+  if (before === "unknown") return undefined
+  const rows: Record<string, Record<string, unknown>> = {}
+  for (const c of touched) rows[c.subject] = { ...rows[c.subject], [c.id]: c.record }
+  const after = workroomWorkFrom(catalog, overlaid(catalog, source, rows), room)
+  if (after === "unknown") return undefined
+  const mark = markOf(after)
+  return mark === markOf(before) ? undefined : mark
 }
 
 function parseMark(mark: string): WorkMark | undefined {
@@ -64,7 +97,7 @@ export function workShiftIn(
   const work = workroomWorkFrom(catalog, source, room)
   if (work === "unknown") return { mark: "" }
   const now: WorkMark = work.kind === "working" ? { kind: "working", key: work.key } : { kind: "idle" }
-  const mark = JSON.stringify(now)
+  const mark = markOf(work)
   const was = parseMark(before)
   if (!was || sameMark(was, now)) return { mark }
   const lang = langOf(catalog, settings, "en")
@@ -80,6 +113,7 @@ export function workShiftIn(
       mark,
       ask: {
         question: t(ENDED, { from }),
+        answered: answeredOf(t(ENDED, { from })),
         choices: [
           { label: t(YES), clear: true, read: false },
           { label: t(NO), clear: false, read: false },
@@ -89,10 +123,12 @@ export function workShiftIn(
     }
   }
   const title = to ?? now.key.id
+  const question = from ? t(CHANGED, { from, to: title }) : t(STARTED, { to: title })
   return {
     mark,
     ask: {
-      question: from ? t(CHANGED, { from, to: title }) : t(STARTED, { to: title }),
+      question,
+      answered: answeredOf(question),
       choices: [
         { label: t(CLEAR_READ), clear: true, read: true },
         { label: t(CLEAR_ONLY), clear: true, read: false },
@@ -103,3 +139,7 @@ export function workShiftIn(
     },
   }
 }
+
+// 利用者が選べる事の外に書いた答えの前に付ける文（問い question を添える）
+const answeredOf = (question: string) =>
+  `When your current work changed, the user was asked "${question}" and answered (not one of the choices):`

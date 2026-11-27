@@ -5,6 +5,7 @@
 // どの会話を起こすか・知らせの文は matomezu が決める。ここは行を読み戻して渡すだけ
 // ターンの終わりには matomezu claude-code work-shift で今の作業が替わったかを訊き、替わっていれば利用者に問いを出す。
 // 選んだとおりに会話を空にし（/clear。ターンが待っている hook の中からは打てないので、turn.complete から打つ）、ワーカーブックを読ませる文を打つ。
+// 選べる事の外に書いた答えは、問いを添える文を前に付けて AI に打つ。
 // 問いと選べる事と打つ文は matomezu が決める。ここは問いを出して選んだ事を行うだけ
 import type { Hook, Register } from "claude-code"
 
@@ -16,6 +17,7 @@ interface WorkShiftAsk {
   question: string
   choices: { label: string; clear: boolean; read: boolean }[]
   read: string
+  answered: string
 }
 
 export const register: Register = on => {
@@ -48,6 +50,7 @@ export const register: Register = on => {
 }
 
 // offerWorkShift は、今の作業が替わっていれば利用者に問いを出し、選んだとおりに会話を空にし、ワーカーブックを読ませる文を打つ。
+// 選べる事の外に書いた答えは、問いを添える文を前に付けて AI に打つ。
 // 聞く人がいない（-p など）・閉じられた・常駐に届かないときは何もしない
 async function offerWorkShift($: Parameters<Hook<"turn.complete">>[0]) {
   try {
@@ -60,7 +63,11 @@ async function offerWorkShift($: Parameters<Hook<"turn.complete">>[0]) {
       ask.choices.map(c => c.label),
     )
     const chosen = ask.choices.find(c => c.label === answer)
-    if (!chosen) return
+    if (!chosen) {
+      const written = answer?.trim()
+      if (written) await $.prompt.submit({ text: `${ask.answered}\n\n${written}` })
+      return
+    }
     if (chosen.clear) await $.command.run({ command: "clear" })
     if (chosen.read && ask.read) await $.prompt.submit({ text: ask.read })
   } catch {

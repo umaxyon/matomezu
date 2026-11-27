@@ -152,6 +152,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	h.acts++
 	leaving, leavingRooms := h.leavingParticipants(out.Records)
 	h.applyWrites(plan, out, p, by, act)
+	h.advanceWorkMark(p, out.WorkMark)
 	h.noteDepartures(leaving, leavingRooms, p) // 消えた参加者を、その会話に伝えるまで覚える（departure.go。知らせの行列の stale より先）
 	h.dropGonePendingHeld() // 受け手が退室した承認待ちは、知らせずに消す（pending_message.go）
 	for _, e := range envelopes {
@@ -334,5 +335,24 @@ func (h *Hub) addBookInputs(in *engine.Input, books []string) {
 		in.Pages = append(in.Pages, pages...)
 		in.Folders = append(in.Folders, folders...)
 		maps.Copy(in.Annotations, h.annotationsIn(id))
+	}
+}
+
+// advanceWorkMark は、AI のアクションが自分のワークルームの今の作業を替えたとき（mark が空でない）、行った参加者の AI が知っている今の作業の印を mark に進める。
+// AI が自分で替えた作業は、ターンの終わりの問い（WorkShift）にならない。書けなければ印は進まず、ターンの終わりに聞く（h.mu を持って呼ぶ）
+func (h *Hub) advanceWorkMark(p Perform, mark string) {
+	if mark == "" || p.By != "ai" || p.Participant == "" {
+		return
+	}
+	n, ok := h.participantNotes[p.Participant]
+	if !ok || n.Work == mark {
+		return
+	}
+	was := n
+	n.Work = mark
+	h.participantNotes[p.Participant] = n
+	if err := h.putParticipantNotes(); err != nil {
+		h.participantNotes[p.Participant] = was
+		fmt.Fprintf(os.Stderr, "%s could not keep the work of the participant %s: %v\n", stamp(), p.Participant, err)
 	}
 }

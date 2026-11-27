@@ -1067,6 +1067,7 @@ test("base の入口が出す名前は、どれもプラグイン API からも�
     "workTitleIn",
     "leftTitleIn",
     "workShiftIn",
+    "workMarkShiftIn",
     "myWorkdeskIn",
     "workroomActivitiesFrom",
   ]
