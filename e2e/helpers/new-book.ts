@@ -14,8 +14,14 @@ export async function newBook(page: Page, title: string, type: string) {
   // 下の書庫のスクリーンが右へ出ていき終えてから、ブックスクリーンが伸びる（伸びる前に開いたメニューは、伸びると閉じる）
   await expect(page.getByRole("region", { name: "書庫" })).toHaveCount(0)
   await stillBox(page.getByRole("region", { name: "ステージ" }))
-  await page.getByRole("button", { name: "ページを足す" }).click()
-  await page.getByRole("menu").getByRole("menuitem", { name: type, exact: true }).click()
+  // 重いときは、止まって見えたあとに伸びてメニューが閉じることがある。出るまで＋を押し直す（閉じている間に押すので、開いたメニューを閉じはしない）
+  const add = page.getByRole("button", { name: "ページを足す" })
+  const row = page.getByRole("menu").getByRole("menuitem", { name: type, exact: true })
+  await expect(async () => {
+    if (!(await row.isVisible())) await add.click()
+    await expect(row).toBeVisible({ timeout: 1_000 })
+  }).toPass()
+  await row.click()
   return page.getByRole("dialog", { name: /^新しい/ })
 }
 
