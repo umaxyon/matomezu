@@ -4,15 +4,16 @@ import { readFileSync } from "node:fs"
 import { basename, join } from "node:path"
 import { crateOf, filesEnding, filesUnder, ROOT, relative, SRC, sources } from "./sources"
 
-// コメントの言葉を見張るファイル（ソース・テスト・e2e・スクリプト・CSS・Go。このファイルは除く）
+// コメントの言葉を見張るファイル（ソース・テスト・e2e・スクリプト・AI の側に置く物・CSS・Go。このファイルは除く）
 const wordedFiles = () =>
   [
     ...sources,
     ...filesUnder(join(ROOT, "test")),
     ...filesUnder(join(ROOT, "e2e")),
     ...filesUnder(join(ROOT, "scripts")),
+    ...filesUnder(join(ROOT, "clients")),
     ...filesEnding(SRC, ".css"),
-    ...["cmd", "internal", "web"].flatMap(d => filesEnding(join(ROOT, d), ".go")),
+    ...["cmd", "internal", "web", "clients"].flatMap(d => filesEnding(join(ROOT, d), ".go")),
   ]
     .map(f => (typeof f === "string" ? { rel: relative(ROOT, f), text: readFileSync(f, "utf8") } : f))
     .filter(f => f.rel !== "test/rules/code-style.test.ts")
