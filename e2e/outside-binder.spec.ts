@@ -1,5 +1,5 @@
 // ブックの外のバインダ（書庫ホームに直に置いたスライドのバインダ）を、ステージで開く
-import { BOOK_SCREEN_DEF, BOOK_SCREEN_URL, expect, stagesUrl, test, urlCurrentScreen, urlStages } from "./fixtures"
+import { BOOK_SCREEN_DEF, expect, stagesUrl, test, urlCurrentScreen, urlStages } from "./fixtures"
 import { leftPanel } from "./helpers/outbox"
 
 const slide = (id: string, title: string) => ({
@@ -80,7 +80,7 @@ test("ブックを名指さずページを名指す場所の URL は、そのペ
   await expect(list.getByRole("button", { name: "本題" })).toHaveAttribute("aria-current", "page")
 })
 
-test("ブックの外のバインダのページ一覧から切り抜くと、範囲を決めるダイアログにそのスライドが見え、スクラップトレイに入る（スライドには置けないので、入れたことを知らせる）", async ({
+test("ブックの外のバインダのページ一覧から切り抜くと、範囲を決めるダイアログにそのスライドが見え、スクラップトレイに入る（スライドにも置けるので、スクラップトレイが開く）", async ({
   page,
 }) => {
   await page.goto(stagesUrl([{ book: null, page: "n1a" }]))
@@ -91,12 +91,7 @@ test("ブックの外のバインダのページ一覧から切り抜くと、�
   await expect(cut.locator("[data-scrap-area]")).toBeVisible()
   await cut.getByRole("button", { name: "トレイに入れる" }).click()
   await expect(cut).toBeHidden()
-  await expect(page.getByText("スクラップトレイに入れました")).toBeVisible()
-  // 置けるブックを開いてスクラップトレイを出すと、その行は、バインダの名前を前に付けてページを言う
-  await page.goto(BOOK_SCREEN_URL)
-  const tabs = (await page.locator("[data-page-tabs]").first().boundingBox())!
-  await page.mouse.move(tabs.x + tabs.width - 20, tabs.y + tabs.height / 2)
-  await page.getByRole("button", { name: "スクラップトレイを開く" }).click()
+  // 開いたスクラップトレイの行は、バインダの名前を前に付けてページを言う
   await expect(leftPanel(page).locator("[data-scrap-row]")).toHaveText([/発表スライド › 本題/])
 })
 
