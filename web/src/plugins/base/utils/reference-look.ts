@@ -4,10 +4,13 @@ import { targetOf } from "../../../core/references"
 import type { ReferenceEntry } from "../../../core/schema/book"
 
 // 参照エントリ ref の指す先のタイプと名前（ページはそのタイプ、バインダは入れるページのタイプ。指す先の行が無ければ null。ゴミ箱の中なども、行が在れば答える）
-export function referenceLook(library: Library, ref: ReferenceEntry): { type: string; title: string } | null {
+export function referenceLook(
+  library: Library,
+  ref: ReferenceEntry,
+): { kind: "page" | "binder"; type: string; title: string } | null {
   const found = targetOf(library, ref)
   if (found === undefined) return null
   return found.kind === "page"
-    ? { type: found.page.type, title: found.page.title }
-    : { type: found.binder.pageType, title: found.binder.title }
+    ? { kind: "page", type: found.page.type, title: found.page.title }
+    : { kind: "binder", type: found.binder.pageType, title: found.binder.title }
 }

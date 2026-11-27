@@ -20,13 +20,14 @@ function BookPlace() {
   const book = useBook()
   const binder = useOutsideBinder()
   const birds = useWorkerBirds(book === NO_BOOK ? undefined : book.id).length > 0
-  const typed = useUiCatalog().pageTypeIcons
+  const { pageTypeIcons, binderTypeIcons } = useUiCatalog()
   if (at === undefined || !at.tabbed || birds) return null
   const picture =
     book !== NO_BOOK ? (
       <BookIcon size={14} />
     ) : (
-      (binder !== NO_OUTSIDE_BINDER && typed.get(binder.pageType)) || iconOf("binder")
+      (binder !== NO_OUTSIDE_BINDER && (binderTypeIcons.get(binder.pageType) ?? pageTypeIcons.get(binder.pageType))) ||
+      iconOf("binder")
     )
   return (
     <button
