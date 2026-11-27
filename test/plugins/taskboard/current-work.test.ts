@@ -383,6 +383,7 @@ test("今の作業が替わったか: 覚えていない・替わっていなけ
     [false, false],
   ])
   expect(started?.read).toContain('read_folder with folder "my-workdesk"')
+  expect(started?.read).toContain(`read_records with kind "${TICKET.id}" and id "${t1}"`)
   // 1 つの替わりには 1 度だけ
   expect(turnEnd()).toBeUndefined()
   // 完了して、担当で作業中のチケットが次の作業になった

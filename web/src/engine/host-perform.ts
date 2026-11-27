@@ -114,7 +114,7 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
       ok: false,
       reason: done.reason,
       detail:
-        "not-joined: you have not joined matomezu yet (not accepted by the user, or not told by the hook): until then you can only read, and every action is refused; ask the user in the chat",
+        "not-joined: you have not joined matomezu, or are no longer a participant (not accepted by the user yet, not told by the hook yet, or removed): until you join, you can only read, and every action is refused; ask the user in the chat",
     }
   if ("because" in done && done.because === "visitor")
     return {

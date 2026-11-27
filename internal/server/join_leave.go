@@ -35,7 +35,9 @@ func (h *Hub) leave(id, why string) error {
 		return nil
 	}
 	fmt.Fprintln(os.Stderr, "participant", id, "left:", why)
-	done, err := h.Perform(performOne(ids.Leave, json.RawMessage("{}"), &engine.On{Record: id}))
+	p := performOne(ids.Leave, json.RawMessage("{}"), &engine.On{Record: id})
+	p.ended = true
+	done, err := h.Perform(p)
 	if err != nil {
 		return err
 	}

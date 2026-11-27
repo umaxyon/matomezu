@@ -419,7 +419,7 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 	if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:session-rename":null}},"lang":"ja","now":"2026-11-08T01:02:00.000Z"}`); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("settings-set back = %s", got)
 	}
-	// 伝えたときが最後に呼ばれた時刻になり、準備中でなくなる。そのあとのターンの始まりは時刻を進めない
+	// 伝えたときが最後に呼ばれた時刻になり、準備中でなくなる。そのあとのターンの始まりも、呼ばれたとして時刻を進める
 	at := hub.ParticipantCalls()[joined.Participant]
 	if at == "" {
 		t.Fatal("the welcome did not set the last called time")
@@ -428,8 +428,8 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 		t.Fatalf("ready after the welcome = %v", ready)
 	}
 	talk(`{"sessionId":"S9"}`)
-	if now := hub.ParticipantCalls()[joined.Participant]; now != at {
-		t.Fatalf("a talk moved the time: %q -> %q", at, now)
+	if now := hub.ParticipantCalls()[joined.Participant]; now < at {
+		t.Fatalf("a talk moved the time back: %q -> %q", at, now)
 	}
 	// 伝えたので、MCP の返事には添えない
 	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: joined.Participant}); h.Get(aiwire.NoticeHeader) != "" {
@@ -592,11 +592,11 @@ func TestJoinWithAWorkroomOfAQuietParticipantCanBeAcceptedByTakingOver(t *testin
 	if len(rows) != 1 || rows[0].ID != second.Participant || rows[0].State != "joined" || rows[0].Room != "ひよこ" || rows[0].Bird != "inko" {
 		t.Fatalf("after: %+v", rows)
 	}
-	// 新しい持ち主には MCP の返事で伝わる。元の持ち主の id は表に無いので断られた知らせ
+	// 新しい持ち主には MCP の返事で伝わる。元の持ち主の id は表に無いので、利用者が外した知らせ（departure.go）
 	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: second.Participant}); h.Get(aiwire.NoticeHeader) == "" {
 		t.Fatal("the new owner was not welcomed")
 	}
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: first.Participant}); !strings.Contains(h.Get(aiwire.NoticeHeader), "declined") {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: first.Participant}); !strings.Contains(h.Get(aiwire.NoticeHeader), "removed+you") {
 		t.Fatalf("the old owner = %q", h.Get(aiwire.NoticeHeader))
 	}
 	// 呼ばれて時間がたった（有効時間を過ぎた）参加者の名前も引き継げる

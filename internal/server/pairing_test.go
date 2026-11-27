@@ -103,10 +103,22 @@ func TestPairingAcceptedPutsBothSides(t *testing.T) {
 		return len(l) == 1 && l[0].State == PeerConnected && l[0].Addr == addrOf(as) && l[0].Name == "masa-wsl"
 	}
 	waitFor(t, "B sees A connected", bSeesA)
-	// B が忘れても（起動し直しなど）、A の確かめで知り直す
-	b.entrance.Load().peers.mu.Lock()
-	clear(b.entrance.Load().peers.live)
-	b.entrance.Load().peers.mu.Unlock()
+	// B が忘れても（起動し直しなど）、A の確かめで知り直す。起動し直した B は A の待っている所を知らないので、A へリバース接続を張れない
+	// （張ったままだと、A の hello がその上を通り、頼みの来た番地が無いので B は知り直せない）
+	bp := b.entrance.Load().peers
+	bp.mu.Lock()
+	clear(bp.live)
+	for id, d := range bp.reverseOut {
+		d.cancel()
+		delete(bp.reverseOut, id)
+	}
+	bp.mu.Unlock()
+	ap := a.entrance.Load().peers
+	waitFor(t, "A lets go of the reverse connection B made", func() bool {
+		ap.mu.Lock()
+		defer ap.mu.Unlock()
+		return !ap.takenLocked(bs.HostID)
+	})
 	a.CheckPeers()
 	waitFor(t, "A sees B connected", func() bool {
 		l := a.HostPeers().Paired
@@ -141,6 +153,22 @@ func TestPairingEndedByTheAskerRemovesTheRequest(t *testing.T) {
 	waitFor(t, "the request goes", func() bool { return len(requestsOf(b)) == 0 })
 	if a.HostPeers().Pairing != nil {
 		t.Fatal("the pairing stays on A")
+	}
+}
+
+// 頼みを載せているあいだは、答えを決めない（決めると断ったことになり、頼みが B に残る）
+func TestPairingRequestBeingPutIsNotDecided(t *testing.T) {
+	b, _ := openHost(t, "b")
+	e := b.entrance.Load()
+	putting := &incomingPairing{request: requestPutting, decided: make(chan peer.PairingOutcome, 1)}
+	e.peers.mu.Lock()
+	e.peers.incoming["putting"] = putting
+	e.peers.mu.Unlock()
+	b.followPeers(e)
+	select {
+	case o := <-putting.decided:
+		t.Fatal("decided while being put:", o)
+	default:
 	}
 }
 

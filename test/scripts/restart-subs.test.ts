@@ -1,16 +1,26 @@
 import { expect, test } from "bun:test"
 import {
+  CARRIED,
+  carriedWorkroomSince,
+  continuePrompt,
   joinedSince,
   lastAssistantText,
   lastModel,
   launchArgs,
+  launchCommand,
+  launchedEnv,
+  launchedThroughRelay,
   launchedWith,
   NG_MARK,
+  needsRelaunch,
+  parseEnv,
   parseTarget,
+  preparePrompt,
   projectDir,
   READY_MARK,
   readiness,
   rejoinPrompt,
+  resultLine,
   toldJoinedSince,
   workroomOf,
 } from "../../scripts/restart-subs"
@@ -153,4 +163,72 @@ test("フックが参加を伝えたかは、since より後に足した知ら�
   expect(toldJoinedSince([old, other].join("\n"), since)).toBe(false)
   const now = told("2026-11-25T14:00:06Z", "You joined matomezu. Workroom name: sub4_work")
   expect(toldJoinedSince([old, other, now].join("\n"), since)).toBe(true)
+})
+
+test("結果はサブごとに 1 行にまとめ、止めたサブは理由のはじめの行だけ", () => {
+  const results: PromiseSettledResult<unknown>[] = [
+    { status: "fulfilled", value: undefined },
+    { status: "rejected", reason: new Error("起動した claude の引数が違う\n端末の末尾") },
+  ]
+  expect(resultLine(["sub5_work", "sub3_work"], results, "参加した")).toBe(
+    "結果: sub5_work 参加した / sub3_work 止めた: 起動した claude の引数が違う",
+  )
+})
+
+test("--env は起動の文の前に付け、起動した claude の環境変数にそのとおりあるかを確かめる", () => {
+  const env = [parseEnv("CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1")]
+  expect(launchCommand(["--model", "claude-opus-5-5"], env)).toBe(
+    "CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1 scripts/claude-relay.sh --model claude-opus-5-5",
+  )
+  expect(launchCommand(["--model", "m"], [])).toBe("scripts/claude-relay.sh --model m")
+  expect(launchedEnv("PATH=/bin\0CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1\0", env)).toBe(true)
+  expect(launchedEnv("PATH=/bin\0CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=10\0", env)).toBe(false)
+  expect(() => parseEnv("x=1")).toThrow()
+  expect(() => parseEnv("A=a b")).toThrow()
+  expect(() => parseEnv("A=$(rm)")).toThrow()
+})
+
+test("--no-relay は claude を直に起動し、起動した claude に中継の ANTHROPIC_BASE_URL が無いかを確かめる", () => {
+  expect(launchCommand(["--model", "m"], [parseEnv("CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1")], false)).toBe(
+    "CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1 claude --model m",
+  )
+  expect(launchedThroughRelay("PATH=/bin\0ANTHROPIC_BASE_URL=http://127.0.0.1:18951/x\0")).toBe(true)
+  expect(launchedThroughRelay("PATH=/bin\0")).toBe(false)
+})
+
+test("clear で出直すのが既定で、プロセスの中身を替える物があるときだけ起動し直す", () => {
+  const base = { env: [] as [string, string][], relay: true, relaunchFlag: false }
+  expect(needsRelaunch({ workroom: "sub4_work" }, base)).toBe(false)
+  expect(needsRelaunch({ workroom: "sub4_work" }, { ...base, relaunchFlag: true })).toBe(true)
+  expect(needsRelaunch({ workroom: "sub4_work" }, { ...base, env: [["A", "1"]] })).toBe(true)
+  expect(needsRelaunch({ workroom: "sub4_work" }, { ...base, relay: false })).toBe(true)
+  expect(needsRelaunch({ workroom: "sub4_work", model: "claude-fable-5-2" }, base)).toBe(true)
+})
+
+test("出直しの準備の頼みは型で言い分け、clear のあとの頼みは join させない", () => {
+  expect(preparePrompt("sub4_work", false)).not.toBe(preparePrompt("sub4_work", true))
+  for (const relaunch of [false, true])
+    expect(preparePrompt("sub4_work", relaunch).split("\n").at(-1)).toContain(READY_MARK)
+  expect(continuePrompt("sub4_work")).toContain("join しない")
+  expect(continuePrompt("sub4_work")).not.toContain("link")
+})
+
+test("clear のあとにフックが伝えたワークルームは、since より後の、前の会話から移した知らせだけで読む", () => {
+  const told = (at: string, text: string) =>
+    JSON.stringify({
+      type: "attachment",
+      timestamp: at,
+      attachment: { type: "hook_additional_context", content: [text] },
+    })
+  const since = Date.parse("2026-11-25T14:00:00Z")
+  const old = told("2026-11-25T13:00:00Z", "You joined matomezu. Workroom name: sub4_work")
+  expect(carriedWorkroomSince(old, since)).toBeUndefined()
+  // 新しく join した知らせは読まない
+  const joined = told("2026-11-25T14:00:03Z", "You joined matomezu. Workroom name: sub4_work")
+  expect(carriedWorkroomSince([old, joined].join("\n"), since)).toBeUndefined()
+  const carried = told(
+    "2026-11-25T14:00:06Z",
+    `${CARRIED}, and matomezu kept you as its participant (nothing to join again):\nYou joined matomezu. Workroom name: sub4_work`,
+  )
+  expect(carriedWorkroomSince([old, joined, carried].join("\n"), since)).toBe("sub4_work")
 })
