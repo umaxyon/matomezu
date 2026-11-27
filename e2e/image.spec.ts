@@ -1,6 +1,8 @@
 // 画像の取り込み: 書庫の「画像」のフォルダの右クリックの「画像を取り込む…」で OS のファイルの窓が開き、選んだファイル 1 つが画像のページ 1 枚になる（名前は拡張子を取ったファイル名）。
 // 名前が重なれば 1 件ずつ「番号を付ける・上書き・やめる」を聞く（上書きは、利用者だけのアクション page-create-over）。開いたページは画像を描く。「画像」の外の右クリックには出ない
 import { expect, test } from "./fixtures"
+import { panel } from "./helpers/note"
+import { fromMenu } from "./helpers/stage-menu"
 
 const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==",
@@ -71,4 +73,34 @@ test("「画像」のフォルダで画像を取り込むと、ファイルご�
   const shown = page.locator("img[src^='api/assets/']")
   await expect(shown).toBeVisible()
   await expect.poll(() => shown.evaluate(img => (img as HTMLImageElement).naturalWidth)).toBe(40)
+})
+
+test("画像のページの印刷は、画像を読み終えるまで印刷のボタンが押せない", async ({ page }) => {
+  // 画像の配りを、離すまで止める
+  let release = () => {}
+  const held = new Promise<void>(done => {
+    release = done
+  })
+  await page.route("**/api/assets/*", async route => {
+    if (route.request().method() !== "GET") return route.fallback()
+    await held
+    await route.fallback()
+  })
+  await page.goto("/")
+  await page.bringToFront()
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const home = page.getByRole("list", { name: "書庫 の中身" })
+  await home.getByRole("button", { name: "画像", exact: true }).click({ button: "right" })
+  const picked = page.waitForEvent("filechooser")
+  await page.getByRole("menu").getByRole("menuitem", { name: "画像を取り込む…" }).click()
+  await (await picked).setFiles([{ name: "待つ.png", mimeType: "image/png", buffer: PNG }])
+  await home.getByRole("button", { name: "画像", exact: true }).dblclick()
+  await page.getByRole("list", { name: "画像 の中身" }).getByRole("button", { name: "待つ", exact: true }).dblclick()
+  await (await fromMenu(page, "印刷プレビュー")).click()
+  await expect(panel(page)).toContainText("印刷プレビュー")
+  const print = panel(page).getByRole("button", { name: "印刷", exact: true })
+  await expect(page.locator("[data-sheet]")).toHaveCount(1)
+  await expect(print).toBeDisabled()
+  release()
+  await expect(print).toBeEnabled()
 })

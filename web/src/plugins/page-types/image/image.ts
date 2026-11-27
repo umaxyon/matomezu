@@ -29,7 +29,7 @@ export function imagePrintSheets(catalog: CoreCatalog, page: ItemPage): PrintShe
   return printSheetsOf(paper, [{ x: 0, y: 0, w: paper.w, h: paper.h }], NO_GROW, NO_EXTENT)
 }
 
-// 画像のプレゼンテーション: 紙の上に画像 1 枚を描く。印刷は、画像を読み終えるまで並べない（ビューの printMeasure）
+// 画像のプレゼンテーション: 紙の上に画像 1 枚を描く。印刷は、画像を読み終えるまで刷らない（ビューが usePrintHold で待たせる）
 export const IMAGE_PRESENTATION = kit.definePresentation({
   id: "image",
   printSheets: imagePrintSheets,

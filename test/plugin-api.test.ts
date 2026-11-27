@@ -544,6 +544,7 @@ test("matomezu/ui が出す名前", () => {
     "usePaperDrag",
     "usePerform",
     "usePluginState",
+    "usePrintHold",
     "useReadPluginState",
     "useRecord",
     "useRecordEditLock",

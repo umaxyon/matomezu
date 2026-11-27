@@ -1,21 +1,20 @@
 // 画像のページの中身: アセットの画像を、紙の余白の内側に収めて真ん中に描く（小さな画像は大きくしない）。<img> で描き、HTML・SVG として中に入れない。
-// アセットが無い・読めない・ホストの無い窓では「画像がありません」の絵を描く。onDone は、画像を読み終えたか、描く画像が無いと分かったときに呼ぶ
-import { type CSSProperties, useEffect, useState } from "react"
+// アセットが無い・読めない・ホストの無い窓では「画像がありません」の絵を描く。印刷では、画像を読み終えるまで（読めなくても、そう分かるまで）刷らせない
+import { type CSSProperties, useState } from "react"
 import { NO_ASSET_URL } from "../../../../plugin-api"
 import { useMessages } from "../../../../plugin-api/ui"
-import { useAssetUrl } from "../../../base/ui"
+import { useAssetUrl, usePrintHold } from "../../../base/ui"
 import { IMAGE_MARGIN } from "../image"
 import { kit } from "../kit"
 import styles from "./ImagePicture.module.css"
 
-export function ImagePicture({ asset, onDone }: { asset: string; onDone?: () => void }) {
+export function ImagePicture({ asset }: { asset: string }) {
   const url = useAssetUrl()(asset)
   const [broken, setBroken] = useState<string>(NO_ASSET_URL) // 読めなかった URL
+  const [loaded, setLoaded] = useState<string>(NO_ASSET_URL) // 読み終えた URL
   const shown = asset !== "" && url !== NO_ASSET_URL && broken !== url
   // 描く画像が無ければ、描き終えている
-  useEffect(() => {
-    if (!shown) onDone?.()
-  }, [shown, onDone])
+  usePrintHold(!shown || loaded === url)
   return (
     <div className={styles.box} style={{ "--image-margin": `${IMAGE_MARGIN}px` } as CSSProperties}>
       {shown ? (
@@ -24,11 +23,8 @@ export function ImagePicture({ asset, onDone }: { asset: string; onDone?: () => 
           src={url}
           alt=""
           draggable={false}
-          onLoad={onDone}
-          onError={() => {
-            setBroken(url)
-            onDone?.()
-          }}
+          onLoad={() => setLoaded(url)}
+          onError={() => setBroken(url)}
         />
       ) : (
         <MissingImage />
