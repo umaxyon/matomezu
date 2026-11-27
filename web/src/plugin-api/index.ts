@@ -103,7 +103,7 @@ export type { BackyardEntry, BinderFolder, BookFolder, EntryRef, Folder, WorkKey
 export { HOME_ID, TRASH_ID } from "../core/folders"
 // ステージエントリが無いときの値（useOutermostOf）・エントリを入れているフォルダの列
 export { foldersOver, NO_OUTERMOST } from "../core/folders-tree"
-export type { Point, Rect, Size } from "../core/geom"
+export { type Point, type Rect, type Size, within } from "../core/geom"
 export { translate } from "../core/i18n/i18n"
 export { defineMessages } from "../core/i18n/messages"
 export type { Owned } from "../core/names"

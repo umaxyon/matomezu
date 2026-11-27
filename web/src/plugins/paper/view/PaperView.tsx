@@ -35,6 +35,7 @@ import {
   type StageView,
   shapesOf,
   toPaperDelta,
+  within,
 } from "../../../plugin-api"
 import {
   NO_HOVER,
@@ -62,7 +63,6 @@ import {
   NO_GROW,
   NO_SIZE,
   onlySelected,
-  paperSize,
   roomOf,
   shownRects,
 } from "../../base"
@@ -141,13 +141,11 @@ export function PaperView() {
     PAPER_PASTE_CLIPBOARD.id,
     p => {
       const el = ref.current
-      if (!el || !page) return NO_PAPER
+      const area = stage === NO_STAGE ? NO_PAPER : areaOf(stage)
+      if (!el || area === NO_PAPER) return NO_PAPER
       const at = local(p, el)
       const onPaper = toPaperAt(at)
-      const paper = paperSize(catalog, page)
-      const inside =
-        onPaper !== NO_PAPER && onPaper.x >= 0 && onPaper.y >= 0 && onPaper.x <= paper.w && onPaper.y <= paper.h
-      return inside ? at : NO_PAPER
+      return onPaper !== NO_PAPER && within(onPaper, area) ? at : NO_PAPER
     },
     placeFile,
   )

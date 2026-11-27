@@ -142,6 +142,15 @@ export const PAPER_CUT = kit.defineCommand({
   when: ctx => hasOpenedPage(ctx) && itemsSelected(ctx),
 })
 
+// 窓の写しを、選んでいる物で決めた所に貼る（写しが無ければ何もしない）
+const pasteWindowClip = (
+  ctx: Parameters<(typeof PAPER_PASTE)["run"]>[0],
+  a: Parameters<(typeof PAPER_PASTE)["run"]>[1],
+) => {
+  const clip = clipIn(ctx)
+  if (clip) pasteNearSelection(ctx, a, clip)
+}
+
 // 窓の写しを貼る（アイテムの右クリックのメニュー）。入れる先は選んでいる物で決める
 export const PAPER_PASTE = kit.defineCommand({
   id: "paper-paste",
@@ -149,8 +158,7 @@ export const PAPER_PASTE = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Paste",
   run: (ctx, a) => {
-    const clip = clipIn(ctx)
-    if (clip) pasteNearSelection(ctx, a, clip)
+    pasteWindowClip(ctx, a)
   },
   when: hasOpenedPage,
   enabled: ctx => clipIn(ctx) !== null,
@@ -167,8 +175,7 @@ export const PAPER_PASTE_CLIPBOARD = kit.defineCommand({
   clipboard: "paste",
   run: (ctx, a) => {
     if (a.clipboard === NO_CLIPBOARD) {
-      const clip = clipIn(ctx)
-      if (clip) pasteNearSelection(ctx, a, clip)
+      pasteWindowClip(ctx, a)
       return
     }
     const data = a.clipboard.read(CLIP_KIND)

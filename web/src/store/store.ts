@@ -180,16 +180,6 @@ function startLang(catalog: CoreCatalog, lang: Lang | readonly string[] = []): L
   return detectLang(typeof lang === "string" ? [lang] : lang, [...catalog.languages.keys()])
 }
 
-// ブラウザがクリップボードのイベントを起こすキーと、起こすイベント（Mac の Command は Mod。Windows の Insert・Delete の組も起こす）
-const CLIPBOARD_KEYS: Readonly<Record<string, ClipboardUse>> = {
-  "Mod+C": "copy",
-  "Mod+Insert": "copy",
-  "Mod+X": "cut",
-  "Shift+Delete": "cut",
-  "Mod+V": "paste",
-  "Shift+Insert": "paste",
-}
-
 export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   options: StoreOptions<Ps>,
 ): MatomezuInstance<Ps> {
@@ -612,8 +602,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   }
   let toasts = 0 // トーストの id の番号（出すたびに 1 つ進める）
   // クリップボードを使うコマンドの、続くブラウザのクリップボードのイベントを待っている物（キーを押した時か、メニューから copy を起こしてもらう時に置く）。
-  // イベントは、キーを押した処理の続きで、次のタイマーより前に来る（Chromium で確かめた）ので、次のタイマーで捨てる
-  let waiting: { stage: string; id: CommandId; args: unknown[]; use: ClipboardUse } | null = null
+  // イベントは次のタイマーより前に来る（ホストクライアントの clipboardEventOf の表が確かめた事）ので、次のタイマーで捨てる
+  // ran は、イベントの中で行ったときの、行えたか
+  let waiting: { stage: string; id: CommandId; args: unknown[]; use: ClipboardUse; ran?: boolean } | null = null
   const wait = (w: NonNullable<typeof waiting>) => {
     waiting = w
     setTimeout(() => {
@@ -726,6 +717,19 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }
       return true
     })
+  // ブラウザのクリップボードのイベントで、待たせているコマンドを行う（インスタンスの clipboardEvent）
+  const clipboardEvent = (use: ClipboardUse, transfer: ClipTransfer, host: string): boolean => {
+    const w = waiting
+    if (w === null || (use === "paste") !== (w.use === "paste")) return false
+    waiting = null
+    inEvent = { transfer, host }
+    try {
+      w.ran = runCommand(w.stage, w.id, ...w.args)
+      return w.ran
+    } finally {
+      inEvent = null
+    }
+  }
   const actions: Actions = {
     perform: (id, ...[args, on]) => {
       const done = run(id, args, on)
@@ -748,8 +752,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if ((use === "copy" || use === "cut") && inEvent === null && options.requestCopyEvent) {
         const state = getState()
         if (!called(defs, state, stage, id) || !isEnabled(defs, state, stage, id, args[0])) return false
-        wait({ stage, id, args, use })
-        if (options.requestCopyEvent() && waiting === null) return true
+        const w: NonNullable<typeof waiting> = { stage, id, args, use }
+        wait(w)
+        if (options.requestCopyEvent() && w.ran !== undefined) return w.ran
         waiting = null
       }
       return runCommand(stage, id, ...args)
@@ -802,7 +807,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         // クリップボードを使うコマンドは、ブラウザがそのキーで同じ種類のクリップボードのイベントを起こすなら、行わずに待たせる（その場で使えなければ、次の範囲の同じキーを探す）。
         // イベントを起こさないキーに替えてあれば、下で、クリップボード無しでその場で行う
         const use = clipboardUseOf(command)
-        const raised = CLIPBOARD_KEYS[key]
+        const raised = options.clipboardEventOf?.(key)
         if (use !== undefined && raised !== undefined && (raised === "paste") === (use === "paste")) {
           const state = getState()
           if (
@@ -852,17 +857,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return id
     },
     openScreen: (def, props) => actions.openScreenId(def, props) !== SCREEN_REFUSED,
-    clipboardEvent: (use, transfer, host) => {
-      const w = waiting
-      if (w === null || (use === "paste") !== (w.use === "paste")) return false
-      waiting = null
-      inEvent = { transfer, host }
-      try {
-        return runCommand(w.stage, w.id, ...w.args)
-      } finally {
-        inEvent = null
-      }
-    },
     receivePastedFiles: (stage, command, receive) => {
       const key = receiverKey(stage, command)
       fileReceivers.set(key, receive)
@@ -1221,6 +1215,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       checkSeen()
     },
     checkSeen,
+    clipboardEvent,
     search: query => options.search?.(query) ?? Promise.resolve(NO_WIDE_SEARCH_HITS),
     copyText: async text => {
       if (!options.copyText) fail("E404")

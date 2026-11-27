@@ -9,6 +9,7 @@
 // ドラッグの途中の様子はビューに持ち、離したときに 1 回だけコマンドを呼ぶ（元に戻すのも 1 回）
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import {
+  areaOf,
   type ItemId,
   NO_PAGE,
   NO_PAPER,
@@ -23,6 +24,7 @@ import {
   type StageView,
   slideIsBackground,
   slideOf,
+  within,
 } from "../../../../plugin-api"
 import {
   useActions,
@@ -33,7 +35,7 @@ import {
   useStage,
   useToPaper,
 } from "../../../../plugin-api/ui"
-import { NO_SIZE, PLACE_OFFSET, paperSize, slideOffsetOf, stretchOf, writesSize } from "../../../base"
+import { NO_SIZE, PLACE_OFFSET, slideOffsetOf, stretchOf, writesSize } from "../../../base"
 import {
   type FileDrop,
   modPressed,
@@ -204,9 +206,9 @@ function SlidePageView({
     SLIDE_PASTE_FILES.id,
     p => {
       const at = paperAt(p)
-      if (!at || page === NO_PAGE) return NO_PAPER
-      const paper = paperSize(catalog, page)
-      return at.x >= 0 && at.y >= 0 && at.x <= paper.w && at.y <= paper.h ? at : NO_PAPER
+      const area = areaOf(stage)
+      if (!at || area === NO_PAPER) return NO_PAPER
+      return within({ x: at.x + offset.x, y: at.y + offset.y }, area) ? at : NO_PAPER
     },
     placeFile,
   )

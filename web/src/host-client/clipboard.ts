@@ -5,10 +5,9 @@ import type { ClipboardUse } from "../core/clipboard"
 import type { MatomezuInstance } from "../store/state"
 
 // クリップボードのイベントを受け始める。やめる関数を返す
-export function followClipboard(instance: Pick<MatomezuInstance, "actions">): () => void {
+export function followClipboard(instance: Pick<MatomezuInstance, "clipboardEvent">): () => void {
   const on = (use: ClipboardUse) => (e: ClipboardEvent) => {
-    if (e.clipboardData && instance.actions.clipboardEvent(use, e.clipboardData, window.location.origin))
-      e.preventDefault()
+    if (e.clipboardData && instance.clipboardEvent(use, e.clipboardData, window.location.origin)) e.preventDefault()
   }
   const listeners = (["copy", "cut", "paste"] as const).map(use => [use, on(use)] as const)
   for (const [use, listener] of listeners) document.addEventListener(use, listener)

@@ -315,6 +315,7 @@ test("matomezu が出す名前", () => {
     "wholeScrapOf",
     "widenForCaption",
     "withSettings",
+    "within",
     "wordLinksOf",
     "workroomOfActor",
     "wrap",
@@ -1063,7 +1064,6 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     names(got).filter(n => n !== "updatePluginState" && n !== "resetPluginState" && n !== "clipboard"),
   )
   expect(names(store.actions).filter(n => !names(given).includes(n))).toEqual([
-    "clipboardEvent",
     "makeScreenCurrent",
     "openOutsideBinder",
     "openOutsidePage",

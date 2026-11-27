@@ -20,9 +20,7 @@ export interface Clipboard {
   write(kind: string, data: unknown): void
   // 写しを読む（paste のイベントの中だけ）。中身か、NO_CLIP_DATA・OTHER_HOST
   read(kind: string): unknown
-  // 貼ったファイル（paste のイベントの中だけ。無ければ空）
-  files: readonly File[]
-  // 貼ったファイルを、コマンドを呼んだステージのビュー（ui の useFilePaste で受ける物）に渡す。受ける物が無ければ false
+  // 貼ったファイル（paste のイベントの中だけ）を、コマンドを呼んだステージのビュー（ui の useFilePaste で受ける物）に渡す。ファイルか受ける物が無ければ false
   passFiles(): boolean
 }
 
@@ -30,7 +28,6 @@ export interface Clipboard {
 export const NO_CLIPBOARD: Clipboard = {
   write: () => {},
   read: () => NO_CLIP_DATA,
-  files: [],
   passFiles: () => false,
 }
 
@@ -66,7 +63,6 @@ export function clipboardOn(
       if (wrapped.host !== host) return OTHER_HOST
       return "data" in wrapped ? wrapped.data : NO_CLIP_DATA
     },
-    files,
     passFiles: () => files.length > 0 && passFiles(files),
   }
 }

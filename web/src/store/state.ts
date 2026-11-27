@@ -5,6 +5,7 @@ import type { Address } from "../core/address"
 import type { Annotations } from "../core/annotation"
 import type { AssetPut } from "../core/assets"
 import type { ControlCenterId, MessageKey, SkinId } from "../core/catalog"
+import type { ClipboardUse, ClipTransfer } from "../core/clipboard"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionOn } from "../core/def/action"
 import type { BROKEN, Folders, Library, Pages } from "../core/folders"
@@ -268,6 +269,9 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   ): void
   // まだ見ていない画面の履歴の段が見えたかを確かめ直す（窓が見えるようになったとき。ホストクライアントだけが使う。プラグインに渡す actions には入れない）
   checkSeen(): void
+  // ブラウザのクリップボードのイベント（use。copy と cut はどちらも書く）が来たら呼ぶ: 待たせているコマンドがあれば、運ぶ物 transfer を常駐 host（窓の源）のクリップボードとして渡して行い、
+  // 行ったか返す（ホストクライアントだけが使う。プラグインに渡す actions には入れない）
+  clipboardEvent(use: ClipboardUse, transfer: ClipTransfer, host: string): boolean
   // ホストの言葉の検索（横断検索）。base のフック useWideSearch を通して使う（プラグインに渡す actions には入れない）。
   // ホストが無いか、頼めなければ、投げる（検索の見た目が受ける）
   search(query: WideSearchQuery): Promise<WideSearchAnswer>
@@ -461,6 +465,8 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   copyText?: (text: string) => Promise<void> // ブラウザのクリップボードに文字を書く。無ければ、書けないとして投げる（E404）
   // ブラウザに copy のイベントを起こしてもらう（メニューから呼んだコピーを、キーと同じクリップボードの道で行うため）。起きたか返す。無ければ起こせない
   requestCopyEvent?: () => boolean
+  // キー key でブラウザが起こすクリップボードのイベント（起こさなければ undefined）。無ければ、どのキーも起こさないとして、クリップボードを使うコマンドもその場で行う
+  clipboardEventOf?: (key: string) => ClipboardUse | undefined
   // アセット（画像のバイト列）をホストに置く口と、中身を読む URL。無ければ、置くと投げ（E416）、URL は NO_ASSET_URL
   assetsHost?: { put(bytes: Blob): Promise<AssetPut>; url(id: string): string }
   command?: string // 利用者が端末で打つ matomezu の名前。無ければ matomezu

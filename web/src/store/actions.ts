@@ -2,7 +2,6 @@
 // 操作の名前の並びと、場所に向けた形・窓に向ける物だけを選んだ形を作る関数も持つ（中身を行うのは store.ts のインスタンス）
 
 import type { ActionId, DialogId, ItemId, SubjectId, ToolId } from "../core/catalog"
-import type { ClipboardUse, ClipTransfer } from "../core/clipboard"
 import type { PageTarget } from "../core/def/action"
 import type { Point, Size } from "../core/geom"
 import type { ArgsOf, Refused, ResultOf, TargetOf } from "../core/perform"
@@ -115,8 +114,6 @@ export interface FrameActions {
   showStage(id: string): void // ステージ id をカレントにし、それを並べているスクリーンをカレントスクリーンにする（そのステージを見せる）
   // ステージ stage をカレントにして右に何も開いていないステージを足し、足したステージの id を返す（足せなければ NO_STAGE）。ほかは split と同じ
   splitStage(stage: string): string
-  // ブラウザのクリップボードのイベント（use。copy と cut はどちらも書く）が来たら呼ぶ: 待たせているコマンドがあれば、運ぶ物 transfer を常駐 host（窓の源）のクリップボードとして渡して行い、行ったか返す
-  clipboardEvent(use: ClipboardUse, transfer: ClipTransfer, host: string): boolean
   // ステージ stage のビューが、貼り付けのコマンド command で貼ったファイル（クリップボードの passFiles）を受ける。受けるのをやめる関数を返す
   receivePastedFiles(stage: string, command: string, receive: (files: readonly File[]) => void): () => void
 }
