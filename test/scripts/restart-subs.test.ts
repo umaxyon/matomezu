@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import {
+  continuePrompt,
   joinedSince,
   lastAssistantText,
   lastModel,
@@ -9,14 +10,17 @@ import {
   launchedThroughRelay,
   launchedWith,
   NG_MARK,
+  needsRelaunch,
   parseEnv,
   parseTarget,
+  preparePrompt,
   projectDir,
   READY_MARK,
   readiness,
   rejoinPrompt,
   resultLine,
   toldJoinedSince,
+  toldWorkroomSince,
   workroomOf,
 } from "../../scripts/restart-subs"
 
@@ -189,4 +193,39 @@ test("--no-relay は claude を直に起動し、起動した claude に中継�
   )
   expect(launchedThroughRelay("PATH=/bin\0ANTHROPIC_BASE_URL=http://127.0.0.1:18951/x\0")).toBe(true)
   expect(launchedThroughRelay("PATH=/bin\0")).toBe(false)
+})
+
+test("clear で出直すのが既定で、プロセスの中身を替える物があるときだけ起動し直す", () => {
+  const base = { env: [] as [string, string][], relay: true, relaunch: false }
+  expect(needsRelaunch({ workroom: "sub4_work" }, base)).toBe(false)
+  expect(needsRelaunch({ workroom: "sub4_work" }, { ...base, relaunch: true })).toBe(true)
+  expect(needsRelaunch({ workroom: "sub4_work" }, { ...base, env: [["A", "1"]] })).toBe(true)
+  expect(needsRelaunch({ workroom: "sub4_work" }, { ...base, relay: false })).toBe(true)
+  expect(needsRelaunch({ workroom: "sub4_work", model: "claude-fable-5-2" }, base)).toBe(true)
+})
+
+test("出直しの準備の頼みは型で言い分け、clear のあとの頼みは join させない", () => {
+  expect(preparePrompt("sub4_work", false)).toStartWith(
+    "出直しの準備をしてください（main_manager が会話を空にして出直させます。",
+  )
+  expect(preparePrompt("sub4_work", true)).toStartWith("再起動の準備をしてください")
+  expect(preparePrompt("sub4_work", false).split("\n").at(-1)).toContain(READY_MARK)
+  expect(continuePrompt("sub4_work")).toBe("sub4 の handoff よんで（matomezu の参加は続いているので join しない）")
+})
+
+test("clear のあとにフックが伝えたワークルームは、since より後の知らせの最後の物で読む（前の会話から移った知らせも同じ行を持つ）", () => {
+  const told = (at: string, text: string) =>
+    JSON.stringify({
+      type: "attachment",
+      timestamp: at,
+      attachment: { type: "hook_additional_context", content: [text] },
+    })
+  const since = Date.parse("2026-11-25T14:00:00Z")
+  const old = told("2026-11-25T13:00:00Z", "You joined matomezu. Workroom name: sub4_work")
+  expect(toldWorkroomSince(old, since)).toBeUndefined()
+  const carried = told(
+    "2026-11-25T14:00:06Z",
+    "This conversation continues an earlier one it replaced, and matomezu kept you as its participant (nothing to join again):\nYou joined matomezu. Workroom name: sub4_work",
+  )
+  expect(toldWorkroomSince([old, carried].join("\n"), since)).toBe("sub4_work")
 })
