@@ -14,7 +14,7 @@
 //      ソースから作る engine.js は、衝突したのがそれだけのときと、両側が変えてきれいにマージできたときに作り直して重ねる
 //   3. lint → typecheck → bun test → go test を流し、どれも通れば e2e。落ちたテストがあれば外す。
 //      落ちたテストは 1 回だけ流し直し、その結果（通れば揺れの疑い）を添えて返す。原因を調べて直すのは、頼んだブランチの側。
-//      はじめの回の e2e の跡（e2e/.results の error-context など と json の報告）は、ログの置き場の e2e.results と e2e.first.json に残す
+//      はじめの回の e2e の跡（e2e/.results の error-context などと json の報告）は、ログの置き場の e2e.results と e2e.first.json に残す
 //   4. 通れば main を fast-forward する。main がその間に進んでいたら、重ねる所からやり直す
 //   5. 2 件以上を重ねて落ちたら、1 件ずつ順に 2〜4 を流す（通った物は入る）
 //   6. --push なら、main が進んだときに origin へ push する。失敗したら要約に出し、0 以外で終わる
