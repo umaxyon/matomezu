@@ -126,7 +126,16 @@ function ContextGaugeView({ use }: { use: WorkroomRow["contextUse"] }) {
   const gauge = useContextGauge(use)
   if (gauge === NO_CONTEXT_USE) return null
   return (
-    <span className={styles.context} data-context-use data-near-full={gauge.nearFull}>
+    <span
+      className={styles.context}
+      data-context-use
+      data-near-full={gauge.nearFull}
+      title={
+        gauge.fillByMatomezu > 0
+          ? t("matomezu {matomezu}% / Others {rest}%", { matomezu: gauge.percentByMatomezu, rest: gauge.percentRest })
+          : undefined
+      }
+    >
       <span className={styles.bar}>
         {gauge.fillByMatomezu > 0 ? (
           <span className={styles.byMatomezu} data-by-matomezu style={{ width: `${gauge.fillByMatomezu * 100}%` }} />

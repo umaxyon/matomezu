@@ -1,4 +1,4 @@
-// コンテキストの棒の形（participant/context-gauge.ts）: 物差しの選び、物差しに対する割合と数、9 割の判断
+// コンテキストの棒の形（participant/context-gauge.ts）: 物差しの選び、物差しに対する割合と数、matomezu の分の内訳、9 割の判断
 import { expect, test } from "bun:test"
 import { contextGauge, contextScaleOf, NO_CONTEXT_USE } from "../../../web/src/plugins/base/participant/context-gauge"
 
@@ -9,6 +9,8 @@ test("the gauge fills by the scale and turns near full at nine tenths", () => {
     fillByMatomezu: 0,
     fillRest: 120_400 / 300_000,
     thousands: 120,
+    percentByMatomezu: 0,
+    percentRest: 100,
     nearFull: false,
   })
   expect(contextGauge({ used: 269_999, aiScale: 300_000, byMatomezu: 0 }, "auto")).toMatchObject({
@@ -24,6 +26,8 @@ test("the gauge fills by the scale and turns near full at nine tenths", () => {
     fillByMatomezu: 0,
     fillRest: 1,
     thousands: 450,
+    percentByMatomezu: 0,
+    percentRest: 100,
     nearFull: true,
   })
   expect(contextGauge({ used: 450_000, aiScale: 300_000, byMatomezu: 0 }, 1_000_000)).toMatchObject({
@@ -32,11 +36,11 @@ test("the gauge fills by the scale and turns near full at nine tenths", () => {
   })
 })
 
-// matomezu の分は同じ物差しで割り、棒の満たす分を超えない。残りは満たす分から matomezu の分を引いた物
+// matomezu の分は同じ物差しで割り、棒の満たす分を超えない。残りは満たす分から matomezu の分を引いた物。百分率は今の量の内訳
 test("the matomezu share is measured by the same scale and stays within the fill", () => {
   const split = contextGauge({ used: 120_000, aiScale: 300_000, byMatomezu: 30_000 }, "auto")
   if (split === NO_CONTEXT_USE) throw new Error("no gauge")
-  expect(split).toMatchObject({ fill: 0.4, fillByMatomezu: 0.1 })
+  expect(split).toMatchObject({ fill: 0.4, fillByMatomezu: 0.1, percentByMatomezu: 25, percentRest: 75 })
   expect(split.fillRest).toBeCloseTo(0.3)
   expect(contextGauge({ used: 450_000, aiScale: 300_000, byMatomezu: 400_000 }, "auto")).toMatchObject({
     fill: 1,
