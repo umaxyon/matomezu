@@ -21,7 +21,7 @@ package server
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
 //	participant-calls {"participant", "at"} 参加者の最後に呼ばれた時刻（join_calls.go。30 秒以上あいたときだけ知らせる）
 //	participant-ready {"participant"} 参加者が準備中でなくなった（フックが参加を伝えた、または join で MCP がセッション id を運んだ。join_session.go）
-//	participant-live {"participant", "model", "branch", "wake", "contextUse"} 参加者のモデル・ブランチ・起こす知らせの通り道・コンテキストの量（{"used", "aiScale"}）のどれかが変わった（そのときの全部。無い物は省く。join.go・model.go・context_use.go）
+//	participant-live {"participant", "model", "branch", "wake", "contextUse"} 参加者のモデル・ブランチ・起こす知らせの通り道・コンテキストの量（{"used", "aiScale", "byMatomezu"?}）のどれかが変わった（そのときの全部。無い物は省く。join.go・model.go・context_use.go）
 //	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
 //	update-status {"state", "version", "latest"?, "checkedAt"?, "askedAt"?} 新しい版の確かめの結果が変わった（update.go）
 //	host-status {"hostId", "name", "osHostName", "open", "port"?, "addrs"?, "wsl"?, "failed"?} ホストどうしの入口の様子が変わった（hosts.go）

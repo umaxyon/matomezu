@@ -89,6 +89,7 @@
   margin-top: 2px;
 }
 .bar {
+  display: flex;
   flex: 1;
   height: 4px;
   overflow: hidden;
@@ -97,8 +98,16 @@
 }
 .fill {
   display: block;
+  flex: none;
   height: 100%;
   background: var(--skin-accent);
+}
+/* 棒のうち matomezu が使っている分（左から） */
+.byMatomezu {
+  display: block;
+  flex: none;
+  height: 100%;
+  background: var(--skin-success);
 }
 .amount {
   flex: none;

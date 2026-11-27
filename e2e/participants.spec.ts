@@ -1,7 +1,7 @@
 // 参加: AI が join で参加を頼むと、参加要求のしおりが出る（郵便箱には出さない）。しおりのダイアログで断る・受け入れるを選べる。
 // 受け入れるは、ワークルームの名前・鳥・配色を決めるダイアログを開き、決めるとコントロールセンターの参加者リストに出る。断ると何も残さず、AI の次の呼び出しで断られたと分かる。
 // 受け入れのダイアログの［キャンセル］は要求を終え、AI はキャンセルされたと分かる
-import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
+import { aiAuth, BOOK_SCREEN_URL, expect, type Locator, type Page, test } from "./fixtures"
 import { fromMenu } from "./helpers/stage-menu"
 
 const JOINED = "ワークルームに入れます"
@@ -147,7 +147,7 @@ test("セッション id を join で運ぶ AI（フックの無い AI）は、�
   await expect(room).toContainText("たった今")
 })
 
-test("フックが知らせた会話のコンテキストの量は、参加者リストの行のいちばん下に棒と数で出て、物差しの 9 割以上で赤になり、全体設定で物差しを変えると変わり、読めないと知らされると消える", async ({
+test("フックが知らせた会話のコンテキストの量は、参加者リストの行のいちばん下に棒と数で出て、matomezu の分の目安があれば棒の左から別の色で塗り、物差しの 9 割以上で赤になり、全体設定で物差しを変えると変わり、読めないと知らされると消える", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -166,6 +166,24 @@ test("フックが知らせた会話のコンテキストの量は、参加者�
   await tell({ used: 120_400, aiScale: 300_000 })
   await expect(bar).toHaveText("120k")
   await expect(bar).toHaveAttribute("data-near-full", "false")
+  // matomezu の分の目安が無ければ色分けせず、あれば棒の左から別の色で塗る
+  const byMatomezu = bar.locator("[data-by-matomezu]")
+  await expect(byMatomezu).toHaveCount(0)
+  await tell({ used: 120_000, aiScale: 300_000, byMatomezu: 30_000 })
+  await expect(byMatomezu).toHaveCount(1)
+  const box = (e: Locator) =>
+    e.evaluate(el => ({
+      color: getComputedStyle(el).backgroundColor,
+      left: el.getBoundingClientRect().left,
+      width: el.getBoundingClientRect().width,
+    }))
+  const mine = await box(byMatomezu)
+  const rest = await box(byMatomezu.locator("xpath=following-sibling::span[1]"))
+  expect(mine.color).not.toBe(rest.color)
+  expect(mine.left).toBeLessThan(rest.left)
+  expect(rest.width / mine.width).toBeCloseTo(3, 1)
+  await tell({ used: 120_400, aiScale: 300_000 })
+  await expect(byMatomezu).toHaveCount(0)
   const amount = bar.getByText("120k")
   const calm = await amount.evaluate(e => getComputedStyle(e).color)
   await tell({ used: 280_000, aiScale: 300_000 })

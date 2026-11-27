@@ -108,7 +108,7 @@ func (claudeStopCmd) Run() error {
 	hook := stdinHook()
 	hook.Host = hookHost(claudelaunch.HooksSendHost)
 	hookStop(hook)
-	sendContextUse(hook, claudeContextUse, runningAPI("api/ai/context-use"))
+	sendContextUse(hook, claudeContextUse, claudeContextChars, runningAPI("api/ai/context-use"))
 	return nil
 }
 
@@ -119,7 +119,7 @@ func (claudeContextUseCmd) Run() error {
 	claudeDev()
 	hook := stdinHook()
 	hook.Host = hookHost(claudelaunch.HooksSendHost)
-	sendContextUse(hook, claudeContextUse, runningAPI("api/ai/context-use"))
+	sendContextUse(hook, claudeContextUse, claudeContextChars, runningAPI("api/ai/context-use"))
 	return nil
 }
 
@@ -134,6 +134,15 @@ func claudeContextUse(hook hookInput) (contextUse, bool) {
 		return contextUse{}, false
 	}
 	return contextUse{Used: u.Used, AIScale: u.AIScale}, true
+}
+
+// claudeContextChars は、Claude Code の会話の記録を印 from から読み、中身の字数と matomezu の分を数える
+func claudeContextChars(hook hookInput, from string) (charsRead, bool) {
+	r, ok := claudelaunch.ReadContextChars(hook.TranscriptPath, from)
+	if !ok {
+		return charsRead{}, false
+	}
+	return charsRead{restart: r.Restart, chars: contextChars{Total: r.Chars.Total, Matomezu: r.Chars.Matomezu}, mark: r.Mark}, true
 }
 
 type claudePromptCmd struct{}
@@ -153,7 +162,7 @@ func (claudeModelCmd) Run() error {
 	hook := stdinHook()
 	hook.Host = hookHost(claudelaunch.HooksSendHost)
 	hookModel(hook)
-	sendContextUse(hook, claudeContextUse, runningAPI("api/ai/context-use"))
+	sendContextUse(hook, claudeContextUse, claudeContextChars, runningAPI("api/ai/context-use"))
 	return nil
 }
 

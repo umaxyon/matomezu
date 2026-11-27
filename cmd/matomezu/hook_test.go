@@ -171,15 +171,52 @@ func TestContextUseHookSendsTheUse(t *testing.T) {
 	} {
 		hook := readHookInput(strings.NewReader(in))
 		hook.Host = "100"
-		sendContextUse(hook, read, api)
+		sendContextUse(hook, read, nil, api)
 	}
-	sendContextUse(hookInput{SessionID: "S1"}, read, nil)
+	sendContextUse(hookInput{SessionID: "S1"}, read, nil, nil)
 	want := []string{
 		`{"contextUse":{"used":120000,"aiScale":300000},"host":"100","sessionId":"S1"}`,
 		`{"contextUse":"unknown","host":"100","sessionId":"S1"}`,
 	}
 	if strings.Join(sent, "\n") != strings.Join(want, "\n") || reads != 2 {
 		t.Fatalf("sent = %v, reads = %d", sent, reads)
+	}
+}
+
+// 字数を読めるなら、先に常駐から印と積んだ字数を受け取って続きを読み、積んだ字数と次の印・読み始めた印を添え、今の量を matomezu の字数の割合で分けた目安を送る。
+// 読み直し（頭からか圧縮の境目のあと）なら積んだ字数を捨てる。印を受け取れなければ字数を読まない
+func TestContextUseHookAddsTheMatomezuShare(t *testing.T) {
+	hook := hookInput{SessionID: "S1", TranscriptPath: "/t/S1.jsonl", Host: "100"}
+	read := func(hookInput) (contextUse, bool) { return contextUse{Used: 100000, AIScale: 300000}, true }
+	for name, c := range map[string]struct {
+		held  string
+		read  charsRead
+		reads bool
+		want  string
+	}{
+		"continue": {`{"mark":"M1","chars":{"total":300,"matomezu":100}}`, charsRead{chars: contextChars{Total: 100, Matomezu: 0}, mark: "M2"}, true,
+			`{"chars":{"total":400,"matomezu":100},"contextUse":{"used":100000,"aiScale":300000,"byMatomezu":25000},"from":"M1","host":"100","mark":"M2","sessionId":"S1"}`},
+		"restart": {`{"mark":"M1","chars":{"total":300,"matomezu":100}}`, charsRead{restart: true, chars: contextChars{Total: 10, Matomezu: 5}, mark: "N1"}, true,
+			`{"chars":{"total":10,"matomezu":5},"contextUse":{"used":100000,"aiScale":300000,"byMatomezu":50000},"from":"M1","host":"100","mark":"N1","sessionId":"S1"}`},
+		"no mark held": {`{"mark":"","chars":{"total":0,"matomezu":0}}`, charsRead{restart: true, chars: contextChars{Total: 4}, mark: "N1"}, true,
+			`{"chars":{"total":4,"matomezu":0},"contextUse":{"used":100000,"aiScale":300000},"from":"","host":"100","mark":"N1","sessionId":"S1"}`},
+		"old server": {`contextUse is neither {used, aiScale} nor "unknown"`, charsRead{}, false,
+			`{"contextUse":{"used":100000,"aiScale":300000},"host":"100","sessionId":"S1"}`},
+	} {
+		var sent []string
+		api := func(body []byte) ([]byte, error) {
+			sent = append(sent, string(body))
+			if strings.Contains(string(body), `"askMark":true`) {
+				return []byte(c.held), nil
+			}
+			return []byte("{}"), nil
+		}
+		var from []string
+		chars := func(h hookInput, mark string) (charsRead, bool) { from = append(from, mark); return c.read, true }
+		sendContextUse(hook, read, chars, api)
+		if len(sent) != 2 || sent[0] != `{"askMark":true,"sessionId":"S1"}` || sent[1] != c.want || (len(from) == 1) != c.reads {
+			t.Errorf("%s: sent = %v, read from %v", name, sent, from)
+		}
 	}
 }
 

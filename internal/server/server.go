@@ -51,7 +51,8 @@
 //	                         woken は、利用者トリガートークでなく、裏の知らせ（watch の 1 行など）で始まったターンのフック（結びつけと「参加しました」の知らせだけを行う）。prompt（ターンの入力）が通り道に貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）でも同じ。
 //	                         どちらも {"welcomes", "unbound", "workTitle"} を返す（セッションと参加者の結びつけと「参加しました」の知らせと、作業名。talk_session.go）。prompt が貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）なら、利用者の言葉でないと AI に伝える文の forAi も返す
 //	POST /api/ai/model       {"sessionId", "model", "host"} AI のフックがセッションのモデルを知らせる（model.go）。{} を返す
-//	POST /api/ai/context-use {"sessionId", "host", "contextUse"} AI のフックがセッションの今のコンテキストの量と物差し（{"used", "aiScale"}、読めなければ "unknown"）を知らせる（context_use.go）。{} を返す
+//	POST /api/ai/context-use {"sessionId", "host", "contextUse", "from"?, "mark"?, "chars"?} AI のフックがセッションの今のコンテキストの量と物差しと matomezu の分の目安（{"used", "aiScale", "byMatomezu"?}、読めなければ "unknown"）を、
+//	                         会話の記録を読み始めた印・次の印・積んだ字数を添えて知らせる（context_use.go）。{} を返す。{"sessionId", "askMark": true} なら、読み始める印と積んだ字数 {"mark", "chars"} を返す
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
 //	GET  /api/ai/catalog?ids=a&ids=b  MCP 公開ツールの actions が返す物。ids が無ければ {"version", "index", "warnings"}（一覧の版と目次。warnings は今あるときだけ）、あれば ids の物の全文 {"version", 表の名前: [全文]..., "unknown"}
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す

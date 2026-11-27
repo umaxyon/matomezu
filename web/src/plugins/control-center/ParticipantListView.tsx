@@ -119,7 +119,8 @@ export function ParticipantListView() {
   )
 }
 
-// 会話の今のコンテキストの量の、行幅の細い棒と数（量が分からなければ何も出さない）。物差しは利用者の設定で選んだ物
+// 会話の今のコンテキストの量の、行幅の細い棒と数（量が分からなければ何も出さない）。物差しは利用者の設定で選んだ物。
+// 棒の中は、左から matomezu が使っている分の目安、その右に残り
 function ContextGaugeView({ use }: { use: WorkroomRow["contextUse"] }) {
   const t = useMessages(kit)
   const gauge = useContextGauge(use)
@@ -127,7 +128,10 @@ function ContextGaugeView({ use }: { use: WorkroomRow["contextUse"] }) {
   return (
     <span className={styles.context} data-context-use data-near-full={gauge.nearFull}>
       <span className={styles.bar}>
-        <span className={styles.fill} style={{ width: `${gauge.fill * 100}%` }} />
+        {gauge.fillByMatomezu > 0 ? (
+          <span className={styles.byMatomezu} data-by-matomezu style={{ width: `${gauge.fillByMatomezu * 100}%` }} />
+        ) : null}
+        <span className={styles.fill} style={{ width: `${(gauge.fill - gauge.fillByMatomezu) * 100}%` }} />
       </span>
       <span className={styles.amount}>{t("{n}k", { n: gauge.thousands })}</span>
     </span>

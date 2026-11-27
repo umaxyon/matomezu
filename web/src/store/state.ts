@@ -189,10 +189,12 @@ export interface ParticipantLive {
   readonly contextUse?: ContextUse
 }
 
-// 会話の今のコンテキストの量（used）と、AI の側の物差し（aiScale。自動で縮める所、無ければモデルの上限）。どちらもトークン
+// 会話の今のコンテキストの量（used）と、AI の側の物差し（aiScale。自動で縮める所、無ければモデルの上限）と、
+// 量のうち matomezu が使っている分の目安（byMatomezu。会話の記録の字数の割合から出す。分からなければ 0）。どれもトークン
 export interface ContextUse {
   readonly used: number
   readonly aiScale: number
+  readonly byMatomezu: number
 }
 
 // 編集ロックの 1 つ: within（ページの id か、ブックの id）の中の物 ids（ページなら、アイテムなどとそのページのアノテーションとページそのもの。ブックなら、バインダとブックそのもの）か、対象の種類 subject のレコード ids

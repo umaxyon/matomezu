@@ -109,3 +109,38 @@ func TestHeardContextsAreDroppedWhenOldOrTooMany(t *testing.T) {
 		t.Fatalf("the bound session's use was dropped: %+v", got)
 	}
 }
+
+// フックが続きから読めるように、セッションごとに読み始める印と積んだ字数を持ち、askMark で返す。読み始めた印が今の印と合う知らせだけを入れ
+// （合わなければ量も変えない）、読めないと知らされても印は残す。matomezu の分の目安は参加者の様子に載せ、今の量を超えない
+func TestContextUseKeepsTheReadingMark(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	p1 := joinedID(t, s.URL, joinBody("L1", ""))
+	post := func(body string) string {
+		got, _ := call(t, "POST", s.URL+"/api/ai/context-use", body, nil)
+		return got
+	}
+	if got := post(`{"sessionId":"S1","askMark":true}`); got != `{"mark":"","chars":{"total":0,"matomezu":0}}` {
+		t.Fatalf("no mark = %s", got)
+	}
+	post(`{"sessionId":"S1","contextUse":{"used":100000,"aiScale":300000,"byMatomezu":25000},"from":"","mark":"M1","chars":{"total":400,"matomezu":100}}`)
+	if got := post(`{"sessionId":"S1","askMark":true}`); got != `{"mark":"M1","chars":{"total":400,"matomezu":100}}` {
+		t.Fatalf("mark = %s", got)
+	}
+	if got := hub.ParticipantLive()[p1].ContextUse; got != (contextUse{Used: 100000, AIScale: 300000, ByMatomezu: 25000}) {
+		t.Fatalf("live = %+v", got)
+	}
+	// 同じ所から読んだ、遅れて届いた知らせは入れない
+	post(`{"sessionId":"S1","contextUse":{"used":90000,"aiScale":300000},"from":"","mark":"M0","chars":{"total":300,"matomezu":0}}`)
+	if got := hub.ContextMark("S1"); got.Mark != "M1" || hub.ParticipantLive()[p1].ContextUse.Used != 100000 {
+		t.Fatalf("a stale read was taken: %+v %+v", got, hub.ParticipantLive()[p1].ContextUse)
+	}
+	post(`{"sessionId":"S1","contextUse":"unknown","from":"M1","mark":"M2","chars":{"total":500,"matomezu":100}}`)
+	if got := hub.ContextMark("S1"); got != (contextMark{Mark: "M2", Chars: contextChars{Total: 500, Matomezu: 100}}) || hub.ParticipantLive()[p1].ContextUse != noContextUse {
+		t.Fatalf("unknown = %+v %+v", got, hub.ParticipantLive()[p1].ContextUse)
+	}
+	// 印の無い知らせ（印を読まないフック）は、量だけを変え、印は残す
+	post(`{"sessionId":"S1","contextUse":{"used":1000,"aiScale":300000,"byMatomezu":5000}}`)
+	if got := hub.ContextMark("S1").Mark; got != "M2" || hub.ParticipantLive()[p1].ContextUse != (contextUse{Used: 1000, AIScale: 300000, ByMatomezu: 1000}) {
+		t.Fatalf("without a mark = %q %+v", got, hub.ParticipantLive()[p1].ContextUse)
+	}
+}
