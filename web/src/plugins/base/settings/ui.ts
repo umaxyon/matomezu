@@ -1,6 +1,8 @@
 // 利用者の設定の見た目: 土台が読む項目と利用者の文字の色のビュー、設定の並び
 
 import { CORNER_STATUS_ORDER } from "../corner-status/corner-order"
+import { ContextScaleSetting } from "../participant/ContextScaleSetting"
+import { CONTEXT_SCALE } from "../participant/context-gauge"
 import { TextColorsSetting } from "../text/TextColorsSetting"
 import { USER_TEXT_COLORS } from "../text/text-colors"
 import { CornerStatusOrderSetting } from "./CornerStatusOrderSetting"
@@ -23,6 +25,7 @@ export const USER_SETTING_VIEWS = {
   [CORNER_STATUS_ORDER.id]: { control: CornerStatusOrderSetting },
   [ENABLED_PLUGINS.id]: { control: EnabledPluginsSetting },
   [USER_NAME.id]: { control: UserNameSetting },
+  [CONTEXT_SCALE.id]: { control: ContextScaleSetting },
 }
 
 export { ChoiceSetting } from "./ChoiceSetting"

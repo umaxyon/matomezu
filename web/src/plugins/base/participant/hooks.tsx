@@ -5,9 +5,9 @@ import type { WorkKey } from "../../../core/folders"
 import { readerOf, sourceOf } from "../../../core/record-source"
 import type { Records } from "../../../core/records"
 import { isParticipantAlive } from "../../../core/settings"
-import type { ParticipantLive, PendingMessage } from "../../../store/state"
+import type { ContextUse, ParticipantLive, PendingMessage } from "../../../store/state"
 import { useInstance, useMatomezuState } from "../../../ui/store-context"
-import { useActions, useCoreCatalog } from "../../../ui/view-hooks"
+import { useActions, useCoreCatalog, useUserSetting } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
 import { useNow } from "../utils/useNow"
@@ -22,6 +22,7 @@ import {
   type Workroom,
 } from "."
 import { workroomActivityOf } from "./activity"
+import { CONTEXT_SCALE, type ContextGauge, contextGauge, contextScaleOf, type NO_CONTEXT_USE } from "./context-gauge"
 import { adminRoomOf, type VisitorRow, visitorRows, type WorkroomRow, workroomRows } from "./rows"
 import { ownBookPagesOf } from "./workdesks"
 import { type FoundWorkerBook, foundWorkerBookOf, NO_WORKER_BOOK, workerBookOf, workerBookReadsOf } from "./worker-book"
@@ -202,4 +203,10 @@ export function useWorkroomWorkerBook(room: string): FoundWorkerBook | typeof NO
     }),
   )
   return useWorkerBook(useMemo(() => ({ subject: key[0], id: key[1] }), [key[0], key[1]]))
+}
+
+// 参加者の会話の今のコンテキストの量 use を、利用者の設定の物差し（context-scale）で見せる形（棒を出さないなら NO_CONTEXT_USE）
+export function useContextGauge(use: ContextUse | typeof NO_CONTEXT_USE): ContextGauge | typeof NO_CONTEXT_USE {
+  const scale = contextScaleOf(useUserSetting(CONTEXT_SCALE.id))
+  return useMemo(() => contextGauge(use, scale), [use, scale])
 }

@@ -208,6 +208,7 @@ import {
 import {
   ADMIN_MARK,
   ADMIN_SET,
+  CONTEXT_SCALE,
   FOLLOW_WORK_ENDED,
   FOLLOW_WORK_RENAMED,
   FOLLOW_WORKROOM_BOOK,
@@ -382,6 +383,9 @@ export { addPageIn, type PageFieldsWay, pageFieldsWay } from "./pages"
 export {
   adminWorkroom,
   aiUiText,
+  type ContextGauge,
+  type ContextScale,
+  contextGauge,
   type FoundWorkerBook,
   isAdminActor,
   JOINED_MESSAGE,
@@ -390,6 +394,7 @@ export {
   NO_AI_UI,
   NO_BRANCH,
   NO_CATEGORY,
+  NO_CONTEXT_USE,
   NO_MODEL,
   NO_OCCUPANT,
   NO_WORKER_BOOK,
@@ -632,6 +637,7 @@ export const BASE = defineBuiltin(
       NOTE_EXPIRY,
       MAILBOX_UNREAD,
       PARTICIPANT_ALIVE,
+      CONTEXT_SCALE,
       SESSION_RENAME,
       CORNER_STATUS_ORDER,
       ENABLED_PLUGINS,
@@ -859,6 +865,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:note-expiry": typeof NOTE_EXPIRY
     "@matomezu/base:mailbox-unread": typeof MAILBOX_UNREAD
     "@matomezu/base:participant-alive": typeof PARTICIPANT_ALIVE
+    "@matomezu/base:context-scale": typeof CONTEXT_SCALE
     "@matomezu/base:update-check": typeof UPDATE_CHECK
     "@matomezu/base:user-name": typeof USER_NAME
     "@matomezu/base:session-rename": typeof SESSION_RENAME

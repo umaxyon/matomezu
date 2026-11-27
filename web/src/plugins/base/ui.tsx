@@ -200,6 +200,7 @@ export {
   CrownIcon,
   PendingBalloon,
   useAliveNow,
+  useContextGauge,
   useOwnBookPages,
   useVisitorRows,
   useWorkerBook,

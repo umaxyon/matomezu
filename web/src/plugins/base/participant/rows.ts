@@ -2,9 +2,10 @@
 // 管理者のワークルームは先頭に出し、ほかは受け取った順（作った順）。管理者の印が指すワークルームが無ければ、管理者は無い。
 // 様子は 3 つ: 空室（いる参加者が無い）・準備中（受け入れたあと、AI のフックが参加を伝えるまで）・参加済み（準備中でない）。生きているかは行の様子でなく、最後に呼ばれた時刻（calledAt）と、起こす知らせを渡せる matomezu watch がつながっているか（wake）で見る
 import type { WakeReach } from "../../../core/settings"
-import type { ParticipantLive } from "../../../store/state"
+import type { ContextUse, ParticipantLive } from "../../../store/state"
 import type { Participant, Workroom } from "."
 import type { WorkroomActivity } from "./activity"
+import { NO_CONTEXT_USE } from "./context-gauge"
 import { shownModel } from "./live"
 import { NOT_CALLED, occupantOf } from "./workroom"
 
@@ -35,6 +36,7 @@ export interface WorkroomRow {
   wake: WakeReach // 参加者に、起こす知らせを渡せる matomezu watch がつながっているか（空室なら none）
   requestedAt: string | typeof NOT_REQUESTED // このワークルームの名前で入りたいと頼んでいる要求中の参加者の、頼んだ時刻（いちばん新しいもの。無ければ NOT_REQUESTED）
   activity: WorkroomActivity | "unknown" // 作業の様子（activity.ts。見せるためだけ。答える種類が無ければ unknown）
+  contextUse: ContextUse | typeof NO_CONTEXT_USE // 参加者の会話の今のコンテキストの量（AI のフックが知らせた物。空室か、分からなければ NO_CONTEXT_USE）
 }
 
 // 管理者の印（ADMIN_MARK のレコード。無い・none・ワークルームが無ければ undefined）が指す、ワークルームの id
@@ -75,6 +77,7 @@ export function workroomRows(input: {
       wake: live?.wake ?? "none",
       requestedAt: requestedAt ? requestedAt : NOT_REQUESTED,
       activity: input.activities[room.id] ?? "unknown",
+      contextUse: live?.contextUse ?? NO_CONTEXT_USE,
     }
   })
   return [...rows.filter(r => r.admin), ...rows.filter(r => !r.admin)]
@@ -89,6 +92,7 @@ export interface VisitorRow {
   aiUi: string | typeof NO_AI_UI
   calledAt: string | typeof NOT_CALLED
   wake: WakeReach
+  contextUse: ContextUse | typeof NO_CONTEXT_USE
 }
 
 export function visitorRows(input: {
@@ -111,6 +115,7 @@ export function visitorRows(input: {
         aiUi: participant.aiUi ?? NO_AI_UI,
         calledAt: calledAt ? calledAt : NOT_CALLED,
         wake: live?.wake ?? "none",
+        contextUse: live?.contextUse ?? NO_CONTEXT_USE,
       }
     })
 }

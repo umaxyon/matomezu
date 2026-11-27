@@ -460,6 +460,14 @@ export function isAdminActor(actor: Actor, ctx: Pick<ActionContext, "records" | 
 
 export { PARTICIPANT_ALIVE } from "./alive"
 export {
+  CONTEXT_SCALE,
+  type ContextGauge,
+  type ContextScale,
+  contextGauge,
+  contextScaleOf,
+  NO_CONTEXT_USE,
+} from "./context-gauge"
+export {
   JOIN_REQUEST_DIALOG,
   PARTICIPANT_JOIN_DIALOG,
   PARTICIPANT_WELCOME_DIALOG,
