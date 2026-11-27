@@ -102,19 +102,20 @@
   height: 100%;
   background: var(--skin-accent);
 }
-/* 棒のうち matomezu が使っている分（左から） */
+/* 棒のうち matomezu が使っている分（左から）。アクセントの濃い色 */
 .byMatomezu {
   display: block;
   flex: none;
   height: 100%;
-  background: var(--skin-success);
+  background: color-mix(in srgb, var(--skin-accent) 60%, #000);
 }
 .amount {
   flex: none;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
-.context[data-near-full="true"] .fill {
+.context[data-near-full="true"] .fill,
+.context[data-near-full="true"] .byMatomezu {
   background: var(--skin-danger);
 }
 .context[data-near-full="true"] .amount {
