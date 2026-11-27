@@ -130,6 +130,7 @@ test("matomezu が出す名前", () => {
     "PALETTE",
     "PAPER_IDS",
     "PLACE_LINES",
+    "PLACE_OFFSET",
     "READS_ADMIN",
     "READS_WORKROOM_KEYS",
     "SCRAP_SCALE_MAX",

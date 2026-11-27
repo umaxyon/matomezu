@@ -25,6 +25,7 @@ import {
   type Edges,
   hasOpenedPage,
   NO_SHAPE_DEF,
+  PLACE_OFFSET,
   refusalMessage,
   shapeDefOf,
 } from "../../base"
@@ -32,7 +33,7 @@ import { kit } from "../kit"
 import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
 import { NO_FREE_SPOT } from "./crowd"
 import type { Came } from "./drag"
-import { nearestMove, nearestReparent, PLACE_OFFSET, placeTarget, placingShape, stretchedBy } from "./items"
+import { nearestMove, nearestReparent, placeTarget, placingShape, stretchedBy } from "./items"
 
 // 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所を、toPaperAt で紙の上の点に直す
 export function placeAt(toPaperAt: (p: Point) => Point | typeof NO_PAPER, pointer: Point): Point | typeof NO_PAPER {

@@ -138,6 +138,7 @@ export {
   PAGE_THEME,
   PAPER_IDS,
   PLACE_LINES,
+  PLACE_OFFSET,
   pageContext,
   pageFieldsWay,
   paperSize,

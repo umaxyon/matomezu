@@ -7,9 +7,9 @@ import { NO_PAPER, NO_PLACING } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
 import { toolOf } from "../../../web/src/core/workspace"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
-import { addPageIn } from "../../../web/src/plugins/base"
+import { addPageIn, PLACE_OFFSET } from "../../../web/src/plugins/base"
 import { NEST_BOX } from "../../../web/src/plugins/items/box/box"
-import { PLACE_OFFSET } from "../../../web/src/plugins/paper/placing/items"
+import { PAPER_PLACE } from "../../../web/src/plugins/paper/placing/commands"
 import { isShown } from "../../../web/src/store/commands"
 import type { Plugin } from "../../../web/src/store/plugin"
 import { createMatomezuInstance } from "../../../web/src/store/store"
@@ -33,7 +33,7 @@ const ready = () => sizedStore()
 test("箱を置こうとして紙の上で押すと、置くのをやめ、置き方を渡して追加のダイアログを開く（まだ置かない）。置き方は押した所に置いて選び、断られれば断りの文を返す", () => {
   const store = ready()
   store.actions.togglePlacing("s1", "@matomezu/box:shape-nest-box")
-  expect(store.actions.command("s1", "@matomezu/paper:paper-place", pointerFor(store, { x: 100, y: 50 }))).toBe(true)
+  expect(store.actions.command("s1", PAPER_PLACE.id, pointerFor(store, { x: 100, y: 50 }))).toBe(true)
   expect(page(store).items).toBeUndefined()
   const dialog = store.state.getState().dialog
   expect(dialog).toMatchObject({ id: "@matomezu/box:nest-box-add", stage: "s1", args: { page: "p1" } })
@@ -78,10 +78,10 @@ test("置くときに渡した項目を箱に入れ、書かなかった項目�
 test("紙から少しでもはみ出す所では置かず、置こうとしたままにする", () => {
   const store = ready()
   store.actions.togglePlacing("s1", "@matomezu/box:shape-nest-box")
-  store.actions.command("s1", "@matomezu/paper:paper-place", pointerFor(store, { x: -1, y: 0 }))
+  store.actions.command("s1", PAPER_PLACE.id, pointerFor(store, { x: -1, y: 0 }))
   const w = openedPageOf(screenOf(store.state.getState().window).stages[0]!.opened).paper
   const right = w !== NO_PAPER && w.status === "known" ? w.size.w - 64 + 1 : 0
-  store.actions.command("s1", "@matomezu/paper:paper-place", pointerFor(store, { x: right, y: 0 }))
+  store.actions.command("s1", PAPER_PLACE.id, pointerFor(store, { x: right, y: 0 }))
   expect(page(store).items).toBeUndefined()
   expect(placingItemOf(screenOf(store.state.getState().window).stages[0]!.placing)).toBe("@matomezu/box:shape-nest-box")
 })
@@ -225,7 +225,7 @@ test("追加と編集のダイアログを持たない形は、押した所に�
   showFirstBook(store)
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   store.actions.togglePlacing("s1", "@matomezu/box:shape-nest-box")
-  store.actions.command("s1", "@matomezu/paper:paper-place", pointerFor(store as never, { x: 100, y: 50 }))
+  store.actions.command("s1", PAPER_PLACE.id, pointerFor(store as never, { x: 100, y: 50 }))
   expect(store.state.getState().dialog).toBeNull()
   expect(page(store as never).items).toMatchObject([{ id: "n1", item: "@matomezu/box:shape-nest-box", x: 100, y: 50 }])
   expect(isShown(store, store.state.getState(), "s1", "@matomezu/paper:paper-edit", { item: "n1" })).toBe(false)

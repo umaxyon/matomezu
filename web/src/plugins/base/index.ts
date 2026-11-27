@@ -453,6 +453,7 @@ export {
   NO_SPOT,
   newClash,
   nextItemId,
+  PLACE_OFFSET,
   paperSize,
   placeChild,
   placedAt,

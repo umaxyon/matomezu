@@ -56,6 +56,7 @@ export {
   NEST_PADDING,
   NO_SHAPE_DEF,
   NO_SIZE,
+  PLACE_OFFSET,
   placedSize,
   portAreasOf,
   rectsOf,
