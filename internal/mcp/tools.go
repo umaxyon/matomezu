@@ -418,7 +418,7 @@ var performSchema = map[string]any{
 		"actions": map[string]any{
 			"type":        "array",
 			"minItems":    1,
-			"maxItems":    10,
+			"maxItems":    aiwire.BulkMax,
 			"description": "In place of action, args and on: actions to perform in this order, all done or none (if one is refused, nothing changes). Each sees what the ones before it changed.",
 			"items": map[string]any{
 				"type": "object",

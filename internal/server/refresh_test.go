@@ -59,4 +59,52 @@ func TestRefreshRequestIsKeptOnlyForARefreshableAI(t *testing.T) {
 	if again, _ := call(t, "POST", s.URL+"/api/ai/refresh-due", `{"sessionId":"SA"}`, nil); !strings.Contains(again, `"text":""`) {
 		t.Fatalf("refresh-due again = %s", again)
 	}
+	// 断られたバルクの頼みは覚えない
+	broken := `{"actions":[{"action":"@matomezu/base:refresh-request","args":{"type":"@matomezu/markdown:markdown","title":"handoff 2"}},{"action":"@matomezu/base:page-update","args":{"title":"x"},"on":{"page":"none"}}]}`
+	if got, _ := call(t, "POST", s.URL+"/api/ai/perform", broken, as); !strings.Contains(got, `"ok":false`) || !strings.Contains(got, `"at":1`) {
+		t.Fatalf("a refused bulk = %s", got)
+	}
+	if due, _ := call(t, "POST", s.URL+"/api/ai/refresh-due", `{"sessionId":"SA"}`, nil); !strings.Contains(due, `"text":""`) {
+		t.Fatalf("refresh-due after a refused bulk = %s", due)
+	}
+	// 渡す前に利用者が話したら、その頼みは捨てる
+	if got, _ := call(t, "POST", s.URL+"/api/ai/perform", strings.Replace(refresh, `"handoff"`, `"handoff 3"`, 1), as); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("refresh-request again = %s", got)
+	}
+	call(t, "POST", s.URL+"/api/ai/talked", `{"sessionId":"SA","prompt":"hello"}`, nil)
+	if due, _ := call(t, "POST", s.URL+"/api/ai/refresh-due", `{"sessionId":"SA"}`, nil); !strings.Contains(due, `"text":""`) {
+		t.Fatalf("refresh-due after the user talked = %s", due)
+	}
+}
+
+// AI の perform に actions を並べると、順に行い、結果を並べた順に返す。断られたら何番目かを添えて何も変えない。action と actions を両方渡すと断る
+func TestAIPerformsActionsInABulk(t *testing.T) {
+	s, _ := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	noticeOf(t, s.URL, a)
+	as := map[string]string{aiwire.ParticipantHeader: a}
+	add := func(title string) string {
+		return `{"action":"@matomezu/base:worker-page-add","args":{"type":"@matomezu/markdown:markdown","title":"` + title + `"}}`
+	}
+	got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"actions":[`+add("one")+`,`+add("two")+`]}`, as)
+	var done struct {
+		OK      bool
+		Results []struct{ Page, Book string }
+	}
+	if json.Unmarshal([]byte(got), &done) != nil || !done.OK || len(done.Results) != 2 || done.Results[0].Page == done.Results[1].Page {
+		t.Fatalf("two worker-page-add = %s", got)
+	}
+	book := func() string {
+		out, _ := call(t, "GET", s.URL+"/api/ai/books/"+done.Results[0].Book, "", as)
+		return out
+	}
+	if got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"actions":[`+add("three")+`,{"action":"@matomezu/base:page-update","args":{"title":"x"},"on":{"page":"none"}}]}`, as); !strings.Contains(got, `"ok":false`) || !strings.Contains(got, `"at":1`) {
+		t.Fatalf("a refused bulk = %s", got)
+	}
+	if b := book(); !strings.Contains(b, `"two"`) || strings.Contains(b, `"three"`) {
+		t.Fatalf("book after a refused bulk = %s", b)
+	}
+	if got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-update","actions":[`+add("four")+`]}`, as); !strings.Contains(got, `"reason":"bad-args"`) {
+		t.Fatalf("action and actions = %s", got)
+	}
 }

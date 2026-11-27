@@ -171,9 +171,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.deliverHost(e)
 	}
 	h.wakeOnParticipants(requested, cancelled)
-	if err := h.keepRefresh(out.RefreshRequest, p.Participant); err != nil {
-		return Performed{}, err
-	}
+	h.keepRefresh(out.RefreshRequest, p.Participant)
 	h.remember(p.Key, done)
 	h.ack(p, done)
 	return done, nil

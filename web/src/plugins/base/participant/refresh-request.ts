@@ -6,7 +6,7 @@ import type { CoreCatalog } from "../../../core/core-catalog"
 import { kit } from "../kit"
 import { MY_WORKDESK } from "../library/system-folders"
 import { describeNewPage } from "../pages/page-add"
-import { readerIn, workRecordNameOf, workRecordTitleOf } from "./activity"
+import { readerIn, workRecordNameOf, workTitleOf } from "./activity"
 import { workerBookReadsOf } from "./worker-book"
 import { PAGE_ARGS, withWorkerPage } from "./worker-page-add"
 import { WORKROOM } from "./workroom"
@@ -34,10 +34,15 @@ export const REFRESH_REQUEST = kit.defineAction({
     if (!target) return { declined: "your workroom has no handoff target, so there is no handoff page to write" }
     if (read.record(target.subject, target.id) === "none")
       return { declined: "the record of your handoff target is gone, so its worker book cannot have a handoff page" }
-    const name = workRecordNameOf(ctx.catalog, read, target)
-    const done = withWorkerPage(library, target, name?.label ?? target.id, page, ctx)
+    const done = withWorkerPage(
+      library,
+      target,
+      workRecordNameOf(ctx.catalog, read, target)?.label ?? target.id,
+      page,
+      ctx,
+    )
     if (!done) return null
-    const title = name ? workRecordTitleOf(name) : target.id
+    const title = workTitleOf(ctx.catalog, read, target)
     const text = `Your conversation was refreshed. The handoff page of ${title} is page "${done.result.page}" in book "${done.result.book}": read it with read_page. Then read your workdesk (read_folder with folder "${MY_WORKDESK}") for your current work.`
     return { ...done, refreshRequest: { text } }
   },

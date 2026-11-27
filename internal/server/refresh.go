@@ -1,7 +1,9 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/umaxyon/matomezu/internal/engine"
 )
@@ -18,14 +20,37 @@ func (h *Hub) refreshRefused(req *engine.RefreshRequest, participant string) *Pe
 	return &Performed{OK: false, Reason: "refused", Detail: "your AI program has not told matomezu that it can have its conversation cleared (Claude Code with the matomezu plugin can), so nothing was written"}
 }
 
-// keepRefresh は、受けたリフレッシュリクエスト req を参加者 participant に覚える（前の頼みは置き換える。h.mu を持って呼ぶ）
-func (h *Hub) keepRefresh(req *engine.RefreshRequest, participant string) error {
+// keepRefresh は、受けたリフレッシュリクエスト req を参加者 participant に覚える（前の頼みは置き換える。h.mu を持って呼ぶ）。
+// バルクはもう書いたので、覚えを置き場所に書けなくても断らず、覚えを前に戻して stderr に出す（引継ぎページは書けている。会話は空にならない）
+func (h *Hub) keepRefresh(req *engine.RefreshRequest, participant string) {
 	if req == nil || participant == "" {
-		return nil
+		return
 	}
-	n := h.participantNotes[participant]
+	was := h.participantNotes[participant]
+	n := was
 	n.RefreshDue = refreshHead + req.Text
 	h.participantNotes[participant] = n
+	if err := h.putParticipantNotes(); err != nil {
+		h.participantNotes[participant] = was
+		fmt.Fprintf(os.Stderr, "%s the refresh request of %s is not kept: %v\n", stamp(), participant, err)
+	}
+}
+
+// DropRefresh は、会話のセッション session に結んだ参加者が受けたリフレッシュリクエストを捨てる（利用者が話したら、そのターンの終わりの頼みではもう無い。
+// AI のプログラムの部品が動かず渡せなかった頼みが、後の関係の無い会話を空にしないため）
+func (h *Hub) DropRefresh(session string) error {
+	id := h.joinedOfSession(session)
+	if id == "" {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	n, ok := h.participantNotes[id]
+	if !ok || n.RefreshDue == "" {
+		return nil
+	}
+	n.RefreshDue = ""
+	h.participantNotes[id] = n
 	return h.putParticipantNotes()
 }
 

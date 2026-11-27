@@ -5,23 +5,19 @@
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { AnyRecordRead, RecordRead } from "../../../core/def/action"
 import type { FollowStepDef, HostMessage } from "../../../core/def/follow-step"
-import type { WorkKey } from "../../../core/folders"
+import { sameWorkKey, type WorkKey } from "../../../core/folders"
 import { readerOf, sourceOf } from "../../../core/record-source"
 import { MY_WORKDESK } from "../library/system-folders"
 import {
   aiWorkroomIdleIn,
   type WorkroomWork,
-  workRecordNameOf,
   workRecordNameReadsOf,
-  workRecordTitleOf,
   workroomWorkIn,
   workroomWorkReadsOf,
+  workTitleOf,
 } from "./activity"
 import { REFRESH_REQUEST_ID } from "./refresh-request-id"
 import { WORKROOM } from "./workroom"
-
-const sameKey = (a: WorkKey | undefined, b: WorkKey | undefined) =>
-  a === undefined ? b === undefined : b !== undefined && a.subject === b.subject && a.id === b.id
 
 // 作業を答えるのに読む種類と、作業の名前と、空きのワークルームの AI に添える文が読む種類（どれも全部。ワークルームごとに答えを決めるため）
 const readsOf = (catalog: CoreCatalog): string[] => [
@@ -52,7 +48,7 @@ export const FOLLOW_WORK_CHANGED: FollowStepDef = {
       if (now === "unknown") continue
       const key = now.kind === "working" ? now.key : undefined
       const was = room.data.work
-      if (sameKey(was, key)) continue
+      if (sameWorkKey(was, key)) continue
       const target = was ?? room.data.handoffTarget
       const { work: _work, handoffTarget: _handoffTarget, ...rest } = room.data
       records.push({
@@ -60,10 +56,7 @@ export const FOLLOW_WORK_CHANGED: FollowStepDef = {
         id: room.data.id,
         record: { ...rest, ...(key ? { work: key } : {}), ...(target ? { handoffTarget: target } : {}) },
       })
-      const title = (k: WorkKey) => {
-        const name = workRecordNameOf(ctx.catalog, read, k)
-        return name ? workRecordTitleOf(name) : k.id
-      }
+      const title = (k: WorkKey) => workTitleOf(ctx.catalog, read, k)
       const idle = now.kind === "idle" ? aiWorkroomIdleIn(ctx.catalog, read, room.data.id) : ""
       hostMessages.push({
         workroom: room.data.id,

@@ -401,6 +401,10 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 		lent = o.Hub.WokenBy(req.Prompt)
 		if !req.Woken && !lent {
 			o.Hub.UserTalkedIn(req.SessionID)
+			if err := o.Hub.DropRefresh(req.SessionID); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			if err := o.Hub.Talked(time.Now()); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return

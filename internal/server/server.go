@@ -85,6 +85,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
 )
 
@@ -695,7 +696,7 @@ func (o Options) aiBook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
-	// AI の頼みは、アクション 1 つ（action・args・on）か、順に行い全部通るか全部断られるアクションの並び（actions。aiBulkMax まで）
+	// AI の頼みは、アクション 1 つ（action・args・on）か、順に行い全部通るか全部断られるアクションの並び（actions。aiwire.BulkMax まで）
 	var p struct {
 		Action     string              `json:"action"`
 		Args       json.RawMessage     `json:"args"`
@@ -708,8 +709,8 @@ func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
 	}
 	bulk := performOne(p.Action, p.Args, p.On)
 	if len(p.Actions) > 0 {
-		if p.Action != "" || len(p.Actions) > aiBulkMax {
-			writeJSON(w, Performed{OK: false, Reason: "bad-args", Detail: fmt.Sprintf("give action, or actions (1 to %d), not both", aiBulkMax)})
+		if p.Action != "" || len(p.Actions) > aiwire.BulkMax {
+			writeJSON(w, Performed{OK: false, Reason: "bad-args", Detail: fmt.Sprintf("give action, or actions (1 to %d), not both", aiwire.BulkMax)})
 			return
 		}
 		bulk = Perform{Actions: aiBulkActions(p.Actions)}
@@ -731,9 +732,6 @@ func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
 		At      *int              `json:"at,omitempty"`
 	}{done, done.Results, done.At})
 }
-
-// aiBulkMax は、AI が 1 回で頼めるアクションの数
-const aiBulkMax = 10
 
 // aiBulkActions は、AI が並べたアクションの、アクション・引数・宛先だけ（画面の値の id・時点・言語は AI から受けない）
 func aiBulkActions(given []engine.BulkAction) []engine.BulkAction {

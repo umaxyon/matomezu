@@ -20,6 +20,9 @@ const (
 	ModelHeader = "X-Matomezu-Model"
 )
 
+// BulkMax は、AI が perform の 1 回で並べて頼めるアクションの数
+const BulkMax = 10
+
 // AI 間メッセージを受けたときの、いつ渡るか（send_message の答えの delivers）
 const (
 	DeliversNow      = "now"       // 起こす知らせを渡せる matomezu watch がつながっていて、すぐ渡す
