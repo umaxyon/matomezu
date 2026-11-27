@@ -120,12 +120,12 @@ export function useFileAsset() {
   const instance = useInstance()
   const { showToast } = useActions()
   const text = useT()
-  const refuse = (file: File, why: MessageKey) =>
+  const refuse = (file: File, why: MessageKey, whyParams?: Readonly<Record<string, string>>) =>
     showToast({
       kind: "warn",
       message: kit.message("Could not take {name}"),
       params: { name: file.name || text(kit.message("The file")) },
-      detail: { message: why },
+      detail: { message: why, ...(whyParams ? { params: whyParams } : {}) },
     })
   return {
     makerOf: (type: string): PageFromFileDef | undefined =>

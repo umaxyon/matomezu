@@ -1,5 +1,6 @@
-// ファイルからページを作れるプレゼンテーション（ビューの定義の拡張ポイント pageFromFile）。外から落としたファイルをスクラップにして置くとき（file-drop.tsx）に、
-// base がファイルをアセットの置き場に置き、プレゼンテーションが言うシステムフォルダの直下に、プレゼンテーションが言う形のページを作る（中身が同じページが在れば、作らずにそれを使う）
+// ファイルからページを作れるプレゼンテーション（ビューの定義の拡張ポイント pageFromFile）。外から落としたファイルから、base がファイルをアセットの置き場に置き、
+// プレゼンテーションが言う形のページを作る。図面・スライドに落としたとき（scrap/file-drop.tsx）は、言うシステムフォルダの直下に作り（中身が同じページが在れば、作らずにそれを使う）、
+// そのスクラップを置く。書庫に落としたとき（library/file-drop.tsx）は、そのシステムフォルダとその下のフォルダだけが受け、落としたフォルダに作る
 import type { AssetPut } from "../../../core/assets"
 import type { MessageKey } from "../../../core/catalog"
 import type { ItemPage } from "../../../core/placed"
@@ -17,7 +18,7 @@ export interface PageFromFile {
 // ファイルからページを作れるプレゼンテーションの宣言（ビューの定義の pageFromFile）
 export interface PageFromFileDef {
   type: string // 作るページのタイプ
-  into: string // 作る所（システムフォルダの id。その直下に作る）
+  into: string // 作る所と受ける所（システムフォルダの id。図面などに落とせばその直下に作り、書庫ではこのフォルダとその下が受ける）
   accepts(type: string): boolean // 受けるファイルの種類（MIME の type）か
   refusal(reason: Extract<AssetPut, { ok: false }>["reason"]): MessageKey // 置き場が断った訳の文
   same(page: ItemPage, asset: PutAsset): boolean // 在るページ page が、置いたアセットと中身が同じページか

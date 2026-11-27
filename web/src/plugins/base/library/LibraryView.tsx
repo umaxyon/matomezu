@@ -488,7 +488,7 @@ function ContentEntry({
             data-reference={row.kind === "reference" ? "" : undefined}
             data-unchoosable={press.faded || undefined}
             {...dragMarks(drag, LIBRARY_CONTENTS_SCOPE, row.id)}
-            {...files(row.id)}
+            {...(row.kind === "folder" ? files(row.id) : files(holder, false))}
             onClick={press.onClick}
             onDoubleClick={press.onDoubleClick}
             onContextMenu={onMenu}
@@ -557,7 +557,7 @@ function TreeNode({
               data-holder={holder}
               data-unchoosable={press.faded || undefined}
               {...dragMarks(handlers.drag, LIBRARY_TREE_SCOPE, row.id)}
-              {...handlers.files(row.id)}
+              {...(row.kind === "folder" ? handlers.files(row.id) : handlers.files(holder, false))}
               aria-current={holds && row.id === handlers.opened ? "true" : undefined}
               aria-pressed={!holds && row.id === handlers.picked}
               onClick={press.onClick}

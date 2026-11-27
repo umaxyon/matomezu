@@ -290,12 +290,27 @@ test("書庫の「画像」とその下に落とすとそこに取り込み、�
   await page.getByRole("button", { name: "番号を付ける" }).click()
   await expect(images.getByRole("button")).toHaveText(["写真", "写真 2"])
 
+  // 中の画像のページに重ねても、入っている「画像」が受ける（ページの行には色を付けず、中身の枠に付ける）
+  const photo = images.getByRole("button", { name: "写真", exact: true })
+  await dropFiles(page, photo, await center(photo), [{ name: "犬.svg", type: "image/svg+xml", bytes: SVG }], false)
+  await expect(images).toHaveAttribute("data-drop", "into")
+  await expect(photo).not.toHaveAttribute("data-drop", "into")
+  await dropFiles(page, photo, await center(photo), [{ name: "犬.svg", type: "image/svg+xml", bytes: SVG }])
+  await expect(images.getByRole("button")).toHaveText(["写真", "写真 2", "犬"])
+
   // 「画像」の外（ドキュメント）に重ねると、取り込まずに落とす所を知らせる
   await page.getByRole("navigation", { name: "場所" }).getByRole("button", { name: "書庫", exact: true }).click()
   const documents = home.getByRole("button", { name: "ドキュメント", exact: true })
-  await dropFiles(page, documents, await center(documents), [{ name: "犬.svg", type: "image/svg+xml", bytes: SVG }])
+  // 禁止の印の所には、ブラウザは落とした事を届けないので、重ねるだけにする
+  await dropFiles(
+    page,
+    documents,
+    await center(documents),
+    [{ name: "犬.svg", type: "image/svg+xml", bytes: SVG }],
+    false,
+  )
   await expect(page.getByText("画像のフォルダに落としてください")).toBeVisible()
   await expect(documents).not.toHaveAttribute("data-drop", "into")
   await imagesRow.dblclick()
-  await expect(images.getByRole("button")).toHaveText(["写真", "写真 2"])
+  await expect(images.getByRole("button")).toHaveText(["写真", "写真 2", "犬"])
 })

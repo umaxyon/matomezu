@@ -20,7 +20,8 @@ type Handlers = {
 }
 
 export interface LibraryFileDrop {
-  on(folder: string): Handlers // 書庫の行（と、開いているフォルダの中身）に付ける。folder はそこに落とすと入る所
+  // 書庫の行（と、開いているフォルダの中身）に付ける。folder はそこに落とすと入る所。marked が false なら色を付けない（入っているフォルダで受ける、ページなどの行）
+  on(folder: string, marked?: boolean): Handlers
   confirm: ReactNode // 名前が重なったときの確かめ（聞いていなければ null）
 }
 
@@ -78,14 +79,19 @@ export function useLibraryFileDrop(): LibraryFileDrop {
         files.refuse(file, kit.message("It is not a kind of file that can be placed"))
         continue
       }
-      if (!takes(folder, maker)) continue
+      if (!takes(folder, maker)) {
+        const title = catalog.systemFolders.get(maker.into)?.title
+        if (title !== undefined)
+          files.refuse(file, kit.message("Drop it in the {folder} folder"), { folder: text(title) })
+        continue
+      }
       const put = await files.put(file, maker)
       if (put === NO_ASSET) continue
       await create(folder, { type: maker.type, ...maker.page(file, put, key => text(key)) })
     }
   }
   return {
-    on: folder => ({
+    on: (folder, marked = true) => ({
       onDragOver: e => {
         if (!e.dataTransfer.types.includes("Files")) return
         e.preventDefault()
@@ -110,7 +116,7 @@ export function useLibraryFileDrop(): LibraryFileDrop {
         setOver(null)
         void importAll(folder, [...e.dataTransfer.files])
       },
-      ...(over === folder ? { "data-drop": "into" as const } : {}),
+      ...(marked && over === folder ? { "data-drop": "into" as const } : {}),
     }),
     confirm,
   }
