@@ -17,6 +17,7 @@ export const CONTROL_CENTER = kit.defineControlCenter({
     "@matomezu/base:library-reference-remove",
     "@matomezu/base:print-preview-update",
     "@matomezu/base:page-create",
+    "@matomezu/base:page-create-over",
     "@matomezu/base:worker-page-add",
     "@matomezu/base:entry-trash",
     "@matomezu/base:entry-restore",

@@ -240,8 +240,11 @@ test("新しいブックのダイアログでブックを作ると、そのス�
     "ディレクトリ構成図",
     "マークダウン",
     "スライド",
+    "画像",
     "参照…",
   ])
+  // 画像のページは画像のフォルダの中にだけ作れるので、ブックでは押せない
+  expect((screen.getByRole("menuitem", { name: "画像" }) as HTMLButtonElement).disabled).toBe(true)
   fireEvent.click(screen.getByRole("menuitem", { name: "図面" }))
   const page = screen.getByRole("dialog", { name: /^新しい/ })
   expect((within(page).getByLabelText("ページの名前") as HTMLInputElement).value).toBe("ページ 1")
