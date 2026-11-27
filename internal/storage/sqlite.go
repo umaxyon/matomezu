@@ -232,6 +232,15 @@ var migrations = []string{
 	`SELECT 1;`,
 	// ワーカーブックの名前を写し元の今の名前に合わせ、チケットのブックの中のページの名前の頭の番号を外す（Go の移し替え。migrate_worker_book_names.go）
 	`SELECT 1;`,
+	// アセット（画像のバイト列。id は中身の sha256 で、書き換えない）。ブックのデータとは別に持ち、ページが id で指す
+	`CREATE TABLE assets (
+		id TEXT PRIMARY KEY,
+		mime TEXT NOT NULL,
+		width INTEGER NOT NULL,
+		height INTEGER NOT NULL,
+		bytes BLOB NOT NULL,
+		created_at TEXT NOT NULL
+	);`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う

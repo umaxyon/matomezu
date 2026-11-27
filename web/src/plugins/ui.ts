@@ -14,6 +14,7 @@ import { NETWORK_UI } from "./network/ui"
 import { DIR_UI } from "./page-types/dir/ui"
 import { DRAWING_UI } from "./page-types/drawing/ui"
 import { FLOWCHART_UI } from "./page-types/flowchart/ui"
+import { IMAGE_UI } from "./page-types/image/ui"
 import { MARKDOWN_UI } from "./page-types/markdown/ui"
 import { SLIDE_PAGE_UI } from "./page-types/slide-page/ui"
 import { TREE_UI } from "./page-types/tree/ui"
@@ -38,6 +39,7 @@ export const BUILTIN_UI = [
   DIR_UI,
   MARKDOWN_UI,
   SLIDE_PAGE_UI,
+  IMAGE_UI,
   TASKBOARD_UI,
   NETWORK_UI,
 ] as const
@@ -228,6 +230,8 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/paper:paper-delete",
     ],
     "@matomezu/base:library-entry-context": [
+      "@matomezu/image:import-images",
+      "-",
       "@matomezu/base:library-entry-open",
       "@matomezu/base:library-entry-open-split",
       "-",
@@ -247,6 +251,8 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:library-reference-delete",
     ],
     "@matomezu/base:library-folder-context": [
+      "@matomezu/image:import-images",
+      "-",
       "@matomezu/base:library-book-new",
       "@matomezu/base:library-folder-new",
       "@matomezu/base:library-page-new",

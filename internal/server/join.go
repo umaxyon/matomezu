@@ -434,14 +434,28 @@ func (o Options) aiJoin(w http.ResponseWriter, r *http.Request) {
 
 // showRefusal は、参加者 id の AI が show を頼んだときの断りの理由と文（参加が確定してワークルームに入っている AI なら、どちらも空）
 func (h *Hub) showRefusal(id string) (reason, detail string) {
+	return h.workroomRefusal(id,
+		"a visitor only reads: it cannot show books on the user's screen",
+		"only an AI whose request to join was accepted shows books on the user's screen (call join first)")
+}
+
+// assetRefusal は、参加者 id の AI が画像を置こうとしたときの断りの理由と文（参加が確定してワークルームに入っている AI なら、どちらも空）
+func (h *Hub) assetRefusal(id string) (reason, detail string) {
+	return h.workroomRefusal(id,
+		"a visitor only reads: it cannot put images in matomezu",
+		"only an AI whose request to join was accepted puts images in matomezu (call join first)")
+}
+
+// workroomRefusal は、参加者 id の AI がワークルームに入っていなければ、その断りの理由（visitor か not-joined）と、それぞれの文
+func (h *Hub) workroomRefusal(id, visitor, notJoined string) (reason, detail string) {
 	h.mu.Lock()
 	actor := h.actorOfParticipantHeld(id)
 	h.mu.Unlock()
 	switch {
 	case actor.As == stateVisitor:
-		return "visitor", "a visitor only reads: it cannot show books on the user's screen"
+		return "visitor", visitor
 	case actor.Workroom == "":
-		return "not-joined", "only an AI whose request to join was accepted shows books on the user's screen (call join first)"
+		return "not-joined", notJoined
 	}
 	return "", ""
 }

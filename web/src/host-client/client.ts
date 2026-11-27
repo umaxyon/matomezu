@@ -1,5 +1,6 @@
 // ホストクライアント: 画面がホスト（常駐サーバー）とブラウザに頼むこと（読む・行ったアクションを渡す・外の変化を受ける）を 1 つの型にまとめる。画面のコードは、この口からしか外に触らない。
 // 実装は常駐に頼むもの（server.ts）。テストはメモリに持つもの（test/host-client/memory.ts）を使う
+import type { AssetPut } from "../core/assets"
 import type { BROKEN } from "../core/folders"
 import type { MovedIfOff, Purged, UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
@@ -35,6 +36,10 @@ export interface HostClient {
   reportAIEditTicket(change: AIEditTicketOutcome): void
   // ホストの言葉の検索（横断検索）。断られた・つながらなかったときは投げる。画面には createMatomezu の search で渡す
   search(query: WideSearchQuery): Promise<WideSearchAnswer>
+  // 画像のバイト列を、アセットの置き場に置く（POST /api/assets）。受けなければ訳を返す。常駐が断るか（200 でない）つながらなければ E417 を投げる。画面には createMatomezu の assetsHost で渡す
+  putAsset(bytes: Blob): Promise<AssetPut>
+  // アセット id の中身を読む URL（GET /api/assets/{id}）
+  assetUrl(id: string): string
   // load が開いた知らせのつながりを閉じる（起動を止めた窓が connect の前に呼ぶ）。常駐はこの窓を、AI の view・show の向け先に数えなくなる。
   // 閉じたあとは「plugins」の知らせでも読み直さない。removeScreenPlugins は閉じたあとも使える
   closeEvents(): void

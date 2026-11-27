@@ -166,10 +166,17 @@ func (o Options) withCookie(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// screen は「画面から」の入口を包む（この常駐の画面からの頼みで、画面 cookie を持つブラウザから）
-func (o Options) screen(h http.HandlerFunc) http.Handler {
+// screen は「画面から」の入口を包む（この常駐の画面からの頼みで、画面 cookie を持つブラウザから）。
+// 書く頼みの本文は JSON だけ。media を書けば、その種類だけ（バイト列を受ける口は octetStream）
+func (o Options) screen(h http.HandlerFunc, media ...string) http.Handler {
+	if len(media) == 1 {
+		return sameOriginWith(media[0], o.withCookie(h))
+	}
 	return sameOrigin(o.withCookie(h))
 }
+
+// octetStream は、本文にバイト列を受ける口の本文の種類
+const octetStream = "application/octet-stream"
 
 // giveCookie は GET /cookie?code=…。コードを受け付けて鍵を cookie に置き、画面へ戻す
 func (o Options) giveCookie(w http.ResponseWriter, r *http.Request) {
