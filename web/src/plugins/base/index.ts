@@ -91,6 +91,7 @@ import {
   LIBRARY_UNFOLDED,
   LIBRARY_UNREADABLE_OPEN,
   PAGE_CREATE,
+  PAGE_CREATE_OVER,
   SHOW_UNREADABLE_FOLDER,
   TICKETS_HISTORY,
   TRASH_EMPTY,
@@ -556,6 +557,7 @@ export const BASE = defineBuiltin(
       LIBRARY_REFERENCE_ADD,
       LIBRARY_REFERENCE_REMOVE,
       PAGE_CREATE,
+      PAGE_CREATE_OVER,
       ENTRY_TRASH,
       ENTRY_RESTORE,
       ENTRY_PURGE,
@@ -879,6 +881,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-reference-add": typeof LIBRARY_REFERENCE_ADD
     "@matomezu/base:library-reference-remove": typeof LIBRARY_REFERENCE_REMOVE
     "@matomezu/base:page-create": typeof PAGE_CREATE
+    "@matomezu/base:page-create-over": typeof PAGE_CREATE_OVER
     "@matomezu/base:entry-trash": typeof ENTRY_TRASH
     "@matomezu/base:entry-restore": typeof ENTRY_RESTORE
     "@matomezu/base:entry-purge": typeof ENTRY_PURGE

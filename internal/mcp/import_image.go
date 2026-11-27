@@ -15,7 +15,7 @@ import (
 const importImageDescription = "Put an image in matomezu: path is a file on this machine (PNG, JPEG, GIF, WebP or SVG, up to 25MB), or svg is the text of an SVG you write (give one of them). " +
 	"It answers asset (the image's id: the same image always has the same id), mime, width and height (in pixels). It makes no page: to show the image, " +
 	"make an image page with perform: @matomezu/base:page-create with folder (the images folder, the system folder @matomezu/image:images, or a folder in it; see read_folder), type @matomezu/image:image, title and fields {asset}. " +
-	"Image pages are only in the images folder and the folders in it. An image no page points at is deleted when matomezu starts. " +
+	"Image pages are only in the images folder and the folders in it. Only an AI that has joined a workroom can put images (refused with not-joined, and visitor for a visitor). An image no page points at is deleted when matomezu starts. " +
 	"Refused with too-large (over 25MB) and not-image (not an image of those kinds; an SVG with scripts is kept without them, and one whose style loads from outside is refused)."
 
 var importImageSchema = map[string]any{
@@ -51,6 +51,7 @@ func importImage(api caller, args map[string]any) (string, bool) {
 	var put struct {
 		OK     bool   `json:"ok"`
 		Reason string `json:"reason"`
+		Detail string `json:"detail"`
 		Asset  string `json:"asset"`
 		Mime   string `json:"mime"`
 		Width  int    `json:"width"`
@@ -68,7 +69,7 @@ func importImage(api caller, args map[string]any) (string, bool) {
 	case put.Reason == aiwire.AssetNotImage:
 		return "not-image: it is not a PNG, JPEG, GIF, WebP or SVG image that can be read (an SVG whose style loads from outside is not taken either)", false
 	}
-	return refusalText(put.Reason, ""), false
+	return refusalText(put.Reason, put.Detail), false
 }
 
 const tooLargeImage = "too-large: the image is larger than 25MB"

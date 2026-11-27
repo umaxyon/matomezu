@@ -160,6 +160,15 @@ func (o Options) importAsset(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true, "asset": info.Asset, "mime": info.Mime, "width": info.Width, "height": info.Height})
 }
 
+// importAIAsset は、AI が画像を置く口（ワークルームに入った AI だけ。ビジターと参加が確定していない AI は、アクションと同じ理由で断る）
+func (o Options) importAIAsset(w http.ResponseWriter, r *http.Request) {
+	if reason, detail := o.Hub.assetRefusal(participantOf(r)); reason != "" {
+		writeJSON(w, map[string]any{"ok": false, "reason": reason, "detail": detail})
+		return
+	}
+	o.importAsset(w, r)
+}
+
 // serveAsset は、アセットの中身を配る口（中身は id で決まり変わらないので、ずっと使い回させる。SVG はスクリプトも外への読み込みも効かせない）
 func (o Options) serveAsset(w http.ResponseWriter, r *http.Request) {
 	a, err := o.Hub.Asset(r.PathValue("id"))

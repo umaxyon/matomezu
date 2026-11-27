@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/umaxyon/matomezu/internal/aiwire"
 )
 
 func rasterBytes(t *testing.T, kind string, w, h int) []byte {
@@ -208,15 +210,19 @@ func TestDropUnusedAssetsAtStart(t *testing.T) {
 	}
 }
 
-// AI の口も、同じアセットの置き場に、合言葉で置ける（合言葉が無ければ受けない）
+// AI の口も、同じアセットの置き場に、合言葉で置ける（合言葉が無ければ受けない）。置けるのはワークルームに入った AI だけ（参加していなければ not-joined）
 func TestAIImportsAnAsset(t *testing.T) {
-	_, s := hubAt(t, filepath.Join(t.TempDir(), "data.db"))
+	s, _ := joinWorld(t, joinStore(t))
 	svg := `<svg xmlns="http://www.w3.org/2000/svg" width="8" height="4"/>`
 	octet := map[string]string{"Content-Type": "application/octet-stream", "Cookie": ""}
 	if code, _ := send(t, "POST", s.URL+"/api/ai/assets", svg, octet); code == 200 {
 		t.Fatalf("taken without the token")
 	}
 	octet["Authorization"] = "Bearer secret"
+	if code, body := send(t, "POST", s.URL+"/api/ai/assets", svg, octet); code != 200 || !strings.Contains(body, `"reason":"not-joined"`) {
+		t.Fatalf("/api/ai/assets before joining = %d %s", code, body)
+	}
+	octet[aiwire.ParticipantHeader] = joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	code, body := send(t, "POST", s.URL+"/api/ai/assets", svg, octet)
 	if code != 200 || !strings.Contains(body, `"ok":true`) || !strings.Contains(body, `"width":8`) {
 		t.Fatalf("/api/ai/assets = %d %s", code, body)

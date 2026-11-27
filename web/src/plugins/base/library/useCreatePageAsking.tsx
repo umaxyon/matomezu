@@ -5,10 +5,12 @@
 import { type ReactNode, useState } from "react"
 import { freeTitle, titledIn, titlesIn } from "../../../core/entries"
 import type { AnyEntryRef } from "../../../core/folders"
-import { useReadState } from "../../../ui/store-context"
-import type { ReplaceBlocked } from "./entries"
+import { useCatalog, useReadState } from "../../../ui/store-context"
+import { useAllowedOn } from "../../../ui/view-hooks"
+import { replaceBlockedOf } from "./entries"
 import { useNameOf, useReadNaming } from "./hooks"
 import { NO_TITLE } from "./outline"
+import { PAGE_CREATE_OVER } from "./page-create"
 import { TitleClashConfirm } from "./TitleClashConfirm"
 import { type CreatePageArgs, useCreatePage } from "./useCreatePage"
 
@@ -26,7 +28,6 @@ export function useCreatePageAsking(folder: string): {
   const create = useCreatePage()
   const read = useReadState()
   const naming = useReadNaming()
-  const nameOf = useNameOf()
   const [asking, setAsking] = useState<Asking | null>(null)
   const ask = (args: CreatePageArgs & { title: string }) =>
     new Promise<boolean>(done => {
@@ -44,19 +45,49 @@ export function useCreatePageAsking(folder: string): {
     setAsking(null)
     asking.done(made())
   }
-  // ページでない物（フォルダ・ブック・バインダ）は、ページで上書きできない
-  const blocked: ReplaceBlocked | null = asking?.there.kind === "page" ? null : { by: "rule", why: "kind" }
-  const holder = read().folders[folder]
   const confirm = asking && (
-    <TitleClashConfirm
-      folder={nameOf({ id: folder, title: (holder && "title" in holder && holder.title) || NO_TITLE })}
-      name={asking.args.title}
-      numbered={asking.numbered}
-      blocked={blocked}
+    <CreateClashConfirm
+      folder={folder}
+      asking={asking}
       onNumber={() => answer(() => create(folder, { ...asking.args, title: asking.numbered }))}
       onReplace={() => answer(() => create(folder, { ...asking.args, replaces: asking.there.id }))}
       onCancel={() => answer(() => false)}
     />
   )
   return { create: ask, confirm }
+}
+
+// 作る物と同じ名前の物が在るときの確かめ。上書きは、作る物と同じ種類（バインダにまとまるタイプならバインダ、ほかはページ）の物だけで、
+// page-create-over を行えるとき（ロック中・認可ステップが止めるなら選べない）
+function CreateClashConfirm({
+  folder,
+  asking,
+  onNumber,
+  onReplace,
+  onCancel,
+}: {
+  folder: string
+  asking: Asking
+  onNumber(): void
+  onReplace(): void
+  onCancel(): void
+}) {
+  const read = useReadState()
+  const nameOf = useNameOf()
+  const catalog = useCatalog().core
+  const { replaces: _, ...args } = asking.args
+  const allowed = useAllowedOn(PAGE_CREATE_OVER.id, { ...args, folder, replaces: asking.there.id })
+  const made = catalog.pageTypes.get(args.type)?.grouping === "binder" ? "binder" : "page"
+  const holder = read().folders[folder]
+  return (
+    <TitleClashConfirm
+      folder={nameOf({ id: folder, title: (holder && "title" in holder && holder.title) || NO_TITLE })}
+      name={asking.args.title}
+      numbered={asking.numbered}
+      blocked={replaceBlockedOf({ overwrite: asking.there.kind === made ? "ok" : "kind" }, allowed)}
+      onNumber={onNumber}
+      onReplace={onReplace}
+      onCancel={onCancel}
+    />
+  )
 }

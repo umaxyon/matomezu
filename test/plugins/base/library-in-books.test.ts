@@ -402,23 +402,24 @@ test("page-create: フォルダと書庫ホームには、ブックの外のペ�
   expect(state().pages[home]).toBeUndefined()
 })
 
-test("page-create: フォルダの中で同じ名前の物を上書きする（replaces）。消えた物はゴミ箱に入らず、新しいページがその位置に入る。確かめた物と違う・ブックの中では断る", () => {
+test("page-create-over: フォルダの中で同じ名前の物を上書きする（replaces）。消えた物はゴミ箱に入らず、新しいページがその位置に入る。確かめた物と違う・ブックの中では断る。page-create は上書きしない", () => {
   const { state, lineup, titleOf, act } = setup()
   const box = folderIn(act)
-  const made = (args: Record<string, unknown>) => {
-    const done = act("page-create", args)
+  const made = (id: string, args: Record<string, unknown>) => {
+    const done = act(id, args)
     if (!done.ok) throw new Error(JSON.stringify(done))
     return (done.result as { page: string }).page
   }
-  const a = made({ folder: box, type: DRAWING, title: "図" })
-  const b = made({ folder: box, type: DRAWING, title: "表" })
-  expect(act("page-create", { folder: box, type: DRAWING, title: "図", replaces: b }).ok).toBe(false)
-  const c = made({ folder: box, type: DRAWING, title: "図", replaces: a })
+  const a = made("page-create", { folder: box, type: DRAWING, title: "図" })
+  const b = made("page-create", { folder: box, type: DRAWING, title: "表" })
+  expect(act("page-create", { folder: box, type: DRAWING, title: "図", replaces: a }).ok).toBe(false)
+  expect(act("page-create-over", { folder: box, type: DRAWING, title: "図", replaces: b }).ok).toBe(false)
+  const c = made("page-create-over", { folder: box, type: DRAWING, title: "図", replaces: a })
   expect(lineup(box)).toEqual([c, b])
   expect(titleOf(c)).toBe("図")
   expect(state().pages[a]).toBeUndefined()
   expect(JSON.stringify(state().folders)).not.toContain(a)
-  expect(act("page-create", { folder: "b2", type: DRAWING, title: "新", replaces: "b2-p1" }).ok).toBe(false)
+  expect(act("page-create-over", { folder: "b2", type: DRAWING, title: "新", replaces: "b2-p1" }).ok).toBe(false)
 })
 
 test("page-create: ブックの外では、バインダにまとまるタイプのページは、そのページだけの新しいバインダに入り、ブックの外のバインダを名指せばその中に足す。ゴミ箱の中には作らない", () => {

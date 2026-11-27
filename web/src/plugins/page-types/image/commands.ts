@@ -7,6 +7,7 @@ import { kit } from "./kit"
 type Named = ({ entry: string } | { folder: string }) & object
 
 const PAGE_CREATE = "@matomezu/base:page-create"
+const PAGE_CREATE_OVER = "@matomezu/base:page-create-over"
 
 // 取り込む先のフォルダ（受け取った物が、画像のフォルダかその下のフォルダでなければ空）
 const intoOf = (ctx: ScreenCommandContext, named: Named | undefined): string => {
@@ -17,7 +18,7 @@ const intoOf = (ctx: ScreenCommandContext, named: Named | undefined): string => 
 export const IMPORT_IMAGES = kit.defineScreenCommand({
   id: "import-images",
   title: "Import images…",
-  performs: [PAGE_CREATE], // 開いたダイアログが行う
+  performs: [PAGE_CREATE, PAGE_CREATE_OVER], // 開いたダイアログが行う（名前が重なって上書きを選べば page-create-over）
   run: (ctx, a, named: Named | undefined) => {
     const folder = intoOf(ctx, named)
     if (folder !== "") a.openDialog(IMPORT_IMAGES_DIALOG.id, { type: IMAGE.id, folder })

@@ -2,10 +2,10 @@
 // 画像のページは画像のフォルダとその下だけに作り・動かし、ほかの物は中へ入れず、中のフォルダは外へ出さない。ゴミ箱との間は行き来できる
 import { expect, test } from "bun:test"
 import { USER } from "../../../../web/src/core/actor"
-import type { ActionContext } from "../../../../web/src/core/def/action"
+import { type ActionContext, ANY_PAGE_TYPE } from "../../../../web/src/core/def/action"
 import { HOME_ID } from "../../../../web/src/core/folders"
 import { withChanges } from "../../../../web/src/core/folders-changes"
-import { type PerformedIn, performIn, type World } from "../../../../web/src/core/perform-world"
+import { type PerformedIn, performIn, permittedIn, type World } from "../../../../web/src/core/perform-world"
 import { BUILTIN_CONTROL_CENTER } from "../../../../web/src/plugins"
 import { IMAGE, IMAGES } from "../../../../web/src/plugins/page-types/image/image"
 import { worldOf } from "../../../../web/src/store/world"
@@ -111,4 +111,15 @@ test("画像のページが指すアセットは、ページの asset（ペー�
   const { world, img } = prepared()
   const page = world.pages[img]!
   expect(IMAGE.assetsOf?.(page)).toEqual([ASSET])
+})
+
+test("タイプがまだ決まらないページを作るのは、画像のフォルダの中でも問える（書庫の「新しいページ…」）。決まったタイプは、画像のページだけが通る", () => {
+  const { world, images } = prepared()
+  const asked = (type: string) => {
+    const r = permittedIn(world, "@matomezu/base:page-create", { folder: images, type }, undefined, ctxOf())
+    return r.ok ? true : "permission" in r && r.permission
+  }
+  expect(asked(ANY_PAGE_TYPE)).toBe(true)
+  expect(asked(IMAGE.id)).toBe(true)
+  expect(asked(DRAWING)).toBe("@matomezu/image:in-images")
 })
