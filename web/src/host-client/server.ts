@@ -39,6 +39,7 @@ import {
   AckSchema,
   AnnotationsSchema,
   ASK_UPDATE_ANSWER,
+  ASSET_PUT,
   ChangedSchema,
   DataSchema,
   HelloSchema,
@@ -663,6 +664,14 @@ export function serverClient(net: Net = browserNet): HostClient {
       return answer.ok ? answer.moved.map(({ type, ...m }) => (type === undefined ? m : { ...m, type })) : BROKEN
     },
     visible: () => net.visible(),
+    putAsset: async bytes => {
+      const res = await net
+        .fetch("api/assets", { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: bytes })
+        .catch(() => null)
+      if (!res?.ok) fail("E417", { status: res ? `${res.status}` : "no answer" })
+      return ASSET_PUT.parse(await res.json())
+    },
+    assetUrl: id => `api/assets/${encodeURIComponent(id)}`,
     search: async q => {
       const res = await net.fetch(`api/search?${wideSearchParams(q)}`)
       if (!res.ok) fail("E403", { status: `${res.status}` })

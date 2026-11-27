@@ -164,17 +164,43 @@ export const TICKET_ADD = kit.defineAction({
   },
 })
 
+// ticket-update の本文。body は丸ごと、bodyEdits は一部の置き換え、bodyAppend は末尾に足す。どれも無ければ undefined
+function nextBody(
+  now: string,
+  args: { body?: string; bodyEdits?: { find: string; replace: string }[]; bodyAppend?: string },
+): string | undefined | { declined: string } {
+  if (args.body !== undefined && (args.bodyEdits || args.bodyAppend !== undefined))
+    return { declined: "give body alone, or bodyEdits and bodyAppend without body" }
+  if (args.body !== undefined) return args.body
+  if (!args.bodyEdits && args.bodyAppend === undefined) return undefined
+  let body = now
+  for (const e of args.bodyEdits ?? []) {
+    const at = body.indexOf(e.find)
+    if (at < 0) return { declined: `the body has no ${JSON.stringify(e.find)}: read the ticket again` }
+    if (body.indexOf(e.find, at + 1) >= 0)
+      return { declined: `${JSON.stringify(e.find)} is in the body more than once: give more of the text around it` }
+    body = body.slice(0, at) + e.replace + body.slice(at + e.find.length)
+  }
+  if (args.bodyAppend !== undefined) body += (body === "" || body.endsWith("\n") ? "" : "\n") + args.bodyAppend
+  return body
+}
+
 export const TICKET_UPDATE = kit.defineAction({
   id: "ticket-update",
   title: "update ticket",
   aiDescription:
-    "Change the name, the body, the priority, the volume (as in ticket-add), the lane, the tags or the assignees of the ticket named by on.record. tags is the whole new list of tags (empty: no tag). assignees is the whole new list of workrooms by their ids or names, in order (the first is the lead; no workroom twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tags, by their ids or names; a ticket cannot be moved into the done lane here (use ticket-complete), and a ticket in the done lane takes no assignees until it is moved out (a tag that is not enabled any more, or was removed, can stay on the ticket until the list is changed). Adding assignees without lane moves the ticket into the first working lane, if any, unless it is in one. The project of a ticket does not change. The time of the last change moves only when something changed. A workroom other than yours that becomes an assignee is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not).",
+    "Change the name, the body, the priority, the volume (as in ticket-add), the lane, the tags or the assignees of the ticket named by on.record. tags is the whole new list of tags (empty: no tag). assignees is the whole new list of workrooms by their ids or names, in order (the first is the lead; no workroom twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tags, by their ids or names; a ticket cannot be moved into the done lane here (use ticket-complete), and a ticket in the done lane takes no assignees until it is moved out (a tag that is not enabled any more, or was removed, can stay on the ticket until the list is changed). Adding assignees without lane moves the ticket into the first working lane, if any, unless it is in one. The project of a ticket does not change. The time of the last change moves only when something changed. A workroom other than yours that becomes an assignee is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not). To change only a part of the body, give bodyEdits instead of body: each find is a piece of text that is in the body exactly once and is replaced by its replace, in order (a find that is not there, or is there more than once, is refused and nothing changes; give more of the text around it). bodyAppend adds text at the end of the body, on a new line. When most of the body changes, send the whole body instead: it is shorter than the pieces. body is not given together with bodyEdits or bodyAppend.",
   target: TICKET.id,
   // プロジェクトは、チケットが指す先なので書かない
   reads: args => (args.assignees?.length ? [READS_WORKROOM_KEYS] : []),
   args: zod.strictObject({
     name: zod.string().trim().min(1).max(TICKET_NAME_MAX).optional(),
     body: zod.string().optional(),
+    bodyEdits: zod
+      .array(zod.strictObject({ find: zod.string().min(1), replace: zod.string() }))
+      .min(1)
+      .optional(),
+    bodyAppend: zod.string().min(1).optional(),
     priority: zod.enum(PRIORITIES).optional(),
     volume: zod.enum(VOLUMES).optional(),
     lane: zod.string().min(1).optional(),
@@ -183,6 +209,8 @@ export const TICKET_UPDATE = kit.defineAction({
   }),
   run: (now, args, ctx) => {
     if (now === "none") return null
+    const body = nextBody(now.body, args)
+    if (typeof body === "object") return body
     const project = projectOf(ctx, now.project)
     if (!project) return { declined: "the project of the ticket is not there" }
     const picked = args.lane === undefined ? undefined : pickLane(project, args.lane, now.lane)
@@ -204,7 +232,7 @@ export const TICKET_UPDATE = kit.defineAction({
       ...now,
       ...(assignees === undefined ? {} : { assignees: assignees.ids }),
       ...(args.name === undefined ? {} : { name: args.name }),
-      ...(args.body === undefined ? {} : { body: args.body }),
+      ...(body === undefined ? {} : { body }),
       ...(args.priority === undefined ? {} : { priority: args.priority }),
       ...(args.volume === undefined ? {} : { volume: args.volume }),
       ...(lane === undefined ? {} : { lane }),

@@ -91,6 +91,7 @@ import { SCREENS_WIDGET, WINDOW, WINDOW_ICONS } from "./window/ui"
 import { WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/ui"
 
+export { useAssetUrl, useImportAsset } from "./assets/ui"
 export { BirdWalk } from "./birds/ui"
 export {
   BOOKMARKS,
@@ -158,7 +159,14 @@ export {
   useLeftSidePanel,
   useOpenLeftSidePanel,
 } from "./left-side-panel/ui"
-export { type FolderEntry, LIBRARY_CONTEXT_MENUS, LibraryView, NO_FOLDER, useFolderEntries } from "./library/ui"
+export {
+  type FolderEntry,
+  LIBRARY_CONTEXT_MENUS,
+  LibraryView,
+  NO_FOLDER,
+  useCreatePageAsking,
+  useFolderEntries,
+} from "./library/ui"
 export { LockToggle } from "./lock/ui"
 export {
   defineMailActions,

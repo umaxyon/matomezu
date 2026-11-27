@@ -38,6 +38,7 @@ const store = createMatomezu({
   aiEditTicket: change => client.reportAIEditTicket(change),
   visible: () => client.visible(),
   search: query => client.search(query),
+  assetsHost: { put: bytes => client.putAsset(bytes), url: id => client.assetUrl(id) },
   ...(loaded.unreadableNotice ? { unreadableNotice: loaded.unreadableNotice } : {}),
   unreadableHost: { purge: id => client.purgeUnreadable(id), movedIfOff: ids => client.movedIfOff(ids) },
   updateHost: { check: () => client.checkUpdate(), ask: workroom => client.askUpdate(workroom) },

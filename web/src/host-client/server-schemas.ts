@@ -1,6 +1,7 @@
 // 常駐とやり取りする JSON の形（zod）: 読み込みの答え・知らせごとの中身・API の答え
 
 import { z } from "zod"
+import type { AssetPut } from "../core/assets"
 import { BROKEN, MOVED_CODES } from "../core/folders"
 import { NOT_INSIDE } from "../core/unreadable"
 
@@ -52,6 +53,12 @@ export const PluginsSchema = z.object({
   returned: z.number().int().optional(),
   by: z.string().optional(),
 })
+
+// 画像のバイト列を置いた答え（常駐の assets.go の importAsset）
+export const ASSET_PUT = z.discriminatedUnion("ok", [
+  z.object({ ok: z.literal(true), asset: z.string(), mime: z.string(), width: z.number(), height: z.number() }),
+  z.object({ ok: z.literal(false), reason: z.enum(["too-large", "not-image"]) }),
+]) satisfies z.ZodType<AssetPut>
 
 // 新しい版の確かめの結果（常駐の update.go の UpdateStatus）
 export const UpdateStatusSchema = z.object({

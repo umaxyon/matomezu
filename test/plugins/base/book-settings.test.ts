@@ -91,6 +91,7 @@ test("AI に見せるページの settings の形は、項目を選んだタイ�
       "@matomezu/flowchart:flow-direction",
       "@matomezu/base:background-print",
     ],
+    "settings of @matomezu/image:image pages": ["@matomezu/base:page-paper-color"],
     "settings of @matomezu/markdown:markdown pages": ["@matomezu/base:page-theme", "@matomezu/base:page-paper-color"],
     "settings of @matomezu/slide-page:slide pages": [
       "@matomezu/base:page-theme",

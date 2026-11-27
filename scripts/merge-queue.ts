@@ -1,9 +1,10 @@
 // 平行作業のブランチを main へ取り込むキュー。取り込み専用の worktree でブランチに main を取り込み、全部のテストを 1 か所で流し、
 // 通れば main を fast-forward して、差分に応じて開発の常駐を作り直す
-//   bun scripts/merge-queue.ts [--main <dir>] [--queue <dir>] [--port <ポート>] [--no-rebuild] <ブランチ>...
+//   bun scripts/merge-queue.ts [--main <dir>] [--queue <dir>] [--port <ポート>] [--no-rebuild] [--push] <ブランチ>...
 //   --main: main を checkout している worktree（既定はこのスクリプトのあるリポジトリ）
 //   --queue: 取り込み専用の worktree（既定は main の worktree の隣の matomezu-merge-queue。無ければ作る）
 //   --port: 作り直す開発の常駐の待ち受け（既定は、main の .dev-home の常駐が server.json に書いたポート）
+//   --push: main が進んだら origin へ push する
 // 進め方
 //   1. リポジトリに 1 つのロック（flock）を取る。ff と作り直しが終わるまで持つ
 //   2. ブランチを SHA に直し、main の上に順に重ねる。マージのコミットのはじめの親はブランチ（main にはマージのコミットを作らない）。
@@ -12,8 +13,9 @@
 //   3. lint → typecheck → bun test → go test を流し、どれも通れば e2e。落ちたテストのファイルは 1 回だけ流し直し、通れば「揺れた」として通す
 //   4. 通れば main を fast-forward する。main がその間に進んでいたら、重ねる所からやり直す
 //   5. 2 件以上を重ねて落ちたら、1 件ずつ順に 2〜4 を流す（通った物は入る）
-//   6. 入った差分で、bun install・web/dist のビルド・Go の常駐の入れ替え・Claude Code のプラグインのキャッシュの入れ直しを決めて行う
-// 終わりに、入った物・外した物・揺れたテスト・作り直した物を数行で出す。全部が入れば 0 で終わる
+//   6. --push なら、main が進んだときに origin へ push する。失敗したら要約に出し、0 以外で終わる
+//   7. 入った差分で、bun install・web/dist のビルド・Go の常駐の入れ替え・Claude Code のプラグインのキャッシュの入れ直しを決めて行う
+// 終わりに、入った物・外した物・揺れたテスト・push・作り直した物を数行で出す。全部が入り push もできれば 0 で終わる
 import { execFileSync, spawn, spawnSync } from "node:child_process"
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readlinkSync, renameSync, statSync } from "node:fs"
 import { homedir } from "node:os"
@@ -136,6 +138,13 @@ export function fastForward(main: string, base: string, tip: string): "done" | "
   if (git(main, "status", "--porcelain", "--untracked-files=no") !== "") return "dirty"
   if (gitOk(main, "merge", "-q", "--ff-only", tip)) return "done"
   return git(main, "rev-parse", "refs/heads/main") === base ? "failed" : "moved"
+}
+
+// main を origin へ push する。失敗したら理由の 1 行
+export function pushMain(main: string): { ok: true } | { ok: false; why: string } {
+  const r = spawnSync("git", ["push", "-q", "origin", "main"], { cwd: main, encoding: "utf8" })
+  if (r.status === 0) return { ok: true }
+  return { ok: false, why: (r.stderr || r.stdout || `終了コード ${r.status}`).trim().split("\n")[0] ?? "" }
 }
 
 // ---- テストの結果を読む ----
@@ -567,6 +576,7 @@ function summary(
   regenerated: Candidate[],
   already: Candidate[],
   flaky: Failure[],
+  pushed: { ok: true } | { ok: false; why: string } | undefined,
   rebuilt: string[],
 ): string[] {
   const lines: string[] = []
@@ -577,13 +587,14 @@ function summary(
     lines.push(`衝突: ${c.name}（${c.files.join("、")}）`, ...(c.why ? [`  作り直せなかった: ${c.why}`] : []))
   for (const f of failed) lines.push(`落ちた: ${f.name}`, ...f.why.slice(0, 8).map(w => `  ${w}`))
   if (flaky.length > 0) lines.push(`揺れた: ${flaky.map(describe).join("、")}`)
+  if (pushed) lines.push(pushed.ok ? "push 済み" : `push に失敗（${pushed.why}）`)
   if (rebuilt.length > 0) lines.push(`作り直し: ${rebuilt.join("、")}`)
   return lines
 }
 
 // ---- 入口 ----
 
-export type Options = { main: string; queue: string; addr: string; logs: string; rebuild: boolean }
+export type Options = { main: string; queue: string; addr: string; logs: string; rebuild: boolean; push: boolean }
 
 function parseArgs(argv: string[]): { options: Omit<Options, "logs">; branches: string[] } {
   const scriptRepo = dirname(import.meta.dir)
@@ -591,6 +602,7 @@ function parseArgs(argv: string[]): { options: Omit<Options, "logs">; branches: 
   let queue: string | undefined
   let port: string | undefined
   let rebuild = true
+  let push = false
   const branches: string[] = []
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
@@ -598,6 +610,7 @@ function parseArgs(argv: string[]): { options: Omit<Options, "logs">; branches: 
     else if (a === "--queue") queue = resolve(argv[++i] ?? "")
     else if (a === "--port") port = argv[++i]
     else if (a === "--no-rebuild") rebuild = false
+    else if (a === "--push") push = true
     else if (a !== undefined) branches.push(a)
   }
   return {
@@ -606,6 +619,7 @@ function parseArgs(argv: string[]): { options: Omit<Options, "logs">; branches: 
       queue: queue ?? join(dirname(main), "matomezu-merge-queue"),
       addr: `127.0.0.1:${port ?? devPort(main)}`,
       rebuild,
+      push,
     },
     branches,
   }
@@ -615,7 +629,7 @@ async function main(argv: string[]): Promise<number> {
   const { options, branches } = parseArgs(argv)
   if (branches.length === 0) {
     console.error(
-      "bun scripts/merge-queue.ts [--main <dir>] [--queue <dir>] [--port <ポート>] [--no-rebuild] <ブランチ>...",
+      "bun scripts/merge-queue.ts [--main <dir>] [--queue <dir>] [--port <ポート>] [--no-rebuild] [--push] <ブランチ>...",
     )
     return 2
   }
@@ -673,9 +687,11 @@ async function main(argv: string[]): Promise<number> {
   } else take(first)
 
   const end = git(o.main, "rev-parse", "refs/heads/main")
+  // 作り直しはこの機械の中の事なので、先に push して main を外へ出す
+  const pushed = o.push && end !== start ? pushMain(o.main) : undefined
   const rebuilt = o.rebuild && end !== start ? await rebuild(o, start, end) : []
-  for (const line of summary(merged, failed, conflicts, regenerated, already, flaky, rebuilt)) console.log(line)
-  return failed.length === 0 && conflicts.length === 0 ? 0 : 1
+  for (const line of summary(merged, failed, conflicts, regenerated, already, flaky, pushed, rebuilt)) console.log(line)
+  return failed.length === 0 && conflicts.length === 0 && pushed?.ok !== false ? 0 : 1
 }
 
 // ロックの中で動かし直す（スクリプトが落ちても flock が外す）

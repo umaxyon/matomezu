@@ -31,7 +31,7 @@ export interface WorkShiftChoice {
 }
 
 // ターンの終わりの答え: 次に覚える印 mark（作業を答える種類が無ければ空）と、替わっていれば利用者に聞く問い（ask）。
-// read は、読ませるを選んだときに AI に打つ英語の文
+// read は、読ませるを選んだときに AI に打つ英語の文（今の作業のレコードとワーカーブックを読ませる）
 export interface WorkShift {
   mark: string
   ask?: { question: string; choices: WorkShiftChoice[]; read: string }
@@ -99,7 +99,7 @@ export function workShiftIn(
         { label: t(READ_ONLY), clear: false, read: true },
         { label: t(KEEP), clear: false, read: false },
       ],
-      read: `Your current work is now ${title}. Read your worker book (the book of your current work): read_folder with folder "${MY_WORKDESK}".`,
+      read: `Your current work is now ${title}. Read it: read_records with kind "${now.key.subject}" and id "${now.key.id}". Then read your worker book (the book of your current work): read_folder with folder "${MY_WORKDESK}".`,
     },
   }
 }

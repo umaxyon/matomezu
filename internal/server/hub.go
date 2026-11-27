@@ -243,6 +243,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 		return nil, err
 	}
 	h.checkLibrary()
+	h.dropUnusedAssets()
 	if err := h.checkAnnotations(); err != nil {
 		return nil, err
 	}
