@@ -22,6 +22,7 @@ import { existsSync, readdirSync, readFileSync, readlinkSync, statSync } from "n
 import { homedir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { promisify } from "node:util"
+import { commonDir, queueLock } from "./merge-queue"
 import { queuedRequests } from "./merge-request"
 
 export const READY_MARK = "再起動の準備OK"
@@ -333,13 +334,9 @@ function queued(cwd: string): boolean {
   return queuedRequests(commonDir(cwd)).some(r => r.worktree === cwd)
 }
 
-function commonDir(cwd: string): string {
-  return resolve(cwd, execFileSync("git", ["-C", cwd, "rev-parse", "--git-common-dir"], { encoding: "utf8" }).trim())
-}
-
 // 取り込みのキューのロック（merge-queue.ts と同じ）を取る。返す関数で外す
 async function holdQueueLock(cwd: string): Promise<() => void> {
-  const child = spawn("flock", [join(commonDir(cwd), "merge-queue.lock"), "sh", "-c", "echo locked; cat >/dev/null"], {
+  const child = spawn("flock", [queueLock(commonDir(cwd)), "sh", "-c", "echo locked; cat >/dev/null"], {
     stdio: ["pipe", "pipe", "inherit"],
   })
   await new Promise<void>((res, rej) => {

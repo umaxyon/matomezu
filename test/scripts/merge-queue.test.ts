@@ -4,9 +4,12 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import {
+  type Attempt,
   bunComplete,
   bunFailures,
+  type Candidate,
   candidateOf,
+  collect,
   errorLines,
   fastForward,
   flakyKey,
@@ -20,8 +23,10 @@ import {
   type Regenerate,
   rebuildsFor,
   runStep,
+  type Stacked,
   type Step,
   stack,
+  succeeded,
   summary,
 } from "../../scripts/merge-queue"
 
@@ -102,7 +107,7 @@ test("衝突したブランチは外し、ファイルを返し、取り込み�
   const b3 = r.branch("b3", "c.txt", "3\n")
   const base = git(r.main, "rev-parse", "HEAD")
   const s = stack(r.queue, base, [b1, b2, b3], never)
-  expect(s.conflicts).toEqual([{ name: "b2", files: ["a.txt"] }])
+  expect(s.conflicts).toEqual([{ ...b2, files: ["a.txt"] }])
   expect(s.onTip.map(c => c.name)).toEqual(["b1", "b3"])
   expect(git(r.queue, "status", "--porcelain")).toBe("")
   expect(git(r.queue, "rev-parse", "HEAD")).toBe(s.tip)
@@ -144,14 +149,14 @@ test("GENERATED とほかのファイルが衝突したら作り直さずに外�
   const f = fakeRegenerate(true)
   const s = stack(r.queue, base, [b1], f.regenerate)
   expect(f.calls).toEqual([])
-  expect(s.conflicts).toEqual([{ name: "b1", files: ["a.txt", GENERATED.path] }])
+  expect(s.conflicts).toEqual([{ ...b1, files: ["a.txt", GENERATED.path] }])
   expect(s.tip).toBe(base)
 })
 
 test("作り直せなければ外してログを返し、取り込み専用の worktree はきれいなまま", () => {
   const { r, b1, base } = generatedOnBoth(["m", "1", "2", "3", "z"], ["b", "1", "2", "3", "z"])
   const s = stack(r.queue, base, [b1], fakeRegenerate(false).regenerate)
-  expect(s.conflicts).toEqual([{ name: "b1", files: [GENERATED.path], why: "/logs/regenerate.log" }])
+  expect(s.conflicts).toEqual([{ ...b1, files: [GENERATED.path], why: "/logs/regenerate.log" }])
   expect(s.onTip).toEqual([])
   expect(git(r.queue, "status", "--porcelain")).toBe("")
   expect(git(r.queue, "rev-parse", "HEAD")).toBe(base)
@@ -388,7 +393,65 @@ test("落ちたブランチは重ねた main とログの置き場を添え、ma
     "  unit: t.test.ts t",
     "main の側で止めた: c（main の worktree に未コミット）",
   ])
-  expect(historyLine({ name: "a", sha: "a".repeat(40), kind: "merged" }, new Date("2026-01-02T03:04:05Z"))).toBe(
-    "2026-01-02T03:04:05.000Z\ta\taaaaaaaa\tmerged\t",
-  )
+})
+
+test("履歴の 1 行は時刻・ブランチ・sha・行き先・理由をタブで区切る", () => {
+  const at = new Date("2026-01-02T03:04:05Z")
+  const sha = "a".repeat(40)
+  expect(historyLine({ name: "a", sha, kind: "merged" }, at)).toBe("2026-01-02T03:04:05.000Z\ta\taaaaaaaa\tmerged\t")
+  const tail = (o: Parameters<typeof historyLine>[0]) => historyLine(o, at).split("\t").slice(3)
+  expect(tail({ name: "a", sha, kind: "conflict", files: ["x.ts", "y.ts"] })).toEqual(["conflict", "x.ts y.ts"])
+  expect(tail({ name: "a", sha, kind: "failed", base: sha, logs: "/l", why: ["unit: t", "go: u"] })).toEqual([
+    "failed",
+    "unit: t ログ /l",
+  ])
+})
+
+const cand = (name: string): Candidate => ({ name, sha: name.repeat(40) })
+const stackedOf = (onTip: Candidate[]): Stacked => ({ tip: "t", onTip, already: [], conflicts: [], regenerated: [] })
+const failedOf = (onTip: Candidate[]): Attempt => ({
+  kind: "failed",
+  stacked: stackedOf(onTip),
+  base: "b".repeat(40),
+  logs: "/l",
+  results: [
+    {
+      step: "unit",
+      ok: false,
+      failures: [{ step: "unit", where: "t.test.ts", title: "x" }],
+      flaky: [],
+      log: "/l/unit.log",
+      rerun: "passed",
+    },
+  ],
+})
+
+test("重ねて落ちたら 1 件ずつ試し、落ちた物に重ねた main とログを付け、途中で main の側で止まれば残りも止めた物とする", async () => {
+  const [a, b, c, d] = ["a", "b", "c", "d"].map(cand) as [Candidate, Candidate, Candidate, Candidate]
+  const tries: Record<string, Attempt> = {
+    a: { kind: "merged", stacked: stackedOf([a]), flaky: [] },
+    b: failedOf([b]),
+    c: { kind: "stopped", reason: "dirty", stacked: stackedOf([c]) },
+  }
+  const r = await collect(failedOf([a, b, c, d]), async x => tries[x.name] as Attempt)
+  expect(r.outcomes.map(o => [o.name, o.kind])).toEqual([
+    ["a", "merged"],
+    ["b", "failed"],
+    ["c", "main-side"],
+    ["d", "main-side"],
+  ])
+  expect(r.outcomes[1]).toMatchObject({
+    base: "b".repeat(40),
+    logs: "/l",
+    why: ["unit: t.test.ts x（流し直しで通った。一覧に無い）"],
+  })
+  expect(r.outcomes[3]).toMatchObject({ why: "dirty" })
+})
+
+test("入ったか入っていた物だけで、push に失敗していなければ、うまくいった", () => {
+  const base = { regenerated: [], flaky: [], rebuilt: [] }
+  const merged = { ...cand("a"), kind: "merged" as const }
+  expect(succeeded({ ...base, outcomes: [merged, { ...cand("b"), kind: "already" }] })).toBe(true)
+  expect(succeeded({ ...base, outcomes: [merged], pushed: { ok: false, why: "x" } })).toBe(false)
+  expect(succeeded({ ...base, outcomes: [{ ...cand("a"), kind: "main-side", why: "x" }] })).toBe(false)
 })

@@ -9,22 +9,32 @@
 // 入れば 0、外されれば 1、並べなければ 2 で終わる
 import { spawn } from "node:child_process"
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
-import { join, resolve } from "node:path"
-import { git, type Outcome, type Report } from "./merge-queue"
+import { join } from "node:path"
+import { commonDir, git, type Outcome, queueDir, type Report } from "./merge-queue"
 
 // 並んでいる印。pid はこのスクリプトのプロセス
 export type Request = { branch: string; sha: string; worktree: string; pid: number; at: string }
 
-export const requestsDir = (common: string) => join(common, "merge-queue", "requests")
+export const requestsDir = (common: string) => join(queueDir(common), "requests")
 
-const alive = (pid: number) => existsSync(`/proc/${pid}`)
+// pid が使い回されたほかのプロセスを、並んでいると見ない
+const alive = (pid: number) => {
+  try {
+    return readFileSync(`/proc/${pid}/cmdline`, "utf8").includes("merge-request.ts")
+  } catch {
+    return false
+  }
+}
+
+// 並んでいる印のファイル（<pid>.json）。同じ置き場の結果とログは印でない
+const MARK = /^\d+\.json$/
 
 // 並んでいる頼み。プロセスの無い印は消す
 export function queuedRequests(common: string, isAlive = alive): Request[] {
   const dir = requestsDir(common)
   if (!existsSync(dir)) return []
   return readdirSync(dir)
-    .filter(f => f.endsWith(".json"))
+    .filter(f => MARK.test(f))
     .flatMap(f => {
       const path = join(dir, f)
       try {
@@ -83,7 +93,7 @@ const ok = (dir: string, ...args: string[]) => {
 
 async function request(): Promise<number> {
   const dir = git(process.cwd(), "rev-parse", "--show-toplevel")
-  const common = resolve(dir, git(dir, "rev-parse", "--git-common-dir"))
+  const common = commonDir(dir)
   const main = mainWorktree(dir)
   if (!main) {
     console.error("main を checkout している worktree が無い")
@@ -106,7 +116,7 @@ async function request(): Promise<number> {
 
   mkdirSync(requestsDir(common), { recursive: true })
   const mark = join(requestsDir(common), `${process.pid}.json`)
-  const result = join(requestsDir(common), `${process.pid}.result.json`)
+  const result = join(requestsDir(common), `${process.pid}.result`)
   const out = join(requestsDir(common), `${process.pid}.log`)
   const me: Request = { branch, sha, worktree: dir, pid: process.pid, at: new Date().toISOString() }
   writeFileSync(mark, JSON.stringify(me))

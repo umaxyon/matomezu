@@ -37,7 +37,7 @@ import { dirname, join, relative, resolve } from "node:path"
 
 export type Candidate = { name: string; sha: string }
 // why は作り直せなかったときのログ
-export type Conflict = { name: string; files: string[]; why?: string }
+export type Conflict = Candidate & { files: string[]; why?: string }
 // onTip は tip に重ねた物（main に入るのは、テストが通って ff できたとき）。regenerated はそのうち GENERATED を作り直して重ねた物
 export type Stacked = {
   tip: string
@@ -59,6 +59,13 @@ const MAX_STARTS = 3
 export function git(dir: string, ...args: string[]): string {
   return execFileSync("git", args, { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim()
 }
+
+// リポジトリの共通の git の置き場（どの worktree から見ても同じ）
+export const commonDir = (dir: string) => resolve(dir, git(dir, "rev-parse", "--git-common-dir"))
+// キューのログ・HISTORY・merge-request.ts の印の置き場
+export const queueDir = (common: string) => join(common, "merge-queue")
+// キューを 1 本ずつにするロック。restart-subs.ts も取る
+export const queueLock = (common: string) => join(common, "merge-queue.lock")
 
 function gitOk(dir: string, ...args: string[]): boolean {
   return spawnSync("git", args, { cwd: dir, stdio: "ignore" }).status === 0
@@ -105,14 +112,14 @@ export function stack(queue: string, base: string, candidates: Candidate[], rege
       if (clean) put(c)
       else {
         git(queue, "merge", "--abort")
-        conflicts.push({ name: c.name, files })
+        conflicts.push({ ...c, files })
       }
       continue
     }
     const r = regenerate(queue)
     if (!r.ok) {
       git(queue, "reset", "-q", "--hard")
-      conflicts.push({ name: c.name, files: [GENERATED.path], why: r.log })
+      conflicts.push({ ...c, files: [GENERATED.path], why: r.log })
       continue
     }
     git(queue, "add", GENERATED.path)
@@ -454,7 +461,7 @@ async function testAll(queue: string, logs: string, flakyList: Set<string>): Pro
 
 // ---- 取り込み ----
 
-type Attempt =
+export type Attempt =
   | { kind: "merged"; stacked: Stacked; flaky: Failure[] }
   | { kind: "failed"; stacked: Stacked; base: string; logs: string; results: StepResult[] }
   | { kind: "nothing"; stacked: Stacked }
@@ -697,6 +704,68 @@ export function historyLine(o: Outcome, at: Date): string {
 
 export const HISTORY = "history.tsv"
 
+// はじめの試みと、重ねて落ちたときの 1 件ずつの試み（one）から、ブランチごとの行き先を決める。
+// 1 件ずつの途中で main の側の都合で止まったら、残りも main-side にする
+export async function collect(
+  first: Attempt,
+  one: (c: Candidate) => Promise<Attempt>,
+): Promise<Pick<Report, "outcomes" | "regenerated" | "flaky">> {
+  const outcomes: Outcome[] = []
+  const regenerated: Candidate[] = []
+  const flaky: Failure[] = []
+  const stackedOutcomes = (s: Stacked) =>
+    outcomes.push(
+      ...s.already.map(c => ({ ...c, kind: "already" as const })),
+      ...s.conflicts.map(c => ({ ...c, kind: "conflict" as const })),
+    )
+  const failedOutcome = (c: Candidate, a: Attempt & { kind: "failed" }): Outcome => ({
+    ...c,
+    kind: "failed",
+    base: a.base,
+    logs: a.logs,
+    why: whyOf(a.results),
+  })
+  const stopped = (cs: Candidate[], why: string) =>
+    outcomes.push(...cs.map(c => ({ ...c, kind: "main-side" as const, why })))
+  const take = (a: Attempt): boolean => {
+    if (a.stacked) stackedOutcomes(a.stacked)
+    if (a.kind === "merged") {
+      outcomes.push(...a.stacked.onTip.map(c => ({ ...c, kind: "merged" as const })))
+      regenerated.push(...a.stacked.regenerated)
+      flaky.push(...a.flaky)
+    }
+    if (a.kind === "stopped") stopped(a.stacked?.onTip ?? [], a.reason)
+    return a.kind !== "stopped"
+  }
+
+  if (first.kind === "failed" && first.stacked.onTip.length > 1) {
+    // 重ねて落ちたら 1 件ずつ。衝突したブランチは外してある
+    let anyFailed = false
+    const rest = [...first.stacked.onTip]
+    for (let c = rest.shift(); c; c = rest.shift()) {
+      const a = await one(c)
+      if (a.kind === "failed") {
+        anyFailed = true
+        outcomes.push(failedOutcome(c, a))
+      } else if (!take(a)) {
+        stopped(rest, a.kind === "stopped" ? a.reason : "")
+        break
+      }
+    }
+    if (!anyFailed)
+      flaky.push({ step: "まとめ", where: "", title: "重ねると落ち、1 件ずつでは通った（揺れか組み合わせ）" })
+    stackedOutcomes(first.stacked)
+  } else if (first.kind === "failed") {
+    stackedOutcomes(first.stacked)
+    outcomes.push(...first.stacked.onTip.map(c => failedOutcome(c, first)))
+  } else take(first)
+  return { outcomes, regenerated, flaky }
+}
+
+// 入ったか入っていた物だけなら、うまくいった
+export const succeeded = (r: Report) =>
+  r.outcomes.every(x => x.kind === "merged" || x.kind === "already") && r.pushed?.ok !== false
+
 // ---- 入口 ----
 
 export type Options = {
@@ -744,7 +813,7 @@ function parseArgs(argv: string[]): { options: Omit<Options, "logs">; branches: 
   }
 }
 
-// <ブランチ>:<sha> なら、その sha を入れる（ref に : は使えない）。sha が無ければ、いまのブランチの先
+// <ブランチ>:<sha> なら、その sha を入れる（ref に : は使えない）。sha が無ければ、ロックを取った時のブランチの先
 export function candidateOf(dir: string, arg: string): Candidate {
   const at = arg.indexOf(":")
   const name = at < 0 ? arg : arg.slice(0, at)
@@ -764,64 +833,12 @@ async function main(argv: string[]): Promise<number> {
     console.error(`${options.main} は main を checkout していない（--main で main の worktree を渡す）`)
     return 2
   }
-  const common = resolve(options.main, git(options.main, "rev-parse", "--git-common-dir"))
-  const o: Options = { ...options, logs: join(common, "merge-queue") }
+  const o: Options = { ...options, logs: queueDir(commonDir(options.main)) }
   const candidates = branches.map(b => candidateOf(o.main, b))
   ensureQueue(o.main, o.queue)
   const start = git(o.main, "rev-parse", "refs/heads/main")
 
-  const outcomes: Outcome[] = []
-  const regenerated: Candidate[] = []
-  const flaky: Failure[] = []
-  const shaOf = (name: string) => candidates.find(c => c.name === name)?.sha ?? ""
-  const stackedOutcomes = (s: Stacked) =>
-    outcomes.push(
-      ...s.already.map(c => ({ ...c, kind: "already" as const })),
-      ...s.conflicts.map(c => ({
-        name: c.name,
-        sha: shaOf(c.name),
-        kind: "conflict" as const,
-        files: c.files,
-        why: c.why,
-      })),
-    )
-  const failedOutcome = (c: Candidate, a: Attempt & { kind: "failed" }): Outcome => ({
-    ...c,
-    kind: "failed",
-    base: a.base,
-    logs: a.logs,
-    why: whyOf(a.results),
-  })
-  const take = (a: Attempt): boolean => {
-    if (a.stacked) stackedOutcomes(a.stacked)
-    if (a.kind === "merged") {
-      outcomes.push(...a.stacked.onTip.map(c => ({ ...c, kind: "merged" as const })))
-      regenerated.push(...a.stacked.regenerated)
-      flaky.push(...a.flaky)
-    }
-    if (a.kind === "stopped")
-      outcomes.push(...(a.stacked?.onTip ?? []).map(c => ({ ...c, kind: "main-side" as const, why: a.reason })))
-    return a.kind !== "stopped"
-  }
-
-  const first = await attempt(o, candidates)
-  if (first.kind === "failed" && first.stacked.onTip.length > 1) {
-    // 重ねて落ちたら 1 件ずつ。衝突したブランチは外してある
-    let anyFailed = false
-    for (const c of first.stacked.onTip) {
-      const one = await attempt(o, [c])
-      if (one.kind === "failed") {
-        anyFailed = true
-        outcomes.push(failedOutcome(c, one))
-      } else if (!take(one)) break
-    }
-    if (!anyFailed)
-      flaky.push({ step: "まとめ", where: "", title: "重ねると落ち、1 件ずつでは通った（揺れか組み合わせ）" })
-    stackedOutcomes(first.stacked)
-  } else if (first.kind === "failed") {
-    stackedOutcomes(first.stacked)
-    outcomes.push(...first.stacked.onTip.map(c => failedOutcome(c, first)))
-  } else take(first)
+  const { outcomes, regenerated, flaky } = await collect(await attempt(o, candidates), c => attempt(o, [c]))
 
   const end = git(o.main, "rev-parse", "refs/heads/main")
   // 作り直しはこの機械の中の事なので、先に push して main を外へ出す
@@ -833,14 +850,14 @@ async function main(argv: string[]): Promise<number> {
   for (const out of outcomes) appendFileSync(join(o.logs, HISTORY), `${historyLine(out, at)}\n`)
   if (o.result) writeFileSync(o.result, JSON.stringify(report))
   for (const line of summary(report)) console.log(line)
-  return outcomes.every(x => x.kind === "merged" || x.kind === "already") && pushed?.ok !== false ? 0 : 1
+  return succeeded(report) ? 0 : 1
 }
 
 // ロックの中で動かし直す（スクリプトが落ちても flock が外す）
 if (import.meta.main) {
   if (process.env.MERGE_QUEUE_LOCKED === "1") process.exit(await main(process.argv.slice(2)))
   const { options } = parseArgs(process.argv.slice(2))
-  const lock = join(resolve(options.main, git(options.main, "rev-parse", "--git-common-dir")), "merge-queue.lock")
+  const lock = queueLock(commonDir(options.main))
   const r = spawnSync("flock", [lock, process.execPath, import.meta.path, ...process.argv.slice(2)], {
     stdio: "inherit",
     env: { ...process.env, MERGE_QUEUE_LOCKED: "1" },

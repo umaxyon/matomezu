@@ -47,10 +47,12 @@ test("並んでいる印を読み、プロセスの無い印と読めない印�
   writeFileSync(join(dir, "2.json"), JSON.stringify(req({ pid: 2 })))
   writeFileSync(join(dir, "3.json"), "{")
   writeFileSync(join(dir, "1.log"), "")
+  writeFileSync(join(dir, "1.result"), "{}")
   expect(queuedRequests(common, pid => pid === 1).map(r => r.pid)).toEqual([1])
   expect(existsSync(join(dir, "2.json"))).toBe(false)
   expect(existsSync(join(dir, "3.json"))).toBe(false)
   expect(existsSync(join(dir, "1.log"))).toBe(true)
+  expect(existsSync(join(dir, "1.result"))).toBe(true)
 })
 
 test("外された物には、重ねた main を添えて次にする事を返し、入った物には返さない", () => {
