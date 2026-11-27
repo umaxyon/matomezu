@@ -603,15 +603,21 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   let toasts = 0 // トーストの id の番号（出すたびに 1 つ進める）
   // クリップボードを使うコマンドの、続くブラウザのクリップボードのイベントを待っている物（キーを押した時か、メニューから copy を起こしてもらう時に置く）。
   // イベントを待つのは、ホストクライアントが言う長さ（clipboardEventWaitMs。無ければ次のタイマーまで）。来なければ、そこでクリップボード無しで行う（窓の写しを使う）。
-  // 行う時に待ちを空にするので、イベントが遅れて来ても 2 度は行わない
+  // 行う時に待ちを空にするので、イベントが遅れて来ても 2 度は行わない。
+  // 待つ間にほかのコマンドやアクションを行うときは、先に待っている物をクリップボード無しで行う（押した順に行うため。Ctrl+C のすぐ後の Ctrl+V が、写す前に貼らないように）
   // ran は、イベントの中で行ったときの、行えたか
   let waiting: { stage: string; id: CommandId; args: unknown[]; use: ClipboardUse; ran?: boolean } | null = null
+  const runWaiting = () => {
+    const w = waiting
+    if (w === null) return
+    waiting = null
+    runCommand(w.stage, w.id, ...w.args)
+  }
   const wait = (w: NonNullable<typeof waiting>) => {
+    runWaiting()
     waiting = w
     setTimeout(() => {
-      if (waiting !== w) return
-      waiting = null
-      runCommand(w.stage, w.id, ...w.args)
+      if (waiting === w) runWaiting()
     }, options.clipboardEventWaitMs ?? 0)
   }
   // 今行っている、クリップボードのイベントの中のコマンドに渡す物（イベントの外なら null）
@@ -735,6 +741,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   }
   const actions: Actions = {
     perform: (id, ...[args, on]) => {
+      runWaiting()
       const done = run(id, args, on)
       if (!done.ok) return done
       commit(done.next)
@@ -750,6 +757,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     // 1 回のコマンドの書き込みは、購読に 1 回で知らせる（together）
     command: (stage, id, ...args) => {
+      runWaiting()
       // メニューなどから呼んだ copy・cut: ブラウザに copy のイベントを起こしてもらい、その中で行う（起きなければ、クリップボード無しで下で行う）
       const use = clipboardUseOf(id)
       if ((use === "copy" || use === "cut") && inEvent === null && options.requestCopyEvent) {

@@ -374,3 +374,14 @@ test("イベントが遅れて来るブラウザでも（Mac の Chrome は Comm
   expect(to.clipboardEvent("paste", carried, HOST)).toBe(true)
   expect(shapesOf(page(to as never))).toHaveLength(1)
 })
+
+test("イベントを待っている間に次のキーを押せば、待っていたコマンドを先にクリップボード無しで行う（イベントを起こさないブラウザでの Ctrl+C のすぐ後の Ctrl+V が、写した物を貼る）", () => {
+  const store = sizedStore({ clipboardEventOf: key => CLIPBOARD_KEYS[key], clipboardEventWaitMs: 1000 })
+  store.actions.select("s1", [place(store as never, NEST, { at: { x: 0, y: 0 } })])
+  store.actions.pressKey("Mod+C", ["stage"])
+  expect(frameClip(store)).toBeUndefined()
+  store.actions.pressKey("Mod+V", ["stage"])
+  expect(frameClip(store)?.shapes).toHaveLength(1)
+  store.actions.pressKey("Escape", ["stage"])
+  expect(shapesOf(page(store as never))).toHaveLength(2)
+})
