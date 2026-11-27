@@ -87,20 +87,25 @@ func TestContextUseRebindsByHost(t *testing.T) {
 	}
 }
 
-// 覚えておく量は、古くなったものと、上限を超えた分（知らせた時点の古いもの）を捨てる
+// 参加者に結ばれていないセッションの量は、古くなったものと、上限を超えた分（知らせた時点の古いもの）を捨てる。結ばれたセッションの量は捨てない
 func TestHeardContextsAreDroppedWhenOldOrTooMany(t *testing.T) {
-	_, hub := joinWorld(t, joinStore(t))
+	s, hub := joinWorld(t, joinStore(t))
 	t0 := time.Date(2026, 11, 12, 0, 0, 0, 0, time.UTC)
 	use := contextUse{Used: 1, AIScale: 2}
+	bound := joinedID(t, s.URL, joinBody("L1", ""))
+	_ = hub.HeardContextUse("S1", "", use, t0.Add(-time.Hour))
 	_ = hub.HeardContextUse("old", "", use, t0)
 	_ = hub.HeardContextUse("S0", "", use, t0.Add(heardContextKeep+time.Minute))
 	if _, ok := hub.heardContexts["old"]; ok {
 		t.Fatal("an old one was kept")
 	}
 	for i := 1; i <= heardContextsMax; i++ {
-		_ = hub.HeardContextUse("S"+strconv.Itoa(i), "", use, t0.Add(heardContextKeep+time.Duration(i+1)*time.Minute))
+		_ = hub.HeardContextUse("N"+strconv.Itoa(i), "", use, t0.Add(heardContextKeep+time.Duration(i+1)*time.Minute))
 	}
-	if _, ok := hub.heardContexts["S0"]; ok || len(hub.heardContexts) != heardContextsMax {
+	if _, ok := hub.heardContexts["S0"]; ok || len(hub.heardContexts) != heardContextsMax+1 {
 		t.Fatalf("kept %d, S0 kept: %v", len(hub.heardContexts), ok)
+	}
+	if got := hub.ParticipantLive()[bound].ContextUse; got != use {
+		t.Fatalf("the bound session's use was dropped: %+v", got)
 	}
 }

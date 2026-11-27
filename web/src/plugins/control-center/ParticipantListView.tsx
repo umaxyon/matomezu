@@ -70,7 +70,7 @@ export function ParticipantListView() {
                       props={{ workroom: row.room.id, admin: row.admin, empty: kind === "empty" }}
                     />
                   ) : null}
-                  <ContextBarView use={row.contextUse} />
+                  <ContextGaugeView use={row.contextUse} />
                 </span>
               </div>
             </li>
@@ -111,7 +111,7 @@ export function ParticipantListView() {
 }
 
 // 会話の今のコンテキストの量の、行幅の細い棒と数（量が分からなければ何も出さない）。物差しは AI の側の物差し
-function ContextBarView({ use }: { use: WorkroomRow["contextUse"] }) {
+function ContextGaugeView({ use }: { use: WorkroomRow["contextUse"] }) {
   const t = useMessages(kit)
   const gauge = contextGauge(use, "auto")
   if (gauge === NO_CONTEXT_USE) return null

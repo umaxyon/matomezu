@@ -33,9 +33,9 @@ type heardContext struct {
 }
 
 const (
-	// heardContextsMax は、覚えておくセッションのコンテキストの量の数の上限（超えたら知らせた時点の古いものから捨てる）
+	// heardContextsMax は、覚えておく、参加者に結ばれていないセッションのコンテキストの量の数の上限（超えたら知らせた時点の古いものから捨てる）
 	heardContextsMax = 256
-	// heardContextKeep は、知らされないセッションのコンテキストの量を覚えておく長さ
+	// heardContextKeep は、参加者に結ばれていないセッションのコンテキストの量を、知らされないまま覚えておく長さ
 	heardContextKeep = 24 * time.Hour
 )
 
@@ -80,25 +80,37 @@ func (h *Hub) HeardContextUse(sessionID, host string, use contextUse, now time.T
 	return h.putParticipantNotes()
 }
 
-// rememberContext は、セッション sessionID のコンテキストの量を覚える（noContextUse なら忘れる）。古くなったものを捨て、上限を超えたら知らせた時点の古いものから捨てる（h.mu を持って呼ぶ）
+// rememberContext は、セッション sessionID のコンテキストの量を覚える（noContextUse なら忘れる）。参加者に結ばれていないセッションのうち、
+// 古くなったものを捨て、上限を超えたら知らせた時点の古いものから捨てる（結ばれたセッションの物は、窓に出ているので捨てない。h.mu を持って呼ぶ）
 func (h *Hub) rememberContext(sessionID string, use contextUse, now time.Time) {
 	if h.heardContexts == nil {
 		h.heardContexts = map[string]heardContext{}
 	}
-	for id, c := range h.heardContexts {
-		if now.Sub(c.at) > heardContextKeep {
-			delete(h.heardContexts, id)
-		}
-	}
 	if use == noContextUse {
 		delete(h.heardContexts, sessionID)
-		return
+	} else {
+		h.heardContexts[sessionID] = heardContext{use: use, at: now}
 	}
-	h.heardContexts[sessionID] = heardContext{use: use, at: now}
-	for len(h.heardContexts) > heardContextsMax {
+	bound := map[string]bool{}
+	for _, n := range h.participantNotes {
+		if n.SessionID != "" {
+			bound[n.SessionID] = true
+		}
+	}
+	loose := 0
+	for id, c := range h.heardContexts {
+		switch {
+		case bound[id]:
+		case now.Sub(c.at) > heardContextKeep:
+			delete(h.heardContexts, id)
+		default:
+			loose++
+		}
+	}
+	for ; loose > heardContextsMax; loose-- {
 		oldest := ""
 		for id, c := range h.heardContexts {
-			if oldest == "" || c.at.Before(h.heardContexts[oldest].at) {
+			if !bound[id] && (oldest == "" || c.at.Before(h.heardContexts[oldest].at)) {
 				oldest = id
 			}
 		}

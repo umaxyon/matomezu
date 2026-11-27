@@ -103,7 +103,6 @@
 .amount {
   flex: none;
   font-size: 11px;
-  color: var(--skin-text-muted);
   font-variant-numeric: tabular-nums;
 }
 .context[data-near-full="true"] .fill {
