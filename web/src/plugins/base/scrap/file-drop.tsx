@@ -26,7 +26,7 @@ import { type Scrap, scrapSize, scrapToPlace, wholeScrapOf } from "./scrap"
 const DROP_GAP = 8
 
 // 落としたか貼ったファイル 1 枚から作ったスクラップを置くこと: 開いていたページ page に、アイテム item で項目 props を、ビューが測った所 at から右へ shift（紙の px。前に置いた物の幅とすき間の和）ずらして置く。
-// at が NO_PAPER なら（貼ったときに、ポインタが紙の上を通っていない）、置く所はビューが決める
+// at が NO_PAPER なら（貼ったときに、ポインタが紙の上に無い）、置く所は置くコマンドが決める
 export interface FileDrop {
   page: string
   item: string
@@ -60,7 +60,7 @@ export function useFileDrop(
 }
 
 // 同じく、貼り付けのコマンド command（Ctrl+V）で貼ったファイルの口。atOf は、窓の中で最後にポインタが在った所 pointer から貼る所を、ビューが読む
-// （紙の上でなければ NO_PAPER。ポインタが窓の中を動いていなくても NO_PAPER で、どちらも置く所はビューが決める）
+// （紙の上でなければ NO_PAPER。ポインタが窓の中を動いていなくても NO_PAPER で、どちらも置く所は置くコマンドが決める）
 export function useFilePasteAt(
   command: CommandId,
   atOf: (pointer: { clientX: number; clientY: number }) => Point | typeof NO_PAPER,

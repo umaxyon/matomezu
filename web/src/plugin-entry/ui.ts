@@ -46,6 +46,7 @@ export {
   dividerClass,
   Elapsed,
   Field,
+  type FileDrop,
   type FolderEntry,
   Form,
   type FoundHost,

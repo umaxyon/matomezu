@@ -103,7 +103,7 @@ export type { BackyardEntry, BinderFolder, BookFolder, EntryRef, Folder, WorkKey
 export { HOME_ID, TRASH_ID } from "../core/folders"
 // ステージエントリが無いときの値（useOutermostOf）・エントリを入れているフォルダの列
 export { foldersOver, NO_OUTERMOST } from "../core/folders-tree"
-export { type Point, type Rect, type Size, within } from "../core/geom"
+export type { Point, Rect, Size } from "../core/geom"
 export { translate } from "../core/i18n/i18n"
 export { defineMessages } from "../core/i18n/messages"
 export type { Owned } from "../core/names"
@@ -149,6 +149,7 @@ export {
 export { NO_TOOL } from "../core/tools"
 export type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../core/wide-search"
 export type { StageView } from "../core/workspace"
+export { KEY_WAITS } from "../store/actions"
 export type { CalledScreen, CommandContext, ScreenCommandContext } from "../store/commands/def"
 export { NO_BOOK, NO_OUTSIDE_BINDER, NO_PAGE } from "../store/commands/def"
 export type { NewPageDialogArgs, PageSettingsArgs } from "../store/dialogs"

@@ -35,7 +35,6 @@ import {
   type StageView,
   shapesOf,
   toPaperDelta,
-  within,
 } from "../../../plugin-api"
 import {
   NO_HOVER,
@@ -82,6 +81,7 @@ import {
   PAPER_PLACE,
   PAPER_REPARENT,
   PAPER_RESIZE,
+  pastedAt,
   pressSelection,
   shapesIn,
   sweptBox,
@@ -139,14 +139,7 @@ export function PaperView() {
   // Ctrl+V で貼ったファイルも、最後にポインタが在った所に置く（紙の上でなければ、最初の空きに）
   useFilePasteAt(
     PAPER_PASTE_CLIPBOARD.id,
-    p => {
-      const el = ref.current
-      const area = stage === NO_STAGE ? NO_PAPER : areaOf(stage)
-      if (!el || area === NO_PAPER) return NO_PAPER
-      const at = local(p, el)
-      const onPaper = toPaperAt(at)
-      return onPaper !== NO_PAPER && within(onPaper, area) ? at : NO_PAPER
-    },
+    p => (ref.current && stage !== NO_STAGE ? pastedAt(stage, toPaperAt, local(p, ref.current)) : NO_PAPER),
     placeFile,
   )
 

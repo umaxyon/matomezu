@@ -15,6 +15,7 @@ import {
   type Point,
   type ShapeAddArgs,
   type ShapeParent,
+  type StageView,
   shapeDialogs,
   shapesOf,
   toPaperDelta,
@@ -36,6 +37,18 @@ import type { Came } from "./drag"
 import { nearestMove, nearestReparent, placeTarget, placingShape, stretchedBy } from "./items"
 
 // 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所を、toPaperAt で紙の上の点に直す
+// 貼ったファイルを置く所: ステージの上の点 pointer が、ステージ stage の描く広さ（伸びるページなら印刷区画を並べた広さ）の紙の上なら pointer、外なら NO_PAPER（最初の空きに置く）
+export function pastedAt(
+  stage: Pick<StageView, "opened">,
+  toPaperAt: (p: Point) => Point | typeof NO_PAPER,
+  pointer: Point,
+): Point | typeof NO_PAPER {
+  const area = areaOf(stage)
+  const at = toPaperAt(pointer)
+  if (area === NO_PAPER || at === NO_PAPER) return NO_PAPER
+  return at.x >= 0 && at.y >= 0 && at.x <= area.w && at.y <= area.h ? pointer : NO_PAPER
+}
+
 export function placeAt(toPaperAt: (p: Point) => Point | typeof NO_PAPER, pointer: Point): Point | typeof NO_PAPER {
   return toPaperAt({ x: pointer.x - PLACE_OFFSET.x, y: pointer.y - PLACE_OFFSET.y })
 }

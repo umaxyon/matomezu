@@ -11,6 +11,7 @@ export {
   PAPER_REPARENT,
   PAPER_RESIZE,
   PAPER_SELECT_ALL,
+  pastedAt,
   placeAt,
 } from "./commands"
 export {

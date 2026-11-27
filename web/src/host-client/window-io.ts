@@ -22,7 +22,7 @@ export function browserWindowIo(): WindowIo {
   return {
     ...(command ? { command } : {}),
     ...(clipboard ? { copyText: (text: string) => clipboard.writeText(text) } : {}),
-    // メニューから呼んだコピーにも copy のイベントを起こす（押した処理の中で呼べば、ブラウザがイベントを起こす。Chromium で確かめた。古い口だが、代わりの口は独自の形式を書けない）
+    // メニューから呼んだコピーにも copy のイベントを起こす（押した処理の中で呼べば、Chromium はイベントを起こす。古い口だが、代わりの口は独自の形式を書けない）
     requestCopyEvent: () => document.execCommand("copy"),
     clipboardEventOf: key => CLIPBOARD_KEYS[key],
     setWindowTitle: title => {
@@ -34,7 +34,7 @@ export function browserWindowIo(): WindowIo {
 }
 
 // ブラウザがクリップボードのイベントを起こすキーと、起こすイベント（Mac の Command は Mod。Windows の Insert・Delete の組も起こす）。
-// イベントは、キーを押した処理の続きで、次のタイマーより前に来る（Chromium で確かめた。インスタンスは、待たせたコマンドを次のタイマーで捨てる）
+// Chromium では、イベントはキーを押した処理の続きで、次のタイマーより前に来る（インスタンスは、来なければ次のタイマーでクリップボード無しで行う）
 export const CLIPBOARD_KEYS: Readonly<Record<string, ClipboardUse>> = {
   "Mod+C": "copy",
   "Mod+Insert": "copy",
