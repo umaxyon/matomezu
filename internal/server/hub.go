@@ -21,7 +21,7 @@ package server
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
 //	participant-calls {"participant", "at"} 参加者の最後に呼ばれた時刻（join_calls.go。30 秒以上あいたときだけ知らせる）
 //	participant-ready {"participant"} 参加者が準備中でなくなった（フックが参加を伝えた、または join で MCP がセッション id を運んだ。join_session.go）
-//	participant-live {"participant", "model", "branch"} 参加者のモデルかブランチが変わった（そのときの両方。空は省く。join.go・model.go）
+//	participant-live {"participant", "model", "branch", "wake", "contextUse"} 参加者のモデル・ブランチ・起こす知らせの通り道・コンテキストの量（{"used", "aiScale"}）のどれかが変わった（そのときの全部。無い物は省く。join.go・model.go・context_use.go）
 //	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
 //	update-status {"state", "version", "latest"?, "checkedAt"?, "askedAt"?} 新しい版の確かめの結果が変わった（update.go）
 //	host-status {"hostId", "name", "osHostName", "open", "port"?, "addrs"?, "wsl"?, "failed"?} ホストどうしの入口の様子が変わった（hosts.go）
@@ -113,6 +113,7 @@ type Hub struct {
 	rejoin           rejoinPasses                      // 開発用の、前もって承認した再参加（rejoin_pass.go。リリースの実行ファイルには無い）
 	departures       []departure                       // 外れた・断られた・キャンセルされた参加者の、その会話にまだ伝えていない記録（古い順。departure.go。置き場所に残す）
 	heardModels      map[string]heardModel             // セッション id → 誰にも結ばれていないうちにフックが知らせたモデル（model.go。残さない）
+	heardContexts    map[string]heardContext           // セッション id → フックが知らせた今のコンテキストの量（context_use.go。残さない）
 	clients          map[string]*client
 	wakeLines        map[*wakeLine]struct{}    // AI を起こす知らせの通り道（watch.go）
 	wakeQueue        map[string][]wakeItem     // 参加者の id → 受け取られるまで持つ、起こす知らせの行列（watch.go）

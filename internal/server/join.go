@@ -70,16 +70,20 @@ func (n participantNote) live() participantLive {
 	return participantLive{Model: n.Model, Branch: n.Branch}
 }
 
-// participantLive は、窓に知らせる参加者 1 人の様子（Wake は、起こす知らせを渡せる通り道がつながっていれば engine.WakeReaches。ほかは省く）
+// participantLive は、窓に知らせる参加者 1 人の様子（Wake は、起こす知らせを渡せる通り道がつながっていれば engine.WakeReaches。ほかは省く。
+// ContextUse は、結ばれたセッションの今のコンテキストの量。分からなければ noContextUse で、省く）
 type participantLive struct {
-	Model  string `json:"model,omitempty"`
-	Branch string `json:"branch,omitempty"`
-	Wake   string `json:"wake,omitempty"`
+	Model      string     `json:"model,omitempty"`
+	Branch     string     `json:"branch,omitempty"`
+	Wake       string     `json:"wake,omitempty"`
+	ContextUse contextUse `json:"contextUse,omitzero"`
 }
 
-// liveLocked は、参加者 id の窓に知らせる様子（h.mu を持って呼ぶ）
+// liveLocked は、参加者 id の窓に知らせる様子（コンテキストの量は、結ばれたセッションの物。h.mu を持って呼ぶ）
 func (h *Hub) liveLocked(id string) participantLive {
-	l := h.participantNotes[id].live()
+	n := h.participantNotes[id]
+	l := n.live()
+	l.ContextUse = h.contextOfLocked(n.SessionID)
 	if h.wakeReachLocked(id) == engine.WakeReaches {
 		l.Wake = engine.WakeReaches
 	}

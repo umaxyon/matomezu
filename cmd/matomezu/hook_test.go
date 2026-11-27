@@ -150,6 +150,39 @@ func TestModelHookSendsTheModel(t *testing.T) {
 	}
 }
 
+// コンテキストの量のフックは、読めた量と物差しを、読めなければ読めないと、セッション id と AI のプログラムのプロセス id を添えて送る。
+// サブエージェントの中のフックとセッション id の無い入力は読まずに送らない。常駐が立っていなければ何もしない
+func TestContextUseHookSendsTheUse(t *testing.T) {
+	var sent []string
+	api := func(body []byte) ([]byte, error) { sent = append(sent, string(body)); return []byte("{}"), nil }
+	reads := 0
+	read := func(hook hookInput) (contextUse, bool) {
+		reads++
+		if hook.TranscriptPath == "" {
+			return contextUse{}, false
+		}
+		return contextUse{Used: 120000, AIScale: 300000}, true
+	}
+	for _, in := range []string{
+		`{"session_id":"S1","transcript_path":"/t/S1.jsonl","hook_event_name":"PostToolUse","tool_name":"Bash"}`,
+		`{"session_id":"S1","hook_event_name":"Stop"}`,
+		`{"session_id":"S1","transcript_path":"/t/S1.jsonl","hook_event_name":"PostToolUse","agent_id":"a1"}`,
+		`{"hook_event_name":"PostToolUse","transcript_path":"/t/S1.jsonl"}`,
+	} {
+		hook := readHookInput(strings.NewReader(in))
+		hook.Host = "100"
+		sendContextUse(hook, read, api)
+	}
+	sendContextUse(hookInput{SessionID: "S1"}, read, nil)
+	want := []string{
+		`{"contextUse":{"used":120000,"aiScale":300000},"host":"100","sessionId":"S1"}`,
+		`{"contextUse":"unknown","host":"100","sessionId":"S1"}`,
+	}
+	if strings.Join(sent, "\n") != strings.Join(want, "\n") || reads != 2 {
+		t.Fatalf("sent = %v, reads = %d", sent, reads)
+	}
+}
+
 // 裏の知らせで始まったターン（--woken を渡したフックか、AI の事情で入力から見分けた物。hookPrompt）は woken を付けて知らせる。利用者トリガートークには付けない
 func TestTalkedTellsWhetherTheTurnWasWoken(t *testing.T) {
 	for _, c := range []struct {

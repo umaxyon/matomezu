@@ -21,13 +21,9 @@ func ChatThread(host, session string) string {
 	if host == "" || session == "" {
 		return ""
 	}
-	dir := os.Getenv("CLAUDE_CONFIG_DIR")
+	dir := ConfigDir()
 	if dir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return ""
-		}
-		dir = filepath.Join(home, ".claude")
+		return ""
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "sessions", filepath.Base(host)+".json"))
 	if err != nil {

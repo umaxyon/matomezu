@@ -92,6 +92,7 @@ type hookInput struct {
 	Woken          bool   `json:"-"`               // 起こす知らせで始まったターン（フックが --woken で渡す。渡せない AI のプログラムは、その AI の事情で入力から見分ける。hookPrompt。知らせをそのまま入力の道で受ける AI のプログラムは、talked に添える入力を常駐が照らす）
 	Titled         bool   `json:"-"`               // formatHook の答えに sessionTitle を書くか（それを読む AI のプログラムだけ。知らない項目のある JSON を断る AI がある）
 	Cwd            string `json:"cwd"`             // AI のセッションのフォルダ
+	AgentID        string `json:"agent_id"`        // サブエージェントの中のフックなら、そのサブエージェントの id（Claude Code）
 	// Rename は、作業名を ADE のワークスペースの表示名にも書く（dir は AI のセッションのフォルダ。答えを書いたあとに呼ぶ。nil なら書かない）
 	Rename func(dir, name string) `json:"-"`
 	// Thread は、プロセス id host の AI のプログラムがセッション session で動いているときの、チャットスレッドの id（その AI の事情で読む。nil か空なら送らない）
@@ -288,6 +289,32 @@ func sendModel(hook hookInput, api hookAPI) {
 		return
 	}
 	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "model": model, "host": hook.Host})
+	_, _ = api(body)
+}
+
+// contextUnknown は、POST /api/ai/context-use の contextUse の、量か物差しが読めないときの値
+const contextUnknown = "unknown"
+
+// contextUse は、POST /api/ai/context-use の contextUse の、読めたときの値（server の contextUse と同じ形）
+type contextUse struct {
+	Used    int64 `json:"used"`
+	AIScale int64 `json:"aiScale"`
+}
+
+// contextReader は、フックの入力から、そのセッションの今のコンテキストの量と AI の側の物差しを読む物（その AI の事情。読めなければ ok が偽）
+type contextReader func(hook hookInput) (use contextUse, ok bool)
+
+// sendContextUse は、セッションの今のコンテキストの量と物差しを常駐に送る（読めなければ読めないと送る）。何も書かない（AI のコンテキストを使わない）。
+// 常駐が立っていない・セッション id が無い・サブエージェントの中のフックなら、読まずに何もしない（答えは読まない）
+func sendContextUse(hook hookInput, read contextReader, api hookAPI) {
+	if api == nil || hook.SessionID == "" || hook.AgentID != "" {
+		return
+	}
+	var value any = contextUnknown
+	if use, ok := read(hook); ok {
+		value = use
+	}
+	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "contextUse": value})
 	_, _ = api(body)
 }
 

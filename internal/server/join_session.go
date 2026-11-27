@@ -48,8 +48,9 @@ func (h *Hub) noteSession(id, sessionID string) {
 
 // bindSession は、参加者 id にセッション id sessionID を、結んだ所 by で結ぶ。host が空でなければAI のプログラムのプロセス id も書く。
 // そのセッションについてフックが先に知らせたモデルを覚えていれば、参加者の記録に移す。覚えていなくても、同じセッションのほかの参加者がモデルを持っていれば、それを写す。
-// モデルが変わったら窓に知らせる。置き場所には書かない（h.mu を持って呼ぶ）
+// 窓に知らせる様子（モデルと、結ばれたセッションのコンテキストの量）が変わったら窓に知らせる。置き場所には書かない（h.mu を持って呼ぶ）
 func (h *Hub) bindSession(id, sessionID, by, host string) {
+	before := h.liveLocked(id)
 	n := h.participantNotes[id]
 	n.SessionID = sessionID
 	n.BoundBy = by
@@ -68,12 +69,11 @@ func (h *Hub) bindSession(id, sessionID, by, host string) {
 			}
 		}
 	}
-	moved := model != "" && model != n.Model
-	if moved {
+	if model != "" {
 		n.Model = model
 	}
 	h.participantNotes[id] = n
-	if moved {
+	if h.liveLocked(id) != before {
 		h.announceLive(id)
 	}
 }
