@@ -83,7 +83,7 @@ test("item-resize は、スクラップボックスの幅を倍率に写す（�
   expect(box().props).toEqual({ ...ONE, scale: 1 })
   expect([box().w, box().h]).toEqual([undefined, undefined])
   expect(placedSize(store.catalog.core, box())).toEqual({ w: 400, h: 200 })
-  expect(resize({ w: 30 }).ok).toBe(false) // 倍率 0.075 は下限 0.1 より小さい
+  expect(resize({ w: 30 }).ok).toBe(false) // 倍率 0.075 は下限 0.12（置いた短い辺が 24px）より小さい
   expect(box().props).toEqual({ ...ONE, scale: 1 })
 })
 

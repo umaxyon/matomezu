@@ -154,11 +154,12 @@ export interface Declined {
 
 // A は引数の形を通した後の値、I は渡す値（ArgsOf はこちら。省いてよい項目は I で省ける）
 // 付く先: books はどのブックにも、pages はどのページにも（どちらもページのタイプに依らない。books はブックが対象のアクション、pages はページが対象のアクションが書く）。items はそのアイテムを置けるタイプのページ、presentations はそのプレゼンテーションのタイプのページ、
-// annotations はそのアノテーションの種類を使えるタイプのページ。ページのタイプで決まる付く先（items・presentations・annotations）を持つ、ブックが対象のアクションは、
+// slides は形だけの並び（ページの slide）を持つタイプのページ、annotations はそのアノテーションの種類を使えるタイプのページ。ページのタイプで決まる付く先（items・presentations・slides・annotations）を持つ、ブックが対象のアクションは、
 // 許可スコープでページを名指す（どのページのタイプで決めるかが、そこで決まる。名指さなければ、books の付く先だけで決まる）
 export interface ActionAttach {
   items?: readonly string[]
   presentations?: readonly string[]
+  slides?: true
   books?: true
   pages?: true
   annotations?: readonly string[]
@@ -183,6 +184,7 @@ export function attachedTo(def: Pick<ActionDef, "attach">, type: PageTypeDef): b
     a.pages === true ||
     (a.items?.some(id => placeableOf(type).includes(id)) ?? false) ||
     (a.presentations?.includes(type.presentation) ?? false) ||
+    (a.slides === true && type.slide !== undefined) ||
     (a.annotations?.some(id => !type.annotations?.without?.includes(id as never)) ?? false)
   )
 }

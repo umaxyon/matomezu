@@ -38,10 +38,10 @@ import {
   placeItem,
   resizedBy,
   shapeDefOf,
+  stretchOf,
   tidyPage,
   toData,
 } from "../../base"
-import { kit } from "../kit"
 import { type Came, clampBy, dragRects, dropManyRects, dropRects, track } from "./drag"
 
 // 置こうとしているアイテムの左上を、ポインタから左上へこれだけ離す（画面の px）
@@ -58,9 +58,7 @@ export function stretchedBy(
   by: Point,
   paper: Size,
 ): { x: number; y: number; w: number; h: number } | typeof CANNOT_RESIZE {
-  const def = shapeDefOf(catalog, item.item)
-  const ratio = def !== NO_SHAPE_DEF && def[kit.name("stretch")] === "ratio"
-  return resizedBy(catalog, item, edges, by, paper, ratio)
+  return resizedBy(catalog, item, edges, by, paper, stretchOf(catalog, item.item) === "ratio")
 }
 
 // ドラッグ中のアイテム id の通り道を覚え直す（drag.ts の track）

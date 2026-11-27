@@ -30,6 +30,7 @@ import {
   shapeDefOf,
   shapeThemeFits,
   sizedTo,
+  stretchOf,
   widenForCaption,
 } from "../../base"
 import { kit } from "../kit"
@@ -43,9 +44,6 @@ import { freeAt, moveItems, parsePlaced, subtreeOf } from "./items"
 declare module "../../../core/catalog" {
   interface ShapeItemExtras<D extends ShapeData = ShapeData> {
     "@matomezu/paper:settle"?(item: D, before?: D): D
-    // 大きさを変えられる向き: "width" なら幅だけ（高さは中身から決まる形。つかめるのは左右の辺だけで、高さは置いた大きさのまま）。
-    // "ratio" なら幅と高さの比を保つ（つかめるのは角だけ。高さは幅から決まる）。無ければ幅も高さも
-    "@matomezu/paper:stretch"?: "width" | "ratio"
   }
 }
 
@@ -317,13 +315,13 @@ export const ITEM_RESIZE = kit.defineAction({
     if (!ctx.catalog.items.get(now.item)?.capabilities.includes("resizable")) return null
     const size = placedSize(ctx.catalog, now)
     if (size === NO_SIZE) return null
-    const def = shapeDefOf(ctx.catalog, now.item)
-    const stretch = def !== NO_SHAPE_DEF ? def[kit.name("stretch")] : undefined
+    const stretch = stretchOf(ctx.catalog, now.item)
     const widthOnly = stretch === "width"
     const moved = { ...now, x: args.x ?? now.x, y: widthOnly ? now.y : (args.y ?? now.y) }
     const wanted = { w: args.w ?? size.w, h: widthOnly || stretch === "ratio" ? size.h : (args.h ?? size.h) }
     const resized = parsePlaced(ctx.catalog, sizedTo(ctx.catalog, moved, wanted))
     // 項目に写した形は、求めた幅になったか（切り上げの 1px は許す）
+    const def = shapeDefOf(ctx.catalog, now.item)
     const got = resized && def !== NO_SHAPE_DEF && def.resizedTo ? placedSize(ctx.catalog, resized) : NO_SIZE
     if (got !== NO_SIZE && Math.abs(got.w - wanted.w) > 1) return null
     // 幅だけの形は、新しい幅で決まる高さにする

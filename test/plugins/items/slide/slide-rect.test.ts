@@ -29,10 +29,19 @@ test("傾いていない枠: 右の辺は幅だけ、左上の角は向かいの
 })
 
 test("square なら、角を引くと縦横の長い方に揃い、向かいの角は動かない。辺は揃えない", () => {
-  const corner = resizedRect(F, 0, { left: true, top: true }, { x: -20, y: -10 }, 8, true)
+  const corner = resizedRect(F, 0, { left: true, top: true }, { x: -20, y: -10 }, 8, "square")
   expect(corner).toMatchObject({ x: 80, y: -70, w: 220, h: 220 })
-  const side = resizedRect(F, 0, { right: true }, { x: 30, y: 0 }, 8, true)
+  const side = resizedRect(F, 0, { right: true }, { x: 30, y: 0 }, 8, "square")
   expect(side).toMatchObject({ w: 230, h: 100 })
+})
+
+test("ratio なら、角を引くと元の比のまま大きく変わった方に揃い、向かいの角は動かない", () => {
+  // 幅は 1.1 倍、高さは 1.3 倍に引いた → 1.3 倍に揃う
+  const corner = resizedRect(F, 0, { left: true, top: true }, { x: -20, y: -30 }, 8, "ratio")
+  close(corner.w, 260)
+  close(corner.h, 130)
+  close(corner.x + corner.w, 300)
+  close(corner.y + corner.h, 150)
 })
 
 test("下限より小さくならない", () => {

@@ -8,11 +8,24 @@ import type { ItemPage } from "../../../core/placed"
 import { kit } from "../kit"
 import { pageArea, paperSize } from "../place/grow"
 
-// 倍率の範囲（1 が等倍）
-export const SCRAP_SCALE_MIN = 0.1
+// 倍率の上限（1 が等倍）
 export const SCRAP_SCALE_MAX = 4
+// 置いた大きさ（見る範囲 × 倍率）の、短い辺の下限（px。つかめて、見分けられる大きさ）
+export const SCRAP_MIN_SIDE = 24
 
-// スクラップのデータの形: 指すページの id、見る範囲（ページの中身の位置。可変ページの中身をずらす前の位置で持つ）、倍率
+// 見る範囲 area の倍率の下限: 置いた短い辺が SCRAP_MIN_SIDE になる倍率（等倍でもそれに届かない小さな範囲は、等倍）
+export const scrapScaleMin = (area: Pick<Rect, "w" | "h">): number =>
+  Math.min(1, SCRAP_MIN_SIDE / Math.min(area.w, area.h))
+
+// スクラップの倍率が、見る範囲で決まる下限以上か（スクラップを持つ形が、自分の形の確かめに足す）
+export const scrapScaleFits = (s: Pick<Scrap, "area" | "scale">): boolean => s.scale >= scrapScaleMin(s.area)
+export const SCRAP_SCALE_TOO_SMALL = {
+  message: `The scrap's shorter side, area × scale, must be at least ${SCRAP_MIN_SIDE} pixels`,
+  path: ["scale"],
+}
+
+// スクラップのデータの形: 指すページの id、見る範囲（ページの中身の位置。可変ページの中身をずらす前の位置で持つ）、倍率。
+// 倍率の下限は見る範囲で決まる（scrapScaleFits。この形を広げて使う所が、広げたあとに確かめる）
 export const ScrapSchema = z.strictObject({
   page: z.string().min(1),
   area: z.strictObject({
@@ -21,14 +34,17 @@ export const ScrapSchema = z.strictObject({
     w: z.number().positive(),
     h: z.number().positive(),
   }),
-  scale: z.number().min(SCRAP_SCALE_MIN).max(SCRAP_SCALE_MAX),
+  scale: z.number().positive().max(SCRAP_SCALE_MAX),
 })
 export type Scrap = z.output<typeof ScrapSchema>
 
 // スクラップトレイから紙 paper に置くときのスクラップ: 紙の幅・高さの半分に収まるよう倍率を下げる（上げはしない。倍率の下限より下げない）
 export const scrapToPlace = (scrap: Scrap, paper: Size): Scrap => ({
   ...scrap,
-  scale: Math.max(SCRAP_SCALE_MIN, Math.min(scrap.scale, paper.w / 2 / scrap.area.w, paper.h / 2 / scrap.area.h)),
+  scale: Math.max(
+    scrapScaleMin(scrap.area),
+    Math.min(scrap.scale, paper.w / 2 / scrap.area.w, paper.h / 2 / scrap.area.h),
+  ),
 })
 
 // スクラップを置いたときの大きさ（見る範囲 × 倍率。小数は切り上げる）
@@ -43,7 +59,10 @@ export const SCRAP = kit.defineSubject({
   title: "Scrap",
   aiDescription:
     "A scrap in the user's scrap tray: a view cut out of a page (page: the page's id, area: the part shown, in the page's own pixels (on an image page, the image's own pixels), scale: 1 is the same size), kept until the user places it on a page or removes it. Only the user cuts scraps out and removes them. Listed newest first.",
-  record: ScrapSchema.extend({ id: z.string().min(1), cutAt: z.string() }),
+  record: ScrapSchema.extend({ id: z.string().min(1), cutAt: z.string() }).refine(
+    scrapScaleFits,
+    SCRAP_SCALE_TOO_SMALL,
+  ),
   keys: {
     cutAt: { type: "text", of: s => s.cutAt },
     page: { type: "text", of: s => s.page },
@@ -59,7 +78,7 @@ export const SCRAP_CUT = kit.defineAction({
   aiDescription: "Cut a scrap out of a page into the scrap tray (only the user).",
   target: SCRAP.id,
   userOnly: true,
-  args: ScrapSchema,
+  args: ScrapSchema.refine(scrapScaleFits, SCRAP_SCALE_TOO_SMALL),
   run: (now, args, ctx) => {
     if (now !== "none") return null
     const next = { id: ctx.newId(), ...args, cutAt: ctx.now }

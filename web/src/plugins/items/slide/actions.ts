@@ -1,11 +1,12 @@
 // スライドのアクション: 置く・動かす・大きさを変える・項目を変える・重ねを変える・消す。
 // 対象はページの slide（形だけの並び。重ねの順）。ほかの形を押さず、紙の外に出てもよい（位置は紙の左上からの px で、負でもよい）。
-// 位置と大きさは、書いたとおりに残る。アクションは描画シェイプを置けるタイプについて来る
+// 位置と大きさは、書いたとおりに残る。アクションは形だけの並び（ページの slide）を持つタイプについて来る
 import { z } from "zod"
 import {
   type CoreCatalog,
   type ItemPage,
   type PlacedShape,
+  pageType,
   type ShapeData,
   shapeSchema,
   slideOf,
@@ -14,21 +15,9 @@ import { NO_SIZE, nextItemId, placedSize, sizedTo, writesSize } from "../../base
 import { kit } from "./kit"
 import { ORDERS } from "./order"
 import { scaledFontSize } from "./rect"
-import {
-  DEFAULT_FONT_SIZE,
-  ELLIPSE,
-  FigureProps,
-  FREE_LINE,
-  FreeLineProps,
-  RECTANGLE,
-  SLIDE_ITEMS,
-  STRAIGHT_LINE,
-  StraightLineProps,
-  TEXT_FRAME,
-  TextFrameProps,
-} from "./slide"
+import { DEFAULT_FONT_SIZE, TEXT_FRAME } from "./slide"
 
-const ON_SLIDE = { items: SLIDE_ITEMS.map(def => def.id) }
+const ON_SLIDE = { slides: true } as const
 
 type Shape = ShapeData<Record<string, unknown>>
 const shapes = (page: ItemPage): Shape[] => slideOf(page) as unknown as Shape[]
@@ -45,6 +34,10 @@ function fits(catalog: CoreCatalog, shape: Shape): boolean {
   return def?.kind === "shape" && shapeSchema(def).safeParse(shape).success
 }
 
+// アイテム item を、ページ page のタイプが slide に置けるか
+const placeableOn = (catalog: CoreCatalog, page: ItemPage, item: string): boolean =>
+  pageType(catalog, page.type).slide?.allowed.includes(item) ?? false
+
 const round = (n: number): number => Math.round(n * 100) / 100
 
 // slide の形 id を f で置き換えたページ。形が無いか、f が null か、合わなければ null
@@ -58,39 +51,31 @@ function change(catalog: CoreCatalog, page: ItemPage, id: string, f: (shape: Sha
   )
 }
 
-const Common = {
-  at: z.strictObject({ x: z.number(), y: z.number() }).optional(),
-  w: z.number().positive().optional(),
-  h: z.number().positive().optional(),
-}
-const place = <const I extends string, P extends z.ZodType>(item: I, props: P) =>
-  z.strictObject({ ...Common, item: z.literal(item), props })
-
-// 置く。at は左上（紙の上の px。無ければ 0, 0）。w・h が無ければアイテムの置くときの大きさ
+// 置く。at は左上（紙の上の px。無ければ 0, 0）。w・h が無ければアイテムの置くときの大きさ。項目は、そのアイテムの項目の形で確かめる（置けるアイテムは、ページのタイプの slide.allowed）
 export const SLIDE_PLACE = kit.defineAction({
   id: "slide-place",
   attach: ON_SLIDE,
   aiDescription:
-    "Place a drawing item on a page's slide with its top-left at at (in paper pixels from the paper's top-left; it may be negative or outside the paper, which only shows what is inside). Items on a slide never push each other and are not joined by lines. item is a text frame (props.text), a free line (props.points, fractions of the frame), a straight line, an ellipse, or a rectangle. w and h set the frame (without them, the item's own size). Later items are drawn over earlier ones. Returns the new item's id.",
+    "Place an item on a page's slide with its top-left at at (in paper pixels from the paper's top-left; it may be negative or outside the paper, which only shows what is inside). Items on a slide never push each other and are not joined by lines. item is one the page type allows on its slide (such as a text frame with props.text, a free line with props.points as fractions of the frame, a straight line, an ellipse, a rectangle, or a scrap box), and props are that item's props (see actions for the item). w and h set the frame (without them, the item's own size); an item whose size comes from its props (a scrap box) takes no w or h. Later items are drawn over earlier ones. Returns the new item's id.",
   title: "Place on slide",
   target: "page",
-  args: z.discriminatedUnion("item", [
-    place(TEXT_FRAME.id, TextFrameProps),
-    place(FREE_LINE.id, FreeLineProps),
-    place(STRAIGHT_LINE.id, StraightLineProps.default({})),
-    place(ELLIPSE.id, FigureProps.default({})),
-    place(RECTANGLE.id, FigureProps.default({})),
-  ]),
+  args: z.strictObject({
+    item: z.string().min(1),
+    props: z.record(z.string().min(1), z.unknown()).optional(),
+    at: z.strictObject({ x: z.number(), y: z.number() }).optional(),
+    w: z.number().positive().optional(),
+    h: z.number().positive().optional(),
+  }),
   permissionScope: "page",
   run: (page, args, ctx) => {
     const def = ctx.catalog.items.get(args.item)
-    if (def?.kind !== "shape") return null
+    if (def?.kind !== "shape" || !placeableOn(ctx.catalog, page, args.item)) return null
     const placed: Shape = {
       id: nextItemId(page, ctx.newId),
       x: args.at?.x ?? 0,
       y: args.at?.y ?? 0,
       item: args.item,
-      props: { ...args.props },
+      props: { ...(args.props ?? {}) },
     }
     // 大きさが項目で決まる形（大きさを項目に写す形）は、w・h を受けず、書かない
     const writes = writesSize(ctx.catalog, args.item)

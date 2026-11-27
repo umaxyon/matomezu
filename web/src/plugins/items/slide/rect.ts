@@ -44,8 +44,18 @@ export interface Resized extends Rect {
   scaled: boolean // 角をつかんだ（文字枠の文字も一緒に拡大する）
 }
 
-// grip をつかんで、紙の上で by だけ引いたあとの枠。min は幅・高さの下限。square なら、角をつかんだとき正方形（長い方に揃える）
-export function resizedRect(f: Rect, rotation: number, grip: Grip, by: Point, min: number, square = false): Resized {
+// 角をつかんだときに揃える形: square は正方形（長い方に揃える）、ratio は元の枠の縦横の比（大きく変わった方に揃える）
+export type Keep = "free" | "square" | "ratio"
+
+// grip をつかんで、紙の上で by だけ引いたあとの枠。min は幅・高さの下限。keep は、角をつかんだときに揃える形
+export function resizedRect(
+  f: Rect,
+  rotation: number,
+  grip: Grip,
+  by: Point,
+  min: number,
+  keep: Keep = "free",
+): Resized {
   const d = turn(by, -rotation)
   const horizontal = grip.left === true || grip.right === true
   const vertical = grip.top === true || grip.bottom === true
@@ -62,13 +72,16 @@ export function resizedRect(f: Rect, rotation: number, grip: Grip, by: Point, mi
     if (grip.top) t = b - min
     else b = t + min
   }
-  // 角をつかんで square なら、縦横の長い方に揃える（つかんだ角の反対側の角を動かさない）
-  if (square && horizontal && vertical) {
+  // 角をつかんで揃えるなら、正方形は縦横の長い方に、比は大きく変わった方の倍率に揃える（つかんだ角の反対側の角を動かさない）
+  if (keep !== "free" && horizontal && vertical) {
+    const scale = Math.max((r - l) / f.w, (b - t) / f.h)
     const side = Math.max(r - l, b - t)
-    if (grip.left) l = r - side
-    else r = l + side
-    if (grip.top) t = b - side
-    else b = t + side
+    const w = keep === "square" ? side : f.w * scale
+    const h = keep === "square" ? side : f.h * scale
+    if (grip.left) l = r - w
+    else r = l + w
+    if (grip.top) t = b - h
+    else b = t + h
   }
   const w = r - l
   const h = b - t

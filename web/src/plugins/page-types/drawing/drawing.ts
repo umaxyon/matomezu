@@ -33,6 +33,7 @@ const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-line",
   "@matomezu/slide:slide-ellipse",
   "@matomezu/slide:slide-rectangle",
+  "@matomezu/scrap:shape-scrap-box",
 ] as const
 
 export const DRAWING = kit.definePageType({

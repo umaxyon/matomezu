@@ -36,12 +36,12 @@ test("テーマの値を引く関数（resolveTokens・bookTokens）を読むの
   expect(offenders).toEqual([])
 })
 
-test("ページのタイプの slide.allowed に書くのは描画シェイプ（@matomezu/slide のアイテム）だけ", async () => {
+test("ページのタイプの slide.allowed に書くのは、ケイパビリティ @matomezu/slide:on-slide を持つ形だけ", async () => {
   const { CORE_CATALOG } = await import("../support")
-  const { SLIDE_PLUGIN } = await import("../../web/src/plugins/items/slide")
-  const drawn = new Set<string>((SLIDE_PLUGIN.items ?? []).map(d => d.id))
   const others = [...CORE_CATALOG.pageTypes.values()].flatMap(t =>
-    (t.slide?.allowed ?? []).filter(id => !drawn.has(id)).map(id => `${t.id}: ${id}`),
+    (t.slide?.allowed ?? [])
+      .filter(id => !CORE_CATALOG.items.get(id)?.capabilities.includes("@matomezu/slide:on-slide"))
+      .map(id => `${t.id}: ${id}`),
   )
   expect(others).toEqual([])
 })

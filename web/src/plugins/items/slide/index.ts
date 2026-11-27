@@ -2,6 +2,7 @@
 // 置き場はページの slide で、ページのタイプが選ぶ（タイプの slide.allowed）。描いて操作を受けるレイヤー（book-layers）と、そのコマンドとキーも持つ
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { SLIDE_MOVE, SLIDE_PLACE, SLIDE_REMOVE, SLIDE_REORDER, SLIDE_RESIZE, SLIDE_UPDATE } from "./actions"
+import { ON_SLIDE_CHECK } from "./check"
 import {
   SLIDE_BACKWARD,
   SLIDE_DELETE,
@@ -46,6 +47,7 @@ export const SLIDE_PLUGIN = defineBuiltin(
     ],
     keys: SLIDE_KEYS,
     keyScopes: [SLIDE_KEY_SCOPE, SLIDE_TEXT_KEY_SCOPE],
+    checks: [ON_SLIDE_CHECK],
   }),
 )
 

@@ -4,7 +4,13 @@ import { AI } from "../../../web/src/core/actor"
 import { performIn } from "../../../web/src/core/perform-world"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { scrapFrameIn } from "../../../web/src/plugins/base/scrap"
-import { SCRAP, scrapSize, scrapToPlace } from "../../../web/src/plugins/base/scrap/scrap"
+import {
+  SCRAP,
+  scrapScaleFits,
+  scrapScaleMin,
+  scrapSize,
+  scrapToPlace,
+} from "../../../web/src/plugins/base/scrap/scrap"
 import { CORE_CATALOG, newStore } from "../../support"
 
 const CUT = "@matomezu/base:scrap-cut"
@@ -90,5 +96,14 @@ test("スクラップトレイから置くときは、紙の幅・高さの半�
   expect(of(1000, 800)).toBe(0.5)
   expect(of(2000, 400)).toBe(0.25) // 幅で決まる
   expect(of(200, 100)).toBe(1) // 収まっていれば、そのまま
-  expect(of(50000, 100)).toBe(0.1) // 倍率の下限
+  expect(of(6000, 4000)).toBeCloseTo(500 / 6000, 9) // 大きな写真も、紙の半分まで縮める
+  expect(of(50000, 100)).toBe(0.24) // 倍率の下限: 置いた短い辺が 24px
+})
+
+test("倍率の下限は見る範囲で決まる: 置いた短い辺が 24px になる倍率（等倍でも届かない小さな範囲は等倍）", () => {
+  expect(scrapScaleMin({ w: 6000, h: 4000 })).toBe(0.006)
+  expect(scrapScaleMin({ w: 10, h: 300 })).toBe(1)
+  const scrap = (scale: number) => ({ page: "p", area: { x: 0, y: 0, w: 4000, h: 2400 }, scale })
+  expect(scrapScaleFits(scrap(0.01))).toBe(true)
+  expect(scrapScaleFits(scrap(0.009))).toBe(false)
 })

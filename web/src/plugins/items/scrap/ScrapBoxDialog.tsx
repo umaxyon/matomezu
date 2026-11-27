@@ -5,7 +5,7 @@ import { useState } from "react"
 import type { ItemProps, ShapeEditArgs } from "../../../plugin-api"
 import { NO_ITEM } from "../../../plugin-api"
 import { type DialogProps, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
-import { refusalMessage } from "../../base"
+import { refusalMessage, scrapScaleMin } from "../../base"
 import {
   ActionButton,
   ColorPicker,
@@ -71,7 +71,11 @@ function Editor({ args, start, onClose }: { args: ShapeEditArgs; start: ScrapPro
       >
         <ScrapForm
           value={scrap}
-          onChange={next => setValue(line === undefined ? next : { ...next, line })}
+          onChange={next => {
+            // 見る範囲を狭めたら、倍率を、その範囲の下限まで上げる（置いた短い辺が小さくなりすぎない）
+            const fitted = { ...next, scale: Math.max(next.scale, scrapScaleMin(next.area)) }
+            setValue(line === undefined ? fitted : { ...fitted, line })
+          }}
           opens={{ onOpened: onClose, edited: JSON.stringify(value) !== JSON.stringify(start) }}
           side={
             <div className={rowClass}>

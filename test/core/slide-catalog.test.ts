@@ -1,4 +1,4 @@
-// ページの slide（形だけの並び）の土台の扱い: 台帳アセンブルの誤り（E042・E043）、読み込み（W007・W028）、置けるアイテムの一本化（attach・テーマキー・ツールボックス）
+// ページの slide（形だけの並び）の土台の扱い: 台帳アセンブルの誤り（E042・E043・slide の E134）、読み込み（W007・W028）、置けるアイテムの一本化（attach・テーマキー・ツールボックス）
 
 import { expect, test } from "bun:test"
 import { checkBooks } from "../../web/src/core/book"
@@ -11,6 +11,7 @@ import { itemMinimapMarks, NOT_DRAWN } from "../../web/src/plugins/base/minimap/
 import { NO_GROW } from "../../web/src/plugins/base/place/grow"
 import { filledSheets } from "../../web/src/plugins/base/print-preview/filled"
 import { toolboxOf } from "../../web/src/plugins/base/toolbox/toolbox"
+import { ON_SLIDE_CHECK } from "../../web/src/plugins/items/slide/check"
 import { SLIDE, testBinder, testBook, testPage, withSlide } from "../lineup"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
@@ -57,7 +58,10 @@ test("置けるアイテムは items.allowed と slide.allowed の合わせ: ア
   const onlySlide = { ...drawing, items: { ...drawing.items, allowed: [] }, slide: { allowed: [box.id] } }
   const ids = tokenDefsOf(CORE_CATALOG, onlySlide).map(d => d.id)
   for (const t of box.tokens) expect(ids).toContain(t.id)
-  expect(toolboxOf(CORE_CATALOG, SLIDE, "items")).toEqual(slideType.slide!.allowed as never)
+  // ツールボックスに出すのは、ツールボックスに出す形だけ（スクラップボックスはスクラップトレイから置く）
+  expect(toolboxOf(CORE_CATALOG, SLIDE, "items")).toEqual(
+    slideType.slide!.allowed.filter(id => id !== "@matomezu/scrap:shape-scrap-box") as never,
+  )
 })
 
 test("ミニマップと印刷区画の既定は、ページの slide の形も数える（形の定義の minimap。無いなら置いた四角）", () => {
@@ -98,4 +102,16 @@ test("ミニマップと印刷区画の既定は、ページの slide の形も�
   ])
   expect(filledSheets(CORE_CATALOG, { ...page, slide: [text] } as never)?.size).toBe(1)
   expect(filledSheets(CORE_CATALOG, { ...page, slide: [] } as never)?.size).toBe(0)
+})
+
+test("slide.allowed に、ケイパビリティ on-slide を持たない形を書いたタイプは E134。slide のアクションは、slide を持つタイプに付く", () => {
+  const drawing = BUILTIN_PARTS.pageTypes.find(t => t.id === "@matomezu/drawing:drawing")!
+  const bad = { ...drawing, slide: { allowed: ["@matomezu/box:shape-box"], background: true as const } }
+  expect(ON_SLIDE_CHECK(CORE_CATALOG).map(p => p.code)).toEqual([])
+  const catalog = { ...CORE_CATALOG, pageTypes: new Map([...CORE_CATALOG.pageTypes, [drawing.id, bad]]) }
+  expect(ON_SLIDE_CHECK(catalog as typeof CORE_CATALOG).map(p => p.code)).toEqual(["E134"])
+  const place = BUILTIN_PARTS.actions.find(a => a.id === "@matomezu/slide:slide-place")!
+  const { slide: _, ...noSlide } = drawing
+  expect(attachedTo(place, drawing)).toBe(true)
+  expect(attachedTo(place, noSlide)).toBe(false)
 })
