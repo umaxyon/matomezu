@@ -7,7 +7,7 @@
 //      キューは終わりまで流れ、履歴（merge-queue.ts の HISTORY）に残る。キューのロックで 1 本ずつ並ぶ
 //   4. キューの結果を出し、外されたら次にする事を添える。印を消す
 // 入れば 0、外されれば 1、並べなければ 2 で終わる
-import { spawn } from "node:child_process"
+import { execFileSync, spawn } from "node:child_process"
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { commonDir, git, type Outcome, queueDir, type Report } from "./merge-queue"
@@ -103,7 +103,11 @@ async function request(): Promise<number> {
   const branch = ok(dir, "symbolic-ref", "-q", "HEAD") ? git(dir, "symbolic-ref", "--short", "HEAD") : undefined
   const why = refusal({
     branch,
-    changes: git(dir, "status", "--porcelain", "--untracked-files=no"),
+    // git() は前後の空白を落とし、はじめの行の印の列がずれるので、末尾だけ落とす
+    changes: execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], {
+      cwd: dir,
+      encoding: "utf8",
+    }).trimEnd(),
     hasMain: ok(dir, "merge-base", "--is-ancestor", "refs/heads/main", sha),
     inMain: ok(dir, "merge-base", "--is-ancestor", sha, "refs/heads/main"),
     sha,
