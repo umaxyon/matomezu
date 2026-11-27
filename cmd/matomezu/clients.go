@@ -97,7 +97,7 @@ type claudeHookCmd struct {
 	Model      claudeModelCmd      `cmd:"" help:"SessionStart and PostModelSwitch: tell matomezu the session's model."`
 	Permission claudePermissionCmd `cmd:"" help:"PreToolUse: let the matomezu tools that only read be used without asking."`
 	Stop       claudeStopCmd       `cmd:"" help:"Stop: write the work title to the display name of the ADE workspace this session runs in, if any, and tell matomezu how much context the session uses (prints nothing)."`
-	ContextUse claudeContextUseCmd `cmd:"" name:"context-use" help:"PostToolUse and PostCompact: tell matomezu how much context the session uses, read from its transcript (prints nothing)."`
+	ContextUse claudeContextUseCmd `cmd:"" name:"context-use" help:"PostToolUse: tell matomezu how much context the session uses, read from its transcript (prints nothing)."`
 }
 
 type claudeStopCmd struct{}
@@ -114,7 +114,7 @@ func (claudeStopCmd) Run() error {
 
 type claudeContextUseCmd struct{}
 
-// Run は、ツールを使ったあとと圧縮のあとに、コンテキストの量を知らせる
+// Run は、ツールを使ったあとに、コンテキストの量を知らせる
 func (claudeContextUseCmd) Run() error {
 	claudeDev()
 	hook := stdinHook()

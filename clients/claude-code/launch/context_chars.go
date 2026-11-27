@@ -114,7 +114,7 @@ type contentBlock struct {
 	Content   json.RawMessage `json:"content"`
 }
 
-// countLine は、会話の記録の 1 行 line を数え、read に足す（圧縮の境目なら、積んだ物を捨てて数え直す）
+// countLine は、会話の記録の 1 行 line を数え、read に足す（圧縮の境目なら、積んだ物を捨てて数え直す）。isSidechain が真の行は、サブエージェントの会話（メインの会話のコンテキストに入らない）なので数えない（実物の記録で見た形）
 func (m *charsMark) countLine(line []byte, read *CharsRead) {
 	var l charsLine
 	if json.Unmarshal(line, &l) != nil || l.IsSidechain {
@@ -257,7 +257,7 @@ var attachmentMeta = map[string]bool{
 }
 
 // modelSees は、Claude Code が記録に書く、モデルに渡した物の写し raw（type attachment の行の attachment）なら、モデルに今見えている分だけを read に足す（写しでなければ偽）。
-// 同じ物が何度も載るので、写しの種類ごとに数え方を決める。根拠は、実物の記録（圧縮の境目で区切った 70 の区切り）で見た形:
+// 同じ物が何度も載るので、写しの種類ごとに数え方を決める。根拠は、実物の記録で見た形:
 //   - prompt_snapshot（システムプロンプト・最初から渡すツールの説明）: 区切りごとに 2 回（ツールの説明の無い物と有る物）載る。モデルに毎回渡す物の、
 //     その時点の全部の写しなので、最後の写しだけを数える（前に数えた写しの字数と入れ替える）。matomezu の分は数えない
 //   - deferred_tools_record（ToolSearch で読み込んだツールの説明）: 読み込んだときに、読み込んだツールの説明だけが載る（entries の空の行も多い）。
@@ -406,9 +406,10 @@ func firstText(raw json.RawMessage) string {
 	return ""
 }
 
-// matomezuHookTexts は、matomezu の話しかけのフック（talked）が additionalContext と systemMessage に書く文の頭。
+// MatomezuHookTexts は、matomezu の話しかけのフック（talked）が additionalContext と systemMessage に書く文の頭。
+// 常駐の文（internal/server の TalkTexts）の頭を写した物で、合うことは cmd/matomezu のテストが見張る。
 // 参加しました（英語の forAi と、利用者に見せる文）・待つアノテーションなどの知らせ（matomezu: で始まる）・裏の知らせで始まったターン・前の会話から移した参加者
-var matomezuHookTexts = []string{
+var MatomezuHookTexts = []string{
 	"matomezu",
 	"You joined matomezu",
 	"This turn was started by a matomezu notice",
@@ -418,7 +419,7 @@ var matomezuHookTexts = []string{
 // matomezuHookText は、フックが会話に足した文 text が matomezu のフックの物か。フックの JSON の出力の記録にはコマンドが無いので、文の頭で見分ける（ほかのフックが同じ頭で書けば紛れる）
 func matomezuHookText(text string) bool {
 	text = strings.TrimSpace(text)
-	for _, head := range matomezuHookTexts {
+	for _, head := range MatomezuHookTexts {
 		if strings.HasPrefix(text, head) {
 			return true
 		}

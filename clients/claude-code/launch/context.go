@@ -94,7 +94,8 @@ type tokenCounts struct {
 
 func (c tokenCounts) sum() int64 { return c.Input + c.CacheCreation + c.CacheRead }
 
-// syntheticModel は、Claude Code が API を呼ばずに会話の記録に書く返答（断りの文など）のモデルの名前。usage を持たないので飛ばす
+// syntheticModel は、Claude Code が API を呼ばずに会話の記録に書く返答（断りの文など）のモデルの名前。usage を持たないので飛ばす。
+// 出どころは Claude Code 2.1.332 の実行ファイル（"No response requested." と並ぶ "<synthetic>"）と、実物の記録で見た形
 const syntheticModel = "<synthetic>"
 
 // lastTurnUsage は、会話の記録 path を後ろから読み、最後の AI の返答のモデルと今のコンテキストの量を返す。
@@ -160,7 +161,7 @@ const (
 )
 
 // judgeLine は、会話の記録の 1 行 line を後ろから読んだときの扱い。文字の照らしは JSON を読むかの篩だけにし（ツールの結果の中にも同じ文字が出る）、
-// 決めるのは上の段の type・subtype・isSidechain
+// 決めるのは上の段の type・subtype・isSidechain。isSidechain が真の行は、サブエージェントの会話（メインの会話のコンテキストに入らない）なので飛ばす（実物の記録で見た形）
 func judgeLine(line []byte) (turnUsage, lineVerdict) {
 	if !bytes.Contains(line, []byte(`"assistant"`)) && !bytes.Contains(line, []byte(compactBoundary)) {
 		return turnUsage{}, lineSkip
@@ -276,13 +277,16 @@ type modelSettings struct {
 	AutoCompactWindow *int64 `json:"autoCompactWindow"`
 }
 
-// compactSwitches は、自動の縮めを切る環境変数（DISABLE_COMPACT は手の縮めも切る）
+// compactSwitches は、自動の縮めを切る環境変数（DISABLE_COMPACT は手の縮めも切る）。
+// 出どころは Claude Code 2.1.332 の実行ファイルの説明（autoCompactEnabled setting + DISABLE_AUTO_COMPACT / DISABLE_COMPACT env; DISABLE_COMPACT also disables manual /compact）
 var compactSwitches = []string{"DISABLE_AUTO_COMPACT", "DISABLE_COMPACT"}
 
 // AutoCompactWindow は、モデル model で Claude Code が会話を自動で縮める所（トークン。設定 autoCompactWindow）。
 // 設定は、設定のフォルダ configDir の settings.json、プロジェクト project の .claude/settings.json と .claude/settings.local.json の順に重ね、後ろが勝つ。
 // modelSettings のそのモデルの名前の項目に autoCompactWindow があれば、上の段より勝つ。
-// 自動の縮めが切られている（設定 autoCompactEnabled が false、または環境変数 DISABLE_AUTO_COMPACT・DISABLE_COMPACT。設定の env も見る）か、書かれていなければ無い
+// 自動の縮めが切られている（設定 autoCompactEnabled が false、または環境変数 DISABLE_AUTO_COMPACT・DISABLE_COMPACT。設定の env も見る）か、書かれていなければ無い。
+// 出どころ: 重ねる順は Claude Code の設定の説明（利用者・プロジェクト・ローカルの順に後ろが勝つ）。autoCompactWindow・autoCompactEnabled・modelSettings（モデルの名前ごとの設定）の名前は、
+// Claude Code 2.1.332 の実行ファイルの設定の型にある。modelSettings のモデルの項目が上の段に勝つのは、同じ実行ファイルの modelSettings の説明（maxEffortLevel を例に replaces it per model）から
 func AutoCompactWindow(model, project, configDir string, getenv func(string) string) (int64, bool) {
 	var files []string
 	if configDir != "" {

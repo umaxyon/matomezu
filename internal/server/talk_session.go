@@ -50,6 +50,11 @@ const wokenText = "This turn was started by a matomezu notice, not typed by the 
 // 利用者には見せない（途切れずに続ける）
 const carriedText = "This conversation continues an earlier one it replaced, and matomezu kept you as its participant (nothing to join again):"
 
+// TalkTexts は、話しかけのフックの答え（SessionTalk）で AI に伝える文のうち、決まった頭で始まる物（AI の側で会話の記録からフックの文を見分ける頭の元。参加を伝える文は頭だけ）
+func TalkTexts() []string {
+	return []string{wokenText, carriedText, joinedText(""), visitorJoinedText}
+}
+
 // candidatesMax は、1 度に受ける候補の数の上限
 const candidatesMax = 1000
 

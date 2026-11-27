@@ -7,6 +7,7 @@ test("the gauge fills by the scale and turns near full at nine tenths", () => {
   expect(contextGauge({ used: 120_400, aiScale: 300_000, byMatomezu: 0 }, "auto")).toEqual({
     fill: 120_400 / 300_000,
     fillByMatomezu: 0,
+    fillRest: 120_400 / 300_000,
     thousands: 120,
     nearFull: false,
   })
@@ -21,6 +22,7 @@ test("the gauge fills by the scale and turns near full at nine tenths", () => {
   expect(contextGauge({ used: 450_000, aiScale: 300_000, byMatomezu: 0 }, "auto")).toEqual({
     fill: 1,
     fillByMatomezu: 0,
+    fillRest: 1,
     thousands: 450,
     nearFull: true,
   })
@@ -30,15 +32,16 @@ test("the gauge fills by the scale and turns near full at nine tenths", () => {
   })
 })
 
-// matomezu の分は同じ物差しで割り、棒の満たす分を超えない
+// matomezu の分は同じ物差しで割り、棒の満たす分を超えない。残りは満たす分から matomezu の分を引いた物
 test("the matomezu share is measured by the same scale and stays within the fill", () => {
-  expect(contextGauge({ used: 120_000, aiScale: 300_000, byMatomezu: 30_000 }, "auto")).toMatchObject({
-    fill: 0.4,
-    fillByMatomezu: 0.1,
-  })
+  const split = contextGauge({ used: 120_000, aiScale: 300_000, byMatomezu: 30_000 }, "auto")
+  if (split === NO_CONTEXT_USE) throw new Error("no gauge")
+  expect(split).toMatchObject({ fill: 0.4, fillByMatomezu: 0.1 })
+  expect(split.fillRest).toBeCloseTo(0.3)
   expect(contextGauge({ used: 450_000, aiScale: 300_000, byMatomezu: 400_000 }, "auto")).toMatchObject({
     fill: 1,
     fillByMatomezu: 1,
+    fillRest: 0,
   })
 })
 

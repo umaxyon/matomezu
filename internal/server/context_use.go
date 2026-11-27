@@ -1,6 +1,6 @@
 package server
 
-// AI のコンテキストの量の知らせ: AI のフック（Claude Code の PostToolUse・Stop・SessionStart・PostModelSwitch）が、会話のセッションの今のコンテキストの量と、
+// AI のコンテキストの量の知らせ: AI のフック（Claude Code の PostToolUse など）が、会話のセッションの今のコンテキストの量と、
 // AI の側の物差し（自動で縮める所、無ければモデルの上限）を常駐に知らせる。セッション id ごとにメモリで持ち（置き場所に書かない）、
 // そのセッション id が結ばれた参加者の様子（participant-live と /api/data）に載せる。読めないと知らされたら消す（棒を出さない）。
 // 値が変わったときと、参加者にそのセッションが結ばれた・結び直されたときに窓に知らせ、同じ値なら知らせない。
