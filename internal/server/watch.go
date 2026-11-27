@@ -18,7 +18,7 @@ package server
 // 通り道ごとに、受け取る側が名乗った形で流す（常駐は AI の種類を知らない）: 1 行の上限（maxLine。超える行は改行で分ける）、1 回の知らせの上限（maxNotice）、
 // 知らせと知らせの間（gap。続けて流すと AI の側が 1 回の知らせにまとめ、上限を超えるため）、改行を含む知らせを 1 つで受けるか（breaks。受けるなら AI 間メッセージを送り手の行と本文の行に分ける）。1 回の知らせに入りきらない AI 間メッセージは、通り道には「届いた」の短い知らせだけを流し、
 // 本文は行列に残して、その参加者の次の呼び出しの返事で渡す。
-// 流す前に、もう役目の終わった知らせは捨てる: 受け入れは参加を伝え済み（Told）なら、断り・キャンセルは伝え済み（gone が goneTold）なら。参加者が受け入れ済みでなくなった AI 間メッセージも捨てる。
+// 流す前に、もう役目の終わった知らせは捨てる: 受け入れは参加を伝え済み（Told）なら、断り・キャンセルは伝え済み（記録が無いか、伝えた印がある。departure.go）なら。参加者が受け入れ済みでなくなった AI 間メッセージも捨てる。
 // 参加の知らせの行は英語の短い文で、中身（「参加しました」）は、話しかけのフックか、その参加者の次の呼び出しの返事が添える
 //
 //	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>][&breaks=1]
@@ -119,14 +119,6 @@ const asUserMark = "(as your user's request)"
 func logWake(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "%s wake: %s\n", stamp(), fmt.Sprintf(format, args...))
 }
-
-// goneState は、表に無い参加の id を、断り・キャンセルとしてどう伝えるか（無ければ断り）
-type goneState string
-
-const (
-	goneCancelled goneState = "cancelled" // 利用者が要求をキャンセルした（まだ呼び出しの返事で伝えていない）
-	goneTold      goneState = "told"      // 断り・キャンセルを呼び出しの返事で伝えた
-)
 
 // 貸した知らせの結果（POST /api/ai/watch/ack の result）
 const (
@@ -306,7 +298,8 @@ func (h *Hub) stale(it wakeItem, joined map[string]bool) bool {
 	case wakeAccepted:
 		return h.participantNotes[it.participant].Told
 	case wakeDeclined, wakeCancelled:
-		return h.gone[it.participant] == goneTold
+		i := h.departureOfParticipantHeld(it.participant)
+		return i < 0 || h.departures[i].Told
 	default:
 		return !joined[it.participant]
 	}
@@ -593,10 +586,6 @@ func (h *Hub) wakeOnParticipants(before, cancelled map[string]bool) {
 		s, ok := now[id]
 		switch {
 		case !ok && cancelled[id]:
-			if h.gone == nil {
-				h.gone = map[string]goneState{}
-			}
-			h.gone[id] = goneCancelled
 			h.enqueueWake(wakeItem{participant: id, kind: wakeCancelled, line: noticeLine("matomezu: join cancelled")})
 		case !ok:
 			h.enqueueWake(wakeItem{participant: id, kind: wakeDeclined, line: noticeLine("matomezu: join declined")})

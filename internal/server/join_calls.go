@@ -77,7 +77,7 @@ func (h *Hub) ParticipantCalls() map[string]string {
 
 // Called は、参加者が決まった /api/ai の呼び出しを常駐だけが持つ参加者の記録に残し、その参加者が参加（joined）していて、まだ伝えていなければ、
 // 1 度だけ返す「参加しました」の知らせ（伝えたと印を付ける）を返す。参加が済んでいない（要求中か準備中）id は何も残さず、知らせも返さない。
-// 表に無い id（断られたか、外された）には、1 度だけ「参加が断られた」知らせを返す。
+// 表に無い id（外された・断られた・キャンセルされた）には、その記録があれば 1 度だけ、訳を言う知らせを返す（departure.go）。
 // id が空なら何もしない。最後に呼ばれた時刻は、前に知らせてから callsAnnounceGap 以上たっていたときだけ窓に知らせる。
 // says のブランチ・AI のプログラムのプロセス id・モデルも、参加が済んだ参加者にだけ残す。ブランチかモデルが変わったら、すぐに置き場所に書いて窓に知らせる
 func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
@@ -147,19 +147,12 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 		h.participantNotes[id] = n
 		return strings.Join(notices, "\n")
 	}
-	was := h.gone[id]
-	if was == goneTold {
-		return ""
-	}
-	if h.gone == nil {
-		h.gone = map[string]goneState{}
-	}
-	h.gone[id] = goneTold
-	if was == goneCancelled {
-		return cancelledText
-	}
-	return "The user declined your request to join matomezu (or removed you). Tell the user, and do not ask again unless the user asks."
+	// 表に無い参加者: 外れた・断られた・キャンセルされた記録があれば、1 度だけ伝える（departure.go）
+	return h.tellDepartureHeld(h.departureOfParticipantHeld(id))
 }
+
+// declinedText は、利用者が参加の要求を断ったと、AI の次の呼び出しの返事で伝える文
+const declinedText = "The user declined your request to join matomezu. Tell the user, and do not ask again unless the user asks."
 
 // ai は /api/ai の口を包む。合言葉を確かめたあと（auth）、呼び出しの参加者を決め（participantOf で読む）、ブランチ・AI のプログラムのプロセス id のヘッダを読んで
 // 常駐だけが持つ参加者の記録を更新し、知らせがあれば返事のヘッダに付ける。
@@ -172,7 +165,12 @@ func (o Options) ai(h http.HandlerFunc) http.Handler {
 			id = o.Hub.SessionParticipant(r.Header.Get(aiwire.HostSessionHeader), r.Header.Get(aiwire.HostHeader))
 		}
 		r = r.WithContext(context.WithValue(r.Context(), participantKey{}, id))
-		if notice := o.Hub.Called(id, callerSays(r.Header), time.Now()); notice != "" {
+		notice := o.Hub.Called(id, callerSays(r.Header), time.Now())
+		if id == "" {
+			// 誰にも結ばれていない会話: そのセッションの参加者が外れていれば、1 度だけ伝える（MCP が起動し直して参加の id を失った会話。departure.go）
+			notice = o.Hub.DepartedSession(r.Header.Get(aiwire.HostSessionHeader))
+		}
+		if notice != "" {
 			w.Header().Set(aiwire.NoticeHeader, url.QueryEscape(notice))
 		}
 		h(w, r)
