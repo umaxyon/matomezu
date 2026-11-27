@@ -1,4 +1,5 @@
 // 読めない物のフォルダ（core/unreadable.ts）: 読めない物は在った所から移り、読めるようになると在った所へ戻る。行の中身には手を付けない
+
 import { describe, expect, test } from "bun:test"
 import { checkBooks, readLibrary, unreadableUnitsOf } from "../../web/src/core/book"
 import type { CoreCatalog } from "../../web/src/core/core-catalog"
@@ -15,6 +16,7 @@ import {
 import { foldersOver, rowsHoldTree, treeHolds } from "../../web/src/core/folders-tree"
 import { outsideUnreadable, rawBooksOf } from "../../web/src/core/folders-unreadable"
 import { purgedRows, type Settled, settleLibrary } from "../../web/src/core/unreadable"
+import { IMAGES } from "../../web/src/plugins/page-types/image/image"
 import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, NAMING, worldRows } from "../support"
 
@@ -664,7 +666,7 @@ describe("書庫を整える: 足りないシステムフォルダを足し、�
   const WORKROOMS = "@matomezu/base:workrooms"
   // 足すシステムフォルダの行の id は、印の順に docs・rooms
   const full = (rows: Rows, now = NOW) => {
-    const ids = ["docs", "rooms"]
+    const ids = ["docs", "rooms", "images"]
     return settleLibrary(CORE_CATALOG, rows.pages, rows.folders, {
       naming: NAMING,
       now,
@@ -692,10 +694,11 @@ describe("書庫を整える: 足りないシステムフォルダを足し、�
     expect(done.added).toEqual([
       { id: "docs", systemFolder: DOCUMENTS },
       { id: "rooms", systemFolder: WORKROOMS },
+      { id: "images", systemFolder: IMAGES.id },
     ])
     expect(done.numbered).toEqual([{ kind: "folder", id: "u", title: "Documents 2" }])
     const after = applied(rows, done)
-    expect(folderOf(after, HOME_ID).lineup.map(r => r.id)).toEqual(["docs", "rooms", "b1", "u"])
+    expect(folderOf(after, HOME_ID).lineup.map(r => r.id)).toEqual(["docs", "rooms", "images", "b1", "u"])
     expect(folderOf(after, "docs") as unknown).toEqual({
       folderRole: "folder",
       id: "docs",

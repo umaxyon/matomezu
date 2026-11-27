@@ -2,7 +2,7 @@
 // 窓いっぱいの間の □ は、並びに戻す・上下に分ける。閉じるで前のスクリーンへ戻る。分割で開くブックスクリーンは、右から滑り込む
 import { aiAuth, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
-import { track } from "./helpers/motion"
+import { motionAt, passesMidway, track } from "./helpers/motion"
 import { fromMenu } from "./helpers/stage-menu"
 
 const BOOK = "[data-current][data-row='true']:not([data-leaving])"
@@ -72,18 +72,19 @@ test("分割で開いたブックスクリーンの下の行に閉じると □ 
 
   // □: このスクリーンだけを、その場から窓いっぱいに伸ばす（右から入り直さない）。□ は「分割に戻す」に替わる
   const height = await page.evaluate(() => innerHeight)
-  const grow = await Promise.all([track(page, { book: WHOLE_OR_ROW }), maximize.click()])
-  expect(grow[0].every(f => f.book === null || f.book.left === 0)).toBe(true)
-  expect(grow[0].some(f => f.book && f.book.height > height * 0.55 && f.book.height < height * 0.95)).toBe(true)
+  const midHeight = (b: { height: number }) => b.height > height * 0.55 && b.height < height * 0.95
+  const [grow] = await Promise.all([track(page, { book: WHOLE_OR_ROW }), maximize.click()])
+  expect(grow.frames.every(f => f.book === null || f.book.left === 0)).toBe(true)
+  expect(passesMidway(grow, "book", "height", midHeight)).toBe(true)
   await expect(line).toBeHidden()
   const restore = page.getByRole("button", { name: "分割に戻す" }).locator("visible=true")
   await expect(restore).toHaveCount(1)
   await settled(page)
   await page.screenshot({ path: "test-results/book-screen-footer-full.png" })
   // 分割に戻す: その場から縮み、コントロールセンターの段が戻る
-  const shrink = await Promise.all([track(page, { book: WHOLE_OR_ROW }), restore.click()])
-  expect(shrink[0].every(f => f.book === null || f.book.left === 0)).toBe(true)
-  expect(shrink[0].some(f => f.book && f.book.height > height * 0.55 && f.book.height < height * 0.95)).toBe(true)
+  const [shrink] = await Promise.all([track(page, { book: WHOLE_OR_ROW }), restore.click()])
+  expect(shrink.frames.every(f => f.book === null || f.book.left === 0)).toBe(true)
+  expect(passesMidway(shrink, "book", "height", midHeight)).toBe(true)
   await expect(line).toBeVisible()
   await expect(maximize).toHaveCount(1)
   await settled(page)
@@ -189,17 +190,23 @@ test("分割で開くと、コントロールセンターが上に縮んでか�
   const line = page.locator("[data-workroom]").filter({ hasText: "しらべ" }).locator("[data-current-line]")
   await line.click()
   const height = await page.evaluate(() => innerHeight)
-  const [frames] = await Promise.all([
+  const [motion] = await Promise.all([
     track(page, { book: BOOK, plain: PLAIN }),
     page.getByRole("menuitem", { name: "分割で開く" }).click(),
   ])
+  const { frames } = motion
   const width = await page.evaluate(() => innerWidth)
-  // コントロールセンターが縮み終える前は、ブックスクリーンは右の外にいる
-  const shrinking = frames.filter(f => f.plain && f.plain.height > height * 0.55 && f.plain.height < height * 0.95)
-  expect(shrinking.length).toBeGreaterThan(0)
-  for (const f of shrinking) expect(f.book === null || f.book.left >= width - 1).toBe(true)
+  // コントロールセンターは縮む途中を通り、縮み終える前は、ブックスクリーンは右の外にいる
+  expect(passesMidway(motion, "plain", "height", p => p.height > height * 0.55 && p.height < height * 0.95)).toBe(true)
+  for (const f of frames.filter(f => f.plain && f.plain.height > height * 0.55))
+    expect(f.book === null || f.book.left >= width - 1).toBe(true)
+  const shrunk = motionAt(motion, "plain", "height", "end")
+  const enters = motionAt(motion, "book", "transform", "start")
+  expect(shrunk).toBeDefined()
+  expect(enters).toBeDefined()
+  expect(enters!).toBeGreaterThanOrEqual(shrunk!)
   // そのあと、右から入る（途中の位置を通る）。下から上がってこない（上端は動かない）
-  expect(frames.some(f => f.book && f.book.left > 10 && f.book.left < width - 10)).toBe(true)
+  expect(passesMidway(motion, "book", "transform", b => b.left > 10 && b.left < width - 10)).toBe(true)
   const tops = new Set(frames.flatMap(f => (f.book && f.book.left < width - 1 ? [Math.round(f.book.top)] : [])))
   expect(tops.size).toBe(1)
   await settled(page)
@@ -207,7 +214,7 @@ test("分割で開くと、コントロールセンターが上に縮んでか�
   const close = page.locator("[data-footer-close]").locator("visible=true")
   const [out] = await Promise.all([track(page, { leaving: "[data-leaving]" }), close.click()])
   // 閉じたブックスクリーンが、右へ出ていく（途中の位置を通る）。その間、コントロールセンターは右から滑り込まない（見えたまま）
-  expect(out.some(f => f.leaving && f.leaving.left > 10 && f.leaving.left < width - 10)).toBe(true)
+  expect(passesMidway(out, "leaving", "book-leave", l => l.left > 10 && l.left < width - 10)).toBe(true)
   const section = await page.locator("section[data-instant]").evaluate(e => e.getBoundingClientRect().left)
   expect(section).toBe(0)
   await settled(page)
@@ -228,12 +235,15 @@ test("下の段にだけブックスクリーンがあるとき、書庫から�
   const library = page.getByRole("list", { name: "書庫 の中身" })
   await library.getByRole("button", { name: "残課題" }).click()
   const width = await page.evaluate(() => innerWidth)
-  const [frames] = await Promise.all([
+  const [motion] = await Promise.all([
     track(page, { book: WHOLE_OR_ROW }),
     page.getByRole("menuitem", { name: "開く", exact: true }).click(),
   ])
   // 窓いっぱいの高さで、右から入る（途中の位置を通る）
-  expect(frames.some(f => f.book && f.book.top === 0 && f.book.left > 10 && f.book.left < width - 10)).toBe(true)
+  expect(passesMidway(motion, "book", "transform", b => b.left > 10 && b.left < width - 10)).toBe(true)
+  expect(motion.frames.every(f => !f.book || f.book.left <= 10 || f.book.left >= width - 10 || f.book.top === 0)).toBe(
+    true,
+  )
   await settled(page)
   await expect(page.getByText("あおのメモ").locator("visible=true")).toHaveCount(0)
 })
@@ -251,9 +261,9 @@ test("最初から窓いっぱいに開いたブックスクリーンにも □ 
   const rows = page.getByRole("button", { name: "上下に分ける" }).locator("visible=true")
   await expect(rows).toHaveCount(1)
   const height = await page.evaluate(() => innerHeight)
-  const [frames] = await Promise.all([track(page, { book: WHOLE_OR_ROW }), rows.click()])
-  expect(frames.every(f => f.book === null || f.book.left === 0)).toBe(true)
-  expect(frames.some(f => f.book && f.book.height > height * 0.55 && f.book.height < height * 0.95)).toBe(true)
+  const [motion] = await Promise.all([track(page, { book: WHOLE_OR_ROW }), rows.click()])
+  expect(motion.frames.every(f => f.book === null || f.book.left === 0)).toBe(true)
+  expect(passesMidway(motion, "book", "height", b => b.height > height * 0.55 && b.height < height * 0.95)).toBe(true)
   await expect(line).toBeVisible()
   await expect(page.getByRole("button", { name: "スクリーンを広げる" }).locator("visible=true")).toHaveCount(1)
 })

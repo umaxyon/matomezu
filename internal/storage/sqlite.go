@@ -232,6 +232,21 @@ var migrations = []string{
 	`SELECT 1;`,
 	// ワーカーブックの名前を写し元の今の名前に合わせ、チケットのブックの中のページの名前の頭の番号を外す（Go の移し替え。migrate_worker_book_names.go）
 	`SELECT 1;`,
+	// アセット（画像のバイト列。id は中身の sha256 で、書き換えない）。ブックのデータとは別に持ち、ページが id で指す
+	`CREATE TABLE assets (
+		id TEXT PRIMARY KEY,
+		mime TEXT NOT NULL,
+		width INTEGER NOT NULL,
+		height INTEGER NOT NULL,
+		bytes BLOB NOT NULL,
+		created_at TEXT NOT NULL
+	);`,
+	// 利用者ごとの、常駐だけが持つ外れた参加者の記録（外れた・断られた・キャンセルされたことを、その会話に伝えるまで持つ。常駐を起動し直しても残す）
+	`CREATE TABLE departures (
+		user TEXT PRIMARY KEY,
+		body TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	);`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う
@@ -609,7 +624,7 @@ func txPutRow(tx *sql.Tx, table string, w RowWrite) error {
 	return err
 }
 
-// txPutUser は、利用者ごとの表 table（settings・participant_notes）の user の行を置き換える
+// txPutUser は、利用者ごとの表 table（settings・participant_notes・departures）の user の行を置き換える
 func txPutUser(tx *sql.Tx, table, user string, body json.RawMessage) error {
 	_, err := tx.Exec(`INSERT INTO `+table+` (user, body, updated_at) VALUES (?, ?, ?)
 		ON CONFLICT(user) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, user, string(body), now())
@@ -703,6 +718,22 @@ func (s *sqliteStorage) ParticipantNotes(user string) (json.RawMessage, error) {
 
 func (s *sqliteStorage) PutParticipantNotes(user string, body json.RawMessage) error {
 	return s.apply(func(tx *sql.Tx) error { return txPutUser(tx, "participant_notes", user, body) })
+}
+
+func (s *sqliteStorage) Departures(user string) (json.RawMessage, error) {
+	var body string
+	err := s.db.QueryRow(`SELECT body FROM departures WHERE user = ?`, user).Scan(&body)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(body), nil
+}
+
+func (s *sqliteStorage) PutDepartures(user string, body json.RawMessage) error {
+	return s.apply(func(tx *sql.Tx) error { return txPutUser(tx, "departures", user, body) })
 }
 
 func (s *sqliteStorage) Close() error { return s.db.Close() }

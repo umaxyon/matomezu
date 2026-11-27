@@ -48,6 +48,7 @@ type Engine struct {
 	lapsesAt     func(string, string) float64
 	updateCheck  func(string) bool
 	hostSettings func(string) string
+	assetsInUse  func(string) string
 	needs        func(string, string) string
 	roles        func() string
 	aiRecords    func(string, string, string, string) string
@@ -62,6 +63,7 @@ type Engine struct {
 	joinedMsg    func(string, string) string
 	visitorMsg   func(string) string
 	workTitle    func(string, string, string) string
+	leftTitle    func(string, string) string
 	workShift    func(string, string, string) string
 	isAdmin      func(string) bool
 	myWorkdesk   func(string, string) string
@@ -154,6 +156,7 @@ func New() (*Engine, error) {
 		{"matomezuParticipantLapsesAt", &e.lapsesAt},
 		{"matomezuUpdateCheck", &e.updateCheck},
 		{"matomezuHostSettings", &e.hostSettings},
+		{"matomezuAssetsInUse", &e.assetsInUse},
 		{"matomezuCheckRecords", &e.records},
 		{"matomezuRunOnceActions", &e.once},
 		{"matomezuSystemFolderTitles", &e.sysFolders},
@@ -168,6 +171,7 @@ func New() (*Engine, error) {
 		{"matomezuJoinedText", &e.joinedMsg},
 		{"matomezuVisitorJoinedText", &e.visitorMsg},
 		{"matomezuWorkTitle", &e.workTitle},
+		{"matomezuLeftTitle", &e.leftTitle},
 		{"matomezuWorkShift", &e.workShift},
 		{"matomezuIsAdminWorkroom", &e.isAdmin},
 		{"matomezuMyWorkdesk", &e.myWorkdesk},

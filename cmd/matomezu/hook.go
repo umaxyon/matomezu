@@ -136,6 +136,7 @@ type talkReply struct {
 	Unbound   bool   `json:"unbound"`
 	ForAI     string `json:"forAi"`     // 知らせで始まったターンなら、AI に伝える文
 	WorkTitle string `json:"workTitle"` // 作業名（セッション名に書く。書かないなら空）
+	LeftTitle string `json:"leftTitle"` // ワークルームから外れた会話のセッション名（セッション名だけに書き、ADE のワークスペースの表示名には書かない。書かないなら空）
 }
 
 const (
@@ -179,6 +180,9 @@ func talked(out io.Writer, hook hookInput, context, format string, api hookAPI) 
 	title := reply.WorkTitle
 	if title != "" && hook.Rename != nil {
 		defer hook.Rename(hook.Cwd, title)
+	}
+	if title == "" {
+		title = reply.LeftTitle
 	}
 	forAI := strings.TrimSpace(strings.Join(append(ai, context), "\n"))
 	if format == formatSplit {

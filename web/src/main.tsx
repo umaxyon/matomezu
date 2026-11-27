@@ -5,6 +5,7 @@
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { fail } from "./core/errors"
+import { loadFonts } from "./host-client/fonts"
 import { followLocation } from "./host-client/location"
 import { openClient } from "./host-client/open"
 import { followPrint } from "./host-client/print"
@@ -15,7 +16,6 @@ import { BUILTIN_CONTROL_CENTER } from "./plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT, STARTUP_ERROR_LAYOUT, UNKNOWN_BROWSER_LAYOUT } from "./plugins/ui"
 import { createMatomezu } from "./store/create"
 import type { StoreOptions } from "./store/state"
-import { loadFonts } from "./ui/fonts"
 import { type LayoutDef, placeAdded, placeAddedWithWarnings } from "./ui/layout"
 import { type AnyPluginUi, assembleUi, withoutUi } from "./ui/plugin"
 import { MatomezuProvider, shownLayout } from "./ui/store-context"
@@ -38,6 +38,7 @@ const store = createMatomezu({
   aiEditTicket: change => client.reportAIEditTicket(change),
   visible: () => client.visible(),
   search: query => client.search(query),
+  assetsHost: { put: bytes => client.putAsset(bytes), url: id => client.assetUrl(id) },
   ...(loaded.unreadableNotice ? { unreadableNotice: loaded.unreadableNotice } : {}),
   unreadableHost: { purge: id => client.purgeUnreadable(id), movedIfOff: ids => client.movedIfOff(ids) },
   updateHost: { check: () => client.checkUpdate(), ask: workroom => client.askUpdate(workroom) },

@@ -140,6 +140,28 @@ func (e *Engine) WorkTitle(settings json.RawMessage, workroom, name string, src 
 	return got.Title, got.Kind == "title", nil
 }
 
+// LeftTitle は、利用者の設定 settings で、ワークルームの名前 name から外れたセッションに書く名前。ok が false なら、利用者の設定が書くのを止めている
+func (e *Engine) LeftTitle(settings json.RawMessage, name string) (title string, ok bool, err error) {
+	if len(settings) == 0 {
+		settings = json.RawMessage("null")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	var got struct {
+		Kind  string `json:"kind"`
+		Title string `json:"title"`
+	}
+	if err := json.Unmarshal([]byte(e.leftTitle(string(settings), name)), &got); err != nil {
+		return "", false, err
+	}
+	return got.Title, got.Kind == "title", nil
+}
+
 // WorkroomActivities は、ワークルームの id の並び workrooms それぞれの作業の様子（working・idle・unknown）。作業はレコードから決まるので、レコードを引く口 src を渡す
 func (e *Engine) WorkroomActivities(workrooms []string, src Source) (out map[string]string, err error) {
 	b, err := json.Marshal(append([]string{}, workrooms...))

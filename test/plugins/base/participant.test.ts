@@ -9,6 +9,7 @@ import { joinActions } from "../../../web/src/core/participant"
 import { performIn } from "../../../web/src/core/perform-world"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { PARTICIPANT_CANCEL } from "../../../web/src/plugins/base/participant"
+import { leftTitleIn } from "../../../web/src/plugins/base/participant/work-title"
 import { BUILTIN_PARTS, CORE_CATALOG, newStore } from "../../support"
 
 const PARTICIPANT = "@matomezu/base:participant"
@@ -446,4 +447,13 @@ test("頼み直しを書く（participant-rejoin）: 受け入れ済みの参加
   expect(perform(REJOIN, { ...WHO, aiUi: "phone" }, { record: id }).ok).toBe(true)
   expect(people()[0]).toMatchObject({ aiUi: "phone" })
   expect(CORE_CATALOG.actions.get(REJOIN)?.userOnly).toBe(true)
+})
+
+test("外れた会話の名前: ワークルームの名前に外れた印を付け、設定が止めていれば off", () => {
+  const ja = { "@matomezu/base:lang": "matomezu:ja" }
+  expect(leftTitleIn(CORE_CATALOG, ja, "ひよこ")).toEqual({ kind: "title", title: "ひよこ（外れた）" })
+  expect(leftTitleIn(CORE_CATALOG, {}, "ひよこ")).toEqual({ kind: "title", title: "ひよこ (left)" })
+  expect(leftTitleIn(CORE_CATALOG, { ...ja, "@matomezu/base:session-rename": false }, "ひよこ")).toEqual({
+    kind: "off",
+  })
 })

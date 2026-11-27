@@ -34,3 +34,10 @@ func KnownDelivers(v string) string {
 	}
 	return DeliversUnknown
 }
+
+// アセット（画像のバイト列）を受ける口（画面の /api/assets と AI の /api/ai/assets）の、大きさの上限と、受けない理由（答えの reason）
+const (
+	MaxAsset      = 25 << 20
+	AssetTooLarge = "too-large" // 上限を超える
+	AssetNotImage = "not-image" // 受ける種類の画像として読めない
+)

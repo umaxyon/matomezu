@@ -35,6 +35,7 @@ test("選択の道具で、選んでいない箱にポインタを乗せると�
   await expect(page.locator("[data-item]:not([data-shape])")).toHaveCount(0)
   // Escape で取りやめ
   await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+  await expect(right).toBeVisible() // 〇が出てから押す（出る前に押すと線を引き始めない）
   await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2)
   await page.mouse.down()
   await page.mouse.move(e.x + 10, e.y + e.height / 2, { steps: 5 })
@@ -45,6 +46,7 @@ test("選択の道具で、選んでいない箱にポインタを乗せると�
   await expect(page.locator("[data-item]:not([data-shape])")).toHaveCount(0)
   // 相手の箱の上で離すと引く。引いている間は、引ける相手が強調される
   await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+  await expect(right).toBeVisible() // 〇が出てから押す（出る前に押すと線を引き始めない）
   await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2)
   await page.mouse.down()
   await page.mouse.move(e.x + 10, e.y + e.height / 2, { steps: 5 })

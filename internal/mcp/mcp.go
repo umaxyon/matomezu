@@ -17,6 +17,9 @@ import (
 	"github.com/umaxyon/matomezu/internal/aiwire"
 )
 
+// Bytes は、Post の本文を JSON にせず、そのまま送るバイト列（application/octet-stream）
+type Bytes []byte
+
 // API は常駐の AI の入口を呼ぶ口。header は送るヘッダ、戻りの 2 つ目は返事のヘッダ
 type API interface {
 	Get(path string, header http.Header) (json.RawMessage, http.Header, error)

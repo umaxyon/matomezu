@@ -4,6 +4,7 @@
 export type { Actor } from "../core/actor"
 export { isAI, isUser, isVisitor, NO_WORKROOM, workroomOfActor } from "../core/actor"
 export type { Anchors, Annotation, PageAnnotations } from "../core/annotation"
+export { NO_ASSET_URL } from "../core/assets"
 export type { PageInto } from "../core/book"
 export {
   addBinder,
@@ -52,7 +53,7 @@ export type {
   RecordOf,
   RecordRead,
 } from "../core/def/action"
-export { NO_CONTROL_CENTER } from "../core/def/action"
+export { ANY_PAGE_TYPE, NO_CONTROL_CENTER } from "../core/def/action"
 export type { AnnotationDef } from "../core/def/annotation"
 export type { EnumDef, EnumValueDef } from "../core/def/enum"
 export type {
@@ -99,8 +100,8 @@ export { enumValuesOf } from "../core/enum"
 export type { BackyardEntry, BinderFolder, BookFolder, EntryRef, Folder, WorkKey } from "../core/folders"
 // 書庫ホームとゴミ箱の id（どのマシンでも同じ）
 export { HOME_ID, TRASH_ID } from "../core/folders"
-// ステージエントリが無いときの値（useOutermostOf）
-export { NO_OUTERMOST } from "../core/folders-tree"
+// ステージエントリが無いときの値（useOutermostOf）・エントリを入れているフォルダの列
+export { foldersOver, NO_OUTERMOST } from "../core/folders-tree"
 export type { Point, Rect, Size } from "../core/geom"
 export { translate } from "../core/i18n/i18n"
 export { defineMessages } from "../core/i18n/messages"

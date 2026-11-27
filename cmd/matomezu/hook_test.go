@@ -307,6 +307,29 @@ func TestTalkedWritesTheTitleEveryTurn(t *testing.T) {
 	}
 }
 
+// ワークルームから外れた会話の名前は、セッション名にだけ書き、ADE のワークスペースの表示名には書かない（同じフォルダの、今の会話の名前を変えない）
+func TestTalkedWritesTheLeftTitleOnlyToTheSession(t *testing.T) {
+	left := func([]byte) ([]byte, error) {
+		return []byte(`{"welcomes":[],"unbound":false,"forAi":"You are no longer a participant","leftTitle":"ひよこ（外れた）"}`), nil
+	}
+	var renamed []string
+	rename := func(dir, name string) { renamed = append(renamed, dir+"|"+name) }
+	var out bytes.Buffer
+	talked(&out, hookInput{SessionID: "S1", Titled: true, Cwd: "/w", Rename: rename}, "", formatHook, left)
+	var got struct {
+		Special struct {
+			Title   string `json:"sessionTitle"`
+			Context string `json:"additionalContext"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil || got.Special.Title != "ひよこ（外れた）" || got.Special.Context != "You are no longer a participant" {
+		t.Fatalf("output = %q", out.String())
+	}
+	if len(renamed) != 0 {
+		t.Fatalf("renamed = %v", renamed)
+	}
+}
+
 // ターンの終わりのフック: 常駐に作業名を訊き、表示名に書く。何も出さない。名前が無い・常駐が無ければ書かない
 func TestStopRenamesTheAdeWorkspace(t *testing.T) {
 	var renamed []string

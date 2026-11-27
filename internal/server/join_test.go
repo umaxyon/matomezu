@@ -592,11 +592,11 @@ func TestJoinWithAWorkroomOfAQuietParticipantCanBeAcceptedByTakingOver(t *testin
 	if len(rows) != 1 || rows[0].ID != second.Participant || rows[0].State != "joined" || rows[0].Room != "ひよこ" || rows[0].Bird != "inko" {
 		t.Fatalf("after: %+v", rows)
 	}
-	// 新しい持ち主には MCP の返事で伝わる。元の持ち主の id は表に無いので断られた知らせ
+	// 新しい持ち主には MCP の返事で伝わる。元の持ち主の id は表に無いので、利用者が外した知らせ（departure.go）
 	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: second.Participant}); h.Get(aiwire.NoticeHeader) == "" {
 		t.Fatal("the new owner was not welcomed")
 	}
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: first.Participant}); !strings.Contains(h.Get(aiwire.NoticeHeader), "declined") {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: first.Participant}); !strings.Contains(h.Get(aiwire.NoticeHeader), "removed+you") {
 		t.Fatalf("the old owner = %q", h.Get(aiwire.NoticeHeader))
 	}
 	// 呼ばれて時間がたった（有効時間を過ぎた）参加者の名前も引き継げる

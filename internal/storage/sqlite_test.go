@@ -1058,6 +1058,8 @@ func TestLostBundledByBookIsDropped(t *testing.T) {
 			{"act":"a2","lost":[{"book":"b1","lost":[{"at":"title","value":"AI"}]}],"at":"t2","told":true},
 			{"act":"a3","unseen":["b2"],"lost":[{"book":"b1","lost":[]}],"at":"t3","told":true},
 			{"key":"m1","book":"b1","at":"t4","failed":true,"told":true}]', 'x')`,
+		`DROP TABLE assets`, // 版 31 より後に足した表
+		`DROP TABLE departures`,
 		fmt.Sprintf(`PRAGMA user_version = %d`, 31),
 	} {
 		if _, err := first.(*sqliteStorage).db.Exec(q); err != nil {

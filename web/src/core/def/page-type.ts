@@ -59,6 +59,9 @@ export interface PageTypeDef extends PageTypeExtras {
   settings?: readonly string[]
   // 使わせないアノテーションの種類の id（無ければ、どの種類も使える。core/def/annotation.ts）
   annotations?: { without?: readonly AnnotationId[] }
+  // ページが指すアセット（画像のバイト列。常駐がブックのデータとは別に持つ）の id。常駐が、どのページからも指されないアセットを消すのに数える（core/assets.ts）。
+  // アセットを指すタイプだけが書く。アセットを指してよいのはページだけ
+  assetsOf?(page: Page): readonly string[]
 }
 
 // タイプのページに置けるアイテムの id: ページの items の候補と、ページの slide に置くアイテム

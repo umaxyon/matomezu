@@ -77,8 +77,12 @@ export interface RecordPermissionQuery {
 // 書庫のフォルダ（書庫ホームとフォルダ。システムフォルダも）の行。置き場所の問いと確かめに見せる
 export type PlaceFolder = HomeFolder | PlainFolder
 
-// 置き場所の問いと確かめが指すエントリ: 在る物は種類 kind と id、作る物は種類 kind と、作る印 made
-export type PlaceEntry = { kind: AnyEntryRef["kind"]; id: string } | { kind: AnyEntryRef["kind"]; made: "new" }
+// 置き場所の問いと確かめが指すエントリ: 在る物は種類 kind と id、作る物は種類 kind と、作る印 made。ページはタイプ pageType も持つ
+// （作るページのタイプがまだ決まっていなければ ANY_PAGE_TYPE）
+export type PlaceEntry = PlaceEntryKind & ({ id: string } | { made: "new" })
+// 置き場所の確かめが指すエントリ（在る物）
+export type PlacedEntry = PlaceEntryKind & { id: string }
+export type PlaceEntryKind = { kind: "page"; pageType: string } | { kind: Exclude<AnyEntryRef["kind"], "page"> }
 
 // 置き場所で問う（行う前）: 書庫が対象のアクションが、書庫のフォルダ（書庫ホーム・フォルダ）にエントリを入れる・作るとき、入れる先 into で問う（紙にアイテムを置く事ではない）。
 // into は入れる先のフォルダと、その上の書庫のフォルダの列（近い順。書庫ホームまで）。entry は動かす・写す物か、作る物。
@@ -163,7 +167,7 @@ export interface PagePermissionCheck {
 export interface PlacePermissionCheck {
   kind: "place"
   action: ActionDef
-  entry: { kind: AnyEntryRef["kind"]; id: string }
+  entry: PlacedEntry
   before: readonly PlaceFolder[] | "none"
   after: readonly PlaceFolder[] | "none"
   actor: Actor
