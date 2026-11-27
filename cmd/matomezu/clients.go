@@ -242,18 +242,42 @@ func (codexMCPCmd) Run() error {
 }
 
 type codexHookCmd struct {
-	Prompt codexPromptCmd `cmd:"" help:"UserPromptSubmit: tell matomezu the user talked, and add the notes that wait for AI."`
-	Model  codexModelCmd  `cmd:"" help:"SessionStart: tell matomezu the session's model."`
-	Stop   codexStopCmd   `cmd:"" help:"Stop: write the work title to the display name of the ADE workspace this session runs in, if any (prints nothing)."`
+	Prompt     codexPromptCmd     `cmd:"" help:"UserPromptSubmit: tell matomezu the user talked, and add the notes that wait for AI."`
+	Model      codexModelCmd      `cmd:"" help:"SessionStart: tell matomezu the session's model and how much context it uses."`
+	Stop       codexStopCmd       `cmd:"" help:"Stop: write the work title to the display name of the ADE workspace this session runs in, if any, and tell matomezu how much context the session uses (prints nothing)."`
+	ContextUse codexContextUseCmd `cmd:"" name:"context-use" help:"PostToolUse: tell matomezu how much context the session uses, read from its rollout (prints nothing)."`
 }
 
 type codexStopCmd struct{}
 
-// Run は、ターンの終わりに、作業名を ADE のワークスペースの表示名に書く
+// Run は、ターンの終わりに、作業名を ADE のワークスペースの表示名に書き、コンテキストの量を知らせる
 func (codexStopCmd) Run() error {
 	codexDev()
-	hookStop(stdinHook())
+	hook := stdinHook()
+	hook.Host = hookHost(codexlaunch.HooksSendHost)
+	hookStop(hook)
+	sendContextUse(hook, codexContextUse, nil, runningAPI("api/ai/context-use"))
 	return nil
+}
+
+type codexContextUseCmd struct{}
+
+// Run は、ツールを使ったあとに、コンテキストの量を知らせる
+func (codexContextUseCmd) Run() error {
+	codexDev()
+	hook := stdinHook()
+	hook.Host = hookHost(codexlaunch.HooksSendHost)
+	sendContextUse(hook, codexContextUse, nil, runningAPI("api/ai/context-use"))
+	return nil
+}
+
+// codexContextUse は、Codex の会話の記録（rollout）から、今のコンテキストの量と物差しを読む（matomezu の分の字数は読まない。codexlaunch の context.go）
+func codexContextUse(hook hookInput) (contextUse, bool) {
+	u := codexlaunch.ReadContextUse(hook.TranscriptPath)
+	if u == codexlaunch.NoContextUse {
+		return contextUse{}, false
+	}
+	return contextUse{Used: u.Used, AIScale: u.AIScale}, true
 }
 
 type codexPromptCmd struct{}
@@ -273,6 +297,7 @@ func (codexModelCmd) Run() error {
 	hook := stdinHook()
 	hook.Host = hookHost(codexlaunch.HooksSendHost)
 	hookModel(hook)
+	sendContextUse(hook, codexContextUse, nil, runningAPI("api/ai/context-use"))
 	return nil
 }
 

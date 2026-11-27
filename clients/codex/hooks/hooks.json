@@ -22,6 +22,17 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v matomezu >/dev/null 2>&1; then exec matomezu codex hook context-use; else echo '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin (codex plugin remove matomezu@matomezu).\"}'; fi",
+            "commandWindows": "$m = Get-Command matomezu -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1; if ($m) { & $m.Source codex hook context-use } else { '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin (codex plugin remove matomezu@matomezu).\"}' }"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
