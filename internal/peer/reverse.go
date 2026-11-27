@@ -71,8 +71,11 @@ func DialReverse(ctx context.Context, id *Identity, expect string, proto int, ad
 		return nil, errors.New("peer: the reverse connection cannot be written")
 	}
 	c := &streamConn{ReadWriteCloser: rwc}
+	// ctx がもう終わっていると、AfterFunc はすぐ別の goroutine で Close を呼ぶ。after を置き終えるまで Close に待たせる
+	c.mu.Lock()
 	stop := context.AfterFunc(ctx, func() { c.Close() })
 	c.after = func() { stop() }
+	c.mu.Unlock()
 	return c, nil
 }
 
@@ -171,14 +174,18 @@ func ReverseOpen(c *http.Client) bool {
 type streamConn struct {
 	io.ReadWriteCloser
 	once  sync.Once
+	mu    sync.Mutex // after を守る
 	after func()
 }
 
 func (c *streamConn) Close() error {
 	err := c.ReadWriteCloser.Close()
 	c.once.Do(func() {
-		if c.after != nil {
-			c.after()
+		c.mu.Lock()
+		after := c.after
+		c.mu.Unlock()
+		if after != nil {
+			after()
 		}
 	})
 	return err

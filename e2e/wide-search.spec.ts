@@ -73,6 +73,8 @@ test("開き直すと、チケットモードが残した言葉が検索する�
   const word = `えらぶ${Date.now()}`
   const { other } = await setup(page, word)
   const words = panel(page).getByRole("textbox", { name: "検索する言葉" })
+  // 画面が出来てから押す（出来る前のキーは届かない）
+  await expect(page.getByRole("button", { name: "横断検索" })).toBeVisible()
   await page.keyboard.press("Control+Shift+F")
   await words.fill(word)
   // ボードが絞られてから閉じる（絞りの言葉が残る）

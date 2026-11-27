@@ -16,6 +16,9 @@ async function footerMenu(page: Page) {
 // Ctrl+ホイールを 100 回したときの倍率（回した量に合わせて滑らかに変える。base/zoom の wheelZoom）
 const WHEEL_100 = 1.16
 
+// 拡大縮小の移りの途中で測った紙の位置と幅を、窓に置く所
+type MidOfZoom = { midOfZoom: Promise<{ x: number; width: number }> }
+
 test("フッタメニューの行の左端に拡大縮小、その真上にミニマップが出る。四角をドラッグすると紙が動き、フッタメニューから出ても下がらない", async ({
   page,
 }) => {
@@ -150,29 +153,26 @@ test("拡大縮小はなめらかに移り、途中でもポインタの下の�
   const p = (await paper(page).boundingBox())!
   const at = { x: p.x + 300, y: p.y + 200 }
   await page.mouse.move(at.x, at.y)
-  // 移りが始まったら、すぐ止める（見つけるまでに 200ms が過ぎて、移り終わらないように）
-  await paper(page).evaluate(el =>
-    el.addEventListener(
-      "transitionrun",
-      () => {
-        for (const a of el.getAnimations()) a.pause()
-      },
-      { once: true },
-    ),
-  )
+  // 移りが始まったら、すぐ止めて途中（200ms の半ば）に進め、その場で測る。紙は 200ms 経つと移りを外す（useZoomMotion）ので、
+  // 止めてから別の呼び出しで測ると、重いときは外れて終わりの幅になっている
+  await paper(page).evaluate(el => {
+    ;(window as unknown as MidOfZoom).midOfZoom = new Promise(resolve =>
+      el.addEventListener("transitionrun", function run(e) {
+        if (e.target !== el) return
+        el.removeEventListener("transitionrun", run)
+        for (const a of el.getAnimations()) {
+          a.pause()
+          a.currentTime = 100
+        }
+        const r = el.getBoundingClientRect()
+        resolve({ x: r.x, width: r.width })
+      }),
+    )
+  })
   await page.keyboard.down("Control")
   await page.mouse.wheel(0, -100)
   await page.keyboard.up("Control")
-  // 移りの途中（200ms の半ば）で見る
-  const transitions = () => paper(page).evaluate(el => el.getAnimations().length)
-  await expect.poll(transitions).toBeGreaterThan(0)
-  await paper(page).evaluate(el => {
-    for (const a of el.getAnimations()) {
-      a.pause()
-      a.currentTime = 100
-    }
-  })
-  const mid = (await paper(page).boundingBox())!
+  const mid = await page.evaluate(() => (window as unknown as MidOfZoom).midOfZoom)
   expect(mid.width).toBeGreaterThan(p.width + 1)
   expect(mid.width).toBeLessThan(p.width * WHEEL_100 - 1)
   const k = mid.width / p.width
