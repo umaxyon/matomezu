@@ -175,7 +175,7 @@ test("フックが知らせた会話のコンテキストの量は、参加者�
   // 全体設定で物差しを 100 万にすると、同じ量でも赤でなくなる
   await page.getByRole("button", { name: "全体設定" }).click()
   const settings = page.getByRole("dialog", { name: "設定" })
-  await settings.getByRole("combobox", { name: "コンテキストの物差し" }).selectOption({ label: "100 万" })
+  await settings.getByRole("combobox", { name: "コンテキストバー上限" }).selectOption({ label: "100 万" })
   await page.keyboard.press("Escape")
   await expect(settings).toHaveCount(0)
   await expect(bar).toHaveText("280k")

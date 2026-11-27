@@ -13,10 +13,10 @@ export type ContextScale = "auto" | number
 // 選べる物差しの量（トークン）
 export const CONTEXT_SCALE_CHOICES = [200_000, 300_000, 500_000, 1_000_000] as const
 
-// コンテキストの棒の物差し（利用者の設定の項目）: auto か、CONTEXT_SCALE_CHOICES の量
+// コンテキストバー上限（利用者の設定の項目）: auto か、CONTEXT_SCALE_CHOICES の量
 export const CONTEXT_SCALE = kit.defineSetting({
   id: "context-scale",
-  title: "Context scale",
+  title: "Context bar limit",
   help: kit.message(
     "Auto: Claude Code's autoCompactWindow setting, or the model's limit without it (1M for every Claude model now). Claude only for now",
   ),

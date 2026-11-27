@@ -55,7 +55,7 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   "Accept a participant": { en: "Accept a participant", ja: "参加者を受け入れる" },
   "Decline a participant": { en: "Decline a participant", ja: "参加者を断る" },
   "Participation lasts": { en: "Participation lasts", ja: "参加の有効時間" },
-  "Context scale": { en: "Context scale", ja: "コンテキストの物差し" },
+  "Context bar limit": { en: "Context bar limit", ja: "コンテキストバー上限" },
   "Auto: Claude Code's autoCompactWindow setting, or the model's limit without it (1M for every Claude model now). Claude only for now":
     {
       en: "Auto: Claude Code's autoCompactWindow setting, or the model's limit without it (1M for every Claude model now). Claude only for now",
