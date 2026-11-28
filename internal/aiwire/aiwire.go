@@ -29,7 +29,7 @@ const BulkMax = 10
 // AI 間メッセージを受けたときの、いつ渡るか（send_message の答えの delivers）
 const (
 	DeliversNow      = "now"       // 起こす知らせを渡せる matomezu watch がつながっていて、すぐ渡す
-	DeliversNextCall = "next-call" // 宛て先の AI が次に matomezu を呼んだときの返事で渡す
+	DeliversNextCall = "next-call" // 送り先の AI が次に matomezu を呼んだときの返事で渡す
 	DeliversUnknown  = "unknown"   // 分からない（古い版の常駐やほかのホストが受けた）
 )
 

@@ -3,7 +3,7 @@ package server
 // AI を起こす知らせ: 利用者トリガートークを待たずに AI に届ける知らせ。参加の要求が受け入れられた・断られた（窓のアクションで）知らせと、
 // ほかの AI から届いた AI 間メッセージ（message.go）がある。常駐は AI の種類を知らない。
 //
-// 知らせは宛て先の参加者ごとの行列に入れ、受け取られるまで持つ（メモリだけ。常駐を起動し直すと消える）。行列は 1 人 wakeQueueMax 件までで、超えたら古い物から捨てる。
+// 知らせは送り先の参加者ごとの行列に入れ、受け取られるまで持つ（メモリだけ。常駐を起動し直すと消える）。行列は 1 人 wakeQueueMax 件までで、超えたら古い物から捨てる。
 // 受け取る道は 2 つ:
 //   - 通り道: AI の側が matomezu watch でこの口につなぐ。watch は届いた知らせを AI に渡し（標準出力に書くか、渡すコマンドを呼ぶ）、
 //     結果を POST /api/ai/watch/ack で返す。常駐は知らせを通り道に貸し、結果が返るまで、ほかの道（ほかの通り道・呼び出しの返事）では渡さない:
@@ -43,7 +43,7 @@ type wakeLine struct {
 	host    string        // AI のプログラムのプロセス id
 	session string        // AI のプログラムが立てたときのセッション id（分からなければ空）
 	limits  WakeLimits    // 受け取る側が名乗った流し方
-	ready   chan struct{} // 宛て先の行列に何か入った合図（1 つだけ持つ）
+	ready   chan struct{} // 送り先の行列に何か入った合図（1 つだけ持つ）
 	closed  chan struct{} // 通り道を外した（常駐を止めるとき）
 }
 
@@ -77,7 +77,7 @@ func (lim WakeLimits) fits(line string) bool {
 // wakeItem は、行列の知らせ 1 つ
 type wakeItem struct {
 	seq         int64     // 行列の中で見分ける番号
-	participant string    // 宛て先の参加者の id
+	participant string    // 送り先の参加者の id
 	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage・wakeUpdate・wakeHost・wakeRally・wakeMessageApproved・wakeMessageCancelled
 	line        string    // 流す 1 行
 	head        string    // AI 間メッセージの、送り手を名乗る頭（messageHead・remoteMessageHead）
@@ -106,7 +106,7 @@ const (
 	wakeMessage   = "message"   // AI 間メッセージ
 	wakeUpdate    = "update"    // 利用者が、matomezu の版を上げるよう頼んだ（update.go）
 	wakeHost      = "host"      // 常駐メッセージ（フォローステップが返した、常駐からの知らせ。message.go）
-	wakeRally     = "rally"     // AI ラリーを上限で止め、宛て先に届けなかったという知らせ（rally.go）
+	wakeRally     = "rally"     // AI ラリーを上限で止め、送り先に届けなかったという知らせ（rally.go）
 
 	wakeMessageApproved  = "message-approved"  // 承認待ちの AI 間メッセージを利用者が承認した（受け手に、利用者の頼みとして。pending_message.go）
 	wakeMessageCancelled = "message-cancelled" // 承認待ちの AI 間メッセージを利用者がキャンセルした（送り手と受け手に。pending_message.go）

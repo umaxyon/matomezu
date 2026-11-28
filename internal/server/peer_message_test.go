@@ -128,7 +128,7 @@ func TestQueuedLinesFollowTheRequestsAndThePairing(t *testing.T) {
 	})
 }
 
-// 断り: ホストエイリアスの無いホスト（送れるホストエイリアスを添える）・宛て先のワークルームに AI がいない（受けたホストの送れる名前を添える）・自分の入口が閉じている
+// 断り: ホストエイリアスの無いホスト（送れるホストエイリアスを添える）・送り先のワークルームに AI がいない（受けたホストの送れる名前を添える）・自分の入口が閉じている
 func TestMessagesToOtherHostsAreRefused(t *testing.T) {
 	t.Parallel()
 	as, bs, a, _ := pairedWorlds(t)

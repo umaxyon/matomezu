@@ -79,7 +79,7 @@ type Output =
       aiEditTickets?: readonly (AIEditTicketChange & { subject: string })[] // subject は、その変え方を返したアクションの対象の種類
       payloads?: readonly Payload[] // 送る matomezu ペイロード（常駐が、送り先に参加の確定した参加者がいるかを確かめ、書き込みと一緒に送る）
       refreshRequest?: RefreshRequest // リフレッシュリクエスト（常駐が、書き込みが通ったら行った参加者に覚える）
-      hostMessages?: readonly HostMessage[] // 送る常駐メッセージ（常駐が、宛先に参加の確定した参加者がいて、行った参加者のワークルームでなければ送る）
+      hostMessages?: readonly HostMessage[] // 送る常駐メッセージ（常駐が、送り先に参加の確定した参加者がいて、行った参加者のワークルームでなければ送る）
     }
   | {
       ok: false

@@ -113,7 +113,7 @@ type RefreshRequest struct {
 	Text string `json:"text"`
 }
 
-// HostMessage は、フォローステップが送る常駐メッセージ 1 通（Workroom は宛先のワークルームの id。送り手は常駐）
+// HostMessage は、フォローステップが送る常駐メッセージ 1 通（Workroom は送り先のワークルームの id。送り手は常駐）
 type HostMessage struct {
 	Workroom string `json:"workroom"`
 	Text     string `json:"text"`

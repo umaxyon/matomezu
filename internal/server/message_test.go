@@ -49,7 +49,7 @@ func noticeOf(t *testing.T, srv, id string) string {
 	return notice
 }
 
-// 送り手は呼び出しの参加の id で決まり、宛て先の通り道がつながっていなければ溜まり、つながると古い順に、送り手のワークルーム名と包んだ本文で流れる
+// 送り手は呼び出しの参加の id で決まり、送り先の通り道がつながっていなければ溜まり、つながると古い順に、送り手のワークルーム名と包んだ本文で流れる
 func TestMessageQueuesUntilTheLineOpens(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
@@ -146,7 +146,7 @@ func TestMessageComesWithTheNextCall(t *testing.T) {
 	}
 }
 
-// 宛て先の参加者が外されたら、溜まっていた AI 間メッセージは捨てる（引き継いだ参加者にも渡さない）
+// 送り先の参加者が外されたら、溜まっていた AI 間メッセージは捨てる（引き継いだ参加者にも渡さない）
 func TestMessagesToARemovedParticipantAreDropped(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
@@ -161,7 +161,7 @@ func TestMessagesToARemovedParticipantAreDropped(t *testing.T) {
 	}
 }
 
-// 参加が確定していない AI は送れず、名前の無い宛て先は送れる名前を添えて断り、自分のワークルームには送れない
+// 参加が確定していない AI は送れず、名前の無い送り先は送れる名前を添えて断り、自分のワークルームには送れない
 func TestMessageRefusals(t *testing.T) {
 	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))

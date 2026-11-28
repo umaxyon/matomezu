@@ -447,7 +447,7 @@ func TestJoinPassesTheWorkroom(t *testing.T) {
 	}
 }
 
-// send_message は宛て先と本文を常駐に渡し、預かったら queued といつ渡るか（delivers）を、断られたら理由を返す。本文の上限は inputSchema が決める
+// send_message は送り先と本文を常駐に渡し、預かったら queued といつ渡るか（delivers）を、断られたら理由を返す。本文の上限は inputSchema が決める
 func TestSendMessagePassesToAndText(t *testing.T) {
 	api := &fakeAPI{answer: `{"ok":true,"queued":true,"delivers":"next-call"}`}
 	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"すずめ","text":"hi"}}}`)
