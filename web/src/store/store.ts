@@ -373,7 +373,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const history = { ...getState().history }
     history[LIBRARY_HISTORY] = { undo: place(history[LIBRARY_HISTORY] ?? NO_HISTORY, step), redo: [] }
     setState({ history })
-    // 答えを待っていた操作の書庫の履歴の段（始めた順の位置に入る）は、並べた元に戻すが戻す物なので、捨てない
+    // 答えを待っていた操作の書庫の履歴の段（始めた順の位置に入る）は、並べたコマンドが押された時に待っていた物なので、捨てない
     if (place === atEnd) dropHeld()
   }
   // 閉じた段を画面の履歴に入れる
