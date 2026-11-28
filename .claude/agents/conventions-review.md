@@ -1,6 +1,6 @@
 ---
 name: conventions-review
-description: matomezu の規約に違反していないかを確かめる。平行作業の worktree が取り込みのキューに並ぶ前には main との差分を、main に直接積むときはコミットの前にステージ済みの変更（git diff --cached）を読む。規約の項目や変更をユーザーに提案する前にも使い、その案への意見を返す。読むだけで、何も変えない。
+description: matomezu の規約に違反していないかを確かめる。平行作業の worktree が merge-request.ts を流す前には main との差分を、main に直接積むときはコミットの前にステージ済みの変更（git diff --cached）を読む。規約の項目や変更をユーザーに提案する前にも使い、その案への意見を返す。読むだけで、何も変えない。
 tools: Read, Grep, Glob, Bash
 model: opus
 ---

@@ -7,7 +7,8 @@
 //   3. 並んでいる印（requestsDir の下の <pid>.json）を置く。restart-subs は印のある worktree のサブを起動し直さない
 //   4. main の worktree の scripts/merge-queue.ts を --push で流す。このスクリプトとは切り離すので、待つ間にこれが止められても、
 //      キューは終わりまで流れ、履歴（merge-queue.ts の HISTORY）に残る。キューのロックで 1 本ずつ並ぶ
-//   5. キューの結果を出し、外されたら次にする事を添える。印を消す
+//   5. キューの結果を出し、外されたら次にする事を添える。印を消す。
+//      入った物（2 でも 4 でも）が指摘改善事例を変えていたら、main_manager に知らせるよう添える
 // 入れば 0、外されれば 1、並べなければ 2 で終わる
 import { execFileSync, spawn, spawnSync } from "node:child_process"
 import {
@@ -141,6 +142,15 @@ export const DIRECT_REFUSED = {
   failed: "入れられなかった: main を fast-forward できなかった\n次: main の側の都合なので、main_manager に知らせる",
 }
 
+// 指摘改善事例のファイル。増えたら main_manager が判断の基準を直す（AGENT.md「指摘改善事例」）
+export const CASES = ".claude/shiteki-kaizen.md"
+
+// main に入れた物が事例を変えていたときに添える次の事
+export const casesStep = (changed: string[]) =>
+  changed.includes(CASES)
+    ? "次: 指摘改善事例が main に入ったので、main_manager に send_message で知らせる（判断の基準を直すため）"
+    : undefined
+
 function mainWorktree(dir: string): string | undefined {
   const blocks = git(dir, "worktree", "list", "--porcelain").split("\n\n")
   const main = blocks.find(b => b.split("\n").includes("branch refs/heads/main"))
@@ -185,6 +195,7 @@ async function request(): Promise<number> {
     return 2
   }
 
+  const cases = casesStep(git(dir, "diff", "--name-only", base, sha).split("\n"))
   if (unreadByTestsBetween(dir, base, sha)) {
     const r = await enterDirect(main, { name: branch, sha }, base)
     if (r.kind === "yield")
@@ -196,6 +207,7 @@ async function request(): Promise<number> {
       return 1
     } else {
       console.log(`テストを流さずに入った: ${branch} ${sha.slice(0, 8)}`)
+      if (cases) console.log(cases)
       if (r.pushed.ok) {
         console.log("push 済み")
         return 0
@@ -233,6 +245,7 @@ async function request(): Promise<number> {
       const next = nextStep(o)
       if (next) console.log(next)
     }
+    if (cases && report.outcomes.some(o => o.kind === "merged")) console.log(cases)
     if (report.pushed && !report.pushed.ok)
       console.log("次: main に入ったが push に失敗したので、main_manager に知らせる")
     rmSync(out, { force: true })

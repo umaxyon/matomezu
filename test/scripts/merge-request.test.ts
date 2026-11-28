@@ -5,6 +5,8 @@ import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { git, HISTORY, queueDir } from "../../scripts/merge-queue"
 import {
+  CASES,
+  casesStep,
   enterDirect,
   nextStep,
   queuedRequests,
@@ -128,4 +130,9 @@ test("キューに並んでいる候補と衝突するなら入れずに yield �
   const other = queuedOn("q2", "src.ts", "x\n")
   expect((await enterDirect(r.main, r.c, r.base, () => other)).kind).toBe("direct")
   expect(git(r.main, "rev-parse", "refs/heads/main")).toBe(r.c.sha)
+})
+
+test("入った物が指摘改善事例を変えていたときだけ、main_manager に知らせるよう添える", () => {
+  expect(casesStep(["docs/concept.md", CASES])).toContain("main_manager")
+  expect(casesStep(["docs/concept.md", ".claude/judgment-principles.md"])).toBeUndefined()
 })
