@@ -474,6 +474,16 @@ test("行えたアクションの画面の履歴の段は残し、performConfirm
   expect(store.state.getState().history.b1?.undo).toHaveLength(1)
 })
 
+test("自分のバルクの changed に載った結果と書庫の前と後を、そのバルクの答えに渡す", async () => {
+  const { host, emit } = await connected()
+  const done = { action: "@matomezu/base:entry-trash", args: { entry: "b1" }, ids: [], lang: "ja", now: "", today: "" }
+  const answer = host.observe([done as never])
+  await flush()
+  const library = { pages: { p1: { before: { id: "p1" }, after: "none" } }, folders: {} }
+  emit("changed", { pages: [], folders: [], books: [], client: "c1", seq: 1, results: [{}], library })
+  expect(await answer).toEqual({ ok: true, results: [{}], library })
+})
+
 test("つなぎ直したら（2 度目の hello）、読み直した世界の上に確かめられていないアクションを出し、新しいつながりで同じ番号で送り直す", async () => {
   const s = await connected()
   place(s.store)

@@ -464,7 +464,13 @@ export function serverClient(net: Net = browserNet): HostClient {
       })
       // レコードが変わったときだけ、最後にフォーカスされた窓を受ける（郵便が届いたことを、その窓がマーキーで知らせる）
       if (e.records && e.records.length > 0 && e.window !== undefined) instance?.setLastWindow(e.window === client)
-      settle(e, e.results ? { ok: true, results: e.results } : undefined)
+      // 自分のバルクの答えには、アクションごとの結果と、書庫の履歴に入る分の前と後を添える（先に行わずに送ったアクションの結果と、書庫の履歴の段にする）
+      settle(
+        e,
+        e.results || e.library
+          ? { ok: true, ...(e.results ? { results: e.results } : {}), ...(e.library ? { library: e.library } : {}) }
+          : undefined,
+      )
       const act = e.act
       const foreign = e.client !== client && e.by !== undefined && act !== undefined
       show(

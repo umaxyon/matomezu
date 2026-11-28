@@ -245,8 +245,11 @@ export interface DoneAction {
 export type DoneBulk = readonly DoneAction[]
 
 // ホストが、画面で行ったアクションバルクを確かめた答え（断ったなら reason。届けられなかったものは not-saved）
-// results は、行えたときのアクションごとの結果（バルクの順。先に行わずに送ったアクションの結果を、ホストから受け取る）
-export type HostAnswer = { ok: true; results?: readonly unknown[] } | { ok: false; reason: string }
+// results は、行えたときのアクションごとの結果（バルクの順。先に行わずに送ったアクションの結果を、ホストから受け取る）。
+// library は、そのバルクの書庫の履歴に入るアクションが変えたページとフォルダごとの、常駐が書く前と後（ForeignChange の library と同じ形。先に行わずに送ったバルクの、書庫の履歴の段にする）
+export type HostAnswer =
+  | { ok: true; results?: readonly unknown[]; library?: ForeignLibraryRows }
+  | { ok: false; reason: string }
 
 export type ReadonlyStore = Pick<StoreApi<MatomezuState>, "getState" | "getInitialState" | "subscribe">
 

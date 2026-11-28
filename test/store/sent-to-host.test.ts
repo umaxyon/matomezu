@@ -5,9 +5,11 @@ import { expect, test } from "bun:test"
 import { z } from "zod"
 import { pagesOf } from "../../web/src/core/book"
 import { pageMetaRowOf } from "../../web/src/core/folders"
+import { LIBRARY_HISTORY } from "../../web/src/core/history"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import type { AnyPage } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
+import { libraryRevertArgs } from "../../web/src/plugins/base/library/revert"
 import { SENT_TO_HOST } from "../../web/src/store/actions"
 import { pluginKit } from "../../web/src/store/kit"
 import type { DoneBulk, HostAnswer } from "../../web/src/store/state"
@@ -140,4 +142,85 @@ test("自分だけのアクションバルクのアクションも送り、開�
   expect(await (done as { confirmed: Promise<unknown> }).confirmed).toEqual({ ok: true, result: { of: TOUCH.id } })
   expect(sent.map(b => b.map(d => d.action))).toEqual([[PLACE], [TOUCH.id]])
   expect(sent[1]![0]).toMatchObject({ ids: [], on: { record: "m1" } })
+})
+
+// 段 3b: 先に行わずに送ったバルクの書庫の履歴の段は、常駐が答えた前と後で入れる（画面のページメタを前の値にしない）
+const TRASH = "@matomezu/base:entry-trash"
+const libraryHistory = (store: Store) => store.state.getState().history[LIBRARY_HISTORY] ?? { undo: [], redo: [] }
+const trashed = (bulk: DoneBulk): HostAnswer => ({
+  ok: true,
+  results: bulk.map(() => ({})),
+  library: {
+    pages: { q1: { before: { id: "q1", body: "常駐の中身" }, after: { id: "q1", body: "常駐の中身", trashed: true } } },
+    folders: {},
+  },
+})
+
+test("送ったバルクの書庫の段は、常駐の答えを待ち、常駐が答えた前と後で書庫の履歴に入れる", async () => {
+  const { store, sent } = observed(trashed)
+  expect(store.actions.perform(TRASH, { entry: "b2" })).toMatchObject({ ok: true, result: SENT_TO_HOST })
+  expect(libraryHistory(store).undo).toEqual([])
+  await settled()
+  await settled()
+  expect(sent.map(b => b.map(d => d.action))).toEqual([[TRASH]])
+  expect(libraryHistory(store).undo).toMatchObject([
+    {
+      by: "user",
+      pages: { q1: { before: { body: "常駐の中身" }, after: { trashed: true } } },
+      folders: {},
+    },
+  ])
+})
+
+test("送ったバルクを常駐が断ったら、書庫の履歴に段を入れない", async () => {
+  const { store } = observed(() => ({ ok: false, reason: "refused" }))
+  store.actions.perform(TRASH, { entry: "b2" })
+  await settled()
+  await settled()
+  expect(libraryHistory(store).undo).toEqual([])
+})
+
+test("送ったバルクの書庫の段は、答えを待つ間に入れた段より前に、始めた順の位置で入る", async () => {
+  let release: (a: HostAnswer) => void = () => {}
+  const sent: DoneBulk[] = []
+  const store = sizedStore({
+    observe: (bulk: DoneBulk) => {
+      sent.push(bulk)
+      return sent.length === 1 ? new Promise<HostAnswer>(r => (release = r)) : Promise.resolve(trashed(bulk))
+    },
+    plugins: [...BUILTIN, touches],
+  } as never)
+  store.receive(worldWithMeta(store), [])
+  store.actions.perform(TRASH, { entry: "b2" })
+  await settled()
+  store.actions.perform(TRASH, { entry: "b2" })
+  await settled()
+  await settled()
+  const later = libraryHistory(store).undo
+  expect(later).toHaveLength(1)
+  release(trashed(sent[0]!))
+  await settled()
+  await settled()
+  const undo = libraryHistory(store).undo
+  expect(undo).toHaveLength(2)
+  expect(undo[1]).toBe(later[0]!)
+  expect(undo[0]!.seq).toBeLessThan(undo[1]!.seq)
+})
+
+test("送った書庫の段を戻すと、置き直しも先に行わずに送り、断られたら段を戻せる側へ戻す", async () => {
+  let refuse = false
+  const { store, sent } = observed(bulk => (refuse ? { ok: false, reason: "refused" } : trashed(bulk)))
+  store.actions.perform(TRASH, { entry: "b2" })
+  await settled()
+  await settled()
+  const step = libraryHistory(store).undo[0]!
+  refuse = true
+  const back = store.actions.perform("@matomezu/base:library-revert", libraryRevertArgs(step, "before"))
+  expect(back).toMatchObject({ ok: true, result: SENT_TO_HOST })
+  store.actions.moveHistory(LIBRARY_HISTORY, "undo")
+  expect(libraryHistory(store)).toMatchObject({ undo: [], redo: [step] })
+  await settled()
+  await settled()
+  expect(sent.at(-1)?.map(d => d.action)).toEqual(["@matomezu/base:library-revert"])
+  expect(libraryHistory(store)).toMatchObject({ undo: [step], redo: [] })
 })
