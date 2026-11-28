@@ -285,7 +285,7 @@ func (codexPromptCmd) Run() error {
 
 type codexModelCmd struct{}
 
-// Run は、セッションのモデルを知らせる
+// Run は、セッションのモデルとコンテキストの量を知らせる
 func (codexModelCmd) Run() error {
 	codexDev()
 	hook := stdinHook()
