@@ -28,8 +28,8 @@ import {
   stack,
   succeeded,
   summary,
-  testsIgnore,
   UNREAD_BY_TESTS,
+  unreadByTests,
   withMainLock,
 } from "../../scripts/merge-queue"
 
@@ -459,8 +459,8 @@ test("テストの結果を変えない差分は、表のファイルの中身�
     "M\tconventions/workflow.md",
     "M\tAGENT.md",
   ]
-  expect(testsIgnore(ignored.join("\n"))).toBe(true)
-  expect(testsIgnore("")).toBe(true)
+  expect(unreadByTests(ignored.join("\n"))).toBe(true)
+  expect(unreadByTests("")).toBe(true)
   for (const row of [
     "A\tdocs/new.md",
     "D\tconventions/workflow.md",
@@ -470,7 +470,7 @@ test("テストの結果を変えない差分は、表のファイルの中身�
     "M\tdocs/a.txt",
     "M\tweb/README.md",
   ])
-    expect(testsIgnore(`M\tdocs/concept.md\n${row}`)).toBe(false)
+    expect(unreadByTests(`M\tdocs/concept.md\n${row}`)).toBe(false)
 })
 
 // テストが流すコード（テスト・スクリプト・web・Go・clients）が、表のファイルを読み始めていないか。表のファイルの名前の出る所と、
@@ -487,12 +487,13 @@ test("表のファイルを、テストが流すコードが読まない", () =>
       f !== GENERATED.path &&
       f !== "test/scripts/merge-queue.test.ts",
   )
-  const rootPath = /ROOT[^\n)]*["'`](\.claude|docs|conventions)["'`/]/
+  // docs はフォルダの id の "docs" とぶつかるので、名前の照合だけで見る
+  const folderPath = /["'`](\.claude|conventions)["'`/]/
   const found = new Set<string>()
   for (const f of code) {
     const text = readFileSync(join(root, f), "utf8")
     for (const n of names) if (text.includes(n)) found.add(`${f} ${n}`)
-    if (rootPath.test(text)) found.add(`${f} ROOT`)
+    if (folderPath.test(text)) found.add(`${f} folder`)
   }
   expect([...found].sort()).toEqual(
     [
@@ -506,7 +507,13 @@ test("表のファイルを、テストが流すコードが読まない", () =>
       "test/rules/architecture.test.ts architecture.md",
       "test/rules/definitions.test.ts definitions.md",
       // conventions/<名前>.md が在るかだけを見る
-      "test/rules/workflow.test.ts ROOT",
+      "test/rules/workflow.test.ts folder",
+      // ホームかプロジェクトの .claude の settings や会話の記録（md でない）
+      "clients/claude-code/launch/context.go folder",
+      "clients/claude-code/launch/context_test.go folder",
+      "scripts/ask-log.ts folder",
+      "scripts/merge-queue.ts folder",
+      "scripts/restart-subs.ts folder",
     ].sort(),
   )
 })
@@ -548,12 +555,17 @@ test("main を進めるロックは 1 本ずつで、先に持った物が放す
   const held = new Promise<void>(res => {
     release = res
   })
+  let took = () => {}
+  const taken = new Promise<void>(res => {
+    took = res
+  })
   const first = withMainLock(common, async () => {
     order.push("first")
+    took()
     await held
     order.push("first done")
   })
-  await Bun.sleep(100)
+  await taken
   const second = withMainLock(common, () => order.push("second"))
   await Bun.sleep(200)
   expect(order).toEqual(["first"])

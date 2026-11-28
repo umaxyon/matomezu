@@ -33,7 +33,7 @@ import {
   pushMain,
   queueDir,
   type Report,
-  testsIgnoreBetween,
+  unreadByTestsBetween,
   withMainLock,
 } from "./merge-queue"
 
@@ -107,7 +107,7 @@ export type Direct =
 
 // テストの結果を変えない物だけのブランチを、キューに並ばずに main へ入れる。base は差分を確かめた時の main。
 // main を進める所はキューと同じロック（mainLock）で 1 本ずつにし、入れば push して HISTORY に 1 行を足す
-export async function direct(main: string, c: Candidate, base: string): Promise<Direct> {
+export async function enterDirect(main: string, c: Candidate, base: string): Promise<Direct> {
   const common = commonDir(main)
   const r = await withMainLock(common, () => {
     const ff = fastForward(main, base, c.sha)
@@ -120,7 +120,7 @@ export async function direct(main: string, c: Candidate, base: string): Promise<
   return r
 }
 
-// direct で入れられなかったときの 1 行と次の事
+// enterDirect で入れられなかったときの 1 行と次の事
 export const DIRECT_REFUSED = {
   moved: "入れられなかった: 確かめた間に main が進んだ\n次: main を取り込み、並び直す",
   dirty:
@@ -172,8 +172,8 @@ async function request(): Promise<number> {
     return 2
   }
 
-  if (testsIgnoreBetween(dir, base, sha)) {
-    const r = await direct(main, { name: branch, sha }, base)
+  if (unreadByTestsBetween(dir, base, sha)) {
+    const r = await enterDirect(main, { name: branch, sha }, base)
     if (r.kind !== "direct") {
       console.log(DIRECT_REFUSED[r.kind])
       return 1

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { git, HISTORY, queueDir } from "../../scripts/merge-queue"
 import {
-  direct,
+  enterDirect,
   nextStep,
   queuedRequests,
   type Request,
@@ -96,7 +96,7 @@ function directRepo() {
 
 test("並ばずに入れる物は main を ff して push し、HISTORY に direct の 1 行を足す", async () => {
   const r = directRepo()
-  expect(await direct(r.main, r.c, r.base)).toEqual({ kind: "direct", pushed: { ok: true } })
+  expect(await enterDirect(r.main, r.c, r.base)).toEqual({ kind: "direct", pushed: { ok: true } })
   expect(git(r.main, "rev-parse", "refs/heads/main")).toBe(r.c.sha)
   expect(git(r.origin, "rev-parse", "refs/heads/main")).toBe(r.c.sha)
   const history = readFileSync(join(queueDir(join(r.main, ".git")), HISTORY), "utf8")
@@ -106,9 +106,9 @@ test("並ばずに入れる物は main を ff して push し、HISTORY に dire
 test("確かめた後に main が進んだか、main の worktree に未コミットがあれば、入れない", async () => {
   const r = directRepo()
   writeFileSync(join(r.main, "docs/a.md"), "edited\n")
-  expect(await direct(r.main, r.c, r.base)).toEqual({ kind: "dirty" })
+  expect(await enterDirect(r.main, r.c, r.base)).toEqual({ kind: "dirty" })
   git(r.main, "checkout", "-q", "--", "docs/a.md")
   r.commit("docs/m.md", "m\n")
-  expect(await direct(r.main, r.c, r.base)).toEqual({ kind: "moved" })
+  expect(await enterDirect(r.main, r.c, r.base)).toEqual({ kind: "moved" })
   expect(existsSync(join(queueDir(join(r.main, ".git")), HISTORY))).toBe(false)
 })

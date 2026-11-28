@@ -164,7 +164,7 @@ export const UNREAD_BY_TESTS: RegExp[] = [
 ]
 
 // git diff --name-status の出力が、どれも UNREAD_BY_TESTS の中身の直し（M）か（差分が無ければ、変わる物が無いので true）
-export function testsIgnore(nameStatus: string): boolean {
+export function unreadByTests(nameStatus: string): boolean {
   return nameStatus
     .split("\n")
     .filter(Boolean)
@@ -175,8 +175,8 @@ export function testsIgnore(nameStatus: string): boolean {
 }
 
 // from から to への差分が、テストの結果を変えない物だけか
-export const testsIgnoreBetween = (dir: string, from: string, to: string) =>
-  testsIgnore(git(dir, "diff", "--name-status", from, to))
+export const unreadByTestsBetween = (dir: string, from: string, to: string) =>
+  unreadByTests(git(dir, "diff", "--name-status", from, to))
 
 // main を進める所（ff と push）を 1 本ずつにするロック。キューの全体のロック（queueLock）とは別で、
 // キューがテストを流す間も、テストを流さずに入れる merge-request.ts が main を進められる
@@ -188,6 +188,7 @@ export async function withMainLock<T>(common: string, fn: () => T | Promise<T>):
   const exited = new Promise<void>(res => holder.once("close", () => res()))
   await new Promise<void>((res, rej) => {
     holder.stdout.once("data", () => res())
+    holder.once("error", rej)
     holder.once("close", code => rej(new Error(`flock がロックを取れなかった（終了コード ${code}）`)))
   })
   try {
@@ -481,11 +482,8 @@ export type Attempt =
   | { kind: "nothing"; stacked: Stacked }
   | { kind: "stopped"; reason: string; stacked?: Stacked }
 
-const sameOnTip = (a: Stacked, b: Stacked) =>
-  a.onTip.length === b.onTip.length && a.onTip.every((c, i) => c.sha === b.onTip[i]?.sha)
-
 // 重ねてテストを流し、通れば main を ff する。ff の前に main が進んでいたら重ね直す。
-// 重ね直した物とテストの済んだ物の差が、テストの結果を変えない物だけなら、流し直さない
+// 重ね直した物とテストの済んだ物の差が、テストの結果を変えない物だけなら（候補が抜けても、その差がそうなら）、流し直さない
 export async function attempt(
   o: Pick<Options, "main" | "queue" | "logs">,
   candidates: Candidate[],
@@ -498,7 +496,7 @@ export async function attempt(
     const base = git(o.main, "rev-parse", "refs/heads/main")
     stacked = stack(o.queue, base, candidates, regenerateWith(join(o.logs, "regenerate")))
     if (stacked.onTip.length === 0) return { kind: "nothing", stacked }
-    if (!(tested && sameOnTip(tested, stacked) && testsIgnoreBetween(o.queue, tested.tip, stacked.tip))) {
+    if (!(tested && unreadByTestsBetween(o.queue, tested.tip, stacked.tip))) {
       const logs = join(o.logs, short(stacked.tip))
       const results = await test(o.queue, logs)
       if (!results.every(r => r.ok)) return { kind: "failed", stacked, base, logs, results }
@@ -676,10 +674,9 @@ const whyOf = (results: StepResult[]) =>
 
 // ブランチごとの行き先。failed の base は重ねた main、logs はそのテストのログの置き場。
 // main-side は main の側の都合（main の worktree の未コミットなど）で入れられなかった物。
-// direct はキューに並ばず、テストを流さずに入った物（merge-request.ts が書く）
 export type Outcome = Candidate &
   (
-    | { kind: "merged" | "already" | "direct" }
+    | { kind: "merged" | "already" }
     | { kind: "conflict"; files: string[]; why?: string }
     | { kind: "failed"; base: string; logs: string; why: string[] }
     | { kind: "main-side"; why: string }
@@ -719,8 +716,11 @@ export function summary(r: Report): string[] {
   return lines
 }
 
+// 履歴に書く行き先。direct はキューに並ばず、テストを流さずに入った物（merge-request.ts が書く）
+export type HistoryEntry = Outcome | (Candidate & { kind: "direct" })
+
 // 履歴の 1 行（タブで区切る）: 時刻・ブランチ・sha・行き先・理由のはじめ
-export function historyLine(o: Outcome, at: Date): string {
+export function historyLine(o: HistoryEntry, at: Date): string {
   const why =
     o.kind === "conflict"
       ? o.files.join(" ")
@@ -870,9 +870,11 @@ async function main(argv: string[]): Promise<number> {
   const { outcomes, regenerated, flaky } = await collect(await attempt(o, candidates), c => attempt(o, [c]))
 
   const end = git(o.main, "rev-parse", "refs/heads/main")
+  // main を進めたのがこのキューのときだけ（テストを流さずに入った物だけで進んだなら、入れた側が push した）。
   // 作り直しはこの機械の中の事なので、先に push して main を外へ出す
-  const pushed = o.push && end !== start ? await withMainLock(commonDir(o.main), () => pushMain(o.main)) : undefined
-  const rebuilt = o.rebuild && end !== start ? await rebuild(o, start, end) : []
+  const entered = outcomes.some(x => x.kind === "merged") && end !== start
+  const pushed = o.push && entered ? await withMainLock(commonDir(o.main), () => pushMain(o.main)) : undefined
+  const rebuilt = o.rebuild && entered ? await rebuild(o, start, end) : []
   const report: Report = { outcomes, regenerated, flaky, pushed, rebuilt }
   const at = new Date()
   mkdirSync(o.logs, { recursive: true })
