@@ -1,6 +1,6 @@
 // Package orca は、ADE の Orca の事情: 今の worktree の表示名を読み、書き換える。
 // Orca は、その中で起動した端末に環境変数 ORCA_CLI_COMMAND（Orca の CLI のコマンド）を置く。無ければ Orca の中ではないので何もしない。
-// 表示名は worktree ごとに 1 つで、CLI の worktree の active は、CLI を呼んだフォルダで決まる（外で呼ぶと黙って効かない）
+// 表示名は worktree ごとに 1 つ。CLI を呼ぶフォルダから worktree を調べ、書くときはそのパスを指定する
 package orca
 
 import (
@@ -26,17 +26,20 @@ const nameMax = 120
 type answer struct {
 	OK     bool `json:"ok"`
 	Result struct {
-		Worktree struct {
-			DisplayName string `json:"displayName"`
-		} `json:"worktree"`
+		Worktree worktree `json:"worktree"`
 	} `json:"result"`
 }
 
-// run は、フォルダ dir で CLI に args を渡し、答えの表示名を返す（Orca の中でない・失敗したら空）
-func run(dir string, args ...string) string {
+type worktree struct {
+	Path        string `json:"path"`
+	DisplayName string `json:"displayName"`
+}
+
+// run は、フォルダ dir で CLI に args を渡し、答えの worktree を返す（Orca の中でない・失敗したら空）
+func run(dir string, args ...string) worktree {
 	command := strings.TrimSpace(os.Getenv(CommandEnv))
 	if command == "" || dir == "" {
-		return ""
+		return worktree{}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -44,7 +47,7 @@ func run(dir string, args ...string) string {
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {
-		return ""
+		return worktree{}
 	}
 	// 答えの前に、CLI がほかの行を書くことがある
 	if i := strings.IndexByte(string(out), '{'); i > 0 {
@@ -52,14 +55,14 @@ func run(dir string, args ...string) string {
 	}
 	var a answer
 	if json.Unmarshal(out, &a) != nil || !a.OK {
-		return ""
+		return worktree{}
 	}
-	return a.Result.Worktree.DisplayName
+	return a.Result.Worktree
 }
 
 // Name は、フォルダ dir の worktree の表示名（Orca の中でない・読めなければ空）
 func Name(dir string) string {
-	return run(dir, "worktree", "current")
+	return run(dir, "worktree", "current").DisplayName
 }
 
 // Rename は、フォルダ dir の worktree の表示名を name にする。CLI が遅いので、前に書いた名前と同じなら呼ばない
@@ -73,7 +76,12 @@ func Rename(dir, name, cache string) {
 	if written[dir] == name {
 		return
 	}
-	if run(dir, "worktree", "set", "--worktree", "active", "--display-name", name) != name {
+	// dir が worktree の中のフォルダでも、current が返す worktree のパスを指す
+	current := run(dir, "worktree", "current")
+	if current.Path == "" {
+		return
+	}
+	if run(dir, "worktree", "set", "--worktree", "path:"+current.Path, "--display-name", name).DisplayName != name {
 		return
 	}
 	written[dir] = name
