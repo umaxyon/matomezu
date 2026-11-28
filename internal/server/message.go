@@ -45,10 +45,13 @@ type Envelope struct {
 
 // MessageRequest は AI 間メッセージを送る頼み。Participant は呼び出しに付いていた参加の id
 type MessageRequest struct {
-	To          string `json:"to"`
-	Host        string `json:"host"` // 送り先のホストエイリアス（ペアリングしたホスト。空なら自分のホスト）
-	Text        string `json:"text"`
-	Participant string `json:"-"`
+	To   string `json:"to"`
+	Host string `json:"host"` // 送り先のホストエイリアス（ペアリングしたホスト。空なら自分のホスト）
+	Text string `json:"text"`
+	// ReplyTo は、返事なら、返す元の封筒の id（To・Host・Text は使わず、Args をその 1 通の返事を受けるレシーバーの引数にする。receiver.go）
+	ReplyTo     string          `json:"replyTo,omitempty"`
+	Args        json.RawMessage `json:"args,omitempty"`
+	Participant string          `json:"-"`
 }
 
 // MessageSent は送った結果。断ったら OK は false で、Reason と Detail に理由
@@ -58,6 +61,8 @@ type MessageSent struct {
 	Delivers string `json:"delivers,omitempty"` // 受けたとき: aiwire.DeliversNow・aiwire.DeliversNextCall・aiwire.DeliversUnknown
 	Reason   string `json:"reason,omitempty"`
 	Detail   string `json:"detail,omitempty"`
+	// Result は、返事を受けたレシーバーの結果（返事のときだけ）
+	Result json.RawMessage `json:"result,omitempty"`
 }
 
 // deliversTo は、参加者 id に受けた AI 間メッセージが、いつ渡るか（h.mu を持って呼ぶ）
@@ -87,70 +92,99 @@ func (h *Hub) occupants(records []participantRecord) map[string]string {
 	return occupant
 }
 
-// payloadDeliveries は、アクションバルクが返した matomezu ペイロード payloads を、行った者から送る封筒にする（h.mu を持って呼ぶ）。
-// 行ったのが、画面の利用者（byWindow）でも、参加の確定した AI でもなければ、バルクを断る答えを返す（常駐が利用者として行うアクションは送れない）。
-// 送り先のワークルームに参加の確定したほかの参加者がいない（Participant を書いたなら、その参加者でない）とき、
-// NoRecipient が skip のその 1 通は送らず、ほかはバルクを断る答えを返す。AI ラリーの上限を超える物も同じに扱う（送り先には止めた事を知らせる。rally.go）。
-// 利用者が送り手の物は、利用者の頼みの印を付け、AI ラリーに数えない
-func (h *Hub) payloadDeliveries(payloads []engine.Payload, actor *engine.Actor, byWindow bool, now time.Time) ([]delivery, *Performed) {
+// payloadDeliveries は、アクションバルクが返した matomezu ペイロード payloads を、行った者（AI なら参加者 participant）から送る封筒と、あとで行うレシーバー宛ての 1 通にする（h.mu を持って呼ぶ）。
+// 行ったのが、画面の利用者（sc.byWindow）でも、参加の確定した AI でもなければ、バルクを断る答えを返す（常駐が利用者として行うアクションは送れない）。
+// ワークルーム宛てで、参加の確定したほかの参加者がいない（レシーバーの run が返した物は、行った AI 自身でもよい。Participant を書いたなら、その参加者でない）とき、AI ラリーの上限を超えるとき、
+// レシーバー宛てで段数の上限か、1 つの頼みから広がるレシーバーの数の上限（receivesMax）を超えるとき、NoRecipient が skip のその 1 通は送らず、ほかはバルクを断る答えを返す（AI ラリーなら送り先には止めた事を知らせる。rally.go）。
+// 利用者が送り手の物は、利用者の頼みの印を付け、AI ラリーに数えない。レシーバーの run が、行った AI 自身に返した物も、AI ラリーに数えない
+func (h *Hub) payloadDeliveries(payloads []engine.Payload, actor *engine.Actor, participant string, sc sendChain, now time.Time) ([]delivery, []pendingReceive, *Performed) {
 	if len(payloads) == 0 {
-		return nil, nil
+		return nil, nil, nil
+	}
+	if sc.spent == nil {
+		sc.spent = new(int)
 	}
 	fromUser := actor == nil || actor.Kind != "ai"
-	if fromUser && !byWindow {
-		return nil, &Performed{OK: false, Reason: "refused", Detail: "only the user on a screen or an AI whose request to join was accepted sends payloads"}
+	if fromUser && !sc.byWindow {
+		return nil, nil, &Performed{OK: false, Reason: "refused", Detail: "only the user on a screen or an AI whose request to join was accepted sends payloads"}
 	}
 	if !fromUser && actor.Workroom == "" {
-		return nil, &Performed{OK: false, Reason: "not-joined", Detail: "only an AI whose request to join was accepted sends AI messages"}
+		return nil, nil, &Performed{OK: false, Reason: "not-joined", Detail: "only an AI whose request to join was accepted sends AI messages"}
 	}
 	records, err := h.participantsHeld()
 	if err != nil {
-		return nil, &Performed{OK: false, Reason: "refused", Detail: err.Error()}
+		return nil, nil, &Performed{OK: false, Reason: "refused", Detail: err.Error()}
 	}
 	rooms, err := h.workroomsHeld()
 	if err != nil {
-		return nil, &Performed{OK: false, Reason: "refused", Detail: err.Error()}
+		return nil, nil, &Performed{OK: false, Reason: "refused", Detail: err.Error()}
 	}
 	occupant := h.occupants(records)
 	from, fromRoom, asUser := "", "", true
+	sender := engine.PayloadSender{Kind: "user"}
 	if !fromUser {
 		from = occupant[actor.Workroom]
 		if from == "" {
-			return nil, &Performed{OK: false, Reason: "not-joined", Detail: "only an AI whose request to join was accepted sends AI messages"}
+			return nil, nil, &Performed{OK: false, Reason: "not-joined", Detail: "only an AI whose request to join was accepted sends AI messages"}
 		}
 		fromRoom = actor.Workroom
 		asUser = h.adminWorkroomHeld(actor.Workroom)
+		sender = engine.PayloadSender{Kind: "ai", Workroom: roomName(rooms, fromRoom)}
 	}
 	self := h.selfHostID()
 	envelopes := make([]delivery, 0, len(payloads))
+	var receives []pendingReceive
 	ahead := map[string]int{} // 送り先の参加者ごとの、このバルクで先に送る数
 	for _, m := range payloads {
+		if m.To.Receiver != "" {
+			hops := 0
+			if sc.inReceiver {
+				hops = sc.hops + 1
+			}
+			over := ""
+			switch {
+			case hops > hopLimit:
+				over = hopLimitDetail(m.To.Receiver)
+			case *sc.spent+len(receives) >= receivesMax:
+				over = receivesMaxDetail(m.To.Receiver)
+			}
+			if over != "" {
+				if m.NoRecipient == "skip" {
+					continue
+				}
+				return nil, nil, &Performed{OK: false, Reason: "hop-limit", Detail: over}
+			}
+			receives = append(receives, pendingReceive{envelope: m.ID, to: engine.ReceiverDestination{Receiver: m.To.Receiver, On: m.To.On}, args: m.Args,
+				participant: participant, from: sender, hops: hops, fromWindow: fromUser, spent: sc.spent, undelivered: m.Undelivered})
+			continue
+		}
 		room := roomIDByName(rooms, m.To.Workroom)
 		to := occupant[room]
-		if room == "" || room == fromRoom || to == "" || (m.To.Participant != "" && m.To.Participant != to) {
+		if room == "" || (room == fromRoom && !sc.inReceiver) || to == "" || (m.To.Participant != "" && m.To.Participant != to) {
 			if m.NoRecipient == "skip" {
 				continue
 			}
-			return nil, &Performed{OK: false, Reason: "no-recipient", Detail: "no other AI has joined the workroom " + m.To.Workroom + " now, so the payload to it cannot be sent; nothing was changed"}
+			return nil, nil, &Performed{OK: false, Reason: "no-recipient", Detail: "no other AI has joined the workroom " + m.To.Workroom + " now, so the payload to it cannot be sent; nothing was changed"}
 		}
-		d := delivery{to: to, from: from, asUser: asUser, fromUser: fromUser, envelope: Envelope{
+		d := delivery{to: to, from: from, asUser: asUser && to != from, fromUser: fromUser, unrallied: to == from, reply: m.ReplyReceiver, envelope: Envelope{
 			ID:     newEnvelopeID(),
 			From:   Address{Host: self, Workroom: roomName(rooms, fromRoom)},
 			To:     Address{Host: self, Workroom: m.To.Workroom},
 			Text:   m.Text,
 			SentAt: storage.Stamp(now),
 		}}
-		if !fromUser && h.rallyOver(d, ahead[to]) {
+		if !fromUser && to != from && h.rallyOver(d, ahead[to]) {
 			h.rallyStop(d)
 			if m.NoRecipient == "skip" {
 				continue
 			}
-			return nil, &Performed{OK: false, Reason: "rally-limit", Detail: rallyStoppedDetail(m.To.Workroom, rallyLocalLimit) + "; nothing was changed"}
+			return nil, nil, &Performed{OK: false, Reason: "rally-limit", Detail: rallyStoppedDetail(m.To.Workroom, rallyLocalLimit) + "; nothing was changed"}
 		}
 		ahead[to]++
 		envelopes = append(envelopes, d)
 	}
-	return envelopes, nil
+	*sc.spent += len(receives)
+	return envelopes, receives, nil
 }
 
 // roomIDByName は、名前が name のワークルームの id（無ければ空）
@@ -165,6 +199,9 @@ func roomIDByName(rooms []workroomRecord, name string) string {
 
 // SendMessage は、参加者 req.Participant から、ワークルーム req.To の参加者へ AI 間メッセージを送る
 func (h *Hub) SendMessage(req MessageRequest, now time.Time) (MessageSent, error) {
+	if req.ReplyTo != "" {
+		return h.replyTo(req)
+	}
 	records, err := h.records()
 	if err != nil {
 		return MessageSent{}, err
@@ -242,9 +279,13 @@ type delivery struct {
 	from     string // 送り手の参加者の id（ほかのホストから届いた物は空）
 	host     string // 送り手のホストエイリアス（同じホストの中なら空）
 	peer     string // 送り手のホスト id（同じホストの中なら空）
-	asUser   bool   // 利用者の頼みの印を付けるか（送り手のホストの requests が as-user か、送り手がこのホストの管理者か利用者）
+	asUser   bool   // 利用者の頼みの印を付けるか（送り手のホストの requests が as-user か、送り手がこのホストの管理者か利用者。管理者のレシーバーが行った AI 自身へ送る物には付けない）
 	fromUser bool   // 送り手が画面の利用者か（AI ラリーに数えず、送り先の AI ラリーの数を 0 に戻す）
-	limit    int    // ほかのホストから届いた物の、AI ラリーの上限（送り手のホストの rallyLimit）
+	// unrallied は、レシーバーの run が、行った AI 自身に返した物か（AI とレシーバーの往復は、AI ラリーに数えない）
+	unrallied bool
+	// reply は、返事を受けるレシーバー（このホストのアクションが返した、replyReceiver を書いた matomezu ペイロードだけ。封筒には載せず、ほかのホストへは運ばない。receiver.go）
+	reply *engine.ReceiverDestination
+	limit     int // ほかのホストから届いた物の、AI ラリーの上限（送り手のホストの rallyLimit）
 }
 
 // senderHeld は、参加者 participant が送り手になれるなら、その参加者のレコード。なれなければ断る答え（h.mu を持って呼ぶ）
@@ -296,10 +337,11 @@ func (h *Hub) deliver(d delivery) bool {
 			h.rallyReset(d.to, joined)
 		}
 		head := userPayloadHead()
-		h.enqueueWake(wakeItem{participant: d.to, kind: wakeMessage, line: head + " " + quote(e.Text), head: head, body: quote(e.Text), asUser: true})
+		body := h.replyBody(d)
+		h.enqueueWake(wakeItem{participant: d.to, kind: wakeMessage, line: head + " " + body, head: head, body: body, asUser: true})
 		return true
 	}
-	if !h.rallyPasses(d) {
+	if !d.unrallied && !h.rallyPasses(d) {
 		return false
 	}
 	h.markSeenHeld(e.ID)
@@ -307,7 +349,8 @@ func (h *Hub) deliver(d delivery) bool {
 	if d.peer != "" {
 		head = remoteMessageHead(e.From.Workroom, d.host, d.asUser)
 	}
-	h.enqueueWake(wakeItem{participant: d.to, kind: wakeMessage, line: head + " " + quote(e.Text), head: head, body: quote(e.Text), peer: d.peer, asUser: d.asUser})
+	body := h.replyBody(d)
+	h.enqueueWake(wakeItem{participant: d.to, kind: wakeMessage, line: head + " " + body, head: head, body: body, peer: d.peer, asUser: d.asUser})
 	h.addPendingHeld(d)
 	return true
 }

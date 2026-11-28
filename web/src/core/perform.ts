@@ -16,8 +16,11 @@ import {
   type AIEditTicketChange,
   type Declined,
   type Done,
+  isReceiverPayload,
   type OtherRecord,
   type Payload,
+  type ReceiverDestination,
+  type Receives,
   type RefreshRequest,
   type SubjectData,
   takesBook,
@@ -188,6 +191,16 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
 ): Performed<Id, S> {
   const action: ActionDef | undefined = ctx.catalog.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
+  // レシーバーは、届いた 1 通からだけ行う（AI や画面が直に行えば、届いた 1 通のふりになる）
+  if (action.receives && !ctx.received)
+    return {
+      ok: false,
+      reason: "refused",
+      detail: "this action only receives payloads; answer a message that asks for a reply with send_message replyTo",
+    }
+  // 届いた 1 通からは、レシーバーだけを行う
+  if (!action.receives && ctx.received)
+    return { ok: false, reason: "refused", detail: `${id} is not an action that receives payloads` }
   if (action.target === "page" || action.target === "annotations") {
     const at = subject as PageAt
     if (at.book === NOT_IN_BOOK) return performOutsidePage(action, at, args, ctx) as Performed<Id, S>
@@ -254,6 +267,8 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
   const payloads = isRecordTarget(ctx.catalog, action.target) ? (ran.payloads ?? []) : []
   if (payloads.length > 0 && isAI(ctx.actor) && workroomOfActor(ctx.actor) === NO_WORKROOM)
     return { ok: false, reason: "refused", detail: "only the user or an AI in a workroom sends payloads" }
+  const unreceived = payloads.map(p => payloadRefusal(ctx.catalog, p)).find(d => d !== null)
+  if (unreceived) return { ok: false, reason: "refused", detail: unreceived }
   // リフレッシュリクエストは、書庫かレコードが対象のアクションで、行う者がワークルームに入っている AI のときだけ
   const refresh =
     action.target === "library" || isRecordTarget(ctx.catalog, action.target) ? ran.refreshRequest : undefined
@@ -283,6 +298,17 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
     ...(payloads.length > 0 ? { payloads } : {}),
     ...(refresh ? { refreshRequest: refresh } : {}),
   } as Performed<Id, S>
+}
+
+// matomezu ペイロード p の送り先と返事・届かなかった結果の先が、その印を持つレシーバーでなければ（レシーバー宛てなら、封筒の id が空でも）、AI への説明
+function payloadRefusal(catalog: CoreCatalog, p: Payload): string | null {
+  const not = (to: ReceiverDestination | undefined, receives: Receives): string | null =>
+    to === undefined || catalog.actions.get(to.receiver)?.receives === receives
+      ? null
+      : `the payload names ${to.receiver}, which is not an action that receives ${receives}`
+  if (!isReceiverPayload(p)) return not(p.replyReceiver, "messages")
+  if (p.id === "") return `the payload to ${p.to.receiver} has no id`
+  return not(p.to, "messages") ?? not(p.undelivered, "undelivered")
 }
 
 // 書庫を was から next に変えるアクション action の結果の確かめ（書庫が対象のアクションと、ブックの外のバインダに行った、ブックが対象のアクションで同じ決まりを使う）。

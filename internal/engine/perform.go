@@ -38,6 +38,8 @@ type Input struct {
 	Counters map[string]map[string]int64           `json:"counters,omitempty"`
 	// Actor は頼んだ者（無ければ利用者）。AI は入っているワークルームの id を Workroom に持つ（空なら参加が確定していない）
 	Actor *Actor `json:"actor,omitempty"`
+	// Received は、レシーバーを届いた 1 通から行うときだけの、その 1 通（バルクはそのレシーバー 1 つ）
+	Received *Received `json:"received,omitempty"`
 	// TimeoutSec は、アクションを待つ秒数（0 なら DefaultTimeoutSec。MaxTimeoutSec まで）。超えたら打ち切って断る
 	TimeoutSec int `json:"-"`
 	// Watched は、利用者が直している物（ブックの id → 物の id。編集ロック）。AI のアクションと lockedForUser のアクションが変えるか消すなら、エンジンが being-edited で断る
@@ -119,17 +121,43 @@ type HostMessage struct {
 	Text     string `json:"text"`
 }
 
-// Destination は、matomezu ペイロードの送り先: このホストの、名前が Workroom のワークルーム（Participant を書けば、その参加者が今そこに入っているときだけ）
+// Destination は、matomezu ペイロードの送り先: このホストの、名前が Workroom のワークルーム（Participant を書けば、その参加者が今そこに入っているときだけ）か、
+// レシーバー Receiver（アクションの id）をレコード On に行う物（On が空なら、レコードを作る形で行う）
 type Destination struct {
-	Workroom    string `json:"workroom"`
+	Workroom    string `json:"workroom,omitempty"`
 	Participant string `json:"participant,omitempty"`
+	Receiver    string `json:"receiver,omitempty"`
+	On          string `json:"on,omitempty"`
 }
 
-// Payload は、アクションが送る matomezu ペイロード 1 通（送り手は行った者）
+// ReceiverDestination は、レシーバーの送り先（返事を受ける先・届かなかった結果を受ける先）
+type ReceiverDestination struct {
+	Receiver string `json:"receiver"`
+	On       string `json:"on,omitempty"`
+}
+
+// Payload は、アクションが送る matomezu ペイロード 1 通（送り手は行った者）。ワークルーム宛てなら Text と ReplyReceiver、レシーバー宛てなら ID・Args・Undelivered
 type Payload struct {
-	To          Destination `json:"to"`
-	Text        string      `json:"text"`
-	NoRecipient string      `json:"noRecipient,omitempty"` // 送り先に届けられないとき: refuse（空のとき）はバルクを断る、skip はその 1 通を送らない
+	To            Destination          `json:"to"`
+	Text          string               `json:"text,omitempty"`
+	NoRecipient   string               `json:"noRecipient,omitempty"` // 届けられないとき: refuse（空のとき）はバルクを断る、skip はその 1 通を送らない
+	ReplyReceiver *ReceiverDestination `json:"replyReceiver,omitempty"`
+	ID            string               `json:"id,omitempty"`
+	Args          json.RawMessage      `json:"args,omitempty"`
+	Undelivered   *ReceiverDestination `json:"undelivered,omitempty"`
+}
+
+// Received は、レシーバーを、届いた 1 通から行うときの、その 1 通（core の Received）
+type Received struct {
+	Envelope  string        `json:"envelope"`
+	From      PayloadSender `json:"from"`
+	InReplyTo string        `json:"inReplyTo,omitempty"`
+}
+
+// PayloadSender は、レシーバーが受けた 1 通の送り手（Kind は user・ai・matomezu。ai なら Workroom にワークルームの名前）
+type PayloadSender struct {
+	Kind     string `json:"kind"`
+	Workroom string `json:"workroom,omitempty"`
 }
 
 // RowChange は、変わったページ・フォルダ 1 つ（Row は新しい本文。無くなったなら Removed）

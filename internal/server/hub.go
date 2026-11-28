@@ -127,6 +127,8 @@ type Hub struct {
 	lentWakes        []string                  // 通り道に貸した知らせの文の、新しい物（watch.go の WokenBy が照らす）
 	seenEnvelopes    map[string]bool           // 行列に入れた AI 間メッセージの封筒の id（message.go。二度入れない）
 	seenOrder        []string                  // seenEnvelopes に入れた順（古い物から忘れる）
+	replies          map[string]replyWait      // 返事を待つ AI 宛ての封筒の id → 返事を受けるレシーバーと受けた参加者（receiver.go）
+	replyOrder       []string                  // replies に入れた順（古い物から忘れる）
 	rallies          map[rallyKey]int          // AI ラリーの向き → 利用者トリガートークの後に起こした数（rally.go）
 	ralliesStopped   map[rallyKey]bool         // 上限で止め、送り先に知らせた AI ラリーの向き（rally.go）
 	ralliesSent      map[rallySentKey]int      // ほかのホストへ送った向き → 送り手の利用者トリガートークの後に送った数（rally.go）

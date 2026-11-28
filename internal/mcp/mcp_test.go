@@ -472,6 +472,28 @@ func TestSendMessagePassesToAndText(t *testing.T) {
 	}
 }
 
+// send_message の replyTo は、args だけを常駐に渡し、レシーバーの結果を返す。to・host・text と一緒なら、常駐に渡さずに bad-args
+func TestSendMessageReplyTo(t *testing.T) {
+	api := &fakeAPI{answer: `{"ok":true,"result":{"count":5}}`}
+	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"replyTo":"e1","args":{"n":5}}}}`)
+	if len(api.posts) != 1 || !strings.Contains(api.posts[0], `"replyTo":"e1"`) || !strings.Contains(api.posts[0], `"args":{"n":5}`) || strings.Contains(api.posts[0], `"to"`) ||
+		textOf(got[0]) != `{"ok":true,"result":{"count":5}}` {
+		t.Fatalf("posted = %v, answered = %v", api.posts, got[0])
+	}
+	for _, extra := range []string{`"to":"すずめ"`, `"text":"hi"`, `"host":"h"`} {
+		api = &fakeAPI{}
+		got = talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"replyTo":"e1","args":{},`+extra+`}}}`)
+		if len(api.posts) != 0 || !strings.HasPrefix(textOf(got[0]), "bad-args: ") {
+			t.Fatalf("%s: posted = %v, answered = %v", extra, api.posts, got[0])
+		}
+	}
+	api = &fakeAPI{}
+	got = talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"すずめ"}}}`)
+	if len(api.posts) != 0 || !strings.HasPrefix(textOf(got[0]), "bad-args: ") {
+		t.Fatalf("no text: posted = %v, answered = %v", api.posts, got[0])
+	}
+}
+
 func TestActionsTakesIDsAndAsksForThoseEntries(t *testing.T) {
 	api := &fakeAPI{}
 	talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"actions","arguments":{"ids":["a","b"]}}}`)

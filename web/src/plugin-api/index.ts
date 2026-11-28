@@ -52,10 +52,18 @@ export type {
   Destination,
   NoRecipient,
   Payload,
+  PayloadSender,
+  Received,
+  ReceiverDestination,
+  ReceiverPayload,
+  Receives,
   RecordOf,
   RecordRead,
+  Undelivered,
+  WorkroomDestination,
+  WorkroomPayload,
 } from "../core/def/action"
-export { ANY_PAGE_TYPE, NO_CONTROL_CENTER } from "../core/def/action"
+export { ANY_PAGE_TYPE, isReceiverPayload, NO_CONTROL_CENTER, UNDELIVERED_ARGS } from "../core/def/action"
 export type { AnnotationDef } from "../core/def/annotation"
 export type { EnumDef, EnumValueDef } from "../core/def/enum"
 export type {

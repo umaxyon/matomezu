@@ -32,12 +32,14 @@ function aiTables(of: Assembled) {
   const en = (key: string) => translate(catalog.messages, "en", key as never)
   return {
     actions: [...catalog.actions.values()]
-      .filter(a => !a.userOnly)
+      // 届かなかった結果を受けるレシーバーは、AI からは使えない（返事を受けるレシーバーは、send_message の replyTo の args の形を見せるために出す）
+      .filter(a => !a.userOnly && a.receives !== "undelivered")
       .map(a => ({
         id: a.id,
         target: a.target,
         title: en(a.title),
         description: a.aiDescription,
+        ...(a.receives ? { receives: a.receives } : {}),
         args: z.toJSONSchema(a.describeArgs?.(catalog) ?? a.args, { io: "input", unrepresentable: "any" }),
       })),
     pageTypes: [...catalog.pageTypes.values()].map(t => ({

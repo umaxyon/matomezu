@@ -60,6 +60,7 @@ export const ERRORS = {
   E080: "follow steps make a loop ({loop}): a follow step cannot come back to a kind it changed",
   E081: "action {id}: runsBetweenHosts {role} is named by {other} too",
   E082: "action {id}: runsBetweenHosts needs userOnly (matomezu does it as the user)",
+  E083: "action {id}: receives is only for an action whose target is a subject",
   E062: "pageType {id}: settings has {setting}, which is not a page setting (its holder is not page)",
   E063: 'action {id}: its permissionScope is "book" (no page named), so its attach cannot have {attach} (they depend on a page type)',
   E064: "setting {id}: a page or outermost setting needs holder (page or outermost)",
