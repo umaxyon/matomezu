@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/umaxyon/matomezu/internal/engine"
+	"github.com/umaxyon/matomezu/internal/storage"
 )
 
 // 続けて決める時点は、時計が後ろへ戻っても同じ時点でも、前の時点の 1ms 後になり、時計が前の時点を越えたら時計のまま（ミリ秒まで）
@@ -20,6 +21,27 @@ func TestLaterThanNeverGoesBack(t *testing.T) {
 	} {
 		if got := laterThan(last, c.now); !got.Equal(c.want) {
 			t.Fatalf("laterThan(%v, %v) = %v, want %v", last, c.now, got, c.want)
+		}
+	}
+}
+
+// 最後に呼ばれた時刻は、時計が後ろへ戻っても前の時刻のまま。初めてのときと、時計が前の時刻より後のときは時計の時刻
+func TestCalledAtNeverGoesBack(t *testing.T) {
+	t.Parallel()
+	last := time.Date(2026, 11, 18, 1, 0, 10, 0, time.UTC)
+	before := storage.Stamp(last)
+	for _, c := range []struct {
+		before string
+		now    time.Time
+		want   string
+	}{
+		{before, last.Add(-1500 * time.Millisecond), before},
+		{before, last, before},
+		{before, last.Add(2 * time.Second), storage.Stamp(last.Add(2 * time.Second))},
+		{"", last, before},
+	} {
+		if got := calledAt(c.before, c.now); got != c.want {
+			t.Fatalf("calledAt(%q, %v) = %q, want %q", c.before, c.now, got, c.want)
 		}
 	}
 }

@@ -18,8 +18,6 @@ package server
 import (
 	"strings"
 	"time"
-
-	"github.com/umaxyon/matomezu/internal/storage"
 )
 
 // Welcome は、フックが利用者に伝える「参加しました」の 1 人分
@@ -142,7 +140,7 @@ func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk
 			if s.accepted() && !n.Told {
 				n.Told = true
 				n.Carried = false
-				n.Called = storage.Stamp(time.Now())
+				n.Called = calledAt(n.Called, time.Now())
 				h.participantNotes[s.ID] = n
 				changed = true
 				toldIDs = append(toldIDs, s.ID)
@@ -166,7 +164,7 @@ func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk
 				continue
 			}
 			before, _ := time.Parse(time.RFC3339Nano, n.Called)
-			n.Called = storage.Stamp(now)
+			n.Called = calledAt(n.Called, now)
 			h.participantNotes[s.ID] = n
 			if now.Sub(before) >= callsAnnounceGap {
 				changed = true
