@@ -118,15 +118,26 @@ export type AIEditTicketChange =
   | { book: string; key: string; outcome: "removed"; cause: AIEditTicketRemovedCause }
 export type AIEditTicketRemovedCause = "limit" | "user"
 
-// レコードが対象のアクションが送る AI 間メッセージ 1 通: 宛先のワークルームの id と文。送り手は行った参加者で、ここには書かない。
-// 返せるのは、行う者がワークルームに入っている AI のときだけ。常駐は、アクションバルクが通ったときだけ送る。
-// 宛先のワークルームに参加の確定したほかの参加者がいないとき、noRecipient が refuse（省いたとき）ならバルクごと断り（no-recipient）、skip ならその 1 通を送らないだけにする（送らなかったことは返さない）。AI ラリーの上限を超える 1 通も同じ（断るときは rally-limit）
-export interface AIMessage {
+// 送り先: matomezu ペイロードを届ける先。このホストの、名前が workroom のワークルームの AI。
+// participant（参加者の id）を書けば、その参加者が今そのワークルームに入っているときだけ届く（入れ替わった別の AI には届かない）
+export interface Address {
   workroom: string
-  text: string
-  noRecipient?: AIMessageNoRecipient
+  participant?: string
 }
-export type AIMessageNoRecipient = "refuse" | "skip"
+
+// 送り先に届けられないときの扱い: refuse はアクションバルクごと断り、skip はその 1 通を送らないだけにする（送らなかったことは返さない）
+export type NoRecipient = "refuse" | "skip"
+
+// レコードが対象のアクションが送る matomezu ペイロード 1 通: 送り先 to と文 text（AI に見せる英語）。送り手は行った者で、ここには書かない。
+// 返せるのは、行う者が利用者か、ワークルームに入っている AI のときだけ。常駐は、アクションバルクが通ったときだけ送る。
+// 利用者が画面で行ったアクションが送った物には、利用者の頼みの印が付く（常駐が利用者として行うアクションは送れない）。
+// 送り先のワークルームに参加の確定したほかの参加者がいないとき（participant を書いたなら、その参加者でないとき）、noRecipient が refuse（省いたとき）ならバルクごと断り（no-recipient）、
+// skip ならその 1 通を送らないだけにする。AI ラリーの上限を超える 1 通も同じ（断るときは rally-limit）
+export interface Payload {
+  to: Address
+  text: string
+  noRecipient?: NoRecipient
+}
 
 // レコードが対象のアクションが、宛先の 1 件のほかに変えるレコード 1 件（record は新しいレコードか、消すなら removed）。
 // subject を省けば、対象の種類 T のレコード。別の種類のレコードは subject に種類の id を書く（アクションの定義の writes に書いた種類だけ）
@@ -146,8 +157,8 @@ export interface Done<T extends ActionTarget, R, Sc = "book", Tk = unknown> {
       : never
   // レコードが対象のアクションだけが書ける、AI 編集チケットの変え方の並び（宛先と others の変えたレコードと同じ 1 回の書き込みで、順に当てる）
   aiEditTickets?: T extends SubjectId ? readonly AIEditTicketChange[] : never
-  // レコードが対象のアクションだけが書ける、送る AI 間メッセージの並び（AIMessage）
-  aiMessages?: T extends SubjectId ? readonly AIMessage[] : never
+  // レコードが対象のアクションだけが書ける、送る matomezu ペイロードの並び（Payload）
+  payloads?: T extends SubjectId ? readonly Payload[] : never
   // リフレッシュリクエスト（RefreshRequest）。書庫が対象のアクションとレコードが対象のアクションが書ける
   refreshRequest?: T extends SubjectId | "library" ? RefreshRequest : never
 }

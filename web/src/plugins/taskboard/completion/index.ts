@@ -3,7 +3,7 @@
 // 完了かどうかは、チケットのレーンが完了のレーンかで決まる（完了のレーンへ入れる道はこのアクションだけで、ほかの書き手は断る）。
 // AI が完了したら、管理者のワークルーム（自分でないとき）の AI に AI 間メッセージで知らせる（利用者が完了したときは知らせない）
 import { z as zod } from "zod"
-import { type Actor, type AIMessage, NO_WORKROOM, workroomOfActor } from "../../../plugin-api"
+import { type Actor, NO_WORKROOM, type Payload, workroomOfActor } from "../../../plugin-api"
 import { adminWorkroom, READS_ADMIN, READS_WORKROOM_KEYS } from "../../base"
 import { byOf, type Records, readsBy, workroomsOf } from "../by"
 import { kit } from "../kit"
@@ -13,17 +13,19 @@ import { TICKET, type Ticket } from "../ticket"
 import { ticketLabel } from "../ticket/label"
 import { HISTORY, TOPIC_COMPLETE } from "../ticket-history"
 
-// 管理者のワークルームの AI への知らせ（行う者がワークルームの AI で、管理者のワークルームが自分でないときだけ。宛先に AI がいなければ送らないだけ）
-function completedMessages(actor: Actor, ctx: Records, ticket: Ticket, project: Project): AIMessage[] {
+// 管理者のワークルームの AI への知らせ（行う者がワークルームの AI で、管理者のワークルームが自分でないときだけ。送り先に AI がいなければ送らないだけ）
+function completedMessages(actor: Actor, ctx: Records, ticket: Ticket, project: Project): Payload[] {
   const own = workroomOfActor(actor)
   if (own === NO_WORKROOM) return []
   const admin = adminWorkroom(ctx)
   if (admin === NO_WORKROOM || admin === own) return []
   const names = new Map(workroomsOf(ctx).map(w => [w.id, w.name]))
+  const adminName = names.get(admin)
+  if (adminName === undefined) return []
   const released = ticket.assignees.map(w => names.get(w) ?? w)
   return [
     {
-      workroom: admin,
+      to: { workroom: adminName },
       text: `The ticket ${ticketLabel(project.prefix, ticket.number)} "${ticket.name}" (${ticket.id}) was completed${
         released.length > 0 ? `; released: ${released.join(", ")}` : ""
       }.`,
@@ -75,7 +77,7 @@ export const TICKET_COMPLETE = kit.defineAction({
         },
       ],
       result: { lane: project.doneLane, released: now.assignees },
-      ...(messages.length > 0 ? { aiMessages: messages } : {}),
+      ...(messages.length > 0 ? { payloads: messages } : {}),
     }
   },
 })

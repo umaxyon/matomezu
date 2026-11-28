@@ -87,14 +87,20 @@ func (h *Hub) occupants(records []participantRecord) map[string]string {
 	return occupant
 }
 
-// actionEnvelopes は、アクションバルクが返した AI 間メッセージ messages を、行った参加者から送る封筒にする（h.mu を持って呼ぶ）。
-// 行ったのが参加の確定した AI でなければ、バルクを断る答えを返す。宛先が自分のワークルームか、宛先のワークルームに参加の確定した参加者がいなければ、
-// noRecipient が skip のその 1 通は送らず、ほかはバルクを断る答えを返す。AI ラリーの上限を超える物も同じに扱う（宛て先には止めた事を知らせる。rally.go）
-func (h *Hub) actionEnvelopes(messages []engine.AIMessage, actor *engine.Actor, now time.Time) ([]delivery, *Performed) {
-	if len(messages) == 0 {
+// payloadDeliveries は、アクションバルクが返した matomezu ペイロード payloads を、行った者から送る封筒にする（h.mu を持って呼ぶ）。
+// 行ったのが、画面の利用者（byWindow）でも、参加の確定した AI でもなければ、バルクを断る答えを返す（常駐が利用者として行うアクションは送れない）。
+// 送り先のワークルームに参加の確定したほかの参加者がいない（Participant を書いたなら、その参加者でない）とき、
+// NoRecipient が skip のその 1 通は送らず、ほかはバルクを断る答えを返す。AI ラリーの上限を超える物も同じに扱う（宛て先には止めた事を知らせる。rally.go）。
+// 利用者が送り手の物は、利用者の頼みの印を付け、AI ラリーに数えない
+func (h *Hub) payloadDeliveries(payloads []engine.Payload, actor *engine.Actor, byWindow bool, now time.Time) ([]delivery, *Performed) {
+	if len(payloads) == 0 {
 		return nil, nil
 	}
-	if actor == nil || actor.Kind != "ai" || actor.Workroom == "" {
+	fromUser := actor == nil || actor.Kind != "ai"
+	if fromUser && !byWindow {
+		return nil, &Performed{OK: false, Reason: "refused", Detail: "only the user on a screen or an AI whose request to join was accepted sends payloads"}
+	}
+	if !fromUser && actor.Workroom == "" {
 		return nil, &Performed{OK: false, Reason: "not-joined", Detail: "only an AI whose request to join was accepted sends AI messages"}
 	}
 	records, err := h.participantsHeld()
@@ -106,44 +112,55 @@ func (h *Hub) actionEnvelopes(messages []engine.AIMessage, actor *engine.Actor, 
 		return nil, &Performed{OK: false, Reason: "refused", Detail: err.Error()}
 	}
 	occupant := h.occupants(records)
-	from := occupant[actor.Workroom]
-	if from == "" {
-		return nil, &Performed{OK: false, Reason: "not-joined", Detail: "only an AI whose request to join was accepted sends AI messages"}
+	from, fromRoom, asUser := "", "", true
+	if !fromUser {
+		from = occupant[actor.Workroom]
+		if from == "" {
+			return nil, &Performed{OK: false, Reason: "not-joined", Detail: "only an AI whose request to join was accepted sends AI messages"}
+		}
+		fromRoom = actor.Workroom
+		asUser = h.adminWorkroomHeld(actor.Workroom)
 	}
 	self := h.selfHostID()
-	adminSender := h.adminWorkroomHeld(actor.Workroom)
-	envelopes := make([]delivery, 0, len(messages))
+	envelopes := make([]delivery, 0, len(payloads))
 	ahead := map[string]int{} // 宛て先の参加者ごとの、このバルクで先に送る数
-	for _, m := range messages {
-		to := occupant[m.Workroom]
-		name := roomName(rooms, m.Workroom)
-		if m.Workroom == actor.Workroom || to == "" {
+	for _, m := range payloads {
+		room := roomIDByName(rooms, m.To.Workroom)
+		to := occupant[room]
+		if room == "" || room == fromRoom || to == "" || (m.To.Participant != "" && m.To.Participant != to) {
 			if m.NoRecipient == "skip" {
 				continue
 			}
-			if name == "" {
-				name = m.Workroom
-			}
-			return nil, &Performed{OK: false, Reason: "no-recipient", Detail: "no other AI has joined the workroom " + name + " now, so the message to it cannot be sent; nothing was changed"}
+			return nil, &Performed{OK: false, Reason: "no-recipient", Detail: "no other AI has joined the workroom " + m.To.Workroom + " now, so the payload to it cannot be sent; nothing was changed"}
 		}
-		d := delivery{to: to, from: from, asUser: adminSender, envelope: Envelope{
+		d := delivery{to: to, from: from, asUser: asUser, fromUser: fromUser, envelope: Envelope{
 			ID:     newEnvelopeID(),
-			From:   Address{Host: self, Workroom: roomName(rooms, actor.Workroom)},
-			To:     Address{Host: self, Workroom: name},
+			From:   Address{Host: self, Workroom: roomName(rooms, fromRoom)},
+			To:     Address{Host: self, Workroom: m.To.Workroom},
 			Text:   m.Text,
 			SentAt: storage.Stamp(now),
 		}}
-		if h.rallyOver(d, ahead[to]) {
+		if !fromUser && h.rallyOver(d, ahead[to]) {
 			h.rallyStop(d)
 			if m.NoRecipient == "skip" {
 				continue
 			}
-			return nil, &Performed{OK: false, Reason: "rally-limit", Detail: rallyStoppedDetail(name, rallyLocalLimit) + "; nothing was changed"}
+			return nil, &Performed{OK: false, Reason: "rally-limit", Detail: rallyStoppedDetail(m.To.Workroom, rallyLocalLimit) + "; nothing was changed"}
 		}
 		ahead[to]++
 		envelopes = append(envelopes, d)
 	}
 	return envelopes, nil
+}
+
+// roomIDByName は、名前が name のワークルームの id（無ければ空）
+func roomIDByName(rooms []workroomRecord, name string) string {
+	for _, r := range rooms {
+		if r.Name == name {
+			return r.ID
+		}
+	}
+	return ""
 }
 
 // SendMessage は、参加者 req.Participant から、ワークルーム req.To の参加者へ AI 間メッセージを送る
@@ -225,7 +242,8 @@ type delivery struct {
 	from     string // 送り手の参加者の id（ほかのホストから届いた物は空）
 	host     string // 送り手のホストエイリアス（同じホストの中なら空）
 	peer     string // 送り手のホスト id（同じホストの中なら空）
-	asUser   bool   // 送り手のホストの requests が as-user
+	asUser   bool   // 利用者の頼みの印を付けるか（送り手のホストの requests が as-user か、送り手がこのホストの管理者か利用者）
+	fromUser bool   // 送り手が画面の利用者か（AI ラリーに数えず、宛て先の AI ラリーの数を 0 に戻す）
 	limit    int    // ほかのホストから届いた物の、AI ラリーの上限（送り手のホストの rallyLimit）
 }
 
@@ -266,6 +284,21 @@ func (h *Hub) deliver(d delivery) bool {
 	if h.seenEnvelopes[e.ID] {
 		return true
 	}
+	if d.fromUser {
+		h.markSeenHeld(e.ID)
+		if records, err := h.participantsHeld(); err == nil {
+			joined := map[string]bool{}
+			for _, r := range records {
+				if r.accepted() {
+					joined[r.ID] = true
+				}
+			}
+			h.rallyReset(d.to, joined)
+		}
+		head := userPayloadHead()
+		h.enqueueWake(wakeItem{participant: d.to, kind: wakeMessage, line: head + " " + quote(e.Text), head: head, body: quote(e.Text), asUser: true})
+		return true
+	}
 	if !h.rallyPasses(d) {
 		return false
 	}
@@ -288,6 +321,11 @@ func messageHead(from string, asUser bool) string {
 		head += " " + asUserMark
 	}
 	return head + ":"
+}
+
+// userPayloadHead は、画面の利用者が行ったアクションが送った matomezu ペイロードの知らせの頭（送り手は利用者で、利用者の頼みの印を付ける）
+func userPayloadHead() string {
+	return "matomezu from the user " + asUserMark + ":"
 }
 
 // adminWorkroomHeld は、ワークルーム id が、このホストの管理者のワークルームか（管理者の印が指す。同じホストの管理者の AI 間メッセージに利用者の頼みの印を付けるかに使う）。h.mu を持って呼ぶ

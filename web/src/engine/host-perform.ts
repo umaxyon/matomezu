@@ -9,7 +9,7 @@ import type { CoreCatalog } from "../core/core-catalog"
 import {
   type ActionOn,
   type AIEditTicketChange,
-  type AIMessage,
+  type Payload,
   type RefreshRequest,
   stopsOnEditLock,
 } from "../core/def/action"
@@ -77,7 +77,7 @@ type Output =
       counters?: Counters
       notice?: string
       aiEditTickets?: readonly (AIEditTicketChange & { subject: string })[] // subject は、その変え方を返したアクションの対象の種類
-      aiMessages?: readonly AIMessage[] // 送る AI 間メッセージ（常駐が、宛先に参加の確定した参加者がいるかを確かめ、書き込みと一緒に送る）
+      payloads?: readonly Payload[] // 送る matomezu ペイロード（常駐が、送り先に参加の確定した参加者がいるかを確かめ、書き込みと一緒に送る）
       refreshRequest?: RefreshRequest // リフレッシュリクエスト（常駐が、書き込みが通ったら行った参加者に覚える）
       hostMessages?: readonly HostMessage[] // 送る常駐メッセージ（常駐が、宛先に参加の確定した参加者がいて、行った参加者のワークルームでなければ送る）
     }
@@ -231,7 +231,7 @@ export function perform(of: Assembled, input: Input): Output {
     ...(done.aiEditTickets
       ? { aiEditTickets: done.aiEditTickets.map(t => ({ ...t.change, subject: t.subject })) }
       : {}),
-    ...(done.aiMessages ? { aiMessages: done.aiMessages } : {}),
+    ...(done.payloads ? { payloads: done.payloads } : {}),
     ...(done.refreshRequest ? { refreshRequest: done.refreshRequest } : {}),
     ...(done.hostMessages ? { hostMessages: done.hostMessages } : {}),
   }

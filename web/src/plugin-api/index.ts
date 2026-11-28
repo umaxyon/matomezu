@@ -48,9 +48,10 @@ export { pageType } from "../core/core-catalog"
 export type {
   ActionContext,
   ActionDef,
-  AIMessage,
-  AIMessageNoRecipient,
+  Address,
   Declined,
+  NoRecipient,
+  Payload,
   RecordOf,
   RecordRead,
 } from "../core/def/action"
