@@ -76,7 +76,7 @@ export function NetworkCategory() {
         </p>
       )}
       {status.failed === "listen" && <p className={styles.note}>{t("Could not open the entrance for other hosts")}</p>}
-      {status.wslProxy !== NO_WSL_PROXY && <WslProxyNote status={status} />}
+      <WslProxyNote status={status} />
       {status.wsl && status.port !== NO_PORT && status.wslProxy !== "running" && <WslGuide port={status.port} />}
     </>
   )

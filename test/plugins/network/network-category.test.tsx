@@ -172,6 +172,46 @@ test("覚えたポートが使われていれば［別のポートにする］�
   expect(screen.getByRole("tabpanel", { name: "ネットワーク" })).toBeTruthy()
 })
 
+test("WSLプロキシが止まれば［立て直す］で立て直しを頼み、Windows でポートが使われていれば［別のポートにする］の確かめから取り直しを頼む", async () => {
+  const asked: unknown[] = []
+  const store = createMatomezu({
+    controlCenter: CONTROL_CENTER.id,
+    books: [],
+    lang: "ja",
+    plugins: BUILTIN_UI,
+    hostsHost: {
+      ask: async r => {
+        if (r.kind === "restart-wsl-proxy" || r.kind === "repick-port") asked.push(r)
+      },
+    },
+  })
+  render(
+    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
+      <WindowRoot />
+    </MatomezuProvider>,
+  )
+  const proxy = (wslProxy: HostStatus["wslProxy"]) =>
+    act(() =>
+      store.setHostStatus({ hostId: HOST_ID, name: "d", osHostName: "d", open: true, port: 7240, wsl: true, wslProxy }),
+    )
+  fireEvent.click(screen.getByRole("button", { name: "全体設定", hidden: true }))
+  fireEvent.click(screen.getByRole("tab", { name: "ネットワーク" }))
+  const panel = () => screen.getByRole("tabpanel", { name: "ネットワーク" })
+  fireEvent.click(within(panel()).getByRole("switch", { name: "ホストとつなぐ" }))
+  proxy("stopped")
+  await act(async () => {
+    fireEvent.click(within(panel()).getByRole("button", { name: "立て直す" }))
+  })
+  expect(asked).toEqual([{ kind: "restart-wsl-proxy" }])
+  proxy("port-in-use")
+  fireEvent.click(within(panel()).getByRole("button", { name: "別のポートにする" }))
+  const dialog = screen.getByRole("dialog", { name: "別のポートにする" })
+  await act(async () => {
+    fireEvent.click(within(dialog).getByRole("button", { name: "別のポートにする" }))
+  })
+  expect(asked).toEqual([{ kind: "restart-wsl-proxy" }, { kind: "repick-port" }])
+})
+
 test("AI 用ホストリストに載せるこのホストのワークルームは、つなぐが切でも［全部｜5 件］で選べ、全部に戻すと値を消す", () => {
   const { panel, value, stored } = openNetwork()
   const all = () => within(panel()).getByRole("radio", { name: "全部のワークルーム" }) as HTMLInputElement

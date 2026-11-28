@@ -67,6 +67,18 @@ func (f *fakeWSLProxy) launch() (peer.WSLProxyProcess, error) {
 	return peer.WSLProxyProcess{Stdin: inW, Stdout: outR}, nil
 }
 
+// started は、WSLプロキシが立てられるのを待つ（5 秒で来なければ落とす）
+func (f *fakeWSLProxy) started(t *testing.T) peer.WSLProxyStart {
+	t.Helper()
+	select {
+	case s := <-f.start:
+		return s
+	case <-time.After(5 * time.Second):
+		t.Fatal("the WSL proxy was not started")
+		return peer.WSLProxyStart{}
+	}
+}
+
 // quickRestarts は、WSLプロキシの立て直しの間を waits にする（テストのあいだだけ）
 func quickRestarts(t *testing.T, waits ...time.Duration) {
 	t.Helper()
@@ -201,22 +213,33 @@ func TestTheWSLProxyEndingDropsItsSightings(t *testing.T) {
 	}
 }
 
-// 待ち始めたあとで終わった WSLプロキシは、間を置いて立て直す（そのあいだは starting）。使い切ったら stopped で止まり、［立て直す］でまた立つ
+// 待ち始めたあとで終わった WSLプロキシは、間を置いて立て直す（そのあいだは starting）。使い切ったら stopped で止まり、［立て直す］でまた立つ。
+// ［立て直す］のあとと、入口を開き直したあとは、立て直しの数を数え直す
 func TestTheWSLProxyIsStartedAgainAfterItEnds(t *testing.T) {
 	quickRestarts(t, 20*time.Millisecond, 20*time.Millisecond)
-	f := scriptedWSLProxy(func(n int) ([]string, bool) { return []string{`{"v":1,"ready":true}`}, n <= 3 })
+	f := scriptedWSLProxy(func(n int) ([]string, bool) { return []string{`{"v":1,"ready":true}`}, n != 8 })
 	h, _, _ := openWSLHost(t, f)
-	for range 2 {
-		<-f.start
+	stopsAfter := func(starts int) {
+		t.Helper()
+		for range starts {
+			f.started(t)
+		}
+		s := waitHost(t, h, func(s HostStatus) bool { return s.WSLProxy == peer.WSLProxyStopped })
+		if !s.Open || len(f.start) != 0 {
+			t.Fatalf("status %+v, starts left %d", s, len(f.start))
+		}
 	}
-	s := waitHost(t, h, func(s HostStatus) bool { return s.WSLProxy == peer.WSLProxyStopped })
-	if !s.Open || len(f.start) != 0 {
-		t.Fatalf("status %+v, starts left %d", s, len(f.start))
-	}
+	stopsAfter(2) // 1 回目は openWSLHost が受けた。2・3 回目が立て直し
 	if err := h.RestartWSLProxy(); err != nil {
 		t.Fatal(err)
 	}
-	<-f.start
+	stopsAfter(3) // 4 回目が［立て直す］、5・6 回目が立て直し
+	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":false}`)
+	waitHost(t, h, func(s HostStatus) bool { return !s.Open })
+	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":true}`)
+	for range 2 { // 7 回目は開き直した入口で立てた物、8 回目がその立て直し
+		f.started(t)
+	}
 	waitHost(t, h, func(s HostStatus) bool { return s.WSLProxy == peer.WSLProxyRunning })
 	if err := h.RestartWSLProxy(); err == nil {
 		t.Fatal("a running WSL proxy was started again")
@@ -236,7 +259,7 @@ func TestRepickingThePortForTheWSLProxy(t *testing.T) {
 	if err := h.RepickHostPort(); err != nil {
 		t.Fatal(err)
 	}
-	again := <-f.start
+	again := f.started(t)
 	now := waitHost(t, h, func(s HostStatus) bool { return s.WSLProxy == peer.WSLProxyRunning })
 	if !now.Open || now.Port == s.Port || again.Port != now.Port {
 		t.Fatalf("before %d, now %+v, the WSL proxy asked for %d", s.Port, now, again.Port)
