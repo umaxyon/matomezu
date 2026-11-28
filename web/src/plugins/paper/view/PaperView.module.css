@@ -35,8 +35,8 @@
 .drawing[data-placing="true"] {
   cursor: copy;
 }
-/* 印刷区画 1 つのビューで、ページの原点から広げた紙（大きさはビューが決める） */
-.sheetArea {
+/* 印刷区画 1 つのビューで、つなぐもののビューを包む箱（ページの原点から。大きさはビューが決める） */
+.connectorArea {
   position: absolute;
   left: 0;
   top: 0;
