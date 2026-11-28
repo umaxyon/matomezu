@@ -2,7 +2,7 @@
 // 画面の行い直し（store の receive）と常駐のエンジンが、ここの performBulk で行う（画面がその場で行うのは、アクション 1 つずつの performIn）
 
 import { type Annotations, withAnnotations } from "./annotation"
-import type { ActionContext, ActionOn, AIEditTicketChange, AIMessage, RefreshRequest } from "./def/action"
+import type { ActionContext, ActionOn, AIEditTicketChange, Payload, RefreshRequest } from "./def/action"
 import type { HostMessage } from "./def/follow-step"
 import type { Folder, PageRow, TableChanges } from "./folders"
 import { withChanges } from "./folders-changes"
@@ -106,7 +106,7 @@ export type PerformedBulk<R = never> =
       records?: readonly RecordChange[]
       counters?: Counters
       aiEditTickets?: readonly BulkTicketChange[]
-      aiMessages?: readonly AIMessage[]
+      payloads?: readonly Payload[]
       refreshRequest?: RefreshRequest // バルクの中のアクションが返したリフレッシュリクエスト（1 つまで）
       // records のうち、フォローステップが応じて変えたレコード（バルクの中のどのアクションで応じたかを問わない）
       followed?: readonly { subject: string; id: string }[]
@@ -136,7 +136,7 @@ export function performBulk<R extends { ok: false } = never>(
   let records: RecordChange[] = []
   let counters: Counters | undefined
   const tickets: BulkTicketChange[] = []
-  const messages: AIMessage[] = []
+  const payloads: Payload[] = []
   let refresh: RefreshRequest | undefined
   const hostMessages: HostMessage[] = []
   const followed = new Map<string, { subject: string; id: string }>()
@@ -181,7 +181,7 @@ export function performBulk<R extends { ok: false } = never>(
     if (done.counters) counters = withCounters(counters ?? {}, done.counters)
     const subject = ctx.catalog.actions.get(step.action)?.target ?? ""
     for (const change of done.aiEditTickets ?? []) tickets.push({ subject, change })
-    messages.push(...(done.aiMessages ?? []))
+    payloads.push(...(done.payloads ?? []))
     if (done.refreshRequest) {
       if (refresh) return { ok: false, reason: "refused", detail: "one refresh request in a bulk", at: i }
       refresh = done.refreshRequest
@@ -213,7 +213,7 @@ export function performBulk<R extends { ok: false } = never>(
     ...(keptRecords.length > 0 ? { records: keptRecords } : {}),
     ...(counters ? { counters } : {}),
     ...(tickets.length > 0 ? { aiEditTickets: tickets } : {}),
-    ...(messages.length > 0 ? { aiMessages: messages } : {}),
+    ...(payloads.length > 0 ? { payloads } : {}),
     ...(refresh ? { refreshRequest: refresh } : {}),
     ...(followedKept.length > 0 ? { followed: followedKept } : {}),
     ...(hostMessages.length > 0 ? { hostMessages } : {}),

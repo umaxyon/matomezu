@@ -49,7 +49,7 @@ func noticeOf(t *testing.T, srv, id string) string {
 	return notice
 }
 
-// 送り手は呼び出しの参加の id で決まり、宛て先の通り道がつながっていなければ溜まり、つながると古い順に、送り手のワークルーム名と包んだ本文で流れる
+// 送り手は呼び出しの参加の id で決まり、送り先の通り道がつながっていなければ溜まり、つながると古い順に、送り手のワークルーム名と包んだ本文で流れる
 func TestMessageQueuesUntilTheLineOpens(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
@@ -146,7 +146,7 @@ func TestMessageComesWithTheNextCall(t *testing.T) {
 	}
 }
 
-// 宛て先の参加者が外されたら、溜まっていた AI 間メッセージは捨てる（引き継いだ参加者にも渡さない）
+// 送り先の参加者が外されたら、溜まっていた AI 間メッセージは捨てる（引き継いだ参加者にも渡さない）
 func TestMessagesToARemovedParticipantAreDropped(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
@@ -161,7 +161,7 @@ func TestMessagesToARemovedParticipantAreDropped(t *testing.T) {
 	}
 }
 
-// 参加が確定していない AI は送れず、名前の無い宛て先は送れる名前を添えて断り、自分のワークルームには送れない
+// 参加が確定していない AI は送れず、名前の無い送り先は送れる名前を添えて断り、自分のワークルームには送れない
 func TestMessageRefusals(t *testing.T) {
 	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
@@ -329,7 +329,7 @@ func TestWatchAckOverHTTP(t *testing.T) {
 
 // AI がほかのワークルームを担当にしてチケットを足すと、行った参加者から、そのワークルームの AI に AI 間メッセージが届く。
 // 担当の知らせは noRecipient が skip なので、参加の確定した AI のいないワークルームへの分は送らず、アクションは通る
-func TestActionSendsAIMessage(t *testing.T) {
+func TestActionSendsPayload(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
@@ -351,8 +351,8 @@ func TestActionSendsAIMessage(t *testing.T) {
 	}
 }
 
-// 宛先のワークルームに参加の確定した AI がいなければ、noRecipient が refuse（省いたとき）の知らせはバルクごと no-recipient で断り、skip の知らせは送らないだけ
-func TestActionEnvelopesNoRecipient(t *testing.T) {
+// 送り先のワークルームに参加の確定した AI がいなければ（名前のワークルームが無い・自分のワークルームも）、noRecipient が refuse（省いたとき）の知らせはバルクごと no-recipient で断り、skip の知らせは送らないだけ
+func TestPayloadsNoRecipient(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
@@ -364,11 +364,11 @@ func TestActionEnvelopesNoRecipient(t *testing.T) {
 	actor := &engine.Actor{Kind: "ai", Workroom: ids["ひよこ"]}
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
-	if _, refused := hub.actionEnvelopes([]engine.AIMessage{{Workroom: ids["からす"], Text: "x"}}, actor, time.Now()); refused == nil || refused.Reason != "no-recipient" {
+	if _, refused := hub.payloadDeliveries([]engine.Payload{{To: engine.Destination{Workroom: "からす"}, Text: "x"}}, actor, false, time.Now()); refused == nil || refused.Reason != "no-recipient" {
 		t.Fatalf("refuse = %+v", refused)
 	}
-	for _, to := range []string{ids["からす"], ids["ひよこ"]} {
-		envelopes, refused := hub.actionEnvelopes([]engine.AIMessage{{Workroom: to, Text: "x", NoRecipient: "skip"}}, actor, time.Now())
+	for _, to := range []string{"からす", "ひよこ", "ない"} {
+		envelopes, refused := hub.payloadDeliveries([]engine.Payload{{To: engine.Destination{Workroom: to}, Text: "x", NoRecipient: "skip"}}, actor, false, time.Now())
 		if refused != nil || len(envelopes) != 0 {
 			t.Fatalf("skip to %s = %+v %+v", to, envelopes, refused)
 		}
@@ -464,5 +464,40 @@ func TestTalkedTellsTheAIAWokenTurnIsNotTheUsers(t *testing.T) {
 		if strings.Contains(got, wokenText) != c.note {
 			t.Errorf("%s: %s", c.body, got)
 		}
+	}
+}
+
+// 画面の利用者が行ったアクションの matomezu ペイロードは、利用者の頼みの印を付けて届き、AI ラリーに数えない。
+// 常駐が利用者として行うアクション（窓からでない）は送れない。participant を書いた送り先は、その参加者が今そのワークルームに入っているときだけ届く
+func TestUserPayload(t *testing.T) {
+	t.Parallel()
+	s, hub := joinWorld(t, joinStore(t))
+	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	user := &engine.Actor{Kind: "user"}
+	to := engine.Payload{To: engine.Destination{Workroom: "すずめ"}, Text: "clear"}
+	hub.mu.Lock()
+	if _, refused := hub.payloadDeliveries([]engine.Payload{to}, user, false, time.Now()); refused == nil || refused.Reason != "refused" {
+		hub.mu.Unlock()
+		t.Fatalf("not from a window = %+v", refused)
+	}
+	pinned := to
+	pinned.To.Participant = "someone-else"
+	if _, refused := hub.payloadDeliveries([]engine.Payload{pinned}, user, true, time.Now()); refused == nil || refused.Reason != "no-recipient" {
+		hub.mu.Unlock()
+		t.Fatalf("pinned to another participant = %+v", refused)
+	}
+	// AI ラリーの上限より多く送っても止まらない
+	for range rallyLocalLimit + 1 {
+		envelopes, refused := hub.payloadDeliveries([]engine.Payload{to}, user, true, time.Now())
+		if refused != nil || len(envelopes) != 1 || !hub.deliver(envelopes[0]) {
+			hub.mu.Unlock()
+			t.Fatalf("from the user = %+v %+v", envelopes, refused)
+		}
+	}
+	hub.mu.Unlock()
+	woke := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{}))
+	// 知らせの行列は wakeQueueMax 件で古い物から捨てる。AI ラリーで止めた知らせ（matomezu: で始まる）は無い
+	if len(woke) != min(rallyLocalLimit+1, wakeQueueMax) || slices.ContainsFunc(woke, func(w string) bool { return w != `matomezu from the user (as your user's request): "clear"` }) {
+		t.Fatalf("wakes = %q", woke)
 	}
 }

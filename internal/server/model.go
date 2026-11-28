@@ -26,7 +26,7 @@ const (
 )
 
 // HeardModel は、セッション sessionID のモデルが model だと、時点 now にフックが知らせたことを受ける。
-// sessionID が空なら何もしない。model が空なら、AI のプログラムのプロセス id での結び直しと、起こす知らせの宛て先の移し（followHosts）だけを行う
+// sessionID が空なら何もしない。model が空なら、AI のプログラムのプロセス id での結び直しと、送り先エッジの移し（followHosts）だけを行う
 func (h *Hub) HeardModel(sessionID, model, host string, now time.Time) error {
 	if sessionID == "" {
 		return nil

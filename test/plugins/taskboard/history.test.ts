@@ -111,14 +111,14 @@ test("AI がほかのワークルームを担当に入れると、そのワー�
   const other = room("い")
   const third = room("う")
   const added = act(ai(me), "ticket-add", { project, name: "x", assignees: [other, me] }) as Done & {
-    aiMessages?: unknown
+    payloads?: unknown
     result: { ticket: string }
   }
   expect(added).toMatchObject({
     ok: true,
-    aiMessages: [
+    payloads: [
       {
-        workroom: other,
+        to: { workroom: "い" },
         text: `Your workroom was assigned to the ticket T-0002 "x" (${added.result.ticket}) as its lead.`,
         noRecipient: "skip",
       },
@@ -128,22 +128,22 @@ test("AI がほかのワークルームを担当に入れると、そのワー�
   // もういる担当には送らず、新しく入った分だけ（主担当でなければ as its lead は付かない）
   expect(act(ai(me), "ticket-update", { assignees: [other, me, third] }, { record: ticket })).toMatchObject({
     ok: true,
-    aiMessages: [{ workroom: third, text: `Your workroom was assigned to the ticket T-0002 "x" (${ticket}).` }],
+    payloads: [{ to: { workroom: "う" }, text: `Your workroom was assigned to the ticket T-0002 "x" (${ticket}).` }],
   })
   // 担当を変えないとき・自分だけを入れたときは送らない
   expect(
-    (act(ai(me), "ticket-update", { name: "y" }, { record: ticket }) as { aiMessages?: unknown }).aiMessages,
+    (act(ai(me), "ticket-update", { name: "y" }, { record: ticket }) as { payloads?: unknown }).payloads,
   ).toBeUndefined()
-  const mine = act(ai(me), "ticket-add", { project, name: "z", assignees: [me] }) as { aiMessages?: unknown }
-  expect(mine.aiMessages).toBeUndefined()
+  const mine = act(ai(me), "ticket-add", { project, name: "z", assignees: [me] }) as { payloads?: unknown }
+  expect(mine.payloads).toBeUndefined()
   // 利用者が担当を付けても送らない（AI 間メッセージは AI が行うときだけ）
   expect(user("ticket-update", { assignees: [] }, { record: ticket }).ok).toBe(true)
   const byUser = user("ticket-update", { assignees: [other] }, { record: ticket }) as {
     ok: boolean
-    aiMessages?: unknown
+    payloads?: unknown
   }
   expect(byUser.ok).toBe(true)
-  expect(byUser.aiMessages).toBeUndefined()
+  expect(byUser.payloads).toBeUndefined()
 })
 
 test("履歴の題は列挙 history-topic の値（状況・プラン・質問・本文更新・完了）。値の data は色の役割で、質問だけ利用者への質問（asksUser）、本文更新と完了だけ文を持たない（textless）", () => {
@@ -223,37 +223,6 @@ test("完了にすると、チケットは完了のレーンへ移り、担当�
   expect(table(HISTORY.id)).toEqual([
     expect.objectContaining({ ticket, topic: A("topic-complete"), text: "", by: { kind: "user" }, released: [a, b] }),
   ])
-})
-
-test("AI が完了すると、管理者のワークルームの AI に知らせる（外した担当の名前つき。いなければ送らないだけ）", () => {
-  const { act, user, room, ticket } = completing()
-  const admin = room("管理")
-  const me = room("あ")
-  user("@matomezu/base:admin-set", { workroom: admin })
-  user("ticket-update", { assignees: [me] }, { record: ticket })
-  expect(act(ai(me), "ticket-complete", {}, { record: ticket })).toMatchObject({
-    ok: true,
-    aiMessages: [
-      { workroom: admin, text: `The ticket T-0001 "t" (${ticket}) was completed; released: あ.`, noRecipient: "skip" },
-    ],
-  })
-})
-
-test("自分が管理者のとき・管理者の印が none のとき・利用者が完了したときは知らせない", () => {
-  const { act, user, room, project } = completing()
-  const admin = room("管理")
-  const add = () => (user("ticket-add", { project, name: "x" }) as Done & { result: { ticket: string } }).result.ticket
-  user("@matomezu/base:admin-set", { workroom: admin })
-  const own = act(ai(admin), "ticket-complete", {}, { record: add() }) as { ok: boolean; aiMessages?: unknown }
-  expect(own.ok).toBe(true)
-  expect(own.aiMessages).toBeUndefined()
-  const byUser = user("ticket-complete", {}, { record: add() }) as { ok: boolean; aiMessages?: unknown }
-  expect(byUser.ok).toBe(true)
-  expect(byUser.aiMessages).toBeUndefined()
-  user("@matomezu/base:admin-set", { workroom: "none" }, { record: "admin" })
-  const none = act(ai(room("い")), "ticket-complete", {}, { record: add() }) as { ok: boolean; aiMessages?: unknown }
-  expect(none.ok).toBe(true)
-  expect(none.aiMessages).toBeUndefined()
 })
 
 test("完了は、完了のレーンの無いプロジェクトと、もう完了しているチケットは断る。完了のレーンへほかの道で入れることも、完了のチケットに担当を付けることも断る", () => {

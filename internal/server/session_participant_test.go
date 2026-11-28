@@ -57,7 +57,7 @@ func TestCallWithoutParticipantIsTheParticipantOfItsSession(t *testing.T) {
 	}
 }
 
-// セッション id で参加者になった呼び出しは、起こす知らせの宛て先を、その呼び出しの AI のプログラムのプロセス id に書き直す（起動し直すとプロセス id が変わる）
+// セッション id で参加者になった呼び出しは、送り先エッジを、その呼び出しの AI のプログラムのプロセス id に書き直す（起動し直すとプロセス id が変わる）
 func TestSessionParticipantMovesItsWakeTarget(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
@@ -70,7 +70,7 @@ func TestSessionParticipantMovesItsWakeTarget(t *testing.T) {
 	}
 }
 
-// 今届く通り道がある参加者は、セッション id で参加者になった呼び出しでも、起こす知らせの宛て先を書き直さない
+// 今届く通り道がある参加者は、セッション id で参加者になった呼び出しでも、送り先エッジを書き直さない
 // （Claude Code で /clear のあとに MCP を立て直すと、MCP は新しいセッション id を添えるが、monitor は立てたときのセッション id を名乗り続ける）
 func TestSessionParticipantKeepsAWakeTargetThatALineReaches(t *testing.T) {
 	t.Parallel()

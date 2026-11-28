@@ -3,16 +3,16 @@ package server
 // AI を起こす知らせ: 利用者トリガートークを待たずに AI に届ける知らせ。参加の要求が受け入れられた・断られた（窓のアクションで）知らせと、
 // ほかの AI から届いた AI 間メッセージ（message.go）がある。常駐は AI の種類を知らない。
 //
-// 知らせは宛て先の参加者ごとの行列に入れ、受け取られるまで持つ（メモリだけ。常駐を起動し直すと消える）。行列は 1 人 wakeQueueMax 件までで、超えたら古い物から捨てる。
+// 知らせは送り先の参加者ごとの行列に入れ、受け取られるまで持つ（メモリだけ。常駐を起動し直すと消える）。行列は 1 人 wakeQueueMax 件までで、超えたら古い物から捨てる。
 // 受け取る道は 2 つ:
 //   - 通り道: AI の側が matomezu watch でこの口につなぐ。watch は届いた知らせを AI に渡し（標準出力に書くか、渡すコマンドを呼ぶ）、
 //     結果を POST /api/ai/watch/ack で返す。常駐は知らせを通り道に貸し、結果が返るまで、ほかの道（ほかの通り道・呼び出しの返事）では渡さない:
 //     delivered（渡せた）なら行列から外し、absent（その AI のプログラムにその会話が無い）なら通り道には流さず呼び出しの返事だけで渡し、
 //     failed（失敗）なら間を置いて流し直す。通り道が切れたら、貸していた知らせを戻す（渡せたのに結果が届かなかった物は、もう一度渡る）。
 //     同じ参加者の知らせは一度に 1 つだけ貸す（順を守る）。
-//     通り道は AI のプログラムのプロセス id（host）ごと。参加者の宛て先は、join のときに MCP が添えたプロセス id。
+//     通り道は AI のプログラムのプロセス id（host）ごと。参加者の送り先エッジのプロセス id は、join のときに MCP が添えた物。
 //     MCP と通り道の両方が、AI のプログラムが立てたときのセッション id を添えていれば、それも合う通り道だけ（プロセス id が別の AI のプログラムに使い回されたときに届けない）。
-//     流す知らせには、宛て先の参加者に結んだセッション id を添える（渡すコマンドが、どの会話に渡すかを決める）
+//     流す知らせには、送り先の参加者に結んだセッション id を添える（渡すコマンドが、どの会話に渡すかを決める）
 //   - 参加者が決まった /api/ai の呼び出しの返事（aiwire.NoticeHeader。join_calls.go の Called）: AI 間メッセージだけを渡す（参加の知らせは、その呼び出しが返す「参加しました」が兼ねる）
 //
 // 通り道ごとに、受け取る側が名乗った形で流す（常駐は AI の種類を知らない）: 1 行の上限（maxLine。超える行は改行で分ける）、1 回の知らせの上限（maxNotice）、
@@ -22,7 +22,7 @@ package server
 // 参加の知らせの行は英語の短い文で、中身（「参加しました」）は、話しかけのフックか、その参加者の次の呼び出しの返事が添える
 //
 //	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>][&breaks=1]
-//	     SSE。event: wake、data: {"line", "id", "session", "text"}（text は改行を含みうる。session は宛て先の参加者に結んだセッション id、分からなければ空）
+//	     SSE。event: wake、data: {"line", "id", "session", "text"}（text は改行を含みうる。session は送り先の参加者に結んだセッション id、分からなければ空）
 //	POST /api/ai/watch/ack {"line", "id", "result"}  result は delivered・absent・failed。{} を返す
 
 import (
@@ -43,7 +43,7 @@ type wakeLine struct {
 	host    string        // AI のプログラムのプロセス id
 	session string        // AI のプログラムが立てたときのセッション id（分からなければ空）
 	limits  WakeLimits    // 受け取る側が名乗った流し方
-	ready   chan struct{} // 宛て先の行列に何か入った合図（1 つだけ持つ）
+	ready   chan struct{} // 送り先の行列に何か入った合図（1 つだけ持つ）
 	closed  chan struct{} // 通り道を外した（常駐を止めるとき）
 }
 
@@ -77,7 +77,7 @@ func (lim WakeLimits) fits(line string) bool {
 // wakeItem は、行列の知らせ 1 つ
 type wakeItem struct {
 	seq         int64     // 行列の中で見分ける番号
-	participant string    // 宛て先の参加者の id
+	participant string    // 送り先の参加者の id
 	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage・wakeUpdate・wakeAskRefresh・wakeHost・wakeRally・wakeMessageApproved・wakeMessageCancelled
 	line        string    // 流す 1 行
 	head        string    // AI 間メッセージの、送り手を名乗る頭（messageHead・remoteMessageHead）
@@ -103,11 +103,11 @@ const (
 	wakeAccepted   = "accepted"    // 参加の要求が受け入れられた
 	wakeDeclined   = "declined"    // 参加の要求が断られた
 	wakeCancelled  = "cancelled"   // 参加の要求を利用者がキャンセルした
-	wakeMessage    = "message"     // AI 間メッセージ
+	wakeMessage    = "message"     // AI 間メッセージと、利用者が送り手の matomezu ペイロード
 	wakeUpdate     = "update"      // 利用者が、matomezu の版を上げるよう頼んだ（update.go）
 	wakeAskRefresh = "ask-refresh" // 利用者が、引継ぎページを書いて会話を空にするよう頼んだ（ask_refresh.go）
 	wakeHost       = "host"        // 常駐メッセージ（フォローステップが返した、常駐からの知らせ。message.go）
-	wakeRally      = "rally"       // AI ラリーを上限で止め、宛て先に届けなかったという知らせ（rally.go）
+	wakeRally      = "rally"       // AI ラリーを上限で止め、送り先に届けなかったという知らせ（rally.go）
 
 	wakeMessageApproved  = "message-approved"  // 承認待ちの AI 間メッセージを利用者が承認した（受け手に、利用者の頼みとして。pending_message.go）
 	wakeMessageCancelled = "message-cancelled" // 承認待ちの AI 間メッセージを利用者がキャンセルした（送り手と受け手に。pending_message.go）
@@ -124,7 +124,7 @@ func logWake(format string, args ...any) {
 // 貸した知らせの結果（POST /api/ai/watch/ack の result）
 const (
 	WakeDelivered = "delivered" // 渡せた
-	WakeAbsent    = "absent"    // その AI のプログラムに宛て先の会話が無い
+	WakeAbsent    = "absent"    // その AI のプログラムに送り先エッジのセッションが無い
 	WakeFailed    = "failed"    // 渡せなかった（間を置いて流し直す）
 )
 
@@ -201,7 +201,7 @@ func (h *Hub) dropStaleAbsentLocked() {
 	}
 }
 
-// reaches は、参加者の記録 n の宛て先に、通り道 l が合うか。AI のプログラムのプロセス id かセッション id の少なくとも一方が両方で分かって等しく、
+// reaches は、参加者の記録 n の送り先エッジに、通り道 l が合うか。AI のプログラムのプロセス id かセッション id の少なくとも一方が両方で分かって等しく、
 // もう一方は、両方で分かっていれば等しい（Windows では、AI のプログラムまでたどれない watch がある）
 func (l *wakeLine) reaches(n participantNote) bool {
 	host := l.host != "" && l.host == n.WakeHost

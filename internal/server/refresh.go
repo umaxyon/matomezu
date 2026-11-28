@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/umaxyon/matomezu/internal/engine"
 )
@@ -29,29 +30,12 @@ func (h *Hub) keepRefresh(req *engine.RefreshRequest, participant string) {
 	was := h.participantNotes[participant]
 	n := was
 	n.RefreshDue = refreshHead + req.Text
+	n.RefreshLent = ""
 	h.participantNotes[participant] = n
 	if err := h.putParticipantNotes(); err != nil {
 		h.participantNotes[participant] = was
 		fmt.Fprintf(os.Stderr, "%s the refresh request of %s is not kept: %v\n", stamp(), participant, err)
 	}
-}
-
-// DropRefresh は、会話のセッション session に結んだ参加者が受けたリフレッシュリクエストを捨てる（利用者が話したら、そのターンの終わりの頼みではもう無い。
-// AI のプログラムの部品が動かず渡せなかった頼みが、後の関係の無い会話を空にしないため）
-func (h *Hub) DropRefresh(session string) error {
-	id := h.joinedOfSession(session)
-	if id == "" {
-		return nil
-	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	n, ok := h.participantNotes[id]
-	if !ok || n.RefreshDue == "" {
-		return nil
-	}
-	n.RefreshDue = ""
-	h.participantNotes[id] = n
-	return h.putParticipantNotes()
 }
 
 // NoteRefreshable は、会話のセッション session に結んだ参加者に、その AI のプログラムが会話を空にできると名乗ったことを覚える
@@ -75,8 +59,8 @@ func (h *Hub) NoteRefreshable(session string) error {
 	return nil
 }
 
-// TakeRefresh は、会話のセッション session に結んだ参加者が受けたリフレッシュリクエストの文（無ければ空）。渡したら消し、
-// 空にしたあとの新しい会話がその文で始まるターンを、知らせで始まったと見る（rememberLent）
+// TakeRefresh は、会話のセッション session に結んだ参加者が受けたリフレッシュリクエストの文（無ければ空）。渡したら RefreshLent へ移し
+// （空にしたあとの会話が始まるまで残す。RefreshStarted）、空にしたあとの新しい会話がその文で始まるターンを、知らせで始まったと見る（rememberLent）
 func (h *Hub) TakeRefresh(session string) (string, error) {
 	id := h.joinedOfSession(session)
 	if id == "" {
@@ -90,6 +74,7 @@ func (h *Hub) TakeRefresh(session string) (string, error) {
 	}
 	text := n.RefreshDue
 	n.RefreshDue = ""
+	n.RefreshLent = text
 	h.participantNotes[id] = n
 	if err := h.putParticipantNotes(); err != nil {
 		return "", err
@@ -107,6 +92,76 @@ func (o Options) aiRefreshDue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	text, err := o.Hub.TakeRefresh(req.SessionID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, struct {
+		Text string `json:"text"`
+	}{text})
+}
+
+// RefreshStarted は、ターンの入力 prompt が、部品に渡したリフレッシュリクエストの文（RefreshLent）なら、その参加者の会話は空になったと見て消す
+// （空にしたあとの会話は新しいセッションなので、文で参加者を引く。文は引継ぎページの id を持つので、ほかの参加者の物と重ならない）
+func (h *Hub) RefreshStarted(prompt string) error {
+	prompt = strings.TrimSpace(prompt)
+	if prompt == "" {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for id, n := range h.participantNotes {
+		if n.RefreshLent == "" || n.RefreshLent != prompt {
+			continue
+		}
+		n.RefreshLent = ""
+		h.participantNotes[id] = n
+		return h.putParticipantNotes()
+	}
+	return nil
+}
+
+// refreshFailedText は、部品に渡したのに空にしたあとの会話が始まらなかったとき、ターンの終わりに AI に 1 度だけ渡す文
+const refreshFailedText = "Your conversation could not be cleared after the handoff page was written. Tell the user, in the user's language: the conversation could not be cleared; if the amount of context matters, run /clear."
+
+// HandoffDue は、会話のセッション session に結んだ参加者が、ターンを終える前にする事（AI に渡す英語の文。無ければ空）。
+// 会話を空にできると名乗った参加者だけ: 部品に渡したのに空にならなかった頼みがあれば、それを伝える文（1 度だけ。渡したら消す）。
+// 空にする頼みをまだ部品が受け取っていなければ空（このターンの終わりに空になる）。でなければ、ワークルームの引継ぎ対象チケットの引継ぎページの頼み（エンジンの HandoffDue）
+func (h *Hub) HandoffDue(session string) (string, error) {
+	id := h.joinedOfSession(session)
+	if id == "" {
+		return "", nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	n := h.participantNotes[id]
+	if !n.Refreshable || n.RefreshDue != "" {
+		return "", nil
+	}
+	if n.RefreshLent != "" {
+		n.RefreshLent = ""
+		h.participantNotes[id] = n
+		if err := h.putParticipantNotes(); err != nil {
+			return "", err
+		}
+		return refreshFailedText, nil
+	}
+	room := h.actorOfParticipantHeld(id).Workroom
+	if room == "" {
+		return "", nil
+	}
+	return h.engine.HandoffDue(room, recordSource{h})
+}
+
+// aiHandoffDue は、ターンの終わりのフックが訊く、そのセッションの AI がターンを終える前にする事（{"text"}。無ければ空。HandoffDue）
+func (o Options) aiHandoffDue(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		SessionID string `json:"sessionId"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	text, err := o.Hub.HandoffDue(req.SessionID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

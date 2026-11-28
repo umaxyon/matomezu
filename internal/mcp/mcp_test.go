@@ -289,7 +289,7 @@ func textOf(a map[string]any) string {
 
 // 参加の id か、AI のプログラムが MCP を立てたときのセッション id（常駐がそれに結ばれた参加者を引く）を添える呼び出しには、呼び出しのたびに読んだブランチ（URL エンコード。空でも）を添え、
 // その呼び出しの _meta の、渡された置き場所にモデルがあれば、モデルも添える（URL エンコード）。どちらも無ければ、どちらも添えない。
-// AI のプログラムのプロセス id とセッション id は、join も含めていつも添える（起こす知らせの宛て先）
+// AI のプログラムのプロセス id とセッション id は、join も含めていつも添える（送り先エッジに書く物）
 func TestBranchAndModelGoWithTheParticipantOrSessionAndHostAlways(t *testing.T) {
 	api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
 	branches := []string{"feat/d110", "", ""}
@@ -447,7 +447,7 @@ func TestJoinPassesTheWorkroom(t *testing.T) {
 	}
 }
 
-// send_message は宛て先と本文を常駐に渡し、預かったら queued といつ渡るか（delivers）を、断られたら理由を返す。本文の上限は inputSchema が決める
+// send_message は送り先と本文を常駐に渡し、預かったら queued といつ渡るか（delivers）を、断られたら理由を返す。本文の上限は inputSchema が決める
 func TestSendMessagePassesToAndText(t *testing.T) {
 	api := &fakeAPI{answer: `{"ok":true,"queued":true,"delivers":"next-call"}`}
 	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"すずめ","text":"hi"}}}`)

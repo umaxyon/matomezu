@@ -121,8 +121,8 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 			cancelled = h.cancelledIn(p.Actions)
 		}
 	}
-	// アクションが返した AI 間メッセージは、送り手と全部の宛先に参加の確定した参加者がいるときだけ送る（いなければ、何も変えずにバルクごと断る）
-	envelopes, envelopesRefused := h.actionEnvelopes(out.AIMessages, in.Actor, time.Now())
+	// アクションが返した matomezu ペイロードは、送り手が画面の利用者か参加の確定した AI で、全部の送り先に参加の確定した参加者がいるときだけ送る（でなければ、何も変えずにバルクごと断る）
+	envelopes, envelopesRefused := h.payloadDeliveries(out.Payloads, in.Actor, by == "window", time.Now())
 	if envelopesRefused != nil {
 		h.remember(p.Key, *envelopesRefused)
 		h.ack(p, *envelopesRefused)
