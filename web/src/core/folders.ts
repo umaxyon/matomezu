@@ -284,7 +284,8 @@ export type PageMetaRow = PageMeta & { readonly unheld: true }
 // 行 row の中身を持っているか
 export const isHeld = (row: PageRow): row is AnyPage => !("unheld" in row)
 
-const META_KEYS = Object.keys(PageSchema.shape) as (keyof PageMeta)[]
+// ページメタのフィールドの名前（常駐も、ページメタだけを窓に送るとき、ホストのエンジンからこれを読んで使う）
+export const META_KEYS = Object.keys(PageSchema.shape) as (keyof PageMeta)[]
 // 行 row のページメタだけの行（中身を持っていない行に替える）
 export function pageMetaRowOf(row: PageRow): PageMetaRow {
   const meta: Record<string, unknown> = {}

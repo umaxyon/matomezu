@@ -11,6 +11,7 @@ package server
 //	changed   {"pages": [{"id", "page"（消したなら "removed": true）, "version"}], "folders": [{"id", "folder"（同じ）, "version"}], "books", "library"?, "client", "seq", "by", "act", "actions",
 //	          "settings"?, "annotations", "records": [{"subject", "id", "record"（消したなら "removed"）, "version"（消したなら 0）}], "counters"?, "window", "unreadableBooks", "results"}
 //	          results は行ったアクションごとの結果（バルクの順。送った窓が、先に行わなかったアクションの結果を受け取る）。unreadableBooks は、この書き込みを確かめた後の読めないブックの全部（/api/data と同じ。毎回、全部）。1 回の Perform が変えた物の全部（何か変わったときだけ 1 つ）。pages・folders は変えた・足した・消したページとフォルダ（書庫ホームとフォルダも）、
+//	          中身を持つ物を名乗った窓（POST /api/keep）には、その中に無いページを、ページメタだけの行（"page" がページメタと "unheld": true）にして送る。
 //	          books はそれらを持つブックの id（書庫ホームとフォルダは入らない）。library は、書庫の履歴に入るアクションが変えたページとフォルダごとの前と後（{"pages": {id: {"before", "after"}}, "folders": 同じ}。無い側は "none"）。送った窓は、先に行わなかったアクションを持つバルクの、書庫の履歴の段にする。
 //	          client と seq は頼んだ窓とその番号（窓の外からなら空）。by は頼んだ物（"ai"・"window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印、actions は行ったアクションの id の並び。
 //	          settings は変わったときだけ、新しい設定。annotations はアノテーションが変わったページの id → 新しい並び（空の並びなら全部無くなった）。
@@ -98,6 +99,7 @@ type Hub struct {
 	command          atomic.Pointer[string]       // 利用者が端末で打つ matomezu の名前（command.go）
 	store            storage.Storage
 	engine           *engine.Engine
+	pageMetaKeys     []string             // ページメタのフィールドの名前（keep.go の metaKeys が、ホストのエンジンから読んで覚える）
 	pages            map[string]row       // ページの id → 本文と版（tables.go）
 	folders          map[string]folderRow // フォルダの id → 本文と版と、エントリの id（tables.go）
 	places           map[string]string    // エントリ（ページかバインダ）の id → それを入れているフォルダの id（tables.go）

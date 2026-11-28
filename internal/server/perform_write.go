@@ -251,7 +251,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 		}
 	}
 	if !plan.quiet && (len(pages) > 0 || len(folders) > 0 || len(out.Settings) > 0 || len(records) > 0 || len(out.Counters) > 0 || len(annotations) > 0) {
-		h.broadcast("changed", h.changedEvent(pages, folders, records, annotations, out, p, by, act))
+		h.broadcastChanged(h.changedEvent(pages, folders, records, annotations, out, p, by, act))
 	}
 	for _, id := range out.Books {
 		if _, ok := h.books[id]; ok && !plan.quiet && !plan.untouched {

@@ -7,6 +7,7 @@
 
 import { talkActions } from "../core/annotation"
 import { assetsInUse } from "../core/assets"
+import { META_KEYS } from "../core/folders"
 import { hostActions } from "../core/hosts"
 import { endActions, joinActions } from "../core/participant"
 import { checkRecords, restoreRecords } from "../core/records"
@@ -241,6 +242,9 @@ let lastAdded: readonly Plugin[] = []
 // アノテーションの並びから、プラグイン plugin が足した種類（種類の id の持ち主が plugin）の物を除く（利用者がプラグインを外したときに常駐が消す）
 ;(globalThis as { matomezuAnnotationsWithout?: (plugin: string, list: string) => string }).matomezuAnnotationsWithout =
   (plugin, list) => annotationsWithout(plugin, list)
+
+// ページメタのフィールドの名前（常駐が、ページの中身を持たない窓に、ページの行をページメタだけにして送るのに使う）
+;(globalThis as { matomezuPageMetaKeys?: () => string }).matomezuPageMetaKeys = () => JSON.stringify(META_KEYS)
 
 // 利用者トリガートークのときに行うアクション（runsWhenUserTalks）の id（常駐が、アノテーションのある読めるページごとに行う）
 ;(globalThis as { matomezuTalkActions?: () => string }).matomezuTalkActions = () =>
