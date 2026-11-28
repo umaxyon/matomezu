@@ -4,6 +4,7 @@
 // - アクション: AI の入口から item-place と line-connect を 300 まで重ね、1 回の perform の時間を 100 ずつに分けて測る
 // - 書庫から開く: 参加者の AI（用意の口が置く 1 人）と、その担当のチケット 0・200・400 枚、書庫ホームにブック 20 冊を置き、コントロールセンターの書庫でブックを 2 回押して開くまでの
 //   操作の応答（INP が見る、押してから次の絵が出るまで）と長い処理を測る（書庫の行ごとに出す作業机の計算が、担当のチケットの数で重くならないか）
+// - 書庫の大きさ: 箱 100 のページを持つブックを 0・100・200 冊と増やし、それぞれで小さなブックを開くまでと、/api/data の大きさと、開いたあとの JS ヒープ（ガベージコレクションの後）を測る
 // - マークダウン: 原文 1000・3000・5000 行のページを左右に並べて開き直すまで・ソースのペインの末尾と先頭に書く・ソースのペインをホイールでスクロールする（描いた文書が付いて行く）のを測る
 import { execSync } from "node:child_process"
 import { mkdirSync, writeFileSync } from "node:fs"
@@ -56,12 +57,16 @@ const TYPED = "書き足した字 abc def ghi" // ソースのペインに 1 字
 const LIBRARY_TICKETS = [0, 200, 400] // 参加者の AI のワークルームが担当のチケットの数（前の段に足して増やす）
 const LIBRARY_BOOKS = 20 // 書庫ホームに並べるブックの数
 
+const SIZE_BOOKS = [0, 100, 200] // 書庫の大きさで置くブックの数（前の段に足して増やす）
+const SIZE_ITEMS = 100 // そのブックのページ 1 枚の箱の数
+
 const results: {
   drawing: Record<string, unknown>[]
   actions: Record<string, unknown>[]
   library: Record<string, unknown>[]
+  size: Record<string, unknown>[]
   markdown: Record<string, unknown>[]
-} = { drawing: [], actions: [], library: [], markdown: [] }
+} = { drawing: [], actions: [], library: [], size: [], markdown: [] }
 
 // 開いて、図の要素が want 個そろうまでの時間（ページを開き始めてから）
 async function open(page: Page, url: string, want: number) {
@@ -309,6 +314,42 @@ test("書庫から開く: 参加者の AI の担当のチケットを増やし�
   }
 })
 
+test("書庫の大きさ: ブックを増やしながら、小さなブックを開くまでと /api/data の大きさと JS ヒープを測る", async ({
+  newPage,
+  request,
+}) => {
+  const target = "perf-size-target"
+  expect(
+    (await request.put(`/api/books-for-test/${target}`, { data: { book: gridBook(target, 10), base: 0 } })).ok(),
+  ).toBe(true)
+  let made = 0
+  for (const books of SIZE_BOOKS) {
+    for (; made < books; made++) {
+      const id = `perf-size-${made}`
+      const put = await request.put(`/api/books-for-test/${id}`, {
+        data: { book: namedGridBook(id, `大きさの本 ${made + 1}`, `${id}-p`, SIZE_ITEMS), base: 0 },
+      })
+      expect(put.ok()).toBe(true)
+    }
+    const page = await newPage()
+    const openMs = await open(page, one(target), 10 + 9)
+    // /api/data は画面 cookie を要るので、開いた窓の口で読む
+    const data = await page.request.get("/api/data")
+    expect(data.ok()).toBe(true)
+    const dataBytes = (await data.body()).length
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send("HeapProfiler.collectGarbage")
+    const heap = (await cdp.send("Runtime.getHeapUsage")) as { usedSize: number }
+    await page.close()
+    results.size.push({
+      books,
+      openMs,
+      dataKB: Math.round(dataBytes / 1024),
+      heapMB: Math.round(heap.usedSize / 1024 / 102.4) / 10,
+    })
+  }
+})
+
 for (const n of MARKDOWN_LINES) {
   test(`マークダウン: 原文 ${n} 行`, async ({ newPage, request }) => {
     const id = `perf-markdown-${n}`
@@ -431,6 +472,15 @@ test.afterAll(({ browserName }) => {
           コミット: r.open.commits,
           描き直したコンポーネント: r.open.renders,
         }
+      }),
+    )
+  }
+  if (results.size.length > 0) {
+    console.log(`\n書庫の大きさ（置いたブックは 1 冊に箱 ${SIZE_ITEMS} のページ 1 枚。開くのは箱 10 のブック）`)
+    console.table(
+      results.size.map(d => {
+        const r = d as { books: number; openMs: number; dataKB: number; heapMB: number }
+        return { ブック: r.books, "開くまで ms": r.openMs, "/api/data KB": r.dataKB, "JS ヒープ MB": r.heapMB }
       }),
     )
   }
