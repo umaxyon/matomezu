@@ -54,8 +54,8 @@ export type BackyardFollow =
   | { backyard: string; key: WorkKey; does: "purge" | "clear-annotations" }
   | { backyard: string; key: WorkKey; does: "retitle"; title: string }
 
-// 常駐メッセージ 1 通: 宛先のワークルームの id と文（AI に見せる英語）。送り手は常駐で、行った者に関わらず送る。
-// 常駐は、アクションバルクが通ったときだけ送り、宛先に参加の確定した参加者がいないときと、宛先が行った参加者のワークルームのときは送らない
+// 常駐メッセージ 1 通: 送り先のワークルームの id と文（AI に見せる英語）。送り手は常駐で、行った者に関わらず送る。
+// 常駐は、アクションバルクが通ったときだけ送り、送り先に参加の確定した参加者がいないときと、送り先が行った参加者のワークルームのときは送らない
 export interface HostMessage {
   workroom: string
   text: string

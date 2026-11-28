@@ -1,7 +1,7 @@
 package server
 
 // ほかのホストとの AI 間メッセージ: 送り手の常駐が、ペアリングしたホストの Pinned の口 POST /peer/v1/message に封筒 1 通を同期で運ぶ。
-// 送り手のホストは TLS で見た相手の鍵で決まり、封筒の From.Host と違えば断る（書き換えない）。宛て先の参加者は受けたホストが引く。
+// 送り手のホストは TLS で見た相手の鍵で決まり、封筒の From.Host と違えば断る（書き換えない）。送り先の参加者は受けたホストが引く。
 // 届く行には、送り手のホストエイリアスを添え、そのホストの requests が as-user なら印を付ける。
 // requests を ask-user に戻したら、行列に残っている印つきの行から印を外し、ペアリングを解いたら、そのホストから届いた行を捨てる（followPeerLines）。
 // つながらなかった・相手が受けなかったと答えた（確かに届いていない）ときは unreachable、常駐間通信プロトコルの版が合わないときは protocol-mismatch で断り、送ったのに答えが無ければ同じ封筒をもう 1 回送る（受けた側は同じ id を 1 通にする）。
@@ -195,7 +195,7 @@ const envelopeIDMax = 128
 
 func fitsName(s string) bool { return s != "" && utf8.RuneCountInString(s) <= workroomNameMax }
 
-// receiveEnvelope は、ほかのホストから届いた封筒 env を、宛て先のワークルームの参加者の行列に入れる（同じ id は 1 通にする）
+// receiveEnvelope は、ほかのホストから届いた封筒 env を、送り先のワークルームの参加者の行列に入れる（同じ id は 1 通にする）
 func (h *Hub) receiveEnvelope(env Envelope) MessageSent {
 	e := h.entrance.Load()
 	if e == nil {
@@ -222,8 +222,8 @@ func (h *Hub) receiveEnvelope(env Envelope) MessageSent {
 		h.sendableClause(open, "list_workrooms with host and offset", "no AI is in a workroom now")}
 }
 
-// receiveHeld は、h.mu を持って、封筒 d.envelope を宛て先のワークルームの AI に届ける（found。受けた答えが queued。AI ラリーの上限を超えて届けなければ queued.OK が偽）。
-// キャンセルの知らせの封筒は、AI ラリーにも承認待ちにも数えず、宛て先に知らせるだけ（receiveCancelHeld）。いなければ、AI のいるワークルームの名前 open
+// receiveHeld は、h.mu を持って、封筒 d.envelope を送り先のワークルームの AI に届ける（found。受けた答えが queued。AI ラリーの上限を超えて届けなければ queued.OK が偽）。
+// キャンセルの知らせの封筒は、AI ラリーにも承認待ちにも数えず、送り先に知らせるだけ（receiveCancelHeld）。いなければ、AI のいるワークルームの名前 open
 func (h *Hub) receiveHeld(records []participantRecord, rooms []workroomRecord, d delivery) (open []string, found bool, queued MessageSent) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -249,7 +249,7 @@ func (h *Hub) receiveHeld(records []participantRecord, rooms []workroomRecord, d
 }
 
 // followPeerLines は、行列に残っている、ほかのホストから届いた行を、ペアリングしたホストの今の様子に合わせる: ペアリングを解いたホスト（known に無い）から届いた物は
-// 捨て（返事の宛先をもう引けない）、もう as-user でないホスト（asUser に無い）から届いた物の印を外す。通り道に貸している行も同じにする
+// 捨て（返事の送り先をもう引けない）、もう as-user でないホスト（asUser に無い）から届いた物の印を外す。通り道に貸している行も同じにする
 // （渡せなければ行列に戻り、「届いた」だけを渡した行は本文を呼び出しの返事で渡すので、そのときは印が無い）（h.mu を持って呼ぶ）
 func (h *Hub) followPeerLines(known, asUser map[string]bool) {
 	for id, q := range h.wakeQueue {

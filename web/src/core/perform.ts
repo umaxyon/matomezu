@@ -14,10 +14,10 @@ import {
   type ActionDef,
   type ActionTarget,
   type AIEditTicketChange,
-  type AIMessage,
   type Declined,
   type Done,
   type OtherRecord,
+  type Payload,
   type RefreshRequest,
   type SubjectData,
   takesBook,
@@ -126,7 +126,7 @@ export type Performed<Id extends ActionId, S = SubjectOf<Id>> =
       result: ResultOf<Id>
       others?: readonly OtherRecord<never>[]
       aiEditTickets?: readonly AIEditTicketChange[]
-      aiMessages?: readonly AIMessage[]
+      payloads?: readonly Payload[]
       refreshRequest?: RefreshRequest
     }
   | Refused
@@ -250,10 +250,10 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
     if (!annotationsSettle(ctx.catalog, page, pair.annotations, next)) return { ok: false, reason: "refused" }
   }
   const others = (ran.others ?? []) as readonly OtherRecord<never>[]
-  // 送る AI 間メッセージは、レコードが対象のアクションで、行う者がワークルームに入っている AI のときだけ（送り手は行った参加者）
-  const messages = isRecordTarget(ctx.catalog, action.target) ? (ran.aiMessages ?? []) : []
-  if (messages.length > 0 && workroomOfActor(ctx.actor) === NO_WORKROOM)
-    return { ok: false, reason: "refused", detail: "only an AI in a workroom sends AI messages" }
+  // 送る matomezu ペイロードは、レコードが対象のアクションで、行う者が利用者か、ワークルームに入っている AI のときだけ（送り手は行った者）
+  const payloads = isRecordTarget(ctx.catalog, action.target) ? (ran.payloads ?? []) : []
+  if (payloads.length > 0 && isAI(ctx.actor) && workroomOfActor(ctx.actor) === NO_WORKROOM)
+    return { ok: false, reason: "refused", detail: "only the user or an AI in a workroom sends payloads" }
   // リフレッシュリクエストは、書庫かレコードが対象のアクションで、行う者がワークルームに入っている AI のときだけ
   const refresh =
     action.target === "library" || isRecordTarget(ctx.catalog, action.target) ? ran.refreshRequest : undefined
@@ -280,7 +280,7 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
     ...(isRecordTarget(ctx.catalog, action.target) && ran.aiEditTickets && ran.aiEditTickets.length > 0
       ? { aiEditTickets: ran.aiEditTickets }
       : {}),
-    ...(messages.length > 0 ? { aiMessages: messages } : {}),
+    ...(payloads.length > 0 ? { payloads } : {}),
     ...(refresh ? { refreshRequest: refresh } : {}),
   } as Performed<Id, S>
 }

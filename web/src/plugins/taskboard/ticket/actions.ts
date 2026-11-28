@@ -1,6 +1,6 @@
 // チケットのアクション。チケットを足す・直すは AI も行え、チケットを消す・ロックを外すは利用者だけ
 import { z as zod } from "zod"
-import { type Actor, type AIMessage, NO_WORKROOM, workroomOfActor } from "../../../plugin-api"
+import { type Actor, NO_WORKROOM, type Payload, workroomOfActor } from "../../../plugin-api"
 import { READS_WORKROOM_KEYS } from "../../base"
 import { byOf, type Records, readsBy, recordIn, workroomsOf } from "../by"
 import { kit } from "../kit"
@@ -62,21 +62,27 @@ const pickAssignees = (ctx: Records, refs: readonly string[], current: readonly 
 // 完了のレーンへは、ticket-complete だけが入れる（担当を外す・チケット履歴を足すを一緒に行うため）
 const DONE_LANE_REFUSAL = "the done lane is entered only with ticket-complete: complete the ticket"
 
-// 担当に新しく入ったワークルームの AI への知らせ（行う者がワークルームの AI のときだけ返せる。自分のワークルームには送らない。宛先に AI がいなければ送らないだけ）
+// 担当に新しく入ったワークルームの AI への知らせ（行う者がワークルームの AI のときだけ返す。自分のワークルームには送らない。送り先に AI がいなければ送らないだけ）。
+// rooms はワークルームの並び（送り先は名前で指す）
 export function assignedMessages(
   actor: Actor,
   before: readonly string[],
   after: readonly string[],
   ticket: Ticket,
   project: Project,
-): AIMessage[] {
+  rooms: readonly { id: string; name: string }[],
+): Payload[] {
   const own = workroomOfActor(actor)
   if (own === NO_WORKROOM) return []
   const label = ticketLabel(project.prefix, ticket.number)
   return after
     .filter(w => w !== own && !before.includes(w))
-    .map(w => ({
-      workroom: w,
+    .flatMap(w => {
+      const name = rooms.find(r => r.id === w)?.name
+      return name === undefined ? [] : [{ w, name }]
+    })
+    .map(({ w, name }) => ({
+      to: { workroom: name },
       text: `Your workroom was assigned to the ticket ${label} "${ticket.name}" (${ticket.id})${
         after[0] === w ? " as its lead" : ""
       }.`,
@@ -148,10 +154,10 @@ export const TICKET_ADD = kit.defineAction({
       updatedAt: ctx.now,
       tags: tags.ids,
     }
-    const messages = assignedMessages(ctx.actor, [], ticket.assignees, ticket, project)
+    const messages = assignedMessages(ctx.actor, [], ticket.assignees, ticket, project, workroomsOf(ctx))
     return {
       next: ticket,
-      ...(messages.length > 0 ? { aiMessages: messages } : {}),
+      ...(messages.length > 0 ? { payloads: messages } : {}),
       result: {
         ticket: ticket.id,
         number: ticket.number,
@@ -242,10 +248,10 @@ export const TICKET_UPDATE = kit.defineAction({
       k => JSON.stringify(next[k]) !== JSON.stringify(now[k]),
     )
     if (!changed) return { next: now, result: {} }
-    const messages = assignedMessages(ctx.actor, now.assignees, next.assignees, next, project)
+    const messages = assignedMessages(ctx.actor, now.assignees, next.assignees, next, project, workroomsOf(ctx))
     return {
       next: { ...next, updatedAt: ctx.now },
-      ...(messages.length > 0 ? { aiMessages: messages } : {}),
+      ...(messages.length > 0 ? { payloads: messages } : {}),
       result: {},
     }
   },

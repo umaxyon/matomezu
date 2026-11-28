@@ -9,8 +9,8 @@ import {
   type ActionOn,
   type ActionTarget,
   type AIEditTicketChange,
-  type AIMessage,
   type OtherRecord,
+  type Payload,
   type RefreshRequest,
   takesBook,
 } from "./def/action"
@@ -69,7 +69,7 @@ export type PerformedIn =
       records?: readonly RecordChange[] // レコードか書庫が対象のアクションで変わったレコード（レコードが対象なら宛先の 1 件が先で、ほかは run が返した順。1 つのトランザクションで当てる）
       counters?: Counters // レコードが対象のアクションが進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）
       aiEditTickets?: readonly AIEditTicketChange[] // レコードが対象のアクションが返した、AI 編集チケットの変え方の並び（レコードと同じ 1 回の書き込みで当てる）
-      aiMessages?: readonly AIMessage[] // レコードが対象のアクションが返した、送る AI 間メッセージの並び（常駐がバルクの書き込みと一緒に送る）
+      payloads?: readonly Payload[] // レコードが対象のアクションが返した、送る matomezu ペイロードの並び（常駐がバルクの書き込みと一緒に送る）
       refreshRequest?: RefreshRequest // 書庫かレコードが対象のアクションが返したリフレッシュリクエスト（常駐が、バルクが通ったら行った参加者に覚える）
       // records のうち、フォローステップが応じて変えたレコード（core/follow.ts。常駐は、行う者に関わらず、これが編集ロックに当たれば断る）
       followed?: readonly { subject: string; id: string }[]
@@ -393,7 +393,7 @@ function performRecord(
     ...followedOut(followed),
     ...(followed.records.length > 0 && Object.keys(used).length > 0 ? { counters: { [target]: used } } : {}),
     ...(done.aiEditTickets ? { aiEditTickets: done.aiEditTickets } : {}),
-    ...(done.aiMessages ? { aiMessages: done.aiMessages } : {}),
+    ...(done.payloads ? { payloads: done.payloads } : {}),
     ...(done.refreshRequest ? { refreshRequest: done.refreshRequest } : {}),
   }
 }

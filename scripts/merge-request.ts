@@ -1,16 +1,42 @@
-// 平行作業の worktree のブランチを、main への取り込みのキューに並べ、結果を待って返す。サブは Claude Code のバックグラウンドで流す
+// 平行作業の worktree のブランチを main へ入れ（テストの読まない md の直しだけなら並ばずに、ほかは取り込みのキューに並べて）、結果を返す。サブは Claude Code のバックグラウンドで流す
 //   bun scripts/merge-request.ts
 // 進め方
 //   1. この worktree のブランチの先（頼んだ時の sha）を決め、並べられるかを確かめる（refusal）
-//   2. 並んでいる印（requestsDir の下の <pid>.json）を置く。restart-subs は印のある worktree のサブを起動し直さない
-//   3. main の worktree の scripts/merge-queue.ts を --push で流す。このスクリプトとは切り離すので、待つ間にこれが止められても、
+//   2. main からの差分がテストの結果を変えない物（UNREAD_BY_TESTS の中身の直し）だけなら、並ばずに main を ff して push し、
+//      HISTORY に 1 行を足して終わる（direct）。キューに並んでいる候補と衝突するなら、入れずに 3 へ進む
+//   3. 並んでいる印（requestsDir の下の <pid>.json）を置く。restart-subs は印のある worktree のサブを起動し直さない
+//   4. main の worktree の scripts/merge-queue.ts を --push で流す。このスクリプトとは切り離すので、待つ間にこれが止められても、
 //      キューは終わりまで流れ、履歴（merge-queue.ts の HISTORY）に残る。キューのロックで 1 本ずつ並ぶ
-//   4. キューの結果を出し、外されたら次にする事を添える。印を消す
+//   5. キューの結果を出し、外されたら次にする事を添える。印を消す。
+//      入った物（2 でも 4 でも）が指摘改善事例を変えていたら、main_manager に知らせるよう添える
 // 入れば 0、外されれば 1、並べなければ 2 で終わる
-import { execFileSync, spawn } from "node:child_process"
-import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { execFileSync, spawn, spawnSync } from "node:child_process"
+import {
+  appendFileSync,
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs"
 import { join } from "node:path"
-import { commonDir, git, type Outcome, queueDir, type Report } from "./merge-queue"
+import {
+  type Candidate,
+  commonDir,
+  fastForward,
+  git,
+  HISTORY,
+  historyLine,
+  type Outcome,
+  pushMain,
+  queueDir,
+  type Report,
+  unreadByTestsBetween,
+  withMainLock,
+} from "./merge-queue"
 
 // 並んでいる印。pid はこのスクリプトのプロセス
 export type Request = { branch: string; sha: string; worktree: string; pid: number; at: string }
@@ -76,6 +102,55 @@ export function nextStep(o: Outcome): string | undefined {
   return undefined
 }
 
+export type Direct =
+  | { kind: "direct"; pushed: { ok: true } | { ok: false; why: string } }
+  | { kind: "yield"; to: Request }
+  | { kind: "moved" | "dirty" | "failed" }
+
+// c を r の候補と重ねると衝突するか（キューは r を、c の入った main の上に重ねる）。試せなかったときも衝突とみなす
+const conflictsWith = (main: string, c: Candidate, r: Request) =>
+  spawnSync("git", ["merge-tree", "--write-tree", c.sha, r.sha], { cwd: main, stdio: "ignore" }).status !== 0
+
+// テストの結果を変えない物だけのブランチを、キューに並ばずに main へ入れる。base は差分を確かめた時の main。
+// main を進める所はキューと同じロック（mainLock）で 1 本ずつにし、入れば push して HISTORY に 1 行を足す。
+// キューに並んでいる候補と衝突するなら、テストを流し終えた候補を外させないよう、入れずに yield を返す（キューに並ぶ）
+export async function enterDirect(
+  main: string,
+  c: Candidate,
+  base: string,
+  queued: (common: string) => Request[] = queuedRequests,
+): Promise<Direct> {
+  const common = commonDir(main)
+  const r: Direct = await withMainLock(common, () => {
+    const to = queued(common).find(q => conflictsWith(main, c, q))
+    if (to) return { kind: "yield" as const, to }
+    const ff = fastForward(main, base, c.sha)
+    return ff === "done" ? { kind: "direct" as const, pushed: pushMain(main) } : { kind: ff }
+  })
+  if (r.kind === "direct") {
+    mkdirSync(queueDir(common), { recursive: true })
+    appendFileSync(join(queueDir(common), HISTORY), `${historyLine({ ...c, kind: "direct" }, new Date())}\n`)
+  }
+  return r
+}
+
+// enterDirect で入れられなかったときの 1 行と次の事
+export const DIRECT_REFUSED = {
+  moved: "入れられなかった: 確かめた間に main が進んだ\n次: main を取り込み、並び直す",
+  dirty:
+    "入れられなかった: main の worktree の追跡するファイルに未コミットがある\n次: main の側の都合なので、main_manager に知らせる",
+  failed: "入れられなかった: main を fast-forward できなかった\n次: main の側の都合なので、main_manager に知らせる",
+}
+
+// 指摘改善事例のファイル。増えたら main_manager が判断の基準を直す（AGENT.md「指摘改善事例」）
+export const CASES = ".claude/shiteki-kaizen.md"
+
+// main に入れた物が事例を変えていたときに添える次の事
+export const casesStep = (changed: string[]) =>
+  changed.includes(CASES)
+    ? "次: 指摘改善事例が main に入ったので、main_manager に send_message で知らせる（判断の基準を直すため）"
+    : undefined
+
 function mainWorktree(dir: string): string | undefined {
   const blocks = git(dir, "worktree", "list", "--porcelain").split("\n\n")
   const main = blocks.find(b => b.split("\n").includes("branch refs/heads/main"))
@@ -100,6 +175,8 @@ async function request(): Promise<number> {
     return 2
   }
   const sha = git(dir, "rev-parse", "HEAD")
+  // main の先は 1 回だけ読み、並べるかの確かめと、並ばずに入れるときの差分と ff に同じ物を使う
+  const base = git(dir, "rev-parse", "refs/heads/main")
   const branch = ok(dir, "symbolic-ref", "-q", "HEAD") ? git(dir, "symbolic-ref", "--short", "HEAD") : undefined
   const why = refusal({
     branch,
@@ -108,14 +185,36 @@ async function request(): Promise<number> {
       cwd: dir,
       encoding: "utf8",
     }).trimEnd(),
-    hasMain: ok(dir, "merge-base", "--is-ancestor", "refs/heads/main", sha),
-    inMain: ok(dir, "merge-base", "--is-ancestor", sha, "refs/heads/main"),
+    hasMain: ok(dir, "merge-base", "--is-ancestor", base, sha),
+    inMain: ok(dir, "merge-base", "--is-ancestor", sha, base),
     sha,
     queued: queuedRequests(common),
   })
   if (why || !branch) {
     console.error(`並べない: ${why}`)
     return 2
+  }
+
+  const cases = casesStep(git(dir, "diff", "--name-only", base, sha).split("\n"))
+  if (unreadByTestsBetween(dir, base, sha)) {
+    const r = await enterDirect(main, { name: branch, sha }, base)
+    if (r.kind === "yield")
+      console.log(
+        `キューに並んでいる ${r.to.branch} ${r.to.sha.slice(0, 8)} と衝突するので、テストを流さずには入れず、並ぶ`,
+      )
+    else if (r.kind !== "direct") {
+      console.log(DIRECT_REFUSED[r.kind])
+      return 1
+    } else {
+      console.log(`テストを流さずに入った: ${branch} ${sha.slice(0, 8)}`)
+      if (cases) console.log(cases)
+      if (r.pushed.ok) {
+        console.log("push 済み")
+        return 0
+      }
+      console.log(`push に失敗（${r.pushed.why}）\n次: main に入ったが push に失敗したので、main_manager に知らせる`)
+      return 1
+    }
   }
 
   mkdirSync(requestsDir(common), { recursive: true })
@@ -146,6 +245,7 @@ async function request(): Promise<number> {
       const next = nextStep(o)
       if (next) console.log(next)
     }
+    if (cases && report.outcomes.some(o => o.kind === "merged")) console.log(cases)
     if (report.pushed && !report.pushed.ok)
       console.log("次: main に入ったが push に失敗したので、main_manager に知らせる")
     rmSync(out, { force: true })

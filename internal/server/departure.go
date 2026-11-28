@@ -19,7 +19,7 @@ import (
 // departure は、外れた参加者 1 人の記録
 type departure struct {
 	Participant string   `json:"participant"`
-	Sessions    []string `json:"sessions,omitempty"` // 結ばれていたセッション id と、起こす知らせの宛て先のセッション id（空は省く）
+	Sessions    []string `json:"sessions,omitempty"` // 結ばれていたセッション id と、送り先エッジのセッション id（空は省く）
 	Workroom    string   `json:"workroom,omitempty"` // 入っていたワークルームの名前（要求中・ビジターは空）
 	Why         string   `json:"why"`                // departTaken など
 	At          string   `json:"at"`
@@ -156,7 +156,7 @@ func (h *Hub) roomTakenHeld(name, except string) bool {
 	return false
 }
 
-// sessionSittingHeld は、セッション session に、参加（要求）中の参加者が結ばれているか（結ばれたか、起こす知らせの宛て先か。h.mu を持って呼ぶ）
+// sessionSittingHeld は、セッション session に、参加（要求）中の参加者が結ばれているか（結ばれたか、送り先エッジか。h.mu を持って呼ぶ）
 func (h *Hub) sessionSittingHeld(session string) bool {
 	records, err := h.participantsHeld()
 	if err != nil {

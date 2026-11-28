@@ -44,7 +44,8 @@
 //	                         郵便が消えたと記した AI 編集チケット（cause は上限で消えた limit か、利用者が消した user）の全部
 //	                         （undone と failed と removed は、渡したら、次の利用者トリガートークのときに消える）
 //	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine&maxNotice&gap&breaks]  SSE。そのプロセス id かセッション id の AI を起こす知らせ（event: wake、data: {"line", "id", "session", "text"}。参加の要求が受け入れられた・断られた、AI 間メッセージ。watch.go）
-//	POST /api/ai/refresh-due {"sessionId"} そのセッションが受けたリフレッシュリクエストの、空にしたあとの新しい会話に打つ文 {"text"}（無ければ空。渡したら消す。AI のプログラムの部品がターンの終わりに訊く。refresh.go）
+//	POST /api/ai/refresh-due {"sessionId"} そのセッションが受けたリフレッシュリクエストの、空にしたあとの新しい会話に打つ文 {"text"}（無ければ空。空にしたあとの会話が始まるまで残す。AI のプログラムの部品がターンの終わりに訊く。refresh.go）
+//	POST /api/ai/handoff-due {"sessionId"} そのセッションの AI がターンを終える前にする事 {"text"}（引継ぎページの頼みか、会話を空にできなかった知らせ。無ければ空。会話を空にできると名乗った AI だけ。ターンの終わりのフックが訊いて止める。refresh.go）
 //	POST /api/ai/work-title {"sessionId"} そのセッションの作業名 {"workTitle"}（読むだけ。ターンの終わりのフックが読む。書かないなら空。talk_session.go の WorkTitle）
 //	POST /api/ai/watch/ack   {"line", "id", "result"} 通り道に流した知らせを渡せたか（delivered・absent・failed）。{} を返す（watch.go）
 //	POST /api/ai/talked      {"sessionId", "host", "candidates", "woken", "prompt", "refreshable"} AI のターンが始まった（AI のフックが知らせる）。candidates が無く woken でなければ、利用者トリガートークのときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
@@ -57,7 +58,7 @@
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
 //	GET  /api/ai/join-rules  参加を頼む AI が読む手順。
 //	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom", "as", "adeWorkspace", "aiUi"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る）。{"ok", "participant"} か弾いた理由（join.go）
-//	POST /api/ai/message     {"to", "host", "text"} AI 間メッセージを、ワークルーム to の参加者に送る（host はペアリングしたホストのホストエイリアス。受け取られるまで宛て先の常駐が持つ）。{"ok", "queued"} か断った理由（message.go）
+//	POST /api/ai/message     {"to", "host", "text"} AI 間メッセージを、ワークルーム to の参加者に送る（host はペアリングしたホストのホストエイリアス。受け取られるまで送り先の常駐が持つ）。{"ok", "queued"} か断った理由（message.go）
 //	GET  /api/ai/workrooms?host=  送れるワークルームの一覧。host が無ければ、このホストの一覧とペアリングしたホストのホストエイリアス、あればそのホストの写し（peer_rooms.go の aiWorkrooms）
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた窓にブックを出す（Hub.Show）。
 //	                         窓が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す
@@ -169,6 +170,13 @@ func Handler(o Options) http.Handler {
 		}
 		writeJSON(w, map[string]bool{"ok": true})
 	}))
+	mux.Handle("POST /api/hosts/wsl-proxy", o.screen(func(w http.ResponseWriter, _ *http.Request) {
+		if err := o.Hub.RestartWSLProxy(); err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
 	mux.Handle("POST /api/hosts/pair", o.screen(o.startPairing))
 	mux.Handle("POST /api/hosts/pair/end", o.screen(func(w http.ResponseWriter, _ *http.Request) {
 		o.Hub.EndPairing()
@@ -201,6 +209,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/ai/talked", o.ai(o.aiTalked))
 	mux.Handle("POST /api/ai/work-title", o.ai(o.aiWorkTitle))
 	mux.Handle("POST /api/ai/refresh-due", o.ai(o.aiRefreshDue))
+	mux.Handle("POST /api/ai/handoff-due", o.ai(o.aiHandoffDue))
 	mux.Handle("POST /api/ai/model", o.ai(o.aiModel))
 	mux.Handle("POST /api/ai/context-use", o.ai(o.aiContextUse))
 	mux.Handle("POST /api/ai/assets", o.ai(o.importAIAsset))

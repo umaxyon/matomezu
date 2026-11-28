@@ -430,6 +430,7 @@ test("matomezu/ui が出す名前", () => {
     "NO_THEME",
     "NO_UPDATE_STATUS",
     "NO_WRITING",
+    "NO_WSL_PROXY",
     "Notice",
     "PAN_NOT_WATCHED",
     "PageProblemsView",
@@ -508,6 +509,7 @@ test("matomezu/ui が出す名前", () => {
     "useArrangedScreens",
     "useArrivalMarquee",
     "useAskHosts",
+    "useAskRefresh",
     "useAssetUrl",
     "useAtCornerBubble",
     "useBodyGrips",
@@ -1096,6 +1098,7 @@ test("base の入口が出す名前は、どれもプラグイン API からも�
     "workTitleIn",
     "leftTitleIn",
     "myWorkdeskIn",
+    "handoffDueIn",
     "workroomActivitiesFrom",
   ]
   expect([...names(plugin), ...names(pluginUi)].filter(n => !own.includes(n) && !shown.has(n))).toEqual([])

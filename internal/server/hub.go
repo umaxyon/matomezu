@@ -125,7 +125,7 @@ type Hub struct {
 	seenEnvelopes    map[string]bool           // 行列に入れた AI 間メッセージの封筒の id（message.go。二度入れない）
 	seenOrder        []string                  // seenEnvelopes に入れた順（古い物から忘れる）
 	rallies          map[rallyKey]int          // AI ラリーの向き → 利用者トリガートークの後に起こした数（rally.go）
-	ralliesStopped   map[rallyKey]bool         // 上限で止め、宛て先に知らせた AI ラリーの向き（rally.go）
+	ralliesStopped   map[rallyKey]bool         // 上限で止め、送り先に知らせた AI ラリーの向き（rally.go）
 	ralliesSent      map[rallySentKey]int      // ほかのホストへ送った向き → 送り手の利用者トリガートークの後に送った数（rally.go）
 	pending          []pendingMessage          // 承認待ちの AI 間メッセージ（届いた順。メモリだけ。pending_message.go）
 	next             int

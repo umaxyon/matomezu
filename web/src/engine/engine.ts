@@ -54,6 +54,7 @@ import {
   unlistedOf,
 } from "./records"
 import {
+  handoffDue,
   isAdminWorkroom,
   joinedText,
   leftTitle,
@@ -324,6 +325,11 @@ let lastAdded: readonly Plugin[] = []
   workroom,
   folders,
 ) => myWorkdesk(assembled, workroom, folders)
+
+// ワークルームの AI が、ターンを終える前に書く引継ぎページの頼み（引継ぎ対象チケットが無ければ空。常駐が、ターンの終わりのフックに答える）。
+// 引継ぎ対象チケットはレコードから決まるので、常駐が読み口を置いている間に呼ぶ
+;(globalThis as { matomezuHandoffDue?: (workroom: string) => string }).matomezuHandoffDue = workroom =>
+  handoffDue(assembled, workroom)
 
 // ビジターとして参加したことを利用者に伝える文（利用者の言語。matomezuJoinedText と同じく、フックの systemMessage に使う）
 ;(globalThis as { matomezuVisitorJoinedText?: (settings: string) => string }).matomezuVisitorJoinedText = settings =>

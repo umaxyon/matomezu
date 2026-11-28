@@ -1,5 +1,5 @@
 // 右の下のワークルームの枠: 選んでいる参加者の鳥・名前・管理者の王冠（管理者なら金、ほかは薄い灰色。押すと管理者にする）・情報（最終アクセス・ブランチ（あれば）・model・os・インターフェース（あれば））・カレントチケット・チケット履歴。
-// 情報の列の右下に退室のアイコン。情報の列の右には、スロット workroom-columnsに置かれたウィジェットの列（カレントチケット・チケット履歴など）が並ぶ。
+// 情報の列の右下に、引継ぎページを書いて会話を空にするよう AI に頼むアイコン（確かめのダイアログを開く）と退室のアイコン。情報の列の右には、スロット workroom-columnsに置かれたウィジェットの列（カレントチケット・チケット履歴など）が並ぶ。
 // ワークルームとビジターのほかの種類を選んでいれば、スロット picked-detail のその種類の物が枠の中を描く。ビジターを選んでいれば、ビジターの印・呼び名・（ビジター（読むだけ））・情報と、右下に外すアイコン（確かめのダイアログを開く）
 import { KindSlot, Slot, useActions, useAllowedOn, useMessages, useT } from "../../plugin-api/ui"
 import {
@@ -15,8 +15,8 @@ import {
 } from "../base"
 import { CrownIcon, Elapsed, IconButton, Panel, Tip, useWorkroomActions, VisitorIcon } from "../base/ui"
 import { BIRD_SIZE, Bird } from "./Bird"
-import { type Picked, VISITOR_LEAVE_DIALOG, WORKROOM_LEAVE_DIALOG } from "./control-center"
-import { LeaveIcon, TrashIcon } from "./icons"
+import { type Picked, REFRESH_ASK_DIALOG, VISITOR_LEAVE_DIALOG, WORKROOM_LEAVE_DIALOG } from "./control-center"
+import { ClearIcon, LeaveIcon, TrashIcon } from "./icons"
 import { kit } from "./kit"
 import { lastAccessOf } from "./rows"
 import { PICKED_DETAIL, WORKROOM_COLUMNS } from "./slots"
@@ -131,11 +131,16 @@ function Occupied({ row }: { row: WorkroomRow }) {
           <dd>{participant !== NO_OCCUPANT ? participant.env : ""}</dd>
           <AiUiFact aiUi={row.aiUi} />
         </dl>
-        {participant !== NO_OCCUPANT ? (
-          <LeaveButton workroom={row.room.id} participant={participant.id} />
-        ) : (
-          <LeaveIconButton workroom={row.room.id} enabled={false} />
-        )}
+        <span className={styles.leave}>
+          {participant !== NO_OCCUPANT ? (
+            <>
+              <ClearButton workroom={row.room.id} participant={participant.id} />
+              <LeaveButton workroom={row.room.id} participant={participant.id} />
+            </>
+          ) : (
+            <LeaveIconButton workroom={row.room.id} enabled={false} />
+          )}
+        </span>
       </div>
       <Slot name={WORKROOM_COLUMNS} props={{ workroom: row.room.id }} />
     </div>
@@ -152,19 +157,36 @@ function LeaveIconButton({ workroom, enabled }: { workroom: string; enabled: boo
   const t = useMessages(kit)
   const { openDialog } = useActions()
   return (
-    <span className={styles.leave}>
-      <Tip text={t("Leave the workroom")} side="above">
-        <IconButton
-          className={styles.leaveButton}
-          label={t("Leave")}
-          title={undefined}
-          disabled={!enabled}
-          onClick={() => openDialog(WORKROOM_LEAVE_DIALOG.id, { workroom })}
-        >
-          <LeaveIcon />
-        </IconButton>
-      </Tip>
-    </span>
+    <Tip text={t("Leave the workroom")} side="above">
+      <IconButton
+        className={styles.leaveButton}
+        label={t("Leave")}
+        title={undefined}
+        disabled={!enabled}
+        onClick={() => openDialog(WORKROOM_LEAVE_DIALOG.id, { workroom })}
+      >
+        <LeaveIcon />
+      </IconButton>
+    </Tip>
+  )
+}
+
+// ワークルーム workroom の参加者 participant に、引継ぎページを書いて会話を空にするよう頼むボタン（確かめのダイアログを開く。送れるかはダイアログの送るが決める）。
+// 題は吹き出しの幅に入らないので、文言の改行で 2 行に分ける
+function ClearButton({ workroom, participant }: { workroom: string; participant: string }) {
+  const t = useMessages(kit)
+  const { openDialog } = useActions()
+  return (
+    <Tip text={t("Send the instruction to clear the context")} side="above">
+      <IconButton
+        className={styles.leaveButton}
+        label={t("Clear")}
+        title={undefined}
+        onClick={() => openDialog(REFRESH_ASK_DIALOG.id, { workroom, participant })}
+      >
+        <ClearIcon />
+      </IconButton>
+    </Tip>
   )
 }
 

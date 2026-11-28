@@ -85,6 +85,10 @@ export const HostStatusSchema = z.object({
   addrs: z.array(z.string()).optional(),
   wsl: z.boolean().optional(),
   failed: z.enum(["port-in-use", "listen"]).optional(),
+  wslProxy: z
+    .enum(["starting", "running", "unavailable", "update-windows", "update-this", "port-in-use", "listen", "stopped"])
+    .optional(),
+  wslProxyAddrs: z.array(z.string()).optional(),
 })
 export const HostPeersSchema = z.object({
   paired: z.array(
@@ -163,6 +167,7 @@ export const DataSchema = z.object({
         branch: z.string().optional(),
         wake: z.literal("reaches").optional(),
         contextUse: CONTEXT_USE.optional(),
+        refreshable: z.literal(true).optional(),
       }),
     )
     .optional(),
@@ -211,6 +216,7 @@ export const ParticipantLiveSchema = z.object({
   branch: z.string().optional(),
   wake: z.literal("reaches").optional(),
   contextUse: CONTEXT_USE.optional(),
+  refreshable: z.literal(true).optional(),
 })
 export const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 export const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown() })

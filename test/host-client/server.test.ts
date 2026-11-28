@@ -1256,4 +1256,6 @@ test("ほかのホストの様子の知らせは store に入れ、頼みはそ�
   expect(sent).toEqual([{ addr: "192.168.11.20:7240", manual: true }])
   const refused = removing({ status: 409, body: {} }, "api/hosts/port")
   await expect(refused.host.askHosts({ kind: "repick-port" })).rejects.toThrow("E413")
+  const notStopped = removing({ status: 409, body: {} }, "api/hosts/wsl-proxy")
+  await expect(notStopped.host.askHosts({ kind: "restart-wsl-proxy" })).rejects.toThrow("E413")
 })

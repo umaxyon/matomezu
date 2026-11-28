@@ -123,11 +123,13 @@ test("ホストをつなぐ: 頼んでいる様子ごとに、待つ所（接続
   expect(asked.at(-1)).toEqual({ kind: "end-pairing" })
 })
 
-test("WSL で動いていれば、ホストをつなぐに一覧に出ないことを言い、待っている所を入れる所を開いて出す。WSL でなければ畳んだまま", () => {
+test("WSL で動いていれば（WSLプロキシが稼働中のときを除く）、ホストをつなぐに一覧に出ないことを言い、待っている所を入れる所を開いて出す。そのほかは畳んだまま", () => {
   const { store, connect } = open()
   connect()
-  const status = (wsl: boolean) =>
-    act(() => store.setHostStatus({ hostId: B, name: "desk", osHostName: "desk", open: true, port: 41234, wsl }))
+  const status = (wsl: boolean, wslProxy?: "running") =>
+    act(() =>
+      store.setHostStatus({ hostId: B, name: "desk", osHostName: "desk", open: true, port: 41234, wsl, wslProxy }),
+    )
   const dialog = () => screen.getByRole("dialog", { name: "ホストをつなぐ" })
   status(false)
   fireEvent.click(screen.getByRole("button", { name: "ホストをつなぐ" }))
@@ -138,6 +140,11 @@ test("WSL で動いていれば、ホストをつなぐに一覧に出ないこ�
   fireEvent.click(screen.getByRole("button", { name: "ホストをつなぐ" }))
   expect(within(dialog()).getByText("WSL では、ほかのマシンは一覧に出ません")).toBeTruthy()
   expect(dialog().querySelector("details")?.open).toBe(true)
+  fireEvent.keyDown(dialog(), { key: "Escape" })
+  status(true, "running")
+  fireEvent.click(screen.getByRole("button", { name: "ホストをつなぐ" }))
+  expect(within(dialog()).queryByText("WSL では、ほかのマシンは一覧に出ません")).toBeNull()
+  expect(dialog().querySelector("details")?.open).toBe(false)
 })
 
 test("届いた頼みはしおりとダイアログに出し、断ると消える", () => {

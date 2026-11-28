@@ -19,7 +19,7 @@ import (
 // callsAnnounceGap は、同じ参加者の最後に呼ばれた時刻を窓に知らせ直す、いちばん短い間（毎回の呼び出しで知らせが走らないように）
 const callsAnnounceGap = 30 * time.Second
 
-// ParticipantLive は参加者の id ごとの様子（モデルとブランチと、起こす知らせを渡せる通り道がつながっているか。どれも無い参加者は省く）
+// ParticipantLive は参加者の id ごとの様子（participantLive。どれも無い参加者は省く）
 func (h *Hub) ParticipantLive() map[string]participantLive {
 	h.mu.Lock()
 	defer h.mu.Unlock()

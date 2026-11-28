@@ -29,6 +29,8 @@ type HostConfig struct {
 	WSL        bool            // WSL で動いているか（画面が案内を出す）
 	Discover   bool            // 入口を開いているあいだ mDNS で知らせ、見つける（テストは同じ網に出さないよう切る）
 	Loopback   bool            // 127.0.0.1 だけで待つ（テストは同じ網に出さないよう付ける）
+	// WSLProxy は、入口を開いたときに WSLプロキシを立てる物（NAT の WSL のときだけ。ほかは nil）。立てたら、mDNS は WSLプロキシごしにする
+	WSLProxy peer.WSLProxyLaunch
 }
 
 // HostFailed は、入口を開こうとして開けなかった理由
@@ -49,21 +51,26 @@ type HostStatus struct {
 	Addrs      []string   `json:"addrs,omitempty"` // 待っている所の番地（開いているときだけ）
 	WSL        bool       `json:"wsl,omitempty"`
 	Failed     HostFailed `json:"failed,omitempty"` // 開けなかった理由（開こうとして開けなかったときだけ）
+	// WSLProxy は WSLプロキシの様子、WSLProxyAddrs は WSLプロキシの待っている所の番地（立てる WSL で、入口が開いているときだけ）
+	WSLProxy      peer.WSLProxyState `json:"wslProxy,omitempty"`
+	WSLProxyAddrs []string           `json:"wslProxyAddrs,omitempty"`
 }
 
 type hostEntrance struct {
-	mu      sync.Mutex // 開け閉めの鍵（h.mu とは別。開け閉めのあいだ h.mu を持たない）
-	config  HostConfig
-	srv     *http.Server
-	handler http.Handler // srv が答える口（hostsHandler）。こちらが張ったリバース接続の上でも同じ物で答える
-	ln      net.Listener // srv が受けている所
-	status  HostStatus
-	kick    chan struct{}
-	done    chan struct{} // CloseHostEntrance が閉じる（開け閉めの goroutine を止める）
-	closed  bool          // CloseHostEntrance のあとは開かない
-	peers   *peerState    // ペアリングとペアリングしたホストの様子（pairing.go）
-	user    string        // mDNS で知らせている利用者名
-	proto   atomic.Int64  // 常駐間通信プロトコルの版（peer.Protocol。版の違う常駐を組むテストだけが、閉じているあいだに替える。閉じたあとも、裏で頼む goroutine が読む）
+	mu          sync.Mutex // 開け閉めの鍵（h.mu とは別。開け閉めのあいだ h.mu を持たない）
+	config      HostConfig
+	srv         *http.Server
+	handler     http.Handler // srv が答える口（hostsHandler）。こちらが張ったリバース接続の上でも同じ物で答える
+	ln          net.Listener // srv が受けている所
+	status      HostStatus
+	kick        chan struct{}
+	done        chan struct{} // CloseHostEntrance が閉じる（開け閉めの goroutine を止める）
+	closed      bool          // CloseHostEntrance のあとは開かない
+	peers       *peerState    // ペアリングとペアリングしたホストの様子（pairing.go）
+	user        string        // mDNS で知らせている利用者名
+	wslRestarts int           // WSLプロキシが終わって続けて立て直した回数（入口を開いたとき・［立て直す］・しばらく動いたあとで数え直す）
+	wslRunning  time.Time     // WSLプロキシが最後に待ち始めた時刻
+	proto       atomic.Int64  // 常駐間通信プロトコルの版（peer.Protocol。版の違う常駐を組むテストだけが、閉じているあいだに替える。閉じたあとも、裏で頼む goroutine が読む）
 }
 
 // SetHostEntrance は、ホストどうしの入口の用意を渡し、設定に合わせて開け閉めし始める（立ったときに 1 度呼ぶ）
@@ -192,18 +199,24 @@ func (h *Hub) applyHostEntrance(e *hostEntrance) {
 	}
 }
 
-// RepickHostPort は、覚えたポートがほかに使われているとき、空いている番号を取り直して開き、その番号を覚える（利用者が［別のポートにする］を確かめたとき）
+// RepickHostPort は、覚えたポートがほかに使われているとき（このホストでも、WSLプロキシの待つ Windows でも）、空いている番号を取り直して開き、
+// その番号を覚える（利用者が［別のポートにする］を確かめたとき）。WSLプロキシも、取り直した番号で立て直す
 func (h *Hub) RepickHostPort() error {
 	e := h.entrance.Load()
 	if e == nil {
 		return errors.New("there is no entrance for other hosts")
 	}
 	e.mu.Lock()
-	if e.closed || e.status.Failed != HostPortInUse {
+	if e.closed || (e.status.Failed != HostPortInUse && e.status.WSLProxy != peer.WSLProxyPortInUse) {
 		e.mu.Unlock()
 		return errors.New("the kept port is not taken")
 	}
 	was := e.status
+	if e.srv != nil {
+		e.srv.Close()
+		e.srv, e.handler = nil, nil
+		h.stopBeacon(e)
+	}
 	e.config.Port = 0
 	e.open(h)
 	now := e.status
@@ -257,7 +270,8 @@ func (e *hostEntrance) open(h *Hub) {
 		h.stoppedHostEntrance(e, srv)
 	}()
 	e.status.Open, e.status.Port, e.status.Addrs, e.status.Failed = true, port, peer.ReachableAddrs(), ""
-	h.startBeacon(e, port)
+	e.wslRestarts, e.wslRunning = 0, time.Time{}
+	h.startBeacon(e, port, srv)
 }
 
 // stoppedHostEntrance は、入口の srv が自分で止まったとき（閉じたのでなく）、開いていない様子にして窓に知らせる。つなぐを入れ直せば開き直す

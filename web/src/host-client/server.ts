@@ -96,6 +96,7 @@ const HOSTS_PATHS: Record<HostRequest["kind"], string> = {
   check: "api/hosts/check",
   discover: "api/hosts/discover",
   "repick-port": "api/hosts/port",
+  "restart-wsl-proxy": "api/hosts/wsl-proxy",
 }
 
 // 読み直しをまたいで運ぶ物（読み直す前に知らされた、読めない物のフォルダへ移った・戻った物の知らせ）の、sessionStorage の鍵
@@ -148,19 +149,22 @@ const browserNet: Net = {
   now: () => Date.now(),
 }
 
-// 参加者の様子のうち、空でない物（モデルもブランチもコンテキストの量も無く、起こす知らせを渡せる matomezu watch もつながっていなければ undefined）
+// 参加者の様子のうち、空でない物（モデルもブランチもコンテキストの量も無く、起こす知らせを渡せる matomezu watch もつながっておらず、
+// 会話を空にできるとも名乗っていなければ undefined）
 const liveOf = (v: {
   model?: string | undefined
   branch?: string | undefined
   wake?: "reaches" | undefined
   contextUse?: ContextUse | undefined
+  refreshable?: true | undefined
 }): ParticipantLive | undefined =>
-  v.model || v.branch || v.wake || v.contextUse
+  v.model || v.branch || v.wake || v.contextUse || v.refreshable
     ? {
         ...(v.model ? { model: v.model } : {}),
         ...(v.branch ? { branch: v.branch } : {}),
         ...(v.wake ? { wake: v.wake } : {}),
         ...(v.contextUse ? { contextUse: v.contextUse } : {}),
+        ...(v.refreshable ? { refreshable: v.refreshable } : {}),
       }
     : undefined
 
@@ -191,7 +195,7 @@ export function serverClient(net: Net = browserNet): HostClient {
   let hostStatus: HostStatus | undefined // ホストどうしの入口の様子（読んだか知らされた物）
   let hostPeers: HostPeers | undefined // ほかのホストの様子（読んだか知らされた物）
   let participantReady: string[] = [] // 準備中でない参加者の id（増えるだけ）
-  let participantLive: Record<string, ParticipantLive> = {} // 参加者の id → 様子（モデル・ブランチ・起こす知らせの通り道・コンテキストの量。どれも無い参加者は持たない）
+  let participantLive: Record<string, ParticipantLive> = {} // 参加者の id → 様子（モデル・ブランチ・起こす知らせの通り道・コンテキストの量・会話を空にできるという名乗り。どれも無い参加者は持たない）
   let plugins: { id: string; ui: string; css?: string; disabled?: boolean }[] = []
   let client = ""
   let warnings: readonly Warning[] = [] // 画面が見つけた warning（つなぎ直すたびに知らせ直す）

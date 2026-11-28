@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/umaxyon/matomezu/internal/home"
@@ -19,6 +20,25 @@ func setHost(hub *server.Hub, h *home.Home) error {
 		return err
 	}
 	name, _ := os.Hostname()
-	hub.SetHostEntrance(server.HostConfig{Identity: id, Port: port, SavePort: h.WriteHostPort, OSHostName: name, WSL: onWSL(), Discover: true})
+	wsl := onWSL()
+	proxy := wslProxyFor(wsl)
+	dropWSLProxyForTest(&proxy)
+	hub.SetHostEntrance(server.HostConfig{Identity: id, Port: port, SavePort: h.WriteHostPort, OSHostName: name, WSL: wsl, Discover: true, WSLProxy: proxy})
 	return nil
+}
+
+// wslProxyFor は、WSLプロキシを立てる物（NAT の WSL のときだけ。ほかは nil）
+func wslProxyFor(wsl bool) peer.WSLProxyLaunch {
+	if !wsl {
+		return nil
+	}
+	mode, err := wslNetworkingMode()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "hosts: the WSL proxy is not used:", err)
+		return nil
+	}
+	if mode != "nat" {
+		return nil
+	}
+	return launchWSLProxy
 }

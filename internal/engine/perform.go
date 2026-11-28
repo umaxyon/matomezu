@@ -101,7 +101,7 @@ type Output struct {
 	Counters      map[string]map[string]int64 `json:"counters,omitempty"`      // 番号を進めた種類の id → 区切り → 次の番号（進めた区切りだけ）
 	Notice        string                      `json:"notice,omitempty"`        // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 	AIEditTickets []AIEditTicketChange        `json:"aiEditTickets,omitempty"` // レコードが対象のアクションが返した、AI 編集チケットの変え方の並び（レコードと同じ 1 回の書き込みで、順に当てる）
-	AIMessages    []AIMessage                 `json:"aiMessages,omitempty"`    // レコードが対象のアクションが返した、送る AI 間メッセージ（行ったのは参加の確定した AI。常駐が書き込みと一緒に送る）
+	Payloads      []Payload                   `json:"payloads,omitempty"`      // レコードが対象のアクションが返した、送る matomezu ペイロード（行ったのは利用者か参加の確定した AI。常駐が書き込みと一緒に送る）
 	HostMessages  []HostMessage               `json:"hostMessages,omitempty"`  // フォローステップが返した、送る常駐メッセージ（常駐が書き込みと一緒に送る）
 	// RefreshRequest は、書庫かレコードが対象のアクションが返したリフレッシュリクエスト（行ったのはワークルームに入っている AI。バルクに 1 つまで。常駐が、書き込めたら行った参加者に覚える）
 	RefreshRequest *RefreshRequest `json:"refreshRequest,omitempty"`
@@ -113,17 +113,23 @@ type RefreshRequest struct {
 	Text string `json:"text"`
 }
 
-// HostMessage は、フォローステップが送る常駐メッセージ 1 通（Workroom は宛先のワークルームの id。送り手は常駐）
+// HostMessage は、フォローステップが送る常駐メッセージ 1 通（Workroom は送り先のワークルームの id。送り手は常駐）
 type HostMessage struct {
 	Workroom string `json:"workroom"`
 	Text     string `json:"text"`
 }
 
-// AIMessage は、アクションが送る AI 間メッセージ 1 通（Workroom は宛先のワークルームの id。送り手は行った参加者）
-type AIMessage struct {
+// Destination は、matomezu ペイロードの送り先: このホストの、名前が Workroom のワークルーム（Participant を書けば、その参加者が今そこに入っているときだけ）
+type Destination struct {
 	Workroom    string `json:"workroom"`
-	Text        string `json:"text"`
-	NoRecipient string `json:"noRecipient,omitempty"` // 宛先がいないとき: refuse（空のとき）はバルクを断る、skip はその 1 通を送らない
+	Participant string `json:"participant,omitempty"`
+}
+
+// Payload は、アクションが送る matomezu ペイロード 1 通（送り手は行った者）
+type Payload struct {
+	To          Destination `json:"to"`
+	Text        string      `json:"text"`
+	NoRecipient string      `json:"noRecipient,omitempty"` // 送り先に届けられないとき: refuse（空のとき）はバルクを断る、skip はその 1 通を送らない
 }
 
 // RowChange は、変わったページ・フォルダ 1 つ（Row は新しい本文。無くなったなら Removed）

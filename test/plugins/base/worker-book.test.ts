@@ -274,6 +274,7 @@ describe("引継ぎページを書いて会話をリフレッシュする（refr
     if (!done.ok) return
     expect(done.refreshRequest?.text).toContain(`page "${added?.[1]}" in book "b1"`)
     expect(done.refreshRequest?.text).toContain('read_folder with folder "my-workdesk"')
+    expect(done.refreshRequest?.text).toContain("given again")
   })
 
   test("書けたら、同じ書き込みでワークルームの引継ぎ対象チケットを外す（ほかの物は残す）", () => {
@@ -297,8 +298,50 @@ describe("引継ぎページを書いて会話をリフレッシュする（refr
     expect(direct).toMatchObject({ ok: false })
   })
 
-  test("引継ぎ対象チケットが無い・そのレコードが消えたなら、理由を添えて断る。利用者には行えない", () => {
-    expect(ask({ target: false })).toMatchObject({ ok: false, detail: expect.stringContaining("no handoff target") })
+  // r1 の AI が、引継ぎ対象チケットを持たず、今の作業（work）が r1 自身の作業のとき
+  const askOnWork = (work: boolean) =>
+    performIn(
+      { ...yardWorld(), records: { [WORKROOM]: { r1: room("r1", work ? { work: roomKey("r1") } : {}) } } as never },
+      "@matomezu/base:refresh-request",
+      { type: "@matomezu/drawing:drawing", title: "Handoff" },
+      undefined,
+      yardCtx({ kind: "ai", workroom: { id: "r1" } }),
+    )
+
+  test("引継ぎ対象チケットが無ければ、今の作業のワーカーブックに引継ぎページを足し、ワークルームのレコードは変えない", () => {
+    const done = askOnWork(true)
+    expect(done.ok).toBe(true)
+    expect(lineupOf(done)).toEqual(["p1", expect.any(String)])
+    if (!done.ok) return
+    expect(done.records ?? []).toEqual([])
+    expect(done.refreshRequest?.text).toContain('in book "b1"')
+    expect(done.refreshRequest?.text).not.toContain("given again")
+  })
+
+  test("引継ぎ対象チケットと今の作業の両方があれば、引継ぎ対象チケットに書く", () => {
+    const done = performIn(
+      {
+        ...yardWorld(),
+        records: {
+          [WORKROOM]: { r1: room("r1"), r2: room("r2", { handoffTarget: roomKey("r1"), work: roomKey("r2") }) },
+        } as never,
+      },
+      "@matomezu/base:refresh-request",
+      { type: "@matomezu/drawing:drawing", title: "Handoff" },
+      undefined,
+      yardCtx({ kind: "ai", workroom: { id: "r2" } }),
+    )
+    expect(lineupOf(done)).toEqual(["p1", expect.any(String)])
+    if (!done.ok) throw new Error("refused")
+    expect(done.records).toEqual([{ subject: WORKROOM, id: "r2", record: room("r2", { work: roomKey("r2") }) }])
+  })
+
+  test("引継ぎ対象チケットも今の作業も無い・そのレコードが消えたなら、理由を添えて断る。利用者には行えない", () => {
+    expect(askOnWork(false)).toMatchObject({
+      ok: false,
+      detail: expect.stringContaining("neither a handoff target nor a current work"),
+    })
+    expect(ask({ target: false })).toMatchObject({ ok: false, detail: expect.stringContaining("neither") })
     expect(ask({ gone: true })).toMatchObject({ ok: false, detail: expect.stringContaining("is gone") })
     const byUser = performIn(
       {

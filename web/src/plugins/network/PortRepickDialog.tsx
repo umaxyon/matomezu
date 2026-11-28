@@ -1,4 +1,5 @@
 // 別のポートにするかの確かめ: 変えると効かなくなる物（足したファイアウォールの規則・相手が手で入れた待っている所）と、キャンセル・別のポートにする。
+// このホストで覚えたポートが使われているときと、WSLプロキシの待つ Windows で使われているとき（WSLプロキシもその番号で立て直す）に開く。
 // 設定のダイアログから開くので（ダイアログは 1 つだけ）、どちらで閉じても設定の「ネットワーク」に戻る。入口がもう使われていない様子なら、すぐ戻る
 import { useEffect, useState } from "react"
 import { type DialogProps, useMessages } from "../../plugin-api/ui"
@@ -12,7 +13,7 @@ export function PortRepickDialog(_: DialogProps) {
   const ask = useAskHosts()
   const back = useOpenSettings(kit.name("settings"))
   const [failed, setFailed] = useState(false)
-  const taken = status !== NO_HOST_STATUS && status.failed === "port-in-use"
+  const taken = status !== NO_HOST_STATUS && (status.failed === "port-in-use" || status.wslProxy === "port-in-use")
   useEffect(() => {
     if (!taken) back()
   }, [taken, back])

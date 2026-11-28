@@ -108,11 +108,16 @@ func (b *Beacon) Query() {
 func (b *Beacon) Found() []Sighting {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	return liveSightings(b.found)
+}
+
+// liveSightings は、found のうち寿命の切れていない物（ホスト id の順）。切れた物は found から消す
+func liveSightings(found map[string]Sighting) []Sighting {
 	now := time.Now()
 	var out []Sighting
-	for id, s := range b.found {
+	for id, s := range found {
 		if now.After(s.until) {
-			delete(b.found, id)
+			delete(found, id)
 			continue
 		}
 		out = append(out, s)

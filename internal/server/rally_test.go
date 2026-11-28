@@ -9,8 +9,8 @@ import (
 	"github.com/umaxyon/matomezu/internal/engine"
 )
 
-// 同じホストの中の AI ラリーは、向きごとに上限まで届き、超えた物は届けずに断り、宛て先には止めた事を 1 度だけ知らせる。
-// 知らせで始まったターンでは戻らず、送り手か宛て先の AI に利用者トリガートークがあったら数が戻る
+// 同じホストの中の AI ラリーは、向きごとに上限まで届き、超えた物は届けずに断り、送り先には止めた事を 1 度だけ知らせる。
+// 知らせで始まったターンでは戻らず、送り手か送り先の AI に利用者トリガートークがあったら数が戻る
 func TestRallyStopsAtTheLimitUntilAUserTalks(t *testing.T) {
 	t.Parallel()
 	for _, talker := range []string{"SA", "SB"} {
@@ -47,7 +47,7 @@ func TestRallyStopsAtTheLimitUntilAUserTalks(t *testing.T) {
 			if sent, _ := sendMessage(t, s.URL, a, "すずめ", "again"); !sent.OK {
 				t.Fatalf("after the user talked = %+v", sent)
 			}
-			// 宛て先には、また届くことを先に知らせてから届ける。次からは知らせない
+			// 送り先には、また届くことを先に知らせてから届ける。次からは知らせない
 			if n := noticeOf(t, s.URL, b); !strings.Contains(n, "arrive again") || strings.Index(n, "arrive again") > strings.Index(n, `"again"`) {
 				t.Fatalf("resumed notice = %q", n)
 			}
@@ -120,8 +120,8 @@ func TestRallyLimitOfAPairedHost(t *testing.T) {
 	}
 }
 
-// ペアリングしたホストの間: 受けるホストの利用者が決めた上限（rallyLimit）で止め、送り手には rally-limit で断り、宛て先には 1 度だけ知らせる。
-// 送り手の利用者が送り手の AI に話しかけたら、送り手のホストが封筒に載せる数が戻るので、また届き、宛て先にはその事を先に知らせる
+// ペアリングしたホストの間: 受けるホストの利用者が決めた上限（rallyLimit）で止め、送り手には rally-limit で断り、送り先には 1 度だけ知らせる。
+// 送り手の利用者が送り手の AI に話しかけたら、送り手のホストが封筒に載せる数が戻るので、また届き、送り先にはその事を先に知らせる
 func TestRallyBetweenPairedHosts(t *testing.T) {
 	t.Parallel()
 	as, bs, _, b := pairedWorlds(t)
@@ -155,8 +155,8 @@ func TestRallyBetweenPairedHosts(t *testing.T) {
 }
 
 // アクションが返す AI 間メッセージも AI ラリーに数え、上限を超える物は、noRecipient が refuse ならバルクごと rally-limit で断り、skip なら送らないだけ。
-// 同じバルクで同じ宛て先へ送る物も先の物から数える
-func TestActionEnvelopesStopAtTheRallyLimit(t *testing.T) {
+// 同じバルクで同じ送り先へ送る物も先の物から数える
+func TestPayloadsStopAtTheRallyLimit(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
@@ -168,8 +168,8 @@ func TestActionEnvelopesStopAtTheRallyLimit(t *testing.T) {
 	actor := &engine.Actor{Kind: "ai", Workroom: ids["ひよこ"]}
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
-	to := engine.AIMessage{Workroom: ids["すずめ"], Text: "x"}
-	envelopes, refused := hub.actionEnvelopes([]engine.AIMessage{to, to}, actor, time.Now())
+	to := engine.Payload{To: engine.Destination{Workroom: "すずめ"}, Text: "x"}
+	envelopes, refused := hub.payloadDeliveries([]engine.Payload{to, to}, actor, false, time.Now())
 	if refused != nil || len(envelopes) != 2 {
 		t.Fatalf("under the limit = %+v %+v", envelopes, refused)
 	}
@@ -178,12 +178,12 @@ func TestActionEnvelopesStopAtTheRallyLimit(t *testing.T) {
 		d.envelope.ID = newEnvelopeID()
 		hub.deliver(d)
 	}
-	if _, refused := hub.actionEnvelopes([]engine.AIMessage{to, to}, actor, time.Now()); refused == nil || refused.Reason != "rally-limit" {
+	if _, refused := hub.payloadDeliveries([]engine.Payload{to, to}, actor, false, time.Now()); refused == nil || refused.Reason != "rally-limit" {
 		t.Fatalf("refuse = %+v", refused)
 	}
 	skip := to
 	skip.NoRecipient = "skip"
-	if envelopes, refused := hub.actionEnvelopes([]engine.AIMessage{to, skip}, actor, time.Now()); refused != nil || len(envelopes) != 1 {
+	if envelopes, refused := hub.payloadDeliveries([]engine.Payload{to, skip}, actor, false, time.Now()); refused != nil || len(envelopes) != 1 {
 		t.Fatalf("skip = %+v %+v", envelopes, refused)
 	}
 }
