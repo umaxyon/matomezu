@@ -112,6 +112,8 @@ import {
   type Finished,
   type HostRefused,
   KEY_WAITS,
+  NO_DENIED_BY,
+  NO_REFUSAL_KIND,
   type Performed,
   SCREEN_REFUSED,
   SENT_TO_HOST,
@@ -152,10 +154,10 @@ import {
   initialState,
   type LibraryLoaded,
   type LibraryRows,
+  librarySidesOf,
   type MatomezuInstance,
   type MatomezuState,
   type ReadonlyStore,
-  type RowSides,
   type StoreOptions,
 } from "./state"
 import { createUnseenChanges } from "./unseen"
@@ -190,6 +192,19 @@ interface OpenStep {
   // 画面で先に行わずに常駐へ送った最初のアクションの番号（done の中の位置。それより後ろのアクションも先に行わずに送る）
   sentFrom?: number
 }
+
+// 書庫の履歴の戻せる側に段を置く所: 最後か、始めた順の位置（答えを待つ間に入れたほかの段より前）
+const atEnd = (now: History, step: HistoryStep) => [...now.undo, step].slice(-HISTORY_LIMIT)
+const inStartOrder = (now: History, step: HistoryStep) => insertStep(now, step).undo
+
+// ホストの断り a を、呼び手に返す形にする
+const hostRefused = (a: { reason: string; kind?: string; permission?: string }): HostRefused => ({
+  ok: false,
+  reason: a.reason,
+  kind: a.kind ?? NO_REFUSAL_KIND,
+  permission: a.permission ?? NO_DENIED_BY,
+  by: "host",
+})
 
 function startLang(catalog: CoreCatalog, lang: Lang | readonly string[] = []): Lang {
   return detectLang(typeof lang === "string" ? [lang] : lang, [...catalog.languages.keys()])
@@ -338,35 +353,25 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 先に行わずに送ったアクションを持つバルクは、常駐の答えを待って入れる（putSentLibraryStep。画面が持っていない行の前の値を、常駐からもらう）
   const putLibraryStep = (was: OpenStep) => {
     if (!was.library || was.refused || was.sentFrom !== undefined) return
-    putLibrary(was, { pages: keptRows(was.library.pages), folders: keptRows(was.library.folders) }, false)
+    putLibrary(was, { pages: keptRows(was.library.pages), folders: keptRows(was.library.folders) }, atEnd)
   }
   // 先に行わずに送ったアクションを持つバルクの、書庫の履歴に入る分（常駐が書く前と後。バルクの全部のアクションの分）を、書庫の履歴に、始めた順の位置で入れる
   // （答えを待つ間に入れたほかの段より前に）
   const putSentLibraryStep = (was: OpenStep, rows: ForeignLibraryRows) => {
-    const sides = <T>(changed: Readonly<Record<string, RowSides>>) =>
-      Object.fromEntries(
-        Object.entries(changed).map(([id, r]): [string, RowChange<T>] => [
-          id,
-          { before: (r.before ?? "none") as T | "none", after: (r.after ?? "none") as T | "none" },
-        ]),
-      )
-    putLibrary(
-      was,
-      { pages: keptRows(sides<PageRow>(rows.pages)), folders: keptRows(sides<Folder>(rows.folders)) },
-      true,
-    )
+    const sides = librarySidesOf(rows)
+    putLibrary(was, { pages: keptRows(sides.pages), folders: keptRows(sides.folders) }, inStartOrder)
   }
-  // 書庫の履歴に段を入れる（inOrder なら始めた順の位置に、でなければ最後に）。やり直せる段は消す
-  const putLibrary = (was: OpenStep, rows: Pick<HistoryStep, "pages" | "folders">, inOrder: boolean) => {
+  // 書庫の履歴に段を入れる（place が戻せる側のどこに置くか決める）。やり直せる段は消す
+  const putLibrary = (
+    was: OpenStep,
+    rows: Pick<HistoryStep, "pages" | "folders">,
+    place: (now: History, step: HistoryStep) => readonly HistoryStep[],
+  ) => {
     const step: HistoryStep = { seq: was.seq, by: "user", outermosts: [LIBRARY_HISTORY], also: [], ...rows }
     if ([...Object.values(step.pages), ...Object.values(step.folders)].every(r => sameData(r.before, r.after))) return
     was.libraryStep = step
     const history = { ...getState().history }
-    const now = history[LIBRARY_HISTORY] ?? NO_HISTORY
-    history[LIBRARY_HISTORY] = {
-      undo: inOrder ? insertStep(now, step).undo : [...now.undo, step].slice(-HISTORY_LIMIT),
-      redo: [],
-    }
+    history[LIBRARY_HISTORY] = { undo: place(history[LIBRARY_HISTORY] ?? NO_HISTORY, step), redo: [] }
     setState({ history })
   }
   // 閉じた段を画面の履歴に入れる
@@ -619,8 +624,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     // 常駐が行えたと答えても、そのアクションの結果が載らなければ、行った結果を知れないので書けなかったと同じに答える
     const confirmed = (answer ?? Promise.resolve<HostAnswer>({ ok: false, reason: "not-saved" })).then(
       (a): Finished<ActionId> | HostRefused => {
-        if (!a.ok) return { ok: false, reason: a.reason, by: "host" }
-        if (a.results === undefined || at >= a.results.length) return { ok: false, reason: "not-saved", by: "host" }
+        if (!a.ok) return hostRefused(a)
+        if (a.results === undefined || at >= a.results.length) return hostRefused({ reason: "not-saved" })
         return { ok: true, result: a.results[at] as never }
       },
     )
@@ -838,7 +843,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       commit(done.next)
       if ("confirmed" in done) return (await done.confirmed) as Finished<typeof id> | HostRefused
       const a = await done.answer
-      if (a && !a.ok) return { ok: false, reason: a.reason, by: "host" }
+      if (a && !a.ok) return hostRefused(a)
       return { ok: true, result: done.result } as Finished<typeof id>
     },
     // 1 回のコマンドの書き込みは、購読に 1 回で知らせる（together）

@@ -185,11 +185,12 @@ const rowSchema = <K extends "page" | "folder">(field: K) =>
 // レコードと進めた番号（window は最後にフォーカスされた窓）。actions は行ったアクションの id の並び、library は、書庫の履歴に入るアクションが変えたページとフォルダごとの前と後（無い側は none）
 // ページ・フォルダ 1 つの、前と後（置き場所の形のまま。無い側は none）
 const RowSides = z.object({ before: z.unknown(), after: z.unknown() })
+const LibrarySides = z.object({ pages: z.record(z.string(), RowSides), folders: z.record(z.string(), RowSides) })
 export const ChangedSchema = z.object({
   pages: z.array(rowSchema("page")),
   folders: z.array(rowSchema("folder")),
   books: z.array(z.string()),
-  library: z.object({ pages: z.record(z.string(), RowSides), folders: z.record(z.string(), RowSides) }).optional(),
+  library: LibrarySides.optional(),
   by: z.enum(["ai", "window", "host"]).optional(),
   act: z.string().optional(),
   actions: z.array(z.string()).optional(),
@@ -202,11 +203,15 @@ export const ChangedSchema = z.object({
   results: z.array(z.unknown()).optional(),
   ...Mark,
 })
+// 自分のアクションバルクを常駐が行い終えた: 行えたならアクションごとの結果と書庫の前と後（changed と同じ）、断ったなら断りの種類と止めた認可ステップ
 export const AckSchema = z.object({
   seq: z.number().int(),
   ok: z.boolean(),
   reason: z.string(),
   results: z.array(z.unknown()).optional(),
+  library: LibrarySides.optional(),
+  kind: z.string().optional(),
+  permission: z.string().optional(),
 })
 export const ParticipantCallSchema = z.object({ participant: z.string(), at: z.string() })
 export const ParticipantReadySchema = z.object({ participant: z.string() })

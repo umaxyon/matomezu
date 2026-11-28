@@ -9,8 +9,8 @@ import { LIBRARY_HISTORY } from "../../web/src/core/history"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import type { AnyPage } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
-import { libraryRevertArgs } from "../../web/src/plugins/base/library/revert"
-import { SENT_TO_HOST } from "../../web/src/store/actions"
+import { REVERT_UNCHANGED } from "../../web/src/plugins/base/history/restore"
+import { NO_DENIED_BY, NO_REFUSAL_KIND, SENT_TO_HOST } from "../../web/src/store/actions"
 import { pluginKit } from "../../web/src/store/kit"
 import type { DoneBulk, HostAnswer } from "../../web/src/store/state"
 import { drawingPage, testBook } from "../lineup"
@@ -106,7 +106,13 @@ test("confirmed は、常駐が返したそのアクションの結果で答え�
   const ng = observed(() => ({ ok: false, reason: "refused" }))
   const refused = rename(ng.store)
   if (!refused.ok || !("confirmed" in refused)) throw new Error("not sent")
-  expect(await refused.confirmed).toEqual({ ok: false, reason: "refused", by: "host" })
+  expect(await refused.confirmed).toEqual({
+    ok: false,
+    reason: "refused",
+    kind: NO_REFUSAL_KIND,
+    permission: NO_DENIED_BY,
+    by: "host",
+  })
   expect(await ng.store.actions.performConfirmed(UPDATE, { title: "改" }, { page: "q1" })).toMatchObject({
     ok: false,
     by: "host",
@@ -146,6 +152,8 @@ test("自分だけのアクションバルクのアクションも送り、開�
 
 // 段 3b: 先に行わずに送ったバルクの書庫の履歴の段は、常駐が答えた前と後で入れる（画面のページメタを前の値にしない）
 const TRASH = "@matomezu/base:entry-trash"
+// 常駐の答えと、それを待った続き（次の段の置き直しの答えも）が済むまで待つ
+const answered = () => new Promise(done => setTimeout(done, 0))
 const libraryHistory = (store: Store) => store.state.getState().history[LIBRARY_HISTORY] ?? { undo: [], redo: [] }
 const trashed = (bulk: DoneBulk): HostAnswer => ({
   ok: true,
@@ -170,6 +178,18 @@ test("送ったバルクの書庫の段は、常駐の答えを待ち、常駐�
       folders: {},
     },
   ])
+})
+
+test("画面で先に行ったブックの変更の後ろに書庫の操作を送ったバルクは、ブックの段を閉じたときに、書庫の段を常駐の答えで入れる", async () => {
+  const { store } = observed(trashed)
+  place(store, 40, "一")
+  expect(store.actions.perform(TRASH, { entry: "b2" })).toMatchObject({ result: SENT_TO_HOST })
+  await settled()
+  expect(store.state.getState().history.b1?.undo).toHaveLength(1)
+  await answered()
+  const [step] = libraryHistory(store).undo
+  expect(step?.seq).toBe(store.state.getState().history.b1?.undo[0]?.seq)
+  expect(step?.pages.q1).toMatchObject({ before: { body: "常駐の中身" } })
 })
 
 test("送ったバルクを常駐が断ったら、書庫の履歴に段を入れない", async () => {
@@ -207,20 +227,51 @@ test("送ったバルクの書庫の段は、答えを待つ間に入れた段�
   expect(undo[0]!.seq).toBeLessThan(undo[1]!.seq)
 })
 
-test("送った書庫の段を戻すと、置き直しも先に行わずに送り、断られたら段を戻せる側へ戻す", async () => {
-  let refuse = false
-  const { store, sent } = observed(bulk => (refuse ? { ok: false, reason: "refused" } : trashed(bulk)))
-  store.actions.perform(TRASH, { entry: "b2" })
-  await settled()
-  await settled()
-  const step = libraryHistory(store).undo[0]!
-  refuse = true
-  const back = store.actions.perform("@matomezu/base:library-revert", libraryRevertArgs(step, "before"))
-  expect(back).toMatchObject({ ok: true, result: SENT_TO_HOST })
-  store.actions.moveHistory(LIBRARY_HISTORY, "undo")
-  expect(libraryHistory(store)).toMatchObject({ undo: [], redo: [step] })
-  await settled()
-  await settled()
-  expect(sent.at(-1)?.map(d => d.action)).toEqual(["@matomezu/base:library-revert"])
-  expect(libraryHistory(store)).toMatchObject({ undo: [step], redo: [] })
+// 書庫の画面の元に戻す（library-undo）を押す。置き直し（library-revert）も、ページメタがあるので先に行わずに送る
+const libraryUndo = (store: Store) => store.actions.command("s1", "@matomezu/base:library-undo")
+const REVERT = "@matomezu/base:library-revert"
+// ゴミ箱に 2 回入れて、書庫の履歴に 2 段を入れた窓（answer は、置き直しへの常駐の答え）
+async function twoTrashed(answer: (bulk: DoneBulk) => HostAnswer) {
+  const { store, sent } = observed(bulk => (bulk[0]?.action === REVERT ? answer(bulk) : trashed(bulk)))
+  for (const _ of [1, 2]) {
+    store.actions.perform(TRASH, { entry: "b2" })
+    await settled()
+    await settled()
+  }
+  const [older, newer] = libraryHistory(store).undo
+  return { store, sent, older: older!, newer: newer! }
+}
+
+test("送った置き直しは、常駐が行えたと答えてから段をやり直せる側へ動かす", async () => {
+  const { store, sent, older, newer } = await twoTrashed(bulk => ({ ok: true, results: bulk.map(() => ({})) }))
+  expect(libraryUndo(store)).toBe(true)
+  expect(libraryHistory(store)).toMatchObject({ undo: [older, newer], redo: [] })
+  await answered()
+  expect(sent.at(-1)?.map(d => d.action)).toEqual([REVERT])
+  expect(libraryHistory(store)).toMatchObject({ undo: [older], redo: [newer] })
+})
+
+test("送った置き直しが、置き直しても変わらないと断られたら、その段は動かして飛ばし、次の段を置き直す", async () => {
+  let reverts = 0
+  const { store, sent, older, newer } = await twoTrashed(bulk => {
+    reverts++
+    return reverts === 1
+      ? { ok: false, reason: "refused", kind: REVERT_UNCHANGED }
+      : { ok: true, results: bulk.map(() => ({})) }
+  })
+  libraryUndo(store)
+  await answered()
+  expect(sent.filter(b => b[0]?.action === REVERT)).toHaveLength(2)
+  expect(libraryHistory(store)).toMatchObject({ undo: [], redo: [newer, older] })
+})
+
+test("送った置き直しが、ぶつかって断られたら、トーストで知らせて段を捨てる", async () => {
+  const { store, older } = await twoTrashed(() => ({ ok: false, reason: "refused" }))
+  const toasts = store.state.getState().toasts.length
+  libraryUndo(store)
+  await answered()
+  expect(store.state.getState().toasts).toHaveLength(toasts + 1)
+  expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
+  // 続く段の置き直しは、ページメタを読むので行わずに確かめられず、残す（次に押したときに置き直す）
+  expect(libraryHistory(store)).toMatchObject({ undo: [older], redo: [] })
 })

@@ -24,7 +24,7 @@ export const UNCHANGED = "unchanged"
 export const REVERT_UNCHANGED = kit.name("revert-unchanged")
 export const DECLINED_UNCHANGED = { declined: "there is nothing to put back", kind: REVERT_UNCHANGED }
 // アクションの答え result が、置き直しても何も変わらないという断りか
-export const isRevertUnchanged = (result: { ok: boolean; reason?: string; kind?: string }): boolean =>
+export const isRevertUnchanged = (result: { ok: boolean; reason?: string; kind?: string | symbol }): boolean =>
   !result.ok && result.reason === "refused" && result.kind === REVERT_UNCHANGED
 
 export const PatchSchema: z.ZodType<Patch> = z.lazy(() => {

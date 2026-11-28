@@ -38,10 +38,13 @@ export type Performed<Id extends ActionId> =
   | Finished<Id>
   | { ok: true; result: typeof SENT_TO_HOST; confirmed: Promise<Finished<Id> | HostRefused> }
 
-// ホストが断った（reason はホストの断りの理由）
+// ホストが断った（reason はホストの断りの理由。kind は断りの種類、permission は止めた認可ステップで、画面で行って断られたときの Refused の kind・permission と同じ。
+// ホストが言わなければ NO_REFUSAL_KIND・NO_DENIED_BY）
 export interface HostRefused {
   ok: false
   reason: string
+  kind: string | typeof NO_REFUSAL_KIND
+  permission: string | typeof NO_DENIED_BY
   by: "host"
 }
 
@@ -237,6 +240,9 @@ export function boundActions(actions: PlaceActions, at: string | null): BoundPla
 // perform が、画面の持っていない行を読むアクションを、画面で先に行わずに常駐へ送ったときの result（結果を使うなら、答えを base の whenPerformed に渡す。
 // 常駐が行った結果は答えの confirmed で届く）
 export const SENT_TO_HOST: unique symbol = Symbol("sent-to-host")
+// ホストの断り（HostRefused）が、断りの種類を言わなかった・止めた認可ステップを言わなかった
+export const NO_REFUSAL_KIND: unique symbol = Symbol("no refusal kind")
+export const NO_DENIED_BY: unique symbol = Symbol("no denied by")
 
 // pressKey が、クリップボードを使うコマンドを待たせたときの答え
 export const KEY_WAITS = "waits"

@@ -11,6 +11,7 @@ import { screenOf } from "../../web/src/core/window"
 import { OFFLINE_MS, QUIET_MS } from "../../web/src/host-client/link-watch"
 import { openClient } from "../../web/src/host-client/open"
 import { type Events, NoServer, serverClient } from "../../web/src/host-client/server"
+import { NO_DENIED_BY, NO_REFUSAL_KIND } from "../../web/src/store/actions"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore, showCenter, worldRows } from "../support"
@@ -454,7 +455,13 @@ test("断られたアクションを入れた画面の履歴の段は捨て、pe
   await Promise.resolve()
   expect(store.state.getState().history.b1?.undo).toHaveLength(1)
   emit("ack", { seq: 1, ok: false, reason: "being-edited" })
-  expect(await answer).toEqual({ ok: false, reason: "being-edited", by: "host" })
+  expect(await answer).toEqual({
+    ok: false,
+    reason: "being-edited",
+    kind: NO_REFUSAL_KIND,
+    permission: NO_DENIED_BY,
+    by: "host",
+  })
   expect(itemsOf(store)).toEqual([])
   expect(store.state.getState().history.b1?.undo).toEqual([])
 })
@@ -482,6 +489,20 @@ test("自分のバルクの changed に載った結果と書庫の前と後を�
   const library = { pages: { p1: { before: { id: "p1" }, after: "none" } }, folders: {} }
   emit("changed", { pages: [], folders: [], books: [], client: "c1", seq: 1, results: [{}], library })
   expect(await answer).toEqual({ ok: true, results: [{}], library })
+})
+
+test("ack に載った書庫の前と後を行えた答えに、断りの種類と止めた認可ステップを断りの答えに渡す", async () => {
+  const { host, emit } = await connected()
+  const done = { action: "@matomezu/base:entry-trash", args: { entry: "b1" }, ids: [], lang: "ja", now: "", today: "" }
+  const library = { pages: {}, folders: { b1: { before: { id: "b1" }, after: "none" } } }
+  const ok = host.observe([done as never])
+  await flush()
+  emit("ack", { seq: 1, ok: true, reason: "", results: [{}], library })
+  expect(await ok).toEqual({ ok: true, results: [{}], library })
+  const ng = host.observe([done as never])
+  await flush()
+  emit("ack", { seq: 2, ok: false, reason: "denied", kind: "k", permission: "p" })
+  expect(await ng).toEqual({ ok: false, reason: "denied", kind: "k", permission: "p" })
 })
 
 test("つなぎ直したら（2 度目の hello）、読み直した世界の上に確かめられていないアクションを出し、新しいつながりで同じ番号で送り直す", async () => {

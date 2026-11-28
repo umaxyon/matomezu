@@ -16,7 +16,8 @@ package server
 //	          settings は変わったときだけ、新しい設定。annotations はアノテーションが変わったページの id → 新しい並び（空の並びなら全部無くなった）。
 //	          records は変えたレコード（郵便も。records.go）、counters は進めた番号の区切り（種類 → 区切り → 次の番号。進めたときだけ）。window は最後にフォーカスされた窓（無ければ空）
 //	annotations {"page", "annotations"} Perform の外でページのアノテーションが変わった（並びが空なら全部無くなった）
-//	ack       {"seq", "ok", "reason", "results"?} 送った窓にだけ（results は行えたときの、アクションごとの結果。バルクの順）。そのアクションバルクを行い終えた（断ったなら ok が false）。そのバルクの changed のあとに届く
+//	ack       {"seq", "ok", "reason", "results"?, "library"?, "kind"?, "permission"?} 送った窓にだけ（results は行えたときの、アクションごとの結果。バルクの順。library は行えたときの、changed と同じ書庫の前と後。
+//	          kind と permission は断ったときの、断りの種類と止めた認可ステップ）。そのアクションバルクを行い終えた（断ったなら ok が false）。そのバルクの changed のあとに届く
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた窓にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
 //	participant-calls {"participant", "at"} 参加者の最後に呼ばれた時刻（join_calls.go。30 秒以上あいたときだけ知らせる）

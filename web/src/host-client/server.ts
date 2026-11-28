@@ -551,7 +551,18 @@ export function serverClient(net: Net = browserNet): HostClient {
       const ack = AckSchema.parse(JSON.parse(data))
       settle(
         { client, seq: ack.seq },
-        ack.ok ? { ok: true, ...(ack.results ? { results: ack.results } : {}) } : { ok: false, reason: ack.reason },
+        ack.ok
+          ? {
+              ok: true,
+              ...(ack.results ? { results: ack.results } : {}),
+              ...(ack.library ? { library: ack.library } : {}),
+            }
+          : {
+              ok: false,
+              reason: ack.reason,
+              ...(ack.kind ? { kind: ack.kind } : {}),
+              ...(ack.permission ? { permission: ack.permission } : {}),
+            },
       )
       show()
     })
