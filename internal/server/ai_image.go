@@ -88,13 +88,17 @@ func (o Options) aiPageImage(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, imageForAI(a.Mime, a.Width, a.Height, a.Bytes))
 }
 
-// imageForAI は、置き場の画像（種類 mime・幅 width・高さ height・中身 b）を AI に渡す形にする
+// imageForAI は、置き場の画像（種類 mime・幅 width・高さ height・中身 b）を AI に渡す形にする。JPEG は EXIF の向きを当てて渡す（向きの付いた物は、そのままでなく作り直す）
 func imageForAI(mime string, width, height int, b []byte) aiImage {
 	if mime == "image/svg+xml" {
 		return aiImage{OK: true, Mime: mime, Width: width, Height: height, SVG: string(b)}
 	}
+	o := 1
+	if mime == "image/jpeg" {
+		o = exifOrientation(b)
+	}
 	sw, sh := fitForAI(width, height)
-	if sw == width && sh == height && len(b) <= aiImageBytes {
+	if o == 1 && sw == width && sh == height && len(b) <= aiImageBytes {
 		return aiImage{OK: true, Mime: mime, Width: width, Height: height, SentWidth: sw, SentHeight: sh, Data: base64.StdEncoding.EncodeToString(b)}
 	}
 	if width*height > aiImageDecodePixels {
@@ -104,8 +108,22 @@ func imageForAI(mime string, width, height int, b []byte) aiImage {
 	if err != nil {
 		return aiImage{Reason: aiImageUnread}
 	}
-	dst := image.NewRGBA(image.Rect(0, 0, sw, sh))
-	xdraw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), xdraw.Src, nil)
+	// 向きを当てた見える大きさで収め、縮めてから向きを当てる（縮めた後の方が画素が少ない）。前から在るアセットの幅と高さは、向きを当てる前の値のことがあるので、画素から引き直す
+	width, height = src.Bounds().Dx(), src.Bounds().Dy()
+	if turned(o) {
+		width, height = height, width
+	}
+	sw, sh = fitForAI(width, height)
+	pw, ph := sw, sh
+	if turned(o) {
+		pw, ph = sh, sw
+	}
+	small := image.NewRGBA(image.Rect(0, 0, pw, ph))
+	xdraw.CatmullRom.Scale(small, small.Bounds(), src, src.Bounds(), xdraw.Src, nil)
+	dst, _ := oriented(small, o).(*image.RGBA)
+	if dst == nil {
+		dst = small
+	}
 	out, sentMime, err := encodeForAI(dst, mime == "image/jpeg")
 	if err != nil {
 		return aiImage{Reason: aiImageUnread}
