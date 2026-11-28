@@ -5,6 +5,7 @@ import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import {
   type Attempt,
+  attempt,
   bunComplete,
   bunFailures,
   type Candidate,
@@ -23,9 +24,13 @@ import {
   runStep,
   type Stacked,
   type Step,
+  type StepResult,
   stack,
   succeeded,
   summary,
+  testsIgnore,
+  UNREAD_BY_TESTS,
+  withMainLock,
 } from "../../scripts/merge-queue"
 
 const dirs: string[] = []
@@ -444,4 +449,115 @@ test("入ったか入っていた物だけで、push に失敗していなけれ
   expect(succeeded({ ...base, outcomes: [merged, { ...cand("b"), kind: "already" }] })).toBe(true)
   expect(succeeded({ ...base, outcomes: [merged], pushed: { ok: false, why: "x" } })).toBe(false)
   expect(succeeded({ ...base, outcomes: [{ ...cand("a"), kind: "main-side", why: "x" }] })).toBe(false)
+})
+
+test("テストの結果を変えない差分は、表のファイルの中身の直し（M）だけ", () => {
+  const ignored = [
+    "M\t.claude/shiteki-kaizen.md",
+    "M\t.claude/agents/refactor-review.md",
+    "M\tdocs/concept.md",
+    "M\tconventions/workflow.md",
+    "M\tAGENT.md",
+  ]
+  expect(testsIgnore(ignored.join("\n"))).toBe(true)
+  expect(testsIgnore("")).toBe(true)
+  for (const row of [
+    "A\tdocs/new.md",
+    "D\tconventions/workflow.md",
+    "R100\tconventions/a.md\tconventions/b.md",
+    "M\tclients/claude-code/skills/join/SKILL.md",
+    "M\tconventions/sub/x.md",
+    "M\tdocs/a.txt",
+    "M\tweb/README.md",
+  ])
+    expect(testsIgnore(`M\tdocs/concept.md\n${row}`)).toBe(false)
+})
+
+// テストが流すコード（テスト・スクリプト・web・Go・clients）が、表のファイルを読み始めていないか。表のファイルの名前の出る所と、
+// リポジトリの根から表のフォルダへのパスを組む所を集め、分かっている物（読まずに名前を使うだけの物）と比べる
+test("表のファイルを、テストが流すコードが読まない", () => {
+  const root = join(import.meta.dir, "../..")
+  const tracked = git(root, "ls-files").split("\n")
+  const listed = tracked.filter(f => UNREAD_BY_TESTS.some(p => p.test(f)))
+  const names = [...new Set(listed.map(f => f.slice(f.lastIndexOf("/") + 1)))]
+  const code = tracked.filter(
+    f =>
+      /\.(ts|tsx|js|mjs|go)$/.test(f) &&
+      !f.startsWith("_old_docs/") &&
+      f !== GENERATED.path &&
+      f !== "test/scripts/merge-queue.test.ts",
+  )
+  const rootPath = /ROOT[^\n)]*["'`](\.claude|docs|conventions)["'`/]/
+  const found = new Set<string>()
+  for (const f of code) {
+    const text = readFileSync(join(root, f), "utf8")
+    for (const n of names) if (text.includes(n)) found.add(`${f} ${n}`)
+    if (rootPath.test(text)) found.add(`${f} ROOT`)
+  }
+  expect([...found].sort()).toEqual(
+    [
+      // README.md はディレクトリ図のテストの中の名前
+      "e2e/dir.spec.ts README.md",
+      "test/plugins/page-types/dir/dir-edit.test.ts README.md",
+      "test/plugins/page-types/dir/dir-screen.test.tsx README.md",
+      // 会話の記録の文字の形
+      "test/scripts/relay-log-claude.test.ts CLAUDE.md",
+      // 規約の md の名前を、コメントで指すだけ
+      "test/rules/architecture.test.ts architecture.md",
+      "test/rules/definitions.test.ts definitions.md",
+      // conventions/<名前>.md が在るかだけを見る
+      "test/rules/workflow.test.ts ROOT",
+    ].sort(),
+  )
+})
+
+const passed: StepResult[] = [{ step: "fake", ok: true, failures: [], log: "", rerun: "none" }]
+
+test("テストのあと main がテストの結果を変えない物だけで進んでいれば、流し直さずに重ね直して入れる", async () => {
+  const r = repo()
+  r.commit("docs/concept.md", "a\n", "docs")
+  const b1 = r.branch("b1", "b1.txt", "1\n")
+  let runs = 0
+  const a = await attempt({ main: r.main, queue: r.queue, logs: tmp() }, [b1], async () => {
+    if (runs++ === 0) r.commit("docs/concept.md", "b\n", "docs moves")
+    return passed
+  })
+  expect(runs).toBe(1)
+  expect(a.kind).toBe("merged")
+  expect(readFileSync(join(r.main, "docs/concept.md"), "utf8")).toBe("b\n")
+  expect(readFileSync(join(r.main, "b1.txt"), "utf8")).toBe("1\n")
+})
+
+test("テストのあと main がほかの物で進んでいれば、重ね直してテストを流し直す", async () => {
+  const r = repo()
+  const b1 = r.branch("b1", "b1.txt", "1\n")
+  let runs = 0
+  const a = await attempt({ main: r.main, queue: r.queue, logs: tmp() }, [b1], async () => {
+    if (runs++ === 0) r.commit("m.ts", "m\n", "code moves")
+    return passed
+  })
+  expect(runs).toBe(2)
+  expect(a.kind).toBe("merged")
+})
+
+test("main を進めるロックは 1 本ずつで、先に持った物が放すまで次は待つ", async () => {
+  const { main } = repo()
+  const common = join(main, ".git")
+  const order: string[] = []
+  let release = () => {}
+  const held = new Promise<void>(res => {
+    release = res
+  })
+  const first = withMainLock(common, async () => {
+    order.push("first")
+    await held
+    order.push("first done")
+  })
+  await Bun.sleep(100)
+  const second = withMainLock(common, () => order.push("second"))
+  await Bun.sleep(200)
+  expect(order).toEqual(["first"])
+  release()
+  await Promise.all([first, second])
+  expect(order).toEqual(["first", "first done", "second"])
 })

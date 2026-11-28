@@ -2,15 +2,40 @@
 //   bun scripts/merge-request.ts
 // 進め方
 //   1. この worktree のブランチの先（頼んだ時の sha）を決め、並べられるかを確かめる（refusal）
-//   2. 並んでいる印（requestsDir の下の <pid>.json）を置く。restart-subs は印のある worktree のサブを起動し直さない
-//   3. main の worktree の scripts/merge-queue.ts を --push で流す。このスクリプトとは切り離すので、待つ間にこれが止められても、
+//   2. main からの差分がテストの結果を変えない物（UNREAD_BY_TESTS の中身の直し）だけなら、並ばずに main を ff して push し、
+//      HISTORY に 1 行を足して終わる（direct）
+//   3. 並んでいる印（requestsDir の下の <pid>.json）を置く。restart-subs は印のある worktree のサブを起動し直さない
+//   4. main の worktree の scripts/merge-queue.ts を --push で流す。このスクリプトとは切り離すので、待つ間にこれが止められても、
 //      キューは終わりまで流れ、履歴（merge-queue.ts の HISTORY）に残る。キューのロックで 1 本ずつ並ぶ
-//   4. キューの結果を出し、外されたら次にする事を添える。印を消す
+//   5. キューの結果を出し、外されたら次にする事を添える。印を消す
 // 入れば 0、外されれば 1、並べなければ 2 で終わる
 import { execFileSync, spawn } from "node:child_process"
-import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import {
+  appendFileSync,
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs"
 import { join } from "node:path"
-import { commonDir, git, type Outcome, queueDir, type Report } from "./merge-queue"
+import {
+  type Candidate,
+  commonDir,
+  fastForward,
+  git,
+  HISTORY,
+  historyLine,
+  type Outcome,
+  pushMain,
+  queueDir,
+  type Report,
+  testsIgnoreBetween,
+  withMainLock,
+} from "./merge-queue"
 
 // 並んでいる印。pid はこのスクリプトのプロセス
 export type Request = { branch: string; sha: string; worktree: string; pid: number; at: string }
@@ -76,6 +101,33 @@ export function nextStep(o: Outcome): string | undefined {
   return undefined
 }
 
+export type Direct =
+  | { kind: "direct"; pushed: { ok: true } | { ok: false; why: string } }
+  | { kind: "moved" | "dirty" | "failed" }
+
+// テストの結果を変えない物だけのブランチを、キューに並ばずに main へ入れる。base は差分を確かめた時の main。
+// main を進める所はキューと同じロック（mainLock）で 1 本ずつにし、入れば push して HISTORY に 1 行を足す
+export async function direct(main: string, c: Candidate, base: string): Promise<Direct> {
+  const common = commonDir(main)
+  const r = await withMainLock(common, () => {
+    const ff = fastForward(main, base, c.sha)
+    return ff === "done" ? { kind: "direct" as const, pushed: pushMain(main) } : { kind: ff }
+  })
+  if (r.kind === "direct") {
+    mkdirSync(queueDir(common), { recursive: true })
+    appendFileSync(join(queueDir(common), HISTORY), `${historyLine({ ...c, kind: "direct" }, new Date())}\n`)
+  }
+  return r
+}
+
+// direct で入れられなかったときの 1 行と次の事
+export const DIRECT_REFUSED = {
+  moved: "入れられなかった: 確かめた間に main が進んだ\n次: main を取り込み、並び直す",
+  dirty:
+    "入れられなかった: main の worktree の追跡するファイルに未コミットがある\n次: main の側の都合なので、main_manager に知らせる",
+  failed: "入れられなかった: main を fast-forward できなかった\n次: main の側の都合なので、main_manager に知らせる",
+}
+
 function mainWorktree(dir: string): string | undefined {
   const blocks = git(dir, "worktree", "list", "--porcelain").split("\n\n")
   const main = blocks.find(b => b.split("\n").includes("branch refs/heads/main"))
@@ -100,6 +152,8 @@ async function request(): Promise<number> {
     return 2
   }
   const sha = git(dir, "rev-parse", "HEAD")
+  // main の先は 1 回だけ読み、並べるかの確かめと、並ばずに入れるときの差分と ff に同じ物を使う
+  const base = git(dir, "rev-parse", "refs/heads/main")
   const branch = ok(dir, "symbolic-ref", "-q", "HEAD") ? git(dir, "symbolic-ref", "--short", "HEAD") : undefined
   const why = refusal({
     branch,
@@ -108,14 +162,29 @@ async function request(): Promise<number> {
       cwd: dir,
       encoding: "utf8",
     }).trimEnd(),
-    hasMain: ok(dir, "merge-base", "--is-ancestor", "refs/heads/main", sha),
-    inMain: ok(dir, "merge-base", "--is-ancestor", sha, "refs/heads/main"),
+    hasMain: ok(dir, "merge-base", "--is-ancestor", base, sha),
+    inMain: ok(dir, "merge-base", "--is-ancestor", sha, base),
     sha,
     queued: queuedRequests(common),
   })
   if (why || !branch) {
     console.error(`並べない: ${why}`)
     return 2
+  }
+
+  if (testsIgnoreBetween(dir, base, sha)) {
+    const r = await direct(main, { name: branch, sha }, base)
+    if (r.kind !== "direct") {
+      console.log(DIRECT_REFUSED[r.kind])
+      return 1
+    }
+    console.log(`テストを流さずに入った: ${branch} ${sha.slice(0, 8)}`)
+    if (r.pushed.ok) {
+      console.log("push 済み")
+      return 0
+    }
+    console.log(`push に失敗（${r.pushed.why}）\n次: main に入ったが push に失敗したので、main_manager に知らせる`)
+    return 1
   }
 
   mkdirSync(requestsDir(common), { recursive: true })
