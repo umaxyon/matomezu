@@ -230,7 +230,7 @@ func TestWakeReachesBySessionWhenTheHostIsUnknown(t *testing.T) {
 		{"a later session of the host", "100", "S0", "100", "S2", true},
 		{"a later session, but the host differs", "200", "S0", "100", "S2", false},
 	} {
-		l := &wakeLine{host: c.lineHost, session: c.lineSession, laterSessions: map[string]bool{"S2": true}}
+		l := &wakeLine{program: aiProgram{Host: c.lineHost}, session: c.lineSession, laterSessions: map[string]bool{"S2": true}}
 		if got := l.reaches(participantNote{WakeHost: c.wakeHost, WakeSession: c.wakeSession}); got != c.want {
 			t.Errorf("%s: reaches = %v, want %v", c.name, got, c.want)
 		}
@@ -279,12 +279,13 @@ func TestLaterSessionReachesQueuedWakesAndReconnectedLines(t *testing.T) {
 }
 
 // 後の会話を覚えるのは、フックの AI のプログラムと同じプロセス id・同じ範囲の印のプログラムだけ
-// （ほかのプロセス・WSL と Windows のように範囲の違うプロセス・使い回されたプロセス id のほかのプログラムは覚えない）
+// （ほかのプロセス・WSL と Windows のように範囲の違うプロセス・使い回されたプロセス id のほかのプログラムは覚えない。範囲の印を添えない watch の通り道は覚える）
 func TestLaterSessionsStayWithTheProgram(t *testing.T) {
 	t.Parallel()
 	_, hub := joinWorld(t, joinStore(t))
 	note := participantNote{WakeHost: "100", WakeSession: "S2"}
 	other := hub.OpenWakesWith("200", "WSL", "S0", WakeLimits{})
+	unmarked := hub.OpenWakesWith("100", "", "S1", WakeLimits{})
 	windows := hub.OpenWakesWith("100", "Windows", "S0", WakeLimits{})
 	learned := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
 	hub.NoteLaterSession("S2", aiProgram{"100", "WSL"})
@@ -298,6 +299,7 @@ func TestLaterSessionsStayWithTheProgram(t *testing.T) {
 		want bool
 	}{
 		{"the line of the program", learned, note, true},
+		{"a line of the program that sends no space", unmarked, note, true},
 		{"a line of another process", other, participantNote{WakeHost: "200", WakeSession: "S2"}, false},
 		{"a line of the same process id in another space", windows, note, false},
 		{"a line of another program at a reused process id", reused, note, false},

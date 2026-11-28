@@ -30,8 +30,17 @@ func (p aiProgram) is(q aiProgram) bool {
 	return p.Host != "" && p.Host == q.Host && sameSpace(p.Space, q.Space)
 }
 
+// over は、記録にある AI のプログラム old を、新しく添えられた p で書き直した物: プロセス id が同じで p の範囲の印が分からなければ、old の印を残す
+// （印を添えない MCP・フックの呼び出しで、分かっている印を消さない）。プロセス id が違えば p
+func (p aiProgram) over(old aiProgram) aiProgram {
+	if p.Host == old.Host && p.Space == "" {
+		return old
+	}
+	return p
+}
+
 // sameSpace は、範囲の印 a と b が食い違わないか: どちらかが分からなければ食い違わないとみる
-// （印を添えない、前の版の MCP・watch と、記録に印の無い参加者を、これまでどおりプロセス id だけで扱う）
+// （印を添えない MCP・watch と、記録に印の無い参加者は、プロセス id だけで見分ける）
 func sameSpace(a, b string) bool {
 	return a == "" || b == "" || a == b
 }

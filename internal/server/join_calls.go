@@ -113,7 +113,8 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 			moved = true
 		}
 		if says.Host != "" {
-			n.Host, n.HostSpace = says.Host, says.HostSpace
+			p := aiProgram{says.Host, says.HostSpace}.over(n.program())
+			n.Host, n.HostSpace = p.Host, p.Space
 		}
 		if says.SessionPid != "" {
 			n.SessionPid, n.SessionPidSpace = says.SessionPid, says.SessionPidSpace

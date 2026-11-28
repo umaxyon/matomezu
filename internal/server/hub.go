@@ -117,22 +117,22 @@ type Hub struct {
 	heardModels      map[string]heardModel             // セッション id → 誰にも結ばれていないうちにフックが知らせたモデル（model.go。残さない）
 	heardContexts    map[string]heardContext           // セッション id → フックが知らせた今のコンテキストの量（context_use.go。残さない）
 	clients          map[string]*client
-	wakeLines        map[*wakeLine]struct{}          // AI を起こす知らせの通り道（watch.go）
-	programSessions  map[wakeProgram]programSessions // 通り道を開いた AI のプログラム → 立てたあとに動かした会話（watch.go。残さない）
-	wakeQueue        map[string][]wakeItem           // 参加者の id → 受け取られるまで持つ、起こす知らせの行列（watch.go）
-	wakeSeq          int64                           // 起こす知らせの番号の最後（watch.go）
-	wakeLineSeq      int64                           // 起こす知らせの通り道の番号の最後（watch.go）
-	wakeAbsent       map[string]map[int64]bool       // 参加者の id → その会話が無い（absent）と答えた通り道の番号の集まり（watch.go。その通り道で次に渡せたら・切れたら・届かなくなったら消す）
-	wakeShown        map[string]bool                 // 窓に知らせた、起こす知らせを渡せる通り道がつながっている参加者の id（watch.go）
-	lentWakes        []string                        // 通り道に貸した知らせの文の、新しい物（watch.go の WokenBy が照らす）
-	seenEnvelopes    map[string]bool                 // 行列に入れた AI 間メッセージの封筒の id（message.go。二度入れない）
-	seenOrder        []string                        // seenEnvelopes に入れた順（古い物から忘れる）
-	replies          map[string]replyWait            // 返事を待つ AI 宛ての封筒の id → 返事を受けるレシーバーと受けた参加者（receiver.go）
-	replyOrder       []string                        // replies に入れた順（古い物から忘れる）
-	rallies          map[rallyKey]int                // AI ラリーの向き → 利用者トリガートークの後に起こした数（rally.go）
-	ralliesStopped   map[rallyKey]bool               // 上限で止め、送り先に知らせた AI ラリーの向き（rally.go）
-	ralliesSent      map[rallySentKey]int            // ほかのホストへ送った向き → 送り手の利用者トリガートークの後に送った数（rally.go）
-	pending          []pendingMessage                // 承認待ちの AI 間メッセージ（届いた順。メモリだけ。pending_message.go）
+	wakeLines        map[*wakeLine]struct{}             // AI を起こす知らせの通り道（watch.go）
+	programSessions  map[startedProgram]programSessions // 通り道を開いた AI のプログラム → 立てたあとに動かした会話（watch.go。残さない）
+	wakeQueue        map[string][]wakeItem              // 参加者の id → 受け取られるまで持つ、起こす知らせの行列（watch.go）
+	wakeSeq          int64                              // 起こす知らせの番号の最後（watch.go）
+	wakeLineSeq      int64                              // 起こす知らせの通り道の番号の最後（watch.go）
+	wakeAbsent       map[string]map[int64]bool          // 参加者の id → その会話が無い（absent）と答えた通り道の番号の集まり（watch.go。その通り道で次に渡せたら・切れたら・届かなくなったら消す）
+	wakeShown        map[string]bool                    // 窓に知らせた、起こす知らせを渡せる通り道がつながっている参加者の id（watch.go）
+	lentWakes        []string                           // 通り道に貸した知らせの文の、新しい物（watch.go の WokenBy が照らす）
+	seenEnvelopes    map[string]bool                    // 行列に入れた AI 間メッセージの封筒の id（message.go。二度入れない）
+	seenOrder        []string                           // seenEnvelopes に入れた順（古い物から忘れる）
+	replies          map[string]replyWait               // 返事を待つ AI 宛ての封筒の id → 返事を受けるレシーバーと受けた参加者（receiver.go）
+	replyOrder       []string                           // replies に入れた順（古い物から忘れる）
+	rallies          map[rallyKey]int                   // AI ラリーの向き → 利用者トリガートークの後に起こした数（rally.go）
+	ralliesStopped   map[rallyKey]bool                  // 上限で止め、送り先に知らせた AI ラリーの向き（rally.go）
+	ralliesSent      map[rallySentKey]int               // ほかのホストへ送った向き → 送り手の利用者トリガートークの後に送った数（rally.go）
+	pending          []pendingMessage                   // 承認待ちの AI 間メッセージ（届いた順。メモリだけ。pending_message.go）
 	next             int
 	actionNow        time.Time        // 前に、時点の無いアクションに入れた時点（Perform。時計が後ろへ戻っても、これより後にする）
 	ticks            int64            // フォーカスの順を振る数

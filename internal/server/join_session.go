@@ -21,7 +21,8 @@ func (h *Hub) noteJoinHost(id string, req JoinRequest) {
 	defer h.mu.Unlock()
 	n := h.participantNotes[id]
 	if req.Host != "" || req.HostSession != "" {
-		n.WakeHost, n.WakeHostSpace = req.Host, req.HostSpace
+		p := aiProgram{req.Host, req.HostSpace}.over(n.wakeTarget())
+		n.WakeHost, n.WakeHostSpace = p.Host, p.Space
 		n.WakeSession = req.HostSession
 		logWake("participant %s is reached at host %q, session %q (join)", id, req.Host, req.HostSession)
 	}
@@ -51,8 +52,8 @@ func (n participantNote) program() aiProgram {
 	return aiProgram{n.Host, n.HostSpace}
 }
 
-// wakeProgram は、参加者の記録 n の送り先エッジの AI のプログラム（WakeHost と範囲の印）
-func (n participantNote) wakeProgram() aiProgram {
+// wakeTarget は、参加者の記録 n の送り先エッジの AI のプログラム（WakeHost と範囲の印）
+func (n participantNote) wakeTarget() aiProgram {
 	return aiProgram{n.WakeHost, n.WakeHostSpace}
 }
 
@@ -65,7 +66,8 @@ func (h *Hub) bindSession(id, sessionID, by string, p aiProgram) {
 	n.SessionID = sessionID
 	n.BoundBy = by
 	if p.Host != "" {
-		n.Host, n.HostSpace = p.Host, p.Space
+		kept := p.over(n.program())
+		n.Host, n.HostSpace = kept.Host, kept.Space
 	}
 	model := ""
 	if heard, ok := h.heardModels[sessionID]; ok {
@@ -146,10 +148,21 @@ func (h *Hub) carrySession(id, sessionID string, p aiProgram) {
 // （Claude Desktop は、会話の途中で CLI を --resume で起動し直し、/clear でも CLI ごと替える。どちらもプロセス id が変わる）。
 // 移すのは、p のプロセス id が分かって今の送り先エッジと違うプログラムで、今その参加者に届く通り道が無く、送り先エッジのセッションが sessionID か空か、前の会話から移したところ（moved）のときだけ
 // （端末の /clear は同じプロセスのまま、通り道は AI のプログラムを立てたときのセッション id で開いているので、移すと届かなくなる）。
+// p が今の送り先エッジと同じプログラムで、送り先エッジに範囲の印が無ければ、印だけ書き足す。
 // 移すときは、古いプロセスで退室の見張りをしないよう、セッションと同じだけ生きるプロセスの印を消す（次の MCP の呼び出しが名乗り直す）。h.mu を持って呼ぶ
 func (h *Hub) followHost(id, sessionID string, p aiProgram, moved bool) {
 	n := h.participantNotes[id]
-	if p.Host == "" || p.is(n.wakeProgram()) || (!moved && n.WakeSession != "" && n.WakeSession != sessionID) || h.wakeReachKept(id) {
+	if p.Host == "" {
+		return
+	}
+	if p.is(n.wakeTarget()) {
+		if n.WakeHostSpace == "" && p.Space != "" {
+			n.WakeHostSpace = p.Space // 同じプログラムの、記録に無かった範囲の印を書き足す
+			h.participantNotes[id] = n
+		}
+		return
+	}
+	if (!moved && n.WakeSession != "" && n.WakeSession != sessionID) || h.wakeReachKept(id) {
 		return
 	}
 	n.Host, n.HostSpace = p.Host, p.Space
@@ -176,9 +189,9 @@ func (h *Hub) followHosts(records []participantRecord, sessionID string, p aiPro
 		if !s.sitting() || h.participantNotes[s.ID].SessionID != sessionID {
 			continue
 		}
-		before := h.participantNotes[s.ID].wakeProgram()
+		before := h.participantNotes[s.ID].wakeTarget()
 		h.followHost(s.ID, sessionID, p, false)
-		changed = changed || h.participantNotes[s.ID].wakeProgram() != before
+		changed = changed || h.participantNotes[s.ID].wakeTarget() != before
 	}
 	return changed
 }
@@ -288,8 +301,8 @@ func (h *Hub) SessionParticipant(session string, p aiProgram) string {
 		return ""
 	}
 	n := h.participantNotes[found]
-	if (n.wakeProgram() != p || n.WakeSession != session) && !h.wakeReachKept(found) {
-		n.WakeHost, n.WakeHostSpace, n.WakeSession = p.Host, p.Space, session
+	if target := p.over(n.wakeTarget()); (target != n.wakeTarget() || n.WakeSession != session) && !h.wakeReachKept(found) {
+		n.WakeHost, n.WakeHostSpace, n.WakeSession = target.Host, target.Space, session
 		logWake("participant %s is reached at host %q, space %q, session %q (call)", found, p.Host, p.Space, session)
 		h.participantNotes[found] = n
 		h.noteWakesLocked()
@@ -301,7 +314,7 @@ func (h *Hub) SessionParticipant(session string, p aiProgram) string {
 	return found
 }
 
-// hostParticipantHeld は、参加者 records のうち、AI のプログラム p（aiProgram.is）の、受け入れ済みで準備中でない参加者の id（host が空か、無いか、2 人以上なら空。h.mu を持って呼ぶ）。
+// hostParticipantHeld は、参加者 records のうち、AI のプログラム p（aiProgram.is）の、受け入れ済みで準備中でない参加者の id（p のプロセス id が空か、無いか、2 人以上なら空。h.mu を持って呼ぶ）。
 // MCP を立てたあとに会話のセッションが変わり（再開した AI のプログラムで /clear したなど）、フックが参加者をプロセス id で新しいセッションに移したとき、
 // MCP を立て直していなければ、MCP が添えるセッション id は古いままなので、プロセス id で引く
 func (h *Hub) hostParticipantHeld(records []participantRecord, p aiProgram) string {

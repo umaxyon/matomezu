@@ -40,19 +40,19 @@ import (
 // wakeLine は、AI のプログラム 1 つの、起こす知らせの通り道。行列に入った合図を ready で受ける
 type wakeLine struct {
 	id            int64           // 通り道の番号（貸した知らせの結果を見分ける）
-	host          string          // AI のプログラムのプロセス id
+	program       aiProgram       // AI のプログラム（プロセス id とその範囲の印。分からなければ空）
 	session       string          // AI のプログラムが立てたときのセッション id（分からなければ空）
-	hostSpace     string          // host が通じるプロセス id の範囲の印（ProcessSpace。分からなければ空）
 	laterSessions map[string]bool // 同じ AI のプログラムが、立てたあとに動かした会話のセッション id（/clear。NoteLaterSession）。Hub の programSessions の物を、同じプログラムの通り道で分け持つ
 	limits        WakeLimits      // 受け取る側が名乗った流し方
 	ready         chan struct{}   // 送り先の行列に何か入った合図（1 つだけ持つ）
 	closed        chan struct{}   // 通り道を外した（常駐を止めるとき）
 }
 
-// wakeProgram は、通り道を開いた AI のプログラム 1 つの見分け（プロセス id・その範囲の印・立てたときのセッション id）。
+// startedProgram は、通り道を開いた AI のプログラム 1 つの見分け（プログラムと、立てたときのセッション id）。
 // 立てたときのセッション id も入るので、使い回されたプロセス id のほかの AI のプログラムとは分かれる
-type wakeProgram struct {
-	host, hostSpace, session string
+type startedProgram struct {
+	program aiProgram
+	session string
 }
 
 // programSessions は、AI のプログラム 1 つが、立てたあとに動かした会話のセッション id と、通り道を初めて開いた時
@@ -159,9 +159,9 @@ func (h *Hub) OpenWakesWith(host, hostSpace, session string, limits WakeLimits) 
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.wakeLineSeq++
-	w := &wakeLine{id: h.wakeLineSeq, host: host, hostSpace: hostSpace, session: session, limits: limits, ready: make(chan struct{}, 1), closed: make(chan struct{})}
+	w := &wakeLine{id: h.wakeLineSeq, program: aiProgram{host, hostSpace}, session: session, limits: limits, ready: make(chan struct{}, 1), closed: make(chan struct{})}
 	if host != "" && session != "" {
-		w.laterSessions = h.programSessionsLocked(wakeProgram{host, hostSpace, session})
+		w.laterSessions = h.programSessionsLocked(startedProgram{aiProgram{host, hostSpace}, session})
 	}
 	if h.wakeLines == nil {
 		h.wakeLines = map[*wakeLine]struct{}{}
@@ -224,9 +224,9 @@ func (h *Hub) dropStaleAbsentLocked() {
 // もう一方は、両方で分かっていれば等しい（Windows では、AI のプログラムまでたどれない watch がある）。
 // 通り道のセッション id は、立てたときの物か、そのあとに同じ AI のプログラムが動かした会話の物（laterSessions）のどれかが等しければよい
 func (l *wakeLine) reaches(n participantNote) bool {
-	host := (aiProgram{l.host, l.hostSpace}).is(n.wakeProgram())
+	host := l.program.is(n.wakeTarget())
 	session := l.session != "" && (l.session == n.WakeSession || l.laterSessions[n.WakeSession])
-	hostOK := l.host == "" || n.WakeHost == "" || host
+	hostOK := l.program.Host == "" || n.WakeHost == "" || host
 	sessionOK := l.session == "" || n.WakeSession == "" || session
 	return (host || session) && hostOK && sessionOK
 }
@@ -278,19 +278,19 @@ func (h *Hub) noteWakesLocked() {
 }
 
 // programSessionsLocked は、AI のプログラム p の後の会話の集まり（無ければ作る。上限を超えたら、開いた通り道の無いプログラムを古い順に忘れる。h.mu を持って呼ぶ）
-func (h *Hub) programSessionsLocked(p wakeProgram) map[string]bool {
+func (h *Hub) programSessionsLocked(p startedProgram) map[string]bool {
 	if got, ok := h.programSessions[p]; ok {
 		return got.sessions
 	}
 	if h.programSessions == nil {
-		h.programSessions = map[wakeProgram]programSessions{}
+		h.programSessions = map[startedProgram]programSessions{}
 	}
-	open := map[wakeProgram]bool{}
+	open := map[startedProgram]bool{}
 	for l := range h.wakeLines {
-		open[wakeProgram{l.host, l.hostSpace, l.session}] = true
+		open[startedProgram{l.program, l.session}] = true
 	}
 	for len(h.programSessions) >= programSessionsMax {
-		var oldest *wakeProgram
+		var oldest *startedProgram
 		for q, s := range h.programSessions {
 			if !open[q] && (oldest == nil || s.at.Before(h.programSessions[*oldest].at)) {
 				oldest = &q
@@ -321,11 +321,11 @@ func (h *Hub) NoteLaterSession(sessionID string, from aiProgram) {
 	defer h.mu.Unlock()
 	added := false
 	for p, got := range h.programSessions {
-		if !from.is(aiProgram{p.host, p.hostSpace}) || p.session == sessionID || got.sessions[sessionID] {
+		if !from.is(p.program) || p.session == sessionID || got.sessions[sessionID] {
 			continue
 		}
 		got.sessions[sessionID] = true
-		logWake("program of host %q, space %q, session %q also reaches session %q (a later conversation)", p.host, p.hostSpace, p.session, sessionID)
+		logWake("program of host %q, space %q, session %q also reaches session %q (a later conversation)", p.program.Host, p.program.Space, p.session, sessionID)
 		added = true
 	}
 	if !added {
