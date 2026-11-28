@@ -264,6 +264,7 @@ var tools = []tool{
 	{"show", showDescription, showSchema, func(c *conn, args map[string]any) (string, bool) { return show(c, args) }, false},
 	{"perform", performDescription, performSchema, func(c *conn, args map[string]any) (string, bool) { return perform(c, args) }, false},
 	{"import_image", importImageDescription, importImageSchema, func(c *conn, args map[string]any) (string, bool) { return importImage(c, args) }, false},
+	{"read_image", readImageDescription, readImageSchema, readImage, true},
 	{
 		"join_rules",
 		"Read the current matomezu participation rules before requesting to join. Available before joining.",

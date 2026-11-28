@@ -51,6 +51,14 @@ func (f *fakeAPI) Get(path string, header http.Header) (json.RawMessage, http.He
 		return json.RawMessage(`{"page":"small"}`), f.replied, nil
 	case "api/ai/pages/p1":
 		return json.RawMessage(`{"page":"` + strings.Repeat("あ", maxAnswer) + `"}`), f.replied, nil
+	case "api/ai/pages/img/image":
+		return json.RawMessage(`{"ok":true,"mime":"image/png","width":3000,"height":1500,"sentWidth":1568,"sentHeight":784,"data":"UE5H"}`), f.replied, nil
+	case "api/ai/pages/svg/image":
+		return json.RawMessage(`{"ok":true,"mime":"image/svg+xml","width":8,"height":4,"svg":"<svg/>"}`), f.replied, nil
+	case "api/ai/pages/none/image":
+		return nil, nil, &HostError{Code: http.StatusNotFound, Text: "no such page"}
+	case "api/ai/pages/doc/image":
+		return json.RawMessage(`{"ok":false,"reason":"no-image"}`), f.replied, nil
 	case "api/ai/join-rules":
 		return json.RawMessage(`{"rules":"Request to join from this conversation."}`), f.replied, nil
 	case "api/ai/view":
@@ -151,7 +159,7 @@ func TestToolsDoNotDependOnTheCatalog(t *testing.T) {
 	for _, x := range got[0]["result"].(map[string]any)["tools"].([]any) {
 		names = append(names, x.(map[string]any)["name"].(string))
 	}
-	if strings.Join(names, ",") != "view,list_books,read_folder,read_book,read_page,read_records,search,read_settings,actions,show,perform,import_image,join_rules,join,send_message,list_workrooms" {
+	if strings.Join(names, ",") != "view,list_books,read_folder,read_book,read_page,read_records,search,read_settings,actions,show,perform,import_image,read_image,join_rules,join,send_message,list_workrooms" {
 		t.Fatalf("tools = %v", names)
 	}
 }

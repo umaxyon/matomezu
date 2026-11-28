@@ -66,7 +66,9 @@ export const IMAGE = kit.definePageType({
   grouping: "none",
   paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "portrait" },
   fields: {
-    asset: ASSET_ID.describe("The id of the asset (the image's bytes) the page shows; see import_image"),
+    asset: ASSET_ID.describe(
+      "The id of the asset (the image's bytes) the page shows; see import_image (and read_image to see it)",
+    ),
     width: IMAGE_PX.describe("The image's width in pixels, as import_image answered"),
     height: IMAGE_PX.describe("The image's height in pixels, as import_image answered"),
   },
@@ -97,7 +99,7 @@ export const IMAGES = kit.defineSystemFolder({
   id: "images",
   title: "Images",
   aiDescription:
-    "The images folder: image pages are only in it and in its folders, and nothing else goes in. Import an image with import_image, then make its page here with page-create (type @matomezu/image:image, fields {asset, width, height} as import_image answers them).",
+    "The images folder: image pages are only in it and in its folders, and nothing else goes in. Import an image with import_image, then make its page here with page-create (type @matomezu/image:image, fields {asset, width, height} as import_image answers them). To see what an image shows, call read_image with its page's id.",
 })
 
 type Folders = Parameters<typeof foldersOver>[0]
