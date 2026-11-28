@@ -27,7 +27,7 @@ export function pageUseLinesOf(
 ): PageUseLine[] {
   return targets.flatMap(target =>
     (users.users[target] ?? []).flatMap((user): PageUseLine[] => {
-      const at = pagePlaceOf(from, user)
+      const at = pagePlaceOf(from, user, naming)
       if (!at) return []
       const title = titleOf(from, "page", target, naming) ?? target
       if (!at.within) return [{ target: title, page: at.title }]

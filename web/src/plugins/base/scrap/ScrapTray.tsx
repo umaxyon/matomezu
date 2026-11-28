@@ -12,6 +12,7 @@ import { Confirm } from "../dialog-host/Confirm"
 import { kit } from "../kit"
 import { useCloseLeftSidePanel, useLeftSidePanelShows, useToggleLeftSidePanel } from "../left-side-panel/hooks"
 import type { LeftSidePanelEntry } from "../left-side-panel/state"
+import { useReadNaming } from "../library/hooks"
 import { paperSize } from "../place/grow"
 import { useCanPlace } from "../toolbox/use-can-place"
 import footer from "../utils/FooterButtons.module.css"
@@ -71,8 +72,9 @@ function Row({ id, scrap }: { id: string; scrap: Scrap }) {
   const pressed = frame !== null && placing !== NO_PLACING && placing.item === frame && sameData(placing.props, toPlace)
   const canPlace = useCanPlace() // 置くコマンドを認可ステップが止める間（ロック中など）は押せない。置こうとしている行は、取り消せるように押せるまま
   const removable = useAllowedOn(SCRAP_REMOVE.id, {}, { record: id }).ok
+  const naming = useReadNaming()
   const label = useMatomezuState(s => {
-    const at = pagePlaceOf(s, scrap.page)
+    const at = pagePlaceOf(s, scrap.page, naming())
     if (!at) return t("No Data")
     return at.within === undefined ? at.title : `${at.within.title} › ${at.title}`
   })

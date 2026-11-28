@@ -123,10 +123,11 @@ export const LIBRARY_MESSAGES = defineMessages({
   "Returns to": { en: "Returns to", ja: "元の場所" },
   "Moved to trash": { en: "Moved to trash", ja: "捨てた日時" },
   '"{name}" will be deleted for good': { en: '"{name}" will be deleted for good', ja: "「{name}」が完全に消えます" },
-  "Used by scraps in {count} places. They will be drawn as No Data": {
-    en: "Used by scraps in {count} places. They will be drawn as No Data",
-    ja: "スクラップで使っている所（{count}）。消すと「No Data」と描かれます",
+  "Used by scraps in {count} places": {
+    en: "Used by scraps in {count} places",
+    ja: "スクラップで使っている所（{count}）",
   },
+  "They will be drawn as No Data": { en: "They will be drawn as No Data", ja: "消すと「No Data」と描かれます" },
   "{page} ← {place}": { en: "{page} ← {place}", ja: "{page} ← {place}" },
   "{book} ({backyard})": { en: "{book} ({backyard})", ja: "{book}（{backyard}）" },
   "Could not check what uses it": { en: "Could not check what uses it", ja: "使っている所を確かめられませんでした" },

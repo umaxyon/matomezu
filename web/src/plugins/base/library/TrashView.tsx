@@ -76,7 +76,8 @@ export function TrashView({ picked, onPick }: { picked: string | undefined; onPi
       ...(uses.lines.length === 0
         ? []
         : [
-            t("Used by scraps in {count} places. They will be drawn as No Data", { count: uses.lines.length }),
+            t("Used by scraps in {count} places", { count: uses.lines.length }),
+            t("They will be drawn as No Data"),
             ...shownPlaces(
               uses.lines.map(l => (each ? t("{page} ← {place}", { page: l.target, place: where(l) }) : where(l))),
               count => t("{count} more places", { count }),
