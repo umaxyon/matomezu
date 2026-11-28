@@ -57,8 +57,8 @@ func (e *Engine) TalkActions() (ids []string, err error) {
 	return ids, err
 }
 
-// PageMetaKeys は、ページメタのフィールドの名前（core/folders.ts の META_KEYS。ページの中身を持たない窓に、ページの行をページメタだけにして送るのに使う）
-func (e *Engine) PageMetaKeys() (keys []string, err error) {
+// PageMetaRow は、ページの行 page の、ページメタだけの行（core/folders.ts の pageMetaRowOf。ページの中身を持たない窓に送る）
+func (e *Engine) PageMetaRow(page json.RawMessage) (row json.RawMessage, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	defer func() {
@@ -66,8 +66,7 @@ func (e *Engine) PageMetaKeys() (keys []string, err error) {
 			err = fmt.Errorf("engine: %v", r)
 		}
 	}()
-	err = json.Unmarshal([]byte(e.metaKeys()), &keys)
-	return keys, err
+	return json.RawMessage(e.metaRow(string(page))), nil
 }
 
 // AnnotationsUnexpired は、アノテーションの並び list から、期限（種類の expiresAt。利用者の設定 settings で決まる）が時点 now より前の物を除いた並びと、

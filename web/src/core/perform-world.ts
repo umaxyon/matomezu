@@ -555,10 +555,6 @@ function targetLineupIn(
   return { book: NOT_IN_BOOK, binder: id, library }
 }
 
-// ゴミ箱の外のステージエントリ id の中身を、世界 world が持っていないか（持っていない物は、ここでは問えないので行えるとし、送った先の常駐が確かめる）
-const heldNot = (world: World, id: string): boolean =>
-  id !== "" && !inTrash(world.folders, id) && unheldIn(world, id).length > 0
-
 // world でアクション id を引数 args で行えるかを、行う前に問う（対象の選び方は performIn と同じ。run は回さない）
 export function permittedIn(
   world: World,
@@ -571,13 +567,10 @@ export function permittedIn(
   const target: ActionTarget | undefined = ctx.catalog.actions.get(id)?.target
   if (target === "book") {
     const at = targetLineupIn(ctx.catalog, world, id, on)
-    if (!at && heldNot(world, (on && "book" in on ? on.book : undefined) ?? "")) return { ok: true }
     return at ? permitted(at, id, args, ctx) : { ok: false, reason: "no-book" }
   }
   if (target === "page" || target === "annotations") {
     const at = targetPageIn(world, on)
-    const page = (on && "page" in on ? on.page : undefined) ?? ""
-    if ("ok" in at && heldNot(world, bookIdOf(world.folders, page) ?? page)) return { ok: true }
     if ("ok" in at) return at
     return permitted(target === "page" ? at : { ...at, annotations: world.annotations[at.page] ?? [] }, id, args, ctx)
   }

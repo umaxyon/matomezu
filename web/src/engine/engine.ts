@@ -7,7 +7,7 @@
 
 import { talkActions } from "../core/annotation"
 import { assetsInUse } from "../core/assets"
-import { META_KEYS } from "../core/folders"
+import { type PageRow, pageMetaRowOf } from "../core/folders"
 import { hostActions } from "../core/hosts"
 import { endActions, joinActions } from "../core/participant"
 import { checkRecords, restoreRecords } from "../core/records"
@@ -243,8 +243,9 @@ let lastAdded: readonly Plugin[] = []
 ;(globalThis as { matomezuAnnotationsWithout?: (plugin: string, list: string) => string }).matomezuAnnotationsWithout =
   (plugin, list) => annotationsWithout(plugin, list)
 
-// ページメタのフィールドの名前（常駐が、ページの中身を持たない窓に、ページの行をページメタだけにして送るのに使う）
-;(globalThis as { matomezuPageMetaKeys?: () => string }).matomezuPageMetaKeys = () => JSON.stringify(META_KEYS)
+// ページの行 page（JSON）の、ページメタだけの行（常駐が、ページの中身を持たない窓に送る）
+;(globalThis as { matomezuPageMetaRow?: (page: string) => string }).matomezuPageMetaRow = (page: string) =>
+  JSON.stringify(pageMetaRowOf(JSON.parse(page) as PageRow))
 
 // 利用者トリガートークのときに行うアクション（runsWhenUserTalks）の id（常駐が、アノテーションのある読めるページごとに行う）
 ;(globalThis as { matomezuTalkActions?: () => string }).matomezuTalkActions = () =>

@@ -99,7 +99,6 @@ type Hub struct {
 	command          atomic.Pointer[string]       // 利用者が端末で打つ matomezu の名前（command.go）
 	store            storage.Storage
 	engine           *engine.Engine
-	pageMetaKeys     []string             // ページメタのフィールドの名前（keep.go の metaKeys が、ホストのエンジンから読んで覚える）
 	pages            map[string]row       // ページの id → 本文と版（tables.go）
 	folders          map[string]folderRow // フォルダの id → 本文と版と、エントリの id（tables.go）
 	places           map[string]string    // エントリ（ページかバインダ）の id → それを入れているフォルダの id（tables.go）

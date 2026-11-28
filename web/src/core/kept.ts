@@ -3,6 +3,7 @@
 
 import { pagesOf } from "./book"
 import type { CoreCatalog } from "./core-catalog"
+import type { ShapeItemDef } from "./def/item"
 import { NO_OUTERMOST, outermostOf, outsideBinderIn, outsidePageIn } from "./folders-tree"
 import type { LibraryAndBooks } from "./library"
 import { type ItemPage, slideOf, walkShapes } from "./placed"
@@ -33,7 +34,7 @@ export function keptEntriesIn(catalog: CoreCatalog, from: LibraryAndBooks, win: 
       const found = referredOf(from, ref)
       if (found !== UNSEEN) keepOuter(found.kind === "page" ? found.page.id : found.binder.id)
     }
-    for (const page of heldPagesOf(from, id)) for (const to of drawnFrom(catalog, page)) keepOuter(to)
+    for (const page of heldPagesOf(from, id)) for (const to of pagesDrawnOn(catalog, page)) keepOuter(to)
   }
   return [...kept].sort()
 }
@@ -47,11 +48,16 @@ function heldPagesOf(from: LibraryAndBooks, id: string): readonly ItemPage[] {
   return outsideBinderIn(from, id)?.lineup ?? []
 }
 
-// ページ page の形が描くのに中身を使うページの id（紙の上の形と、形だけの並び〈スライド〉の形を、入れ子ごと）
-function drawnFrom(catalog: CoreCatalog, page: ItemPage): readonly string[] {
+// ページ page の形が描くのに中身を使うページの id（紙の上の形と、形だけの並び〈スライド〉の形を、入れ子ごと。ShapeItemDef の drawsFrom）。
+// only を渡せば、その定義の形の分だけ
+export function pagesDrawnOn(
+  catalog: CoreCatalog,
+  page: ItemPage,
+  only: (def: ShapeItemDef) => boolean = () => true,
+): readonly string[] {
   const shapes = [...walkShapes(page), ...walkShapes({ ...page, items: slideOf(page) })]
   return shapes.flatMap(({ shape }) => {
     const def = catalog.items.get(shape.item)
-    return def?.kind === "shape" ? (def.drawsFrom?.(shape) ?? []) : []
+    return def?.kind === "shape" && only(def) ? (def.drawsFrom?.(shape) ?? []) : []
   })
 }

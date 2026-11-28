@@ -1,11 +1,20 @@
 // 中身を持っていないページ（ページメタだけの行）の在る世界: 在ることと名前は読め、中身を読むアクションは needs-rows で答える
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
-import { type Folder, HOME_ID, isHeld, type Library, pageIn, pageMetaRowOf, TRASH_ID } from "../../web/src/core/folders"
+import {
+  type Folder,
+  HOME_ID,
+  type HomeFolder,
+  isHeld,
+  type Library,
+  pageIn,
+  pageMetaRowOf,
+  TRASH_ID,
+} from "../../web/src/core/folders"
 import { bookOf, libraryOf, unheldIn } from "../../web/src/core/folders-books"
 import { withChanges } from "../../web/src/core/folders-changes"
 import { openablePageRow } from "../../web/src/core/library"
-import { performIn, permittedIn, type World } from "../../web/src/core/perform-world"
+import { performIn, type World } from "../../web/src/core/perform-world"
 import { deadReferences } from "../../web/src/core/references"
 import type { AnyPage } from "../../web/src/core/schema/book"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
@@ -90,25 +99,17 @@ test("宛先のブックに中身を持っていないページがあれば、�
   })
 })
 
-test("中身を持っていないブック・ページへの行う前の問いは、問えないので行えると答える（送った先の常駐が確かめる）。無いブックは no-book", () => {
-  const world = start("a1")
-  const ask = (id: string, args: unknown, on: object) => permittedIn(world, base(id), args, on as never, ctxOf())
-  expect(ask("page-remove", { page: "a1" }, { book: "A" })).toEqual({ ok: true })
-  expect(ask("page-update", { title: "新" }, { page: "s1" })).toEqual({ ok: true })
-  expect(ask("page-remove", { page: "a1" }, { book: "none" })).toEqual({ ok: false, reason: "no-book" })
-})
-
 test("openablePageRow は、中身を持っていないページの行も開ける所から引き、ゴミ箱の中・読めないブックのページは引かない", () => {
   const world = start("a1", "b1", "o1")
   expect(openablePageRow(world, "a1")?.outermost).toEqual({ kind: "book", id: "A" })
   expect(openablePageRow(world, "s1")?.row.title).toBe("1")
   expect(openablePageRow(world, "o1")?.outermost).toEqual({ kind: "page", id: "o1" })
-  const home = world.folders[HOME_ID] as Folder & { lineup: readonly { id: string }[] }
+  const home = world.folders[HOME_ID] as HomeFolder
   const trashed: Library = {
     pages: world.pages,
     folders: {
       ...world.folders,
-      [HOME_ID]: { ...home, lineup: home.lineup.filter(r => r.id !== "B" && r.id !== "o1") } as Folder,
+      [HOME_ID]: { ...home, lineup: home.lineup.filter(r => r.id !== "B" && r.id !== "o1") },
       [TRASH_ID]: {
         folderRole: "trash",
         id: TRASH_ID,
@@ -116,7 +117,7 @@ test("openablePageRow は、中身を持っていないページの行も開け�
           { kind: "book", id: "B" },
           { kind: "page", id: "o1" },
         ],
-      },
+      } as unknown as Folder,
     },
   }
   expect(openablePageRow(trashed, "b1")).toBeUndefined()

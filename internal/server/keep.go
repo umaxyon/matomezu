@@ -8,7 +8,7 @@ import (
 	"slices"
 )
 
-// 窓が中身を持つ物（M-0263）: 窓は、中身を持つステージエントリを名乗る（POST /api/keep）。常駐は、名乗った窓には、その中のページだけを中身ごと知らせ、
+// 窓が中身を持つ物: 窓は、中身を持つステージエントリを名乗る（POST /api/keep）。常駐は、名乗った窓には、その中のページだけを中身ごと知らせ、
 // ほかのページはページメタだけにして知らせる（changed の pages）。名乗っていない窓には、全部を中身ごと知らせる
 
 // Keep は、窓 id が中身を持つステージエントリを entries にし、その中の全部のページの行（中身ごと。{"id", "page", "version"}）を返す
@@ -47,8 +47,9 @@ func (h *Hub) keeps(c *client, page string) bool {
 	return false
 }
 
-// pagesFor は、窓 c に知らせるページの行 notices（rowNotice の形）: 中身を持たないページは、ページメタだけ（{"id", "page": ページメタ, "version"}。消したページはそのまま。h.mu を持って呼ぶ）
-func (h *Hub) pagesFor(c *client, notices []map[string]any) []map[string]any {
+// pagesFor は、窓 c に知らせるページの行 notices（rowNotice の形）: 中身を持たないページは、ページメタだけ（{"id", "page": ページメタだけの行, "version"}。消したページはそのまま）。
+// metas は、ページの id ごとの、ページメタだけの行（窓の間で分け合い、無ければ作って足す）。h.mu を持って呼ぶ
+func (h *Hub) pagesFor(c *client, notices []map[string]any, metas map[string]json.RawMessage) []map[string]any {
 	if c.kept == nil {
 		return notices
 	}
@@ -60,43 +61,24 @@ func (h *Hub) pagesFor(c *client, notices []map[string]any) []map[string]any {
 			out[i] = n
 			continue
 		}
-		out[i] = map[string]any{"id": id, "page": h.pageMeta(body), "version": n["version"]}
+		meta, made := metas[id]
+		if !made {
+			var err error
+			if meta, err = h.engine.PageMetaRow(body); err != nil {
+				fmt.Fprintln(os.Stderr, stamp(), "the page meta of", id, "cannot be made:", err)
+				meta = body
+			}
+			metas[id] = meta
+		}
+		out[i] = map[string]any{"id": id, "page": meta, "version": n["version"]}
 	}
 	return out
-}
-
-// pageMeta は、ページの行 body のページメタだけの行（ページメタのフィールドと、中身を持っていない印 "unheld": true。core/folders.ts の pageMetaRowOf と同じ。h.mu を持って呼ぶ）
-func (h *Hub) pageMeta(body json.RawMessage) json.RawMessage {
-	var all map[string]json.RawMessage
-	if err := json.Unmarshal(body, &all); err != nil {
-		return body
-	}
-	meta := map[string]json.RawMessage{"unheld": json.RawMessage("true")}
-	for _, k := range h.metaKeys() {
-		if v, ok := all[k]; ok {
-			meta[k] = v
-		}
-	}
-	out, _ := json.Marshal(meta)
-	return out
-}
-
-// metaKeys は、ページメタのフィールドの名前（ホストのエンジンから読み、覚えておく。h.mu を持って呼ぶ）
-func (h *Hub) metaKeys() []string {
-	if h.pageMetaKeys == nil {
-		keys, err := h.engine.PageMetaKeys()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, stamp(), "the page meta keys cannot be read:", err)
-			return nil
-		}
-		h.pageMetaKeys = keys
-	}
-	return h.pageMetaKeys
 }
 
 // broadcastChanged は、changed の知らせ event を、窓ごとに、中身を持たないページをページメタだけにして送る（h.mu を持って呼ぶ）
 func (h *Hub) broadcastChanged(event map[string]any) {
 	pages, _ := event["pages"].([]map[string]any)
+	metas := map[string]json.RawMessage{}
 	for _, c := range h.clients {
 		if c.kept == nil {
 			h.send(c, "changed", event)
@@ -106,7 +88,7 @@ func (h *Hub) broadcastChanged(event map[string]any) {
 		for k, v := range event {
 			own[k] = v
 		}
-		own["pages"] = h.pagesFor(c, pages)
+		own["pages"] = h.pagesFor(c, pages, metas)
 		h.send(c, "changed", own)
 	}
 }
