@@ -68,6 +68,22 @@ func TestSessionParticipantMovesItsWakeTarget(t *testing.T) {
 	}
 }
 
+// 今届く通り道がある参加者は、セッション id で参加者になった呼び出しでも、起こす知らせの宛て先を書き直さない
+// （Claude Code で /clear のあとに MCP を立て直すと、MCP は新しいセッション id を添えるが、monitor は立てたときのセッション id を名乗り続ける）
+func TestSessionParticipantKeepsAWakeTargetThatALineReaches(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	claudeIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	line := hub.OpenWakesWith("200", "SB", WakeLimits{})
+	wakes(hub, line)
+	talkedAs(t, s.URL, `{"sessionId":"SB2","host":"200"}`)
+	call(t, "GET", s.URL+"/api/ai/settings", "", map[string]string{aiwire.HostSessionHeader: "SB2", aiwire.HostHeader: "200"})
+	sendMessage(t, s.URL, a, "すずめ", "hello")
+	if got := wakes(hub, line); len(got) != 1 || !strings.Contains(got[0], `"hello"`) {
+		t.Fatalf("wakes = %q", got)
+	}
+}
+
 // MCP が起動し直されたあと（参加の id を持たない）の join は、セッション id に結ばれた参加者のまま答える
 func TestJoinAfterTheMCPRestartedAnswersWithTheSessionParticipant(t *testing.T) {
 	s, _ := joinWorld(t, joinStore(t))
