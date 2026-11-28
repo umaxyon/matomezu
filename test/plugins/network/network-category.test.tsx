@@ -231,7 +231,7 @@ test("AI 用ホストリストに載せるこのホストのワークルーム�
   expect(all().checked).toBe(true)
 })
 
-test("Windows で直に動くときは、つなぐの下にファイアウォールの［許可する｜許可しない］と赤い行を出す。押すと頼み、答えるまで押せない。許可が効かなければ 1 行を出し、「許可しない」の側に置く", async () => {
+test("Windows で直に動くときは、つなぐの下にファイアウォールの［許可する｜許可しない］と赤い行を出す。押すと頼み、答えるまで押せず、回る印を出す。取り消しを頼んだら待ち受けアドレスを隠す。つなぐの横にも、常駐が合わせ終えるまで回る印。許可が効かなければ 1 行を出し、「許可しない」の側に置く", async () => {
   const asked: unknown[] = []
   let answer: () => void = () => {}
   const store = createMatomezu({
@@ -258,11 +258,16 @@ test("Windows で直に動くときは、つなぐの下にファイアウォー
   const panel = () => screen.getByRole("tabpanel", { name: "ネットワーク" })
   const allow = () => within(panel()).getByRole("radio", { name: "matomezu を許可する" }) as HTMLInputElement
   const deny = () => within(panel()).getByRole("radio", { name: "matomezu を許可しない" }) as HTMLInputElement
+  const waitingServer = () => within(panel()).queryByRole("status", { name: "常駐の応えを待っています" })
   setStatus({})
+  expect(waitingServer()).toBeNull()
   fireEvent.click(within(panel()).getByRole("switch", { name: "ホストとつなぐ" }))
   expect(within(panel()).queryByText("ファイアウォール設定")).toBeNull()
+  // 常駐が規則を読み終えて、つなぐに合わせ終えるまで、切り替えの横に回る印
+  expect(waitingServer()).toBeTruthy()
 
-  setStatus({ firewall: "absent" })
+  setStatus({ firewall: "absent", connect: true })
+  expect(waitingServer()).toBeNull()
   expect(within(panel()).getByText("ファイアウォール設定")).toBeTruthy()
   expect(within(panel()).getByText("公衆LANでの許可は推奨しません")).toBeTruthy()
   expect(deny().checked).toBe(true)
@@ -271,13 +276,19 @@ test("Windows で直に動くときは、つなぐの下にファイアウォー
   expect(asked).toEqual([{ kind: "firewall", allow: true }])
   expect(allow().checked).toBe(true)
   expect(allow().disabled && deny().disabled).toBe(true)
-  setStatus({ firewall: "allowed", open: true, port: 41234, addrs: ["192.168.1.10"] })
+  expect(within(panel()).getByRole("status", { name: "Windows の応えを待っています" })).toBeTruthy()
+  setStatus({ firewall: "allowed", connect: true, open: true, port: 41234, addrs: ["192.168.1.10"] })
   await act(async () => answer())
   expect(allow().disabled).toBe(false)
   expect(allow().checked).toBe(true)
+  expect(within(panel()).queryByRole("status", { name: "Windows の応えを待っています" })).toBeNull()
   expect(within(panel()).getByText("192.168.1.10:41234")).toBeTruthy()
 
-  setStatus({ firewall: "ineffective" })
+  // 取り消しを頼んだら、答えを待たずに待ち受けアドレスを隠す
+  fireEvent.click(deny())
+  expect(within(panel()).queryByText("192.168.1.10:41234")).toBeNull()
+  await act(async () => answer())
+  setStatus({ firewall: "ineffective", connect: true })
   expect(within(panel()).getByText("許可が有効にできません。責任者に問い合わせてください")).toBeTruthy()
   expect(deny().checked).toBe(true)
   expect(allow().disabled).toBe(false)

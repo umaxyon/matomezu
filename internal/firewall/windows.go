@@ -10,8 +10,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"unicode/utf16"
 )
+
+const createNoWindow = 0x08000000 // CREATE_NO_WINDOW
 
 // ForThisOS は、この OS の規則を読み書きする物（Windows）
 func ForThisOS() Rules {
@@ -46,6 +49,8 @@ func encoded(script string) string {
 
 func run(script string) ([]byte, error) {
 	cmd := exec.Command(powershell(), "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded(script))
+	// 常駐はコンソールを持たないので、そのままでは PowerShell の窓が開いて見える。窓を作らない
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWindow}
 	out, err := cmd.Output()
 	if err != nil {
 		return out, fmt.Errorf("firewall: powershell: %w", err)

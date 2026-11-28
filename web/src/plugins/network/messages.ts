@@ -245,6 +245,8 @@ export const NETWORK_MESSAGES = defineMessages({
     en: "To talk with matomezu in the LAN, allow it",
     ja: "LAN内のmatomezuと通信するには許可が必要です。",
   },
+  "Waiting for the server": { en: "Waiting for the server", ja: "常駐の応えを待っています" },
+  "Waiting for Windows": { en: "Waiting for Windows", ja: "Windows の応えを待っています" },
   "{choice} matomezu": { en: "{choice} matomezu", ja: "matomezuを{choice}" },
   "Allow matomezu": { en: "Allow matomezu through the firewall", ja: "matomezu を許可する" },
   "Do not allow matomezu": { en: "Do not allow matomezu through the firewall", ja: "matomezu を許可しない" },

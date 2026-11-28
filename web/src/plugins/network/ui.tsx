@@ -14,7 +14,7 @@ import {
   UNPAIR_DIALOG,
 } from "./dialogs"
 import { kit } from "./kit"
-import { HostNameSetting, ListedWorkroomsSetting, NetworkCategory } from "./NetworkCategory"
+import { ConnectHostsSetting, HostNameSetting, ListedWorkroomsSetting, NetworkCategory } from "./NetworkCategory"
 import { OtherHosts } from "./OtherHosts"
 import { PairedHostDetail } from "./PairedHostDetail"
 import { PairedHostInfoDialog } from "./PairedHostInfoDialog"
@@ -55,6 +55,7 @@ export const PAIRING_REQUEST_WATCH = defineWidget({
 export const NETWORK_UI = definePluginUi(NETWORK_PLUGIN, {
   userSettingViews: {
     [HOST_NAME.id]: { control: HostNameSetting },
+    [CONNECT_HOSTS.id]: { control: ConnectHostsSetting },
     [LISTED_WORKROOMS_SETTING.id]: { control: ListedWorkroomsSetting },
   },
   widgets: [NETWORK_CATEGORY, OTHER_HOSTS, PAIRED_HOST_DETAIL, PAIRING_REQUEST_BOOKMARKS, PAIRING_REQUEST_WATCH],

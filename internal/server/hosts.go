@@ -63,6 +63,8 @@ type HostStatus struct {
 	WSLProxyAddrs []string           `json:"wslProxyAddrs,omitempty"`
 	// Firewall は、ファイアウォールの規則の様子（Firewall を渡され、つなぐが入のときだけ）
 	Firewall firewall.State `json:"firewall,omitempty"`
+	// Connect は、入口がどちらの「ほかのホストとつなぐ」に合わせ終えたか（画面は、設定と違う間、待つ印を出す。Windows では規則を読み終えるまで）
+	Connect bool `json:"connect,omitempty"`
 }
 
 type hostEntrance struct {
@@ -195,6 +197,7 @@ func (h *Hub) applyHostEntrance(e *hostEntrance) {
 		e.fwState = "" // つなぐを入れ直したら読み直す
 	}
 	e.status.Firewall = fw
+	e.status.Connect = s.Connect
 	allowed := e.config.Firewall == nil || fw == firewall.Allowed
 	e.lan.Store(s.Connect && allowed)
 	name := s.Name

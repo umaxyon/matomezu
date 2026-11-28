@@ -82,3 +82,25 @@
   margin: 0;
   color: var(--skin-danger);
 }
+
+/* ファイアウォールの許可・取り消しで、Windows の応え（UAC と規則の読み直し）を待つ間に回る印 */
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--skin-border);
+  border-top-color: var(--skin-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}

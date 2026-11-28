@@ -18,6 +18,7 @@ import {
   NO_PORT,
   NO_WSL_PROXY,
   SettingRow,
+  Switch,
   TextAround,
   TextSettingControl,
   UserSettings,
@@ -49,6 +50,7 @@ export function NetworkCategory() {
   const { values } = useSettings()
   const on = values[CONNECT_HOSTS.id] === true
   const { openDialog } = useActions()
+  const [firewallAsking, setFirewallAsking] = useState<FirewallAsking>("none")
   if (!on || got === NO_HOST_STATUS)
     return <UserSettings settings={[HOST_NAME.id, CONNECT_HOSTS.id, LISTED_WORKROOMS_SETTING.id]} />
   const status = got
@@ -57,8 +59,8 @@ export function NetworkCategory() {
   return (
     <>
       <UserSettings settings={[HOST_NAME.id, CONNECT_HOSTS.id]} />
-      <FirewallSetting status={status} />
-      {status.open && (
+      <FirewallSetting status={status} asking={firewallAsking} setAsking={setFirewallAsking} />
+      {status.open && firewallAsking !== "deny" && (
         <div className={styles.rows}>
           <SettingRow label={t("Listening at")}>
             <span className={styles.addrs}>
@@ -88,10 +90,20 @@ export function NetworkCategory() {
 
 // ファイアウォールの行: ［許可する｜許可しない］と、公衆 LAN での許可を勧めない赤い行。許可しようとしてつなげなければ、理由を分けずに 1 行。
 // 押すと UAC が出て、答えるまで切り替えを押せない（押した側を見せておく）。効かない様子は「許可しない」の側に置き、押せば試し直す
-function FirewallSetting({ status }: { status: HostEntrance }) {
+// 取り消しを頼んでいる間は、待ち受けアドレスを出さない（もう受けないので、コピーさせない）
+type FirewallAsking = "allow" | "deny" | "none"
+
+function FirewallSetting({
+  status,
+  asking,
+  setAsking,
+}: {
+  status: HostEntrance
+  asking: FirewallAsking
+  setAsking: (a: FirewallAsking) => void
+}) {
   const t = useMessages(kit)
   const ask = useAskHosts()
-  const [asking, setAsking] = useState<"allow" | "deny" | "none">("none")
   const [failed, setFailed] = useState(false)
   if (status.firewall === NO_FIREWALL) return null
   const value = asking !== "none" ? asking : status.firewall === "allowed" ? "allow" : "deny"
@@ -128,6 +140,7 @@ function FirewallSetting({ status }: { status: HostEntrance }) {
               onChange={set}
             />
           </TextAround>
+          {busy ? <Waiting label={t("Waiting for Windows")} /> : null}
         </span>
       </SettingRow>
       <p className={styles.danger}>{t("Allowing on a public LAN is not recommended")}</p>
@@ -256,6 +269,27 @@ export function ListedWorkroomsSetting({
         ]}
         onChange={v => (v === "all" ? onReset() : onChange(v))}
       />
+    </SettingRow>
+  )
+}
+
+// 常駐の応えを待つ間に回る印
+function Waiting({ label }: { label: string }) {
+  return <span className={styles.spinner} role="status" aria-label={label} />
+}
+
+// 「ほかのホストとつなぐ」の項目のビュー: 入口が設定に合わせ終えるまで（Windows では規則を読み終えるまで）、切り替えの横に回る印を出す
+export function ConnectHostsSetting({ label, value, onChange }: UserSettingControlProps<boolean>) {
+  const t = useMessages(kit)
+  const status = useHostStatus()
+  const on = value === true
+  const waiting = status !== NO_HOST_STATUS && status.connect !== on
+  return (
+    <SettingRow label={label}>
+      <span className={styles.firewall}>
+        <Switch label={label} checked={on} onChange={onChange} />
+        {waiting ? <Waiting label={t("Waiting for the server")} /> : null}
+      </span>
     </SettingRow>
   )
 }

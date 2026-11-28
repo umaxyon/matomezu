@@ -90,7 +90,8 @@ export interface UpdateStatus {
 // ホストどうしの入口の様子: hostId はこのホストの id（鍵の指紋）、name はホスト名（設定か、無ければ OS のホスト名 osHostName）、
 // open は入口が開いているか（port と、待ち受けアドレスの番地 addrs）、wsl は WSL で動いているか、failed は開こうとして開けなかったときの理由、
 // wslProxy は WSLプロキシの様子と wslProxyAddrs はその待ち受けアドレスの番地（NAT の WSL で入口が開いているときだけ）、
-// firewall は Windows のファイアウォールの規則の様子（Windows で直に動き、つなぐが入のときだけ。許可している間だけ入口を開く）
+// firewall は Windows のファイアウォールの規則の様子（Windows で直に動き、つなぐが入のときだけ。許可している間だけ入口を開く）、
+// connect は入口がどちらの「ほかのホストとつなぐ」に合わせ終えたか（無ければ切）
 // （port-in-use は覚えたポート port がほかに使われていた、listen はそのほか。覚えたポートは取り直さない。足してもらったファイアウォールの規則や相手が覚えた番号を壊さないため）
 export interface HostStatus {
   hostId: string
@@ -104,6 +105,7 @@ export interface HostStatus {
   wslProxy?: WslProxyState
   wslProxyAddrs?: readonly string[]
   firewall?: FirewallState
+  connect?: boolean
 }
 
 // Windows のファイアウォールの規則の様子: allowed は規則がそろって効いている、absent は matomezu の規則が無い（許可していない）、

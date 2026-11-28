@@ -24,7 +24,7 @@ export const NO_FIREWALL = "none"
 
 // プラグインに渡す、ホストどうしの入口の様子（ホストが渡す HostStatus の、無い物を名前の付いた値にした物。
 // 待ち受けアドレスの番地 addrs は無ければ空、wsl は WSL で動いていなければ false、WSLプロキシの番地 wslProxyAddrs は無ければ空、
-// firewall は Windows のファイアウォールの規則の様子か NO_FIREWALL）
+// firewall は Windows のファイアウォールの規則の様子か NO_FIREWALL、connect は入口が合わせ終えた「ほかのホストとつなぐ」）
 export interface HostEntrance {
   hostId: string
   name: string
@@ -37,6 +37,7 @@ export interface HostEntrance {
   wslProxy: NonNullable<HostStatus["wslProxy"]> | typeof NO_WSL_PROXY
   wslProxyAddrs: readonly string[]
   firewall: NonNullable<HostStatus["firewall"]> | typeof NO_FIREWALL
+  connect: boolean
 }
 
 // ホストが渡す入口の様子 s の、プラグインに渡す形
@@ -52,6 +53,7 @@ const entranceOf = (s: HostStatus): HostEntrance => ({
   wslProxy: s.wslProxy ?? NO_WSL_PROXY,
   wslProxyAddrs: s.wslProxyAddrs ?? [],
   firewall: s.firewall ?? NO_FIREWALL,
+  connect: s.connect === true,
 })
 
 // ホストどうしの入口の様子（常駐が持つ物。まだ届いていなければ NO_HOST_STATUS）
