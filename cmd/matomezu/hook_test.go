@@ -416,3 +416,25 @@ func TestBlockForHandoffKeepsTheTurnGoingOnce(t *testing.T) {
 		t.Fatalf("printed %q", out.String())
 	}
 }
+
+// ターンの始まりのフックは、AI のプログラムのプロセス id の範囲の印を、どの問い合わせにも添える（プロセス id が分からなければ添えない）
+func TestTalkedCarriesTheHostSpace(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "t.jsonl")
+	if err := os.WriteFile(path, []byte(`{"type":"tool_use","input":{"link":"6f1c2a3e-1111-4222-8333-444455556666"}}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f := &fakeTalk{}
+	talked(&bytes.Buffer{}, hookInput{SessionID: "S1", TranscriptPath: path, Host: "100"}, "", formatHook, f.api)
+	if len(f.bodies) < 2 {
+		t.Fatalf("bodies = %v", f.bodies)
+	}
+	for _, b := range f.bodies {
+		if b["hostSpace"] != server.ProcessSpace() {
+			t.Errorf("body without the host space: %v", b)
+		}
+	}
+	if got := hostSpace(""); got != "" {
+		t.Errorf("hostSpace without a host = %q", got)
+	}
+}

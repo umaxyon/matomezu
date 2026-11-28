@@ -237,33 +237,58 @@ func TestWakeReachesBySessionWhenTheHostIsUnknown(t *testing.T) {
 	}
 }
 
-// /clear のあとに立て直した MCP が新しい会話の id で join しても、フックがその会話を知らせていれば、立てたときの id のままの通り道に受け入れの知らせが届く
+// /clear のあとに立て直した MCP が新しい会話の id で join しても、フック（ターンの始まり・モデル・コンテキストの量のどれでも）がその会話を知らせていれば、
+// 立てたときの id のままの通り道に受け入れの知らせが届く
 func TestAcceptingAfterClearWakesTheLineOfTheFirstSession(t *testing.T) {
 	t.Parallel()
+	for _, c := range []struct{ path, body string }{
+		{"/api/ai/talked", `{"sessionId":"S2","host":"100","hostSpace":"WSL"}`},
+		{"/api/ai/model", `{"sessionId":"S2","model":"opus","host":"100","hostSpace":"WSL"}`},
+		{"/api/ai/context-use", `{"sessionId":"S2","host":"100","hostSpace":"WSL","contextUse":"unknown"}`},
+	} {
+		s, hub := joinWorld(t, joinStore(t))
+		line := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
+		call(t, "POST", s.URL+c.path, c.body, nil)
+		participant := joinFromSession(t, s.URL, "L1", "100", "S2")
+		room := makeRoom(t, s.URL, "ひよこ")
+		windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant)
+		if got := wakes(hub, line); len(got) != 1 || !strings.Contains(got[0], "ひよこ") {
+			t.Fatalf("%s: wakes = %q", c.path, got)
+		}
+	}
+}
+
+// 受け入れの知らせが先に溜まっていても、あとからフックがその会話を知らせれば流れる。通り道が切れてつなぎ直しても、覚えた会話は残る
+func TestLaterSessionReachesQueuedWakesAndReconnectedLines(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
-	line := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
-	call(t, "POST", s.URL+"/api/ai/model", `{"sessionId":"S2","model":"opus","host":"100","hostSpace":"WSL"}`, nil)
+	hub.CloseWakes(hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{}))
 	participant := joinFromSession(t, s.URL, "L1", "100", "S2")
 	room := makeRoom(t, s.URL, "ひよこ")
 	windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant)
-	if got := wakes(hub, line); len(got) != 1 || !strings.Contains(got[0], "ひよこ") {
+	line := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
+	if got := wakes(hub, line); len(got) != 0 {
+		t.Fatalf("woke before the hook: %q", got)
+	}
+	hub.NoteLaterSession("S2", "100", "WSL")
+	hub.CloseWakes(line)
+	again := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
+	if got := wakes(hub, again); len(got) != 1 || !strings.Contains(got[0], "ひよこ") {
 		t.Fatalf("wakes = %q", got)
 	}
 }
 
-// 後の会話を覚えるのは、フックの AI のプログラムと同じプロセス id・同じ範囲の印の、今開いている通り道だけ
-// （閉じた通り道・フックのあとに開いた通り道・ほかのプロセスの通り道・WSL と Windows のように範囲の違う通り道は覚えない）
-func TestLaterSessionsStayWithTheOpenLinesOfTheHost(t *testing.T) {
+// 後の会話を覚えるのは、フックの AI のプログラムと同じプロセス id・同じ範囲の印のプログラムだけ
+// （ほかのプロセス・WSL と Windows のように範囲の違うプロセス・使い回されたプロセス id のほかのプログラムは覚えない）
+func TestLaterSessionsStayWithTheProgram(t *testing.T) {
 	t.Parallel()
 	_, hub := joinWorld(t, joinStore(t))
 	note := participantNote{WakeHost: "100", WakeSession: "S2"}
-	closed := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
-	hub.CloseWakes(closed)
 	other := hub.OpenWakesWith("200", "WSL", "S0", WakeLimits{})
 	windows := hub.OpenWakesWith("100", "Windows", "S0", WakeLimits{})
 	learned := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
 	hub.NoteLaterSession("S2", "100", "WSL")
-	reopened := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
+	reused := hub.OpenWakesWith("100", "WSL", "S9", WakeLimits{})
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
 	for _, c := range []struct {
@@ -272,11 +297,10 @@ func TestLaterSessionsStayWithTheOpenLinesOfTheHost(t *testing.T) {
 		note participantNote
 		want bool
 	}{
-		{"the open line of the host", learned, note, true},
-		{"a closed line", closed, note, false},
+		{"the line of the program", learned, note, true},
 		{"a line of another process", other, participantNote{WakeHost: "200", WakeSession: "S2"}, false},
 		{"a line of the same process id in another space", windows, note, false},
-		{"a line opened after the hook", reopened, note, false},
+		{"a line of another program at a reused process id", reused, note, false},
 	} {
 		if got := c.line.reaches(c.note); got != c.want {
 			t.Errorf("%s: reaches = %v, want %v", c.name, got, c.want)

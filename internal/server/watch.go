@@ -43,11 +43,26 @@ type wakeLine struct {
 	host          string          // AI のプログラムのプロセス id
 	session       string          // AI のプログラムが立てたときのセッション id（分からなければ空）
 	hostSpace     string          // host が通じるプロセス id の範囲の印（ProcessSpace。分からなければ空）
-	laterSessions map[string]bool // 同じ AI のプログラムが、立てたあとに動かした会話のセッション id（/clear。noteLaterSession）。通り道と一緒に消える
+	laterSessions map[string]bool // 同じ AI のプログラムが、立てたあとに動かした会話のセッション id（/clear。NoteLaterSession）。Hub の programSessions の物を、同じプログラムの通り道で分け持つ
 	limits        WakeLimits      // 受け取る側が名乗った流し方
 	ready         chan struct{}   // 送り先の行列に何か入った合図（1 つだけ持つ）
 	closed        chan struct{}   // 通り道を外した（常駐を止めるとき）
 }
+
+// wakeProgram は、通り道を開いた AI のプログラム 1 つの見分け（プロセス id・その範囲の印・立てたときのセッション id）。
+// 立てたときのセッション id も入るので、使い回されたプロセス id のほかの AI のプログラムとは分かれる
+type wakeProgram struct {
+	host, hostSpace, session string
+}
+
+// programSessions は、AI のプログラム 1 つが、立てたあとに動かした会話のセッション id と、通り道を初めて開いた時
+type programSessions struct {
+	sessions map[string]bool
+	at       time.Time
+}
+
+// programSessionsMax は、後の会話を覚えておく AI のプログラムの数の上限（超えたら、今開いた通り道の無い物を古い順に忘れる）
+const programSessionsMax = 256
 
 // WakeLimits は、受け取る側が名乗る流し方（0 は上限なし・間なし）
 type WakeLimits struct {
@@ -145,6 +160,9 @@ func (h *Hub) OpenWakesWith(host, hostSpace, session string, limits WakeLimits) 
 	defer h.mu.Unlock()
 	h.wakeLineSeq++
 	w := &wakeLine{id: h.wakeLineSeq, host: host, hostSpace: hostSpace, session: session, limits: limits, ready: make(chan struct{}, 1), closed: make(chan struct{})}
+	if host != "" && session != "" {
+		w.laterSessions = h.programSessionsLocked(wakeProgram{host, hostSpace, session})
+	}
 	if h.wakeLines == nil {
 		h.wakeLines = map[*wakeLine]struct{}{}
 	}
@@ -259,9 +277,40 @@ func (h *Hub) noteWakesLocked() {
 	}
 }
 
+// programSessionsLocked は、AI のプログラム p の後の会話の集まり（無ければ作る。上限を超えたら、開いた通り道の無いプログラムを古い順に忘れる。h.mu を持って呼ぶ）
+func (h *Hub) programSessionsLocked(p wakeProgram) map[string]bool {
+	if got, ok := h.programSessions[p]; ok {
+		return got.sessions
+	}
+	if h.programSessions == nil {
+		h.programSessions = map[wakeProgram]programSessions{}
+	}
+	open := map[wakeProgram]bool{}
+	for l := range h.wakeLines {
+		open[wakeProgram{l.host, l.hostSpace, l.session}] = true
+	}
+	for len(h.programSessions) >= programSessionsMax {
+		var oldest *wakeProgram
+		for q, s := range h.programSessions {
+			if !open[q] && (oldest == nil || s.at.Before(h.programSessions[*oldest].at)) {
+				oldest = &q
+			}
+		}
+		if oldest == nil {
+			break
+		}
+		delete(h.programSessions, *oldest)
+	}
+	got := programSessions{sessions: map[string]bool{}, at: time.Now()}
+	h.programSessions[p] = got
+	return got.sessions
+}
+
 // NoteLaterSession は、プロセス id host（その範囲の印 hostSpace）の AI のプログラムが今セッション sessionID の会話を動かしているとフックが知らせたとき、
-// host と範囲の印が同じで、立てたときのセッション id の違う通り道に、sessionID を後の会話として覚えさせる（laterSessions）。
+// 通り道を開いたことのある、host と範囲の印が同じで、立てたときのセッション id の違うプログラムに、sessionID を後の会話として覚えさせる（programSessions）。
+// 通り道が切れてつなぎ直しても、同じプログラムの通り道は同じ物を分け持つ。
 // 範囲の印も比べるのは、WSL と Windows のように範囲が違えば、同じプロセス id でも別の AI のプログラムだから。
+// 使い回されたプロセス id の前のプログラムにも覚えさせるが、その通り道はもう開かないので、届く先は変わらない。
 // Claude Code の monitor は /clear で立て直されず、立てたときのセッション id を名乗り続けるので、/clear のあとの会話の id で join した参加者にも届くようにする。
 // 覚えさせたら、届くかの変わりを窓に知らせ、その会話の参加者に溜まった知らせを流させる。host か sessionID が空なら何もしない。
 // フックの知らせを受けたら、参加者を移すより前に呼ぶ
@@ -272,15 +321,12 @@ func (h *Hub) NoteLaterSession(sessionID, host, hostSpace string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	added := false
-	for l := range h.wakeLines {
-		if l.host != host || l.hostSpace != hostSpace || l.session == "" || l.session == sessionID || l.laterSessions[sessionID] {
+	for p, got := range h.programSessions {
+		if p.host != host || p.hostSpace != hostSpace || p.session == sessionID || got.sessions[sessionID] {
 			continue
 		}
-		if l.laterSessions == nil {
-			l.laterSessions = map[string]bool{}
-		}
-		l.laterSessions[sessionID] = true
-		logWake("line %d also reaches session %q (a later conversation of host %q)", l.id, sessionID, host)
+		got.sessions[sessionID] = true
+		logWake("program of host %q, session %q also reaches session %q (a later conversation)", host, p.session, sessionID)
 		added = true
 	}
 	if !added {
