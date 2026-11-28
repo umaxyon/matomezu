@@ -28,6 +28,8 @@ type HostConfig struct {
 	WSL        bool            // WSL で動いているか（画面が案内を出す）
 	Discover   bool            // 入口を開いているあいだ mDNS で知らせ、見つける（テストは同じ網に出さないよう切る）
 	Loopback   bool            // 127.0.0.1 だけで待つ（テストは同じ網に出さないよう付ける）
+	// WSLProxy は、入口を開いたときに WSLプロキシを立てる物（NAT の WSL のときだけ。ほかは nil）。立てたら、mDNS は WSLプロキシごしにする
+	WSLProxy peer.WSLProxyLaunch
 }
 
 // HostFailed は、入口を開こうとして開けなかった理由
@@ -48,6 +50,9 @@ type HostStatus struct {
 	Addrs      []string   `json:"addrs,omitempty"` // 待っている所の番地（開いているときだけ）
 	WSL        bool       `json:"wsl,omitempty"`
 	Failed     HostFailed `json:"failed,omitempty"` // 開けなかった理由（開こうとして開けなかったときだけ）
+	// WSLProxy は WSLプロキシの様子、WSLProxyAddrs は WSLプロキシの待っている所の番地（立てる WSL で、入口が開いているときだけ）
+	WSLProxy      peer.WSLProxyState `json:"wslProxy,omitempty"`
+	WSLProxyAddrs []string           `json:"wslProxyAddrs,omitempty"`
 }
 
 type hostEntrance struct {
@@ -255,7 +260,7 @@ func (e *hostEntrance) open(h *Hub) {
 		h.stoppedHostEntrance(e, srv)
 	}()
 	e.status.Open, e.status.Port, e.status.Addrs, e.status.Failed = true, port, peer.ReachableAddrs(), ""
-	h.startBeacon(e, port)
+	h.startBeacon(e, port, srv)
 }
 
 // stoppedHostEntrance は、入口の srv が自分で止まったとき（閉じたのでなく）、開いていない様子にして窓に知らせる。つなぐを入れ直せば開き直す

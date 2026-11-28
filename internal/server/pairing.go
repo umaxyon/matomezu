@@ -146,7 +146,7 @@ type peerState struct {
 	live     map[string]*PeerLive
 	known    map[string]pairedHostRecord // ペアリングしたホスト（ホスト id ごと。kickPeers が引き直す）
 	dropping map[string]bool             // 常駐が消しているペアリングしたホスト（相手に知らせない）
-	beacon   *peer.Beacon
+	beacon   hostBeacon
 	kick     chan struct{}
 	// リバース接続（peer_reverse.go）
 	reverseIn  map[string]*http.Client // ペアリングしたホスト id → 相手が張って、こちらが預かった接続の上で頼むクライアント

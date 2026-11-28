@@ -168,12 +168,25 @@ func (h *Hub) sighted(e *hostEntrance, s peer.Sighting, gone bool) {
 	h.tellPeers()
 }
 
-// startBeacon は、入口を開いたときに mDNS で知らせ始める（HostConfig の Discover のときだけ。e.mu を持って呼ぶ）
-func (h *Hub) startBeacon(e *hostEntrance, port int) {
+// hostBeacon は、mDNS で自分を知らせ、ほかのホストを見つける物（peer.Beacon か、WSLプロキシごしの peer.WSLProxyLink）
+type hostBeacon interface {
+	Update(peer.Advert)
+	Query()
+	Found() []peer.Sighting
+	Close()
+}
+
+// startBeacon は、入口を開いたときに mDNS で知らせ始める。HostConfig の WSLProxy があれば WSLプロキシを立ててそれごしに、
+// 無ければ Discover のときだけこのホストで（e.mu を持って呼ぶ。srv は WSLプロキシ専用の受け口も答える入口）
+func (h *Hub) startBeacon(e *hostEntrance, port int, srv *http.Server) {
+	ad := peer.Advert{HostID: e.config.Identity.HostID, Protocol: e.proto, Port: port, Name: e.status.Name, UserName: h.userName()}
+	if e.config.WSLProxy != nil {
+		h.startWSLProxy(e, ad, srv)
+		return
+	}
 	if !e.config.Discover {
 		return
 	}
-	ad := peer.Advert{HostID: e.config.Identity.HostID, Protocol: e.proto, Port: port, Name: e.status.Name, UserName: h.userName()}
 	b, err := peer.StartBeacon(ad, func(s peer.Sighting, gone bool) { h.sighted(e, s, gone) })
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "hosts: mDNS could not start:", err)
@@ -184,12 +197,59 @@ func (h *Hub) startBeacon(e *hostEntrance, port int) {
 	e.peers.mu.Unlock()
 }
 
-// stopBeacon は、「いなくなる」を知らせて止める（入口を閉じたとき）
+// startWSLProxy は、WSLプロキシを立て、専用の受け口も srv で答える。様子は立ったあとで知らせる（e.mu を持って呼ぶ。待たない）
+func (h *Hub) startWSLProxy(e *hostEntrance, ad peer.Advert, srv *http.Server) {
+	var link *peer.WSLProxyLink
+	ready := make(chan struct{})
+	link, err := peer.StartWSLProxy(peer.WSLProxyOptions{
+		Port: ad.Port, Advert: ad, Launch: e.config.WSLProxy, Discover: e.config.Discover, Loopback: e.config.Loopback,
+		OnChange: func(s peer.Sighting, gone bool) { h.sighted(e, s, gone) },
+		OnState: func(st peer.WSLProxyState, addrs []string) {
+			<-ready
+			h.wslProxyState(e, link, st, addrs)
+		},
+	})
+	close(ready)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "hosts: the WSL proxy could not start:", err)
+		e.status.WSLProxy = peer.WSLProxyUnavailable
+		return
+	}
+	go func() { _ = srv.ServeTLS(link.Listener(), "", "") }() // 受け口を閉じたら戻る（入口の止まりとは扱わない）
+	e.status.WSLProxy = link.State()
+	e.peers.mu.Lock()
+	e.peers.beacon = link
+	e.peers.mu.Unlock()
+}
+
+// wslProxyState は、WSLプロキシの様子が変わったとき: 今の入口の WSLプロキシなら様子を書き、窓に知らせる。
+// 終わったら、WSLプロキシの見つけたホストも消えているので、ほかのホストの一覧も知らせる
+func (h *Hub) wslProxyState(e *hostEntrance, link *peer.WSLProxyLink, st peer.WSLProxyState, addrs []string) {
+	e.mu.Lock()
+	e.peers.mu.Lock()
+	current := e.peers.beacon == hostBeacon(link)
+	e.peers.mu.Unlock()
+	if !current {
+		e.mu.Unlock()
+		return
+	}
+	was := e.status
+	e.status.WSLProxy, e.status.WSLProxyAddrs = st, addrs
+	now := e.status
+	e.mu.Unlock()
+	h.tellHostStatus(was, now)
+	if st != peer.WSLProxyStarting && st != peer.WSLProxyRunning {
+		h.tellPeers()
+	}
+}
+
+// stopBeacon は、「いなくなる」を知らせて止める（入口を閉じたとき。e.mu を持って呼ぶ）
 func (h *Hub) stopBeacon(e *hostEntrance) {
 	e.peers.mu.Lock()
 	b := e.peers.beacon
 	e.peers.beacon = nil
 	e.peers.mu.Unlock()
+	e.status.WSLProxy, e.status.WSLProxyAddrs = "", nil
 	if b != nil {
 		go b.Close()
 	}
