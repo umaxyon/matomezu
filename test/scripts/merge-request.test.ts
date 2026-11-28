@@ -112,3 +112,20 @@ test("確かめた後に main が進んだか、main の worktree に未コミ�
   expect(await enterDirect(r.main, r.c, r.base)).toEqual({ kind: "moved" })
   expect(existsSync(join(queueDir(join(r.main, ".git")), HISTORY))).toBe(false)
 })
+
+test("キューに並んでいる候補と衝突するなら入れずに yield を返し、衝突しなければ入れる", async () => {
+  const r = directRepo()
+  const queuedOn = (name: string, file: string, text: string) => {
+    git(r.main, "checkout", "-q", "-b", name, r.base)
+    const sha = r.commit(file, text)
+    git(r.main, "checkout", "-q", "main")
+    return [{ branch: name, sha, worktree: "/w", pid: 1, at: "" }]
+  }
+  const same = queuedOn("q1", "docs/a.md", "q\n")
+  expect(await enterDirect(r.main, r.c, r.base, () => same)).toEqual({ kind: "yield", to: same[0]! })
+  expect(git(r.main, "rev-parse", "refs/heads/main")).toBe(r.base)
+
+  const other = queuedOn("q2", "src.ts", "x\n")
+  expect((await enterDirect(r.main, r.c, r.base, () => other)).kind).toBe("direct")
+  expect(git(r.main, "rev-parse", "refs/heads/main")).toBe(r.c.sha)
+})

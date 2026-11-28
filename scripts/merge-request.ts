@@ -3,13 +3,13 @@
 // 進め方
 //   1. この worktree のブランチの先（頼んだ時の sha）を決め、並べられるかを確かめる（refusal）
 //   2. main からの差分がテストの結果を変えない物（UNREAD_BY_TESTS の中身の直し）だけなら、並ばずに main を ff して push し、
-//      HISTORY に 1 行を足して終わる（direct）
+//      HISTORY に 1 行を足して終わる（direct）。キューに並んでいる候補と衝突するなら、入れずに 3 へ進む
 //   3. 並んでいる印（requestsDir の下の <pid>.json）を置く。restart-subs は印のある worktree のサブを起動し直さない
 //   4. main の worktree の scripts/merge-queue.ts を --push で流す。このスクリプトとは切り離すので、待つ間にこれが止められても、
 //      キューは終わりまで流れ、履歴（merge-queue.ts の HISTORY）に残る。キューのロックで 1 本ずつ並ぶ
 //   5. キューの結果を出し、外されたら次にする事を添える。印を消す
 // 入れば 0、外されれば 1、並べなければ 2 で終わる
-import { execFileSync, spawn } from "node:child_process"
+import { execFileSync, spawn, spawnSync } from "node:child_process"
 import {
   appendFileSync,
   closeSync,
@@ -103,13 +103,26 @@ export function nextStep(o: Outcome): string | undefined {
 
 export type Direct =
   | { kind: "direct"; pushed: { ok: true } | { ok: false; why: string } }
+  | { kind: "yield"; to: Request }
   | { kind: "moved" | "dirty" | "failed" }
 
+// c を r の候補と重ねると衝突するか（キューは r を、c の入った main の上に重ねる）。試せなかったときも衝突とみなす
+const conflictsWith = (main: string, c: Candidate, r: Request) =>
+  spawnSync("git", ["merge-tree", "--write-tree", c.sha, r.sha], { cwd: main, stdio: "ignore" }).status !== 0
+
 // テストの結果を変えない物だけのブランチを、キューに並ばずに main へ入れる。base は差分を確かめた時の main。
-// main を進める所はキューと同じロック（mainLock）で 1 本ずつにし、入れば push して HISTORY に 1 行を足す
-export async function enterDirect(main: string, c: Candidate, base: string): Promise<Direct> {
+// main を進める所はキューと同じロック（mainLock）で 1 本ずつにし、入れば push して HISTORY に 1 行を足す。
+// キューに並んでいる候補と衝突するなら、テストを流し終えた候補を外させないよう、入れずに yield を返す（キューに並ぶ）
+export async function enterDirect(
+  main: string,
+  c: Candidate,
+  base: string,
+  queued: (common: string) => Request[] = queuedRequests,
+): Promise<Direct> {
   const common = commonDir(main)
-  const r = await withMainLock(common, () => {
+  const r: Direct = await withMainLock(common, () => {
+    const to = queued(common).find(q => conflictsWith(main, c, q))
+    if (to) return { kind: "yield" as const, to }
     const ff = fastForward(main, base, c.sha)
     return ff === "done" ? { kind: "direct" as const, pushed: pushMain(main) } : { kind: ff }
   })
@@ -174,17 +187,22 @@ async function request(): Promise<number> {
 
   if (unreadByTestsBetween(dir, base, sha)) {
     const r = await enterDirect(main, { name: branch, sha }, base)
-    if (r.kind !== "direct") {
+    if (r.kind === "yield")
+      console.log(
+        `キューに並んでいる ${r.to.branch} ${r.to.sha.slice(0, 8)} と衝突するので、テストを流さずには入れず、並ぶ`,
+      )
+    else if (r.kind !== "direct") {
       console.log(DIRECT_REFUSED[r.kind])
       return 1
+    } else {
+      console.log(`テストを流さずに入った: ${branch} ${sha.slice(0, 8)}`)
+      if (r.pushed.ok) {
+        console.log("push 済み")
+        return 0
+      }
+      console.log(`push に失敗（${r.pushed.why}）\n次: main に入ったが push に失敗したので、main_manager に知らせる`)
+      return 1
     }
-    console.log(`テストを流さずに入った: ${branch} ${sha.slice(0, 8)}`)
-    if (r.pushed.ok) {
-      console.log("push 済み")
-      return 0
-    }
-    console.log(`push に失敗（${r.pushed.why}）\n次: main に入ったが push に失敗したので、main_manager に知らせる`)
-    return 1
   }
 
   mkdirSync(requestsDir(common), { recursive: true })
