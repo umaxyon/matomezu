@@ -274,6 +274,7 @@ describe("引継ぎページを書いて会話をリフレッシュする（refr
     if (!done.ok) return
     expect(done.refreshRequest?.text).toContain(`page "${added?.[1]}" in book "b1"`)
     expect(done.refreshRequest?.text).toContain('read_folder with folder "my-workdesk"')
+    expect(done.refreshRequest?.text).toContain("given again")
   })
 
   test("書けたら、同じ書き込みでワークルームの引継ぎ対象チケットを外す（ほかの物は残す）", () => {
@@ -314,6 +315,7 @@ describe("引継ぎページを書いて会話をリフレッシュする（refr
     if (!done.ok) return
     expect(done.records ?? []).toEqual([])
     expect(done.refreshRequest?.text).toContain('in book "b1"')
+    expect(done.refreshRequest?.text).not.toContain("given again")
   })
 
   test("引継ぎ対象チケットと今の作業の両方があれば、引継ぎ対象チケットに書く", () => {

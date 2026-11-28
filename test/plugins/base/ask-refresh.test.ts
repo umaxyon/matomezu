@@ -33,7 +33,7 @@ function world() {
   return { act }
 }
 
-test("利用者が行うと、ワークルームの名前と参加者を送り先にして、refresh-request を使うよう頼む 1 通を返す。ワークルームのレコードは変えない", () => {
+test("利用者が行うと、ワークルームの名前と参加者を送り先にして、refresh-request を使うよう頼む 1 通を返す", () => {
   const { act } = world()
   const room = act(USER, "workroom-add", { name: "桜", bird: "inko" }).result?.workroom as string
   const done = act(USER, "ask-refresh", { participant: "p1" }, { record: room })

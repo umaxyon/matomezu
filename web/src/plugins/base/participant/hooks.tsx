@@ -171,12 +171,12 @@ export function useWorkroomActions(): WorkroomActions {
 }
 
 // ワークルーム room に入っている参加者 participant の AI に、切りのよい所で引継ぎページを書いて会話を空にするよう頼む（リフレッシュを頼むアクション）。
-// 頼めたかを返す（常駐が届けられずに断ったときは、アクションバルクの断りとして知らされる）
-export function useAskRefresh(): (room: string, participant: string) => boolean {
-  const { perform } = useActions()
+// 常駐の答えを待ち、頼めたかを返す（画面の手元で断られても、常駐が届けられずに断っても false）
+export function useAskRefresh(): (room: string, participant: string) => Promise<boolean> {
+  const { performConfirmed } = useActions()
   return useCallback(
-    (room, participant) => (perform as unknown as Do)(ASK_REFRESH.id, { participant }, { record: room }).ok,
-    [perform],
+    async (room, participant) => (await performConfirmed(ASK_REFRESH.id, { participant }, { record: room })).ok,
+    [performConfirmed],
   )
 }
 

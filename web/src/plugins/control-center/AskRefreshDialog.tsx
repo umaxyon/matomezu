@@ -35,7 +35,9 @@ export function AskRefreshDialog({ args, onClose }: DialogProps<{ workroom: stri
           disabled={!row.refreshable}
           onClick={() => {
             onClose()
-            if (!ask(args.workroom, args.participant)) failed()
+            ask(args.workroom, args.participant).then(ok => {
+              if (!ok) failed()
+            }, failed)
           }}
         >
           {t("Send")}
