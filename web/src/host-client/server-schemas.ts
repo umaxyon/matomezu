@@ -3,6 +3,7 @@
 import { z } from "zod"
 import type { AssetPut } from "../core/assets"
 import { BROKEN, MOVED_CODES } from "../core/folders"
+import type { PageUsers } from "../core/page-users"
 import { NOT_INSIDE } from "../core/unreadable"
 
 const SHOW_AT = { stage: z.string().optional(), split: z.boolean().optional() }
@@ -28,6 +29,12 @@ export const PURGE_ANSWER = z.union([
   z.object({ ok: z.literal(true) }),
   z.object({ ok: z.literal(false), reason: z.literal(NOT_INSIDE) }),
 ])
+// ページを使っている所の答え（POST /api/page-users）
+export const PAGE_USERS_ANSWER = z.object({
+  users: z.record(z.string(), z.array(z.string())),
+  sure: z.boolean(),
+}) satisfies z.ZodType<PageUsers>
+
 export const MOVED_IF_OFF_ANSWER = z.union([
   z.object({
     ok: z.literal(true),

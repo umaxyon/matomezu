@@ -505,6 +505,7 @@ export {
   scrapScaleFits,
   scrapScaleMin,
   scrapSize,
+  scrapUsersOf,
   wholeScrapOf,
 } from "./scrap"
 export type { SearchableDef } from "./search"

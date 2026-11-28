@@ -8,15 +8,13 @@ import { useMessages } from "../../../ui/i18n"
 import type { UserSettingControlProps } from "../../../ui/plugin"
 import { useInstance, useReadState } from "../../../ui/store-context"
 import { useActions } from "../../../ui/view-hooks"
-import { Confirm } from "../dialog-host/Confirm"
+import { Confirm, shownPlaces } from "../dialog-host/Confirm"
 import { rowClass, Section } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { useMovedIfOff, useNameOf, useReadNaming } from "../library/hooks"
 import { type MovedPlace, movedPlacesOf } from "../library/outline"
 import { addedPluginsOf, pluginLabel, withPluginEnabled } from "./enabled-plugins"
 
-// 確かめに名前を出す在る所の数（ほかは数だけ）
-const SHOWN_PLACES = 5
 // 値が無いときの有効なプラグイン（無し）
 const NO_PLUGINS: readonly string[] = []
 
@@ -86,9 +84,8 @@ export function EnabledPluginsSetting({ label, value, onChange }: UserSettingCon
               plugin: asking.plugin,
             }),
             t(asking.pages ? "{count} pages" : "{count} items", { count: asking.count }),
-            ...asking.places
-              .slice(0, SHOWN_PLACES)
-              .map(place =>
+            ...shownPlaces(
+              asking.places.map(place =>
                 t(
                   place.book
                     ? place.pages
@@ -100,9 +97,8 @@ export function EnabledPluginsSetting({ label, value, onChange }: UserSettingCon
                   { place: nameOf(place), count: place.count },
                 ),
               ),
-            ...(asking.places.length > SHOWN_PLACES
-              ? [t("{count} more places", { count: asking.places.length - SHOWN_PLACES })]
-              : []),
+              count => t("{count} more places", { count }),
+            ),
             t("Enable it again and they go back where they were"),
           ]}
           ok={t("Disable")}

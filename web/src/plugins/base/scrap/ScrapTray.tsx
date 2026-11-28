@@ -2,7 +2,6 @@
 // スクラップトレイを開けるのは、スクラップフレームを置けるブックを開いているステージだけ（ボタンは、そのときだけ出る。置けないブックに替わったら、開いているスクラップトレイを閉じる）。
 // スクラップトレイは切り抜いた新しい順に並べ、押すと、今のステージで置けるスクラップフレーム（scrapFrameIn）で、その値のまま置こうとする。× は確かめてから消す
 import { useEffect, useState } from "react"
-import { openablePage } from "../../../core/library"
 import { sameData } from "../../../core/same"
 import { NO_PAGE, NO_PAGE_TYPE, NO_PLACING, NO_STAGE, shownType } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
@@ -18,6 +17,7 @@ import { useCanPlace } from "../toolbox/use-can-place"
 import footer from "../utils/FooterButtons.module.css"
 import { refusalMessage } from "../utils/refusal"
 import { scrapFrameIn } from "."
+import { pagePlaceOf } from "./page-place"
 import styles from "./ScrapTray.module.css"
 import { ScrapView } from "./ScrapView"
 import { SCRAP, SCRAP_REMOVE, type Scrap, scrapSize, scrapToPlace } from "./scrap"
@@ -72,12 +72,9 @@ function Row({ id, scrap }: { id: string; scrap: Scrap }) {
   const canPlace = useCanPlace() // 置くコマンドを認可ステップが止める間（ロック中など）は押せない。置こうとしている行は、取り消せるように押せるまま
   const removable = useAllowedOn(SCRAP_REMOVE.id, {}, { record: id }).ok
   const label = useMatomezuState(s => {
-    const at = openablePage(s, scrap.page)
+    const at = pagePlaceOf(s, scrap.page)
     if (!at) return t("No Data")
-    // ブックかブックの外のバインダの中のページは、その名前を前に付ける（ブックの外のページ 1 枚は、ページの名前だけ）
-    const row = s.folders[at.outermost.id]
-    const within = row?.folderRole === "book" || row?.folderRole === "binder" ? row.title : undefined
-    return within === undefined ? at.page.title : `${within} › ${at.page.title}`
+    return at.within === undefined ? at.title : `${at.within.title} › ${at.title}`
   })
   const [asking, setAsking] = useState(false)
   const remove = () => {
