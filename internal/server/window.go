@@ -27,8 +27,8 @@ type client struct {
 	viewSeq int64           // 受けた見ているものの番号（窓が知らせるたびに増やす。古い番号の知らせは捨てる）
 	shown   []string        // いまその窓に見えているブック（touched.go。新しく見えたブックだけを「開いた」とする。コントロールセンターがカレントスクリーンの間は空）
 	held    []string        // いまその窓のブックスクリーンが開いているステージエントリ（ブックと、ブックの外のページの id。ページとフォルダの id は世界の中で重ならないので、id だけで持つ。隠れている物も含む。trash.go。AI はゴミ箱に入れられない）
-	// その窓が中身を持つステージエントリ（ブックと、ブックの外のページ・バインダの id。POST /api/keep。keep.go）。nil なら、まだ名乗っていないので全部を持つ
-	kept        map[string]bool
+	// その窓が中身を持つステージエントリ（ブックと、ブックの外のページ・バインダの id。POST /api/hold。hold.go）。nil なら、まだ名乗っていないので全部を持つ
+	holding     map[string]bool
 	editLocks   map[string][]string // 利用者がその窓で直している物（ページかブックの id → その中の物の id の並び。editlock.go）
 	recordLocks map[string][]string // 利用者がその窓で直しているレコード（対象の種類の id → レコードの id の並び。editlock.go）
 }

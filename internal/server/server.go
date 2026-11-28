@@ -28,7 +28,7 @@
 //	POST /api/view        {"client", "view", "editLocks", "recordLocks", "focused", "seq"} 窓のカレントのステージが見ているもの（view）と、利用者が直している物（editLocks。
 //	                      ブックの id → 物の id の並び。AI のアクションがそれを変えるか消すなら断る。editlock.go）と、その窓がフォーカスされたか。
 //	                      seq は窓ごとに増やす番号で、受けたものより古い番号の view と editLocks は捨てる（届く順が入れ替わるため）  … 画面から
-//	POST /api/keep        {"client", "entries"} 窓が中身を持つステージエントリ（ブックと、ブックの外のページ・バインダの id。keep.go）。{"pages": [{"id", "page", "version"}]}（その中の全部のページ。中身ごと）か、
+//	POST /api/hold        {"client", "entries"} 窓が中身を持つステージエントリ（ブックと、ブックの外のページ・バインダの id。hold.go）。{"pages": [{"id", "page", "version"}]}（その中の全部のページ。中身ごと）か、
 //	                      知らない窓なら 404。名乗った後の changed は、その中のページだけを中身ごと、ほかをページメタだけにする  … 画面から
 //
 // AI の入口（MCP。internal/mcp）は合言葉で通す:
@@ -159,7 +159,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/assets", o.screen(o.importAsset, octetStream))
 	mux.Handle("GET /api/assets/{id}", o.screen(o.serveAsset))
 	mux.Handle("POST /api/view", o.screen(o.view))
-	mux.Handle("POST /api/keep", o.screen(o.keep))
+	mux.Handle("POST /api/hold", o.screen(o.hold))
 	mux.Handle("POST /api/warnings", o.screen(o.warnings))
 	mux.Handle("POST /api/log", o.screen(o.windowLog))
 	mux.Handle("POST /api/ai-edit-tickets", o.screen(o.aiEditTicket))
@@ -574,7 +574,7 @@ func (o Options) view(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{})
 }
 
-func (o Options) keep(w http.ResponseWriter, r *http.Request) {
+func (o Options) hold(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Client  string   `json:"client"`
 		Entries []string `json:"entries"`
@@ -582,7 +582,7 @@ func (o Options) keep(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
-	pages, ok := o.Hub.Keep(req.Client, req.Entries)
+	pages, ok := o.Hub.Hold(req.Client, req.Entries)
 	if !ok {
 		http.Error(w, "unknown client", http.StatusNotFound)
 		return

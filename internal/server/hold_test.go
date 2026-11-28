@@ -7,7 +7,7 @@ import (
 	"github.com/umaxyon/matomezu/internal/engine"
 )
 
-const keptOther = `{"id":"b2","title":"U","lineup":[{"kind":"page","id":"q1","type":"@matomezu/drawing:drawing","title":"Q","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
+const heldOther = `{"id":"b2","title":"U","lineup":[{"kind":"page","id":"q1","type":"@matomezu/drawing:drawing","title":"Q","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 
 // changedPages は、窓 c に届いた最後の changed の pages（id → 行）
 func changedPages(t *testing.T, c *client) map[string]map[string]json.RawMessage {
@@ -50,15 +50,15 @@ func placeOnBoth(t *testing.T, hub *Hub) {
 }
 
 // 中身を持つ物を名乗った窓には、その中のページだけを中身ごと、ほかのページはページメタだけ（unheld）で知らせる。名乗っていない窓には全部を中身ごと
-func TestChangedSendsPageMetaToAWindowThatDoesNotKeepThePage(t *testing.T) {
+func TestChangedSendsPageMetaToAWindowThatDoesNotHoldThePage(t *testing.T) {
 	t.Parallel()
-	hub, _, c := bulkHub(t, keptOther)
+	hub, _, c := bulkHub(t, heldOther)
 	other := hub.Join()
 	cleanup(t, func() { hub.Leave(other) })
 	<-other.ch // hello
-	pages, ok := hub.Keep(c.id, []string{"b1"})
+	pages, ok := hub.Hold(c.id, []string{"b1"})
 	if !ok || len(pages) != 1 || pages[0]["id"] != "p1" {
-		t.Fatalf("keep = %v, %v", pages, ok)
+		t.Fatalf("hold = %v, %v", pages, ok)
 	}
 	placeOnBoth(t, hub)
 	got := changedPages(t, c)
@@ -75,20 +75,20 @@ func TestChangedSendsPageMetaToAWindowThatDoesNotKeepThePage(t *testing.T) {
 }
 
 // 名乗り直したら、名乗った後の知らせから、新しく持つ物のページを中身ごと知らせる。知らない窓の名乗りは断る
-func TestKeepAgainChangesWhatIsSentWhole(t *testing.T) {
+func TestHoldAgainChangesWhatIsSentWhole(t *testing.T) {
 	t.Parallel()
-	hub, _, c := bulkHub(t, keptOther)
-	hub.Keep(c.id, []string{"b1"})
-	pages, _ := hub.Keep(c.id, []string{"b2"})
+	hub, _, c := bulkHub(t, heldOther)
+	hub.Hold(c.id, []string{"b1"})
+	pages, _ := hub.Hold(c.id, []string{"b2"})
 	if len(pages) != 1 || pages[0]["id"] != "q1" {
-		t.Fatalf("keep = %v", pages)
+		t.Fatalf("hold = %v", pages)
 	}
 	placeOnBoth(t, hub)
 	got := changedPages(t, c)
 	if string(got["p1"]["unheld"]) != "true" || got["q1"]["unheld"] != nil {
 		t.Fatalf("pages = %v", got)
 	}
-	if _, ok := hub.Keep("nobody", nil); ok {
-		t.Fatal("keep by an unknown window was taken")
+	if _, ok := hub.Hold("nobody", nil); ok {
+		t.Fatal("hold by an unknown window was taken")
 	}
 }

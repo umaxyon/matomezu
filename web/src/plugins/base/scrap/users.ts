@@ -2,8 +2,8 @@
 // 常駐が書庫の全部の行 pages・folders で引く（ホストのエンジンから呼ぶ）
 
 import type { CoreCatalog } from "../../../core/core-catalog"
-import { pagesDrawnOn } from "../../../core/kept"
 import { type PageUsers, pageUsersIn } from "../../../core/page-users"
+import { pagesDrawnOn } from "../../../core/placed"
 
 export const scrapUsersOf = (
   catalog: CoreCatalog,
