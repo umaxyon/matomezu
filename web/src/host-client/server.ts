@@ -97,6 +97,7 @@ const HOSTS_PATHS: Record<HostRequest["kind"], string> = {
   discover: "api/hosts/discover",
   "repick-port": "api/hosts/port",
   "restart-wsl-proxy": "api/hosts/wsl-proxy",
+  firewall: "api/hosts/firewall",
 }
 
 // 読み直しをまたいで運ぶ物（読み直す前に知らされた、読めない物のフォルダへ移った・戻った物の知らせ）の、sessionStorage の鍵

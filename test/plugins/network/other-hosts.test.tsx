@@ -74,7 +74,7 @@ test("「ほかのホスト」の節は、つなぐが入のときだけ出し�
   fireEvent.click(screen.getByRole("button", { name: /^つながっている ?win-lan2$/ }))
   const panel = () => document.querySelector("[data-workroom-panel]") as HTMLElement
   expect(within(panel()).getByText("（taro）")).toBeTruthy()
-  // 待っている所・鍵の印は歯車のダイアログに
+  // 待ち受けアドレス・鍵の印は歯車のダイアログに
   fireEvent.click(within(panel()).getByRole("button", { name: "このホストの様子" }))
   const info = screen.getByRole("dialog", { name: "このホストの様子" })
   expect(within(info).getByText("BBBB BBBB BBBB BBBB …")).toBeTruthy()
@@ -123,7 +123,7 @@ test("ホストをつなぐ: 頼んでいる様子ごとに、待つ所（接続
   expect(asked.at(-1)).toEqual({ kind: "end-pairing" })
 })
 
-test("WSL で動いていれば（WSLプロキシが稼働中のときを除く）、ホストをつなぐに一覧に出ないことを言い、待っている所を入れる所を開いて出す。そのほかは畳んだまま", () => {
+test("WSL で動いていれば（WSLプロキシが稼働中のときを除く）、ホストをつなぐに一覧に出ないことを言い、待ち受けアドレスを入れる所を開いて出す。そのほかは畳んだまま", () => {
   const { store, connect } = open()
   connect()
   const status = (wsl: boolean, wslProxy?: "running") =>
@@ -312,7 +312,7 @@ test("常駐間通信プロトコルの版が合わないホストは、つな�
   expect(screen.queryByText(/matomezu の版が合いません/)).toBeNull()
 })
 
-test("このホストの様子の「待っている所」: 相手が張ったリバース接続でだけつながっていれば「相手からつないでいる」、こちらから届けば番地", () => {
+test("このホストの様子の「待ち受けアドレス」: 相手が張ったリバース接続でだけつながっていれば「相手からつないでいる」、こちらから届けば番地", () => {
   const { store, connect, peers } = open()
   connect()
   act(() => {

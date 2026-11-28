@@ -7,7 +7,7 @@ package server
 // そのホスト id のペアリングしたホストが在るかで決める（在れば受け入れ、無ければ断り）。受け入れの答えを A に書けなければ、載せたペアリングしたホストをすぐ消す。
 // 頼む側（A）: 窓の頼みで 1 つだけ頼み、その様子（接続確認コード・答え）を窓に知らせる。受け入れの答えが届いたら、ペアリングしたホストを載せる役のアクションを行う。
 // ペアリングしたホスト: 利用者がペアリングを解いたら（常駐が消したのでなく）、相手の Pinned の口に知らせる。相手が「ペアリングしていない」と答えたら、自分の側も消す。
-// つながっているか・最後につながった時刻・待っている所・相手の今の名前は、常駐だけが持つ（mDNS で見えたときと、窓が確かめを頼んだときに、相手の口で確かめる）
+// つながっているか・最後につながった時刻・待ち受けアドレス・相手の今の名前は、常駐だけが持つ（mDNS で見えたときと、窓が確かめを頼んだときに、相手の口で確かめる）
 
 import (
 	"bytes"
@@ -94,8 +94,8 @@ type PeerLive struct {
 	Label       string    `json:"label"` // ホストエイリアス（labelsLocked。届く行・send_message の host・画面に同じ物を使う）
 	State       PeerState `json:"state"`
 	LastSeen    string    `json:"lastSeen,omitempty"`    // 最後につながった時刻
-	Addr        string    `json:"addr,omitempty"`        // 待っている所（番地:ポート）
-	ReverseOnly bool      `json:"reverseOnly,omitempty"` // 相手が張ったリバース接続でだけつながっている（相手の待っている所へは届かない）
+	Addr        string    `json:"addr,omitempty"`        // 待ち受けアドレス（番地:ポート）
+	ReverseOnly bool      `json:"reverseOnly,omitempty"` // 相手が張ったリバース接続でだけつながっている（相手の待ち受けアドレスへは届かない）
 	Name        string    `json:"name,omitempty"`        // 相手の今のホスト名
 	UserName    string    `json:"userName,omitempty"`
 	Workrooms   []RoomRow `json:"workrooms,omitempty"` // 相手のワークルームの一覧の写し（つながっていて、写しのあるときだけ）
@@ -308,7 +308,7 @@ func (h *Hub) followPeers(e *hostEntrance) {
 		default:
 		}
 	}
-	// 知らせる先は、様子を忘れる前に決める（レコードに待っている所が無ければ、つながったときに知った所しか無い）
+	// 知らせる先は、様子を忘れる前に決める（レコードに待ち受けアドレスが無ければ、つながったときに知った所しか無い）
 	type tell struct {
 		r    pairedHostRecord
 		addr string
@@ -352,7 +352,7 @@ func (h *Hub) followPeers(e *hostEntrance) {
 	h.tellPeers()
 }
 
-// tellUnpaired は、利用者が解いたペアリングを相手に知らせる: 相手が張ったリバース接続 in があればその上で（知らせてから閉じる）、無ければ相手の待っている所 addr へ
+// tellUnpaired は、利用者が解いたペアリングを相手に知らせる: 相手が張ったリバース接続 in があればその上で（知らせてから閉じる）、無ければ相手の待ち受けアドレス addr へ
 // （届かなくても、こちらは消したまま。相手は次につないできたときに not-paired で知る）
 func (h *Hub) tellUnpaired(e *hostEntrance, r pairedHostRecord, addr string, in *http.Client) {
 	c, base := peerClient(e, r.HostID), "https://"+addr
@@ -374,7 +374,7 @@ func (h *Hub) tellUnpaired(e *hostEntrance, r pairedHostRecord, addr string, in 
 	resp.Body.Close()
 }
 
-// addrLocked は、ペアリングしたホスト r の待っている所（つながったときに聞いた物。無ければ覚えた物）（ps.mu を持って呼ぶ）
+// addrLocked は、ペアリングしたホスト r の待ち受けアドレス（つながったときに聞いた物。無ければ覚えた物）（ps.mu を持って呼ぶ）
 func (ps *peerState) addrLocked(r pairedHostRecord) string {
 	if l := ps.live[r.HostID]; l != nil && l.Addr != "" {
 		return l.Addr
@@ -602,7 +602,7 @@ func (h *Hub) pairingReveal(w http.ResponseWriter, r *http.Request, e *hostEntra
 	}
 }
 
-// sawPeer は、ペアリングしたホスト id が今つながったと記し（鍵で確かめた相手だけ）、待っている所 addr（空なら変えない）と名前を覚えて、窓に知らせる
+// sawPeer は、ペアリングしたホスト id が今つながったと記し（鍵で確かめた相手だけ）、待ち受けアドレス addr（空なら変えない）と名前を覚えて、窓に知らせる
 func (h *Hub) sawPeer(ps *peerState, id, addr, name, userName string) {
 	ps.mu.Lock()
 	if _, known := ps.known[id]; !known {
@@ -653,7 +653,7 @@ func (h *Hub) userName() string {
 
 // --- A: ペアリングを頼む ---
 
-// StartPairing は、addr（番地:ポート）のホストにペアリングを頼み始める（待たない。様子は host-peers で知らせる）。manual は、利用者が待っている所を手で入れたか
+// StartPairing は、addr（番地:ポート）のホストにペアリングを頼み始める（待たない。様子は host-peers で知らせる）。manual は、利用者が待ち受けアドレスを手で入れたか
 func (h *Hub) StartPairing(addr string, manual bool) error {
 	e := h.entrance.Load()
 	if e == nil || !h.HostStatus().Open {

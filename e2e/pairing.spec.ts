@@ -1,5 +1,5 @@
 // ホストのペアリングの画面: 「ネットワーク」でホストとつなぐを入にすると、コントロールセンターに「ほかのホスト」が出る。
-// ［＋］の「ホストをつなぐ」で待っている所を手で入れて頼むと、常駐が頼みに行き、届かなければその一言を出す。
+// ［＋］の「ホストをつなぐ」で待ち受けアドレスを手で入れて頼むと、常駐が頼みに行き、届かなければその一言を出す。
 // ほかのホストから届いた頼みは、しおりとダイアログに出て、断ると消える。常駐どうしの受け入れは Go のテストが確かめる
 import { CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 import { openSettings, settingsDialog } from "./helpers/settings"
@@ -16,13 +16,15 @@ async function connectHosts(page: Page) {
   await expect(page.getByText("ほかのホスト")).toBeVisible()
 }
 
-test("待っている所を手で入れて頼み、届かなければ「つながりません」。［やり直す］で選び直しに戻る", async ({ page }) => {
+test("待ち受けアドレスを手で入れて頼み、届かなければ「つながりません」。［やり直す］で選び直しに戻る", async ({
+  page,
+}) => {
   await connectHosts(page)
   await page.getByRole("button", { name: "ホストをつなぐ" }).click()
   const dialog = page.getByRole("dialog", { name: "ホストをつなぐ" })
-  const addr = dialog.getByRole("textbox", { name: "待っている所" })
-  // WSL で動く常駐なら、待っている所を入れる所は開いて出る
-  if (!(await addr.isVisible())) await dialog.getByText("一覧に出ないときは、待っている所を入れる").click()
+  const addr = dialog.getByRole("textbox", { name: "待ち受けアドレス" })
+  // WSL で動く常駐なら、待ち受けアドレスを入れる所は開いて出る
+  if (!(await addr.isVisible())) await dialog.getByText("一覧に出ないときは、待ち受けアドレスを入れる").click()
   await addr.fill("127.0.0.1:1")
   await dialog.getByRole("button", { name: "つなぐ" }).click()
   await expect(dialog.getByText("つながりません")).toBeVisible({ timeout: 15000 })

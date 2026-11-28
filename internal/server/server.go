@@ -177,6 +177,20 @@ func Handler(o Options) http.Handler {
 		}
 		writeJSON(w, map[string]bool{"ok": true})
 	}))
+	mux.Handle("POST /api/hosts/firewall", o.screen(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Allow bool `json:"allow"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := o.Hub.SetFirewall(body.Allow); err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
 	mux.Handle("POST /api/hosts/pair", o.screen(o.startPairing))
 	mux.Handle("POST /api/hosts/pair/end", o.screen(func(w http.ResponseWriter, _ *http.Request) {
 		o.Hub.EndPairing()

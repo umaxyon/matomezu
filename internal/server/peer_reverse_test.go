@@ -27,7 +27,7 @@ func closedPort(t *testing.T) int {
 	return port
 }
 
-// natWorlds は、ペアリングした 2 つの常駐。a は NAT の後ろの形: a が名乗る待っている所は誰も待っていないポートで、b から a へは直に届かない
+// natWorlds は、ペアリングした 2 つの常駐。a は NAT の後ろの形: a が名乗る待ち受けアドレスは誰も待っていないポートで、b から a へは直に届かない
 func natWorlds(t *testing.T) (as, bs *httptest.Server, a, b *Hub) {
 	t.Helper()
 	as, a = joinWorld(t, joinStore(t))

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/umaxyon/matomezu/internal/firewall"
 	"github.com/umaxyon/matomezu/internal/home"
 	"github.com/umaxyon/matomezu/internal/peer"
 	"github.com/umaxyon/matomezu/internal/server"
@@ -23,7 +24,9 @@ func setHost(hub *server.Hub, h *home.Home) error {
 	wsl := onWSL()
 	proxy := wslProxyFor(wsl)
 	dropWSLProxyForTest(&proxy)
-	hub.SetHostEntrance(server.HostConfig{Identity: id, Port: port, SavePort: h.WriteHostPort, OSHostName: name, WSL: wsl, Discover: true, WSLProxy: proxy})
+	fw := firewall.ForThisOS()
+	dropFirewallForTest(&fw)
+	hub.SetHostEntrance(server.HostConfig{Identity: id, Port: port, SavePort: h.WriteHostPort, OSHostName: name, WSL: wsl, Discover: true, WSLProxy: proxy, Firewall: fw, IPv4: fw != nil})
 	return nil
 }
 

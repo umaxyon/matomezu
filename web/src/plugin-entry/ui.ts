@@ -75,6 +75,7 @@ export {
   markdownDocumentOnSkin,
   NO_CHOICE,
   NO_COLOR,
+  NO_FIREWALL,
   NO_FOLDER,
   NO_HOST_PEERS,
   NO_HOST_STATUS,

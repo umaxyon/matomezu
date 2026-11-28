@@ -19,9 +19,12 @@ export const NO_PORT = "none"
 export const NOT_FAILED = "none"
 // WSLプロキシを立てないとき（NAT の WSL でない・入口が閉じている）の値
 export const NO_WSL_PROXY = "none"
+// ファイアウォールの規則を matomezu が作らないとき（Windows で直に動いていない・つなぐが切）の値
+export const NO_FIREWALL = "none"
 
 // プラグインに渡す、ホストどうしの入口の様子（ホストが渡す HostStatus の、無い物を名前の付いた値にした物。
-// 待っている所の番地 addrs は無ければ空、wsl は WSL で動いていなければ false、WSLプロキシの番地 wslProxyAddrs は無ければ空）
+// 待ち受けアドレスの番地 addrs は無ければ空、wsl は WSL で動いていなければ false、WSLプロキシの番地 wslProxyAddrs は無ければ空、
+// firewall は Windows のファイアウォールの規則の様子か NO_FIREWALL）
 export interface HostEntrance {
   hostId: string
   name: string
@@ -33,6 +36,7 @@ export interface HostEntrance {
   failed: NonNullable<HostStatus["failed"]> | typeof NOT_FAILED
   wslProxy: NonNullable<HostStatus["wslProxy"]> | typeof NO_WSL_PROXY
   wslProxyAddrs: readonly string[]
+  firewall: NonNullable<HostStatus["firewall"]> | typeof NO_FIREWALL
 }
 
 // ホストが渡す入口の様子 s の、プラグインに渡す形
@@ -47,6 +51,7 @@ const entranceOf = (s: HostStatus): HostEntrance => ({
   failed: s.failed ?? NOT_FAILED,
   wslProxy: s.wslProxy ?? NO_WSL_PROXY,
   wslProxyAddrs: s.wslProxyAddrs ?? [],
+  firewall: s.firewall ?? NO_FIREWALL,
 })
 
 // ホストどうしの入口の様子（常駐が持つ物。まだ届いていなければ NO_HOST_STATUS）
@@ -81,8 +86,8 @@ export interface PeerLive {
   state: PeerState
   workrooms: readonly PeerWorkroom[] // 相手のワークルームの一覧の写し（つながっていなければ空）
   lastSeen: string | typeof NOT_TOLD // 最後につながった時刻
-  addr: string | typeof NOT_TOLD // 確かめた待っている所（番地:ポート）
-  reverseOnly: boolean // 相手が張ったリバース接続でだけつながっている（こちらから相手の待っている所へは届かない）
+  addr: string | typeof NOT_TOLD // 確かめた待ち受けアドレス（番地:ポート）
+  reverseOnly: boolean // 相手が張ったリバース接続でだけつながっている（こちらから相手の待ち受けアドレスへは届かない）
   name: string | typeof NOT_TOLD // 今のホスト名
   userName: string | typeof NOT_TOLD
 }

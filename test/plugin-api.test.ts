@@ -404,6 +404,7 @@ test("matomezu/ui が出す名前", () => {
     "NOT_TOLD",
     "NO_CHOICE",
     "NO_COLOR",
+    "NO_FIREWALL",
     "NO_FOLDER",
     "NO_HELP",
     "NO_HOST_PEERS",

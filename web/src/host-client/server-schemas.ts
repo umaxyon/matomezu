@@ -88,6 +88,7 @@ export const HostStatusSchema = z.object({
     .enum(["starting", "running", "unavailable", "update-windows", "update-this", "port-in-use", "listen", "stopped"])
     .optional(),
   wslProxyAddrs: z.array(z.string()).optional(),
+  firewall: z.enum(["allowed", "absent", "ineffective"]).optional(),
 })
 export const HostPeersSchema = z.object({
   paired: z.array(

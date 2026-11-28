@@ -330,12 +330,13 @@ const GO_ALLOWED: Record<string, readonly string[]> = {
   storage: [],
   plugin: [],
   engine: ["plugin"],
-  server: ["aiwire", "engine", "peer", "plugin", "storage"],
+  server: ["aiwire", "engine", "firewall", "peer", "plugin", "storage"],
   mcp: ["aiwire"],
   home: [],
   browser: [],
   aiwire: [],
   peer: [],
+  firewall: [],
 }
 
 test("Go のパッケージは internal の下と、実行ファイルの入口（cmd/matomezu）と埋め込みの画面（web）と、AI のプログラムと ADE ごとの部品（clients/<AI の名前>・clients/ade/<ADE の名前>）と、外のモジュールの写し（third_party/<名前>）だけ。web・clients・third_party は matomezu のほかのパッケージを読まず、clients を読むのは cmd/matomezu だけ", () => {

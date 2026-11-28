@@ -1,8 +1,9 @@
-// 設定カテゴリ「ネットワーク」: ホスト名とほかのホストとつなぐかの項目。つなぐが入なら、待っている所（番地ごとに［コピー］）とこのホストの鍵の印か、
+// 設定カテゴリ「ネットワーク」: ホスト名とほかのホストとつなぐかの項目。つなぐが入なら、待ち受けアドレス（番地ごとに［コピー］）とこのホストの鍵の印か、
 // 入口を開けなかった理由の 1 行（覚えたポートが使われていれば［別のポートにする］。確かめのダイアログを開く）。その下に、AI 用ホストリストに載せるこのホストのワークルーム
 // （全部か 5 件。つなぐが切でも出す）。そのうえ NAT の WSL では WSLプロキシの稼働中・非稼働の札（「？」に訳。立たなかった・止まったら［立て直す］、Windows でポートが使われていれば［別のポートにする］）。
-// 稼働中は、待っている所に WSLプロキシの番地（Windows の LAN の番地）を出す。WSL で WSLプロキシが稼働していないときは、
-// このホストから相手の待っている所を入れてつなぐ案内と、開くと出る、相手からも見つけられるようにする手引き
+// 稼働中は、待ち受けアドレスに WSLプロキシの番地（Windows の LAN の番地）を出す。WSL で WSLプロキシが稼働していないときは、
+// このホストから相手の待ち受けアドレスを入れてつなぐ案内と、開くと出る、相手からも見つけられるようにする手引き。
+// Windows で直に動くときは、つなぐの下にファイアウォールの［許可する｜許可しない］（許可している間だけ入口を開き、待ち受けアドレスを出す）
 import { useEffect, useState } from "react"
 import { type LISTED_WORKROOMS, NOT_SET } from "../../plugin-api"
 import { type UserSettingControlProps, useActions, useMessages, useSettings } from "../../plugin-api/ui"
@@ -12,10 +13,12 @@ import {
   ChoiceText,
   HelpButton,
   type HostEntrance,
+  NO_FIREWALL,
   NO_HOST_STATUS,
   NO_PORT,
   NO_WSL_PROXY,
   SettingRow,
+  TextAround,
   TextSettingControl,
   UserSettings,
   useAskHosts,
@@ -54,6 +57,7 @@ export function NetworkCategory() {
   return (
     <>
       <UserSettings settings={[HOST_NAME.id, CONNECT_HOSTS.id]} />
+      <FirewallSetting status={status} />
       {status.open && (
         <div className={styles.rows}>
           <SettingRow label={t("Listening at")}>
@@ -79,6 +83,59 @@ export function NetworkCategory() {
       <WslProxyNote status={status} />
       {status.wsl && status.port !== NO_PORT && status.wslProxy !== "running" && <WslGuide port={status.port} />}
     </>
+  )
+}
+
+// ファイアウォールの行: ［許可する｜許可しない］と、公衆 LAN での許可を勧めない赤い行。許可しようとしてつなげなければ、理由を分けずに 1 行。
+// 押すと UAC が出て、答えるまで切り替えを押せない（押した側を見せておく）。効かない様子は「許可しない」の側に置き、押せば試し直す
+function FirewallSetting({ status }: { status: HostEntrance }) {
+  const t = useMessages(kit)
+  const ask = useAskHosts()
+  const [asking, setAsking] = useState<"allow" | "deny" | "none">("none")
+  const [failed, setFailed] = useState(false)
+  if (status.firewall === NO_FIREWALL) return null
+  const value = asking !== "none" ? asking : status.firewall === "allowed" ? "allow" : "deny"
+  const set = (v: "allow" | "deny") => {
+    setAsking(v)
+    setFailed(false)
+    void ask({ kind: "firewall", allow: v === "allow" })
+      .catch(() => setFailed(true))
+      .finally(() => setAsking("none"))
+  }
+  const busy = asking !== "none"
+  return (
+    <div className={styles.rows}>
+      <SettingRow label={t("Firewall setting")} help={t("To talk with matomezu in the LAN, allow it")}>
+        <span className={styles.firewall}>
+          <TextAround text={t("{choice} matomezu")} part="choice">
+            <Choices
+              label={t("Firewall setting")}
+              value={value}
+              options={[
+                {
+                  value: "allow" as const,
+                  label: t("Allow matomezu"),
+                  icon: <ChoiceText>{t("Allow")}</ChoiceText>,
+                  disabled: busy,
+                },
+                {
+                  value: "deny" as const,
+                  label: t("Do not allow matomezu"),
+                  icon: <ChoiceText>{t("Do not allow")}</ChoiceText>,
+                  disabled: busy,
+                },
+              ]}
+              onChange={set}
+            />
+          </TextAround>
+        </span>
+      </SettingRow>
+      <p className={styles.danger}>{t("Allowing on a public LAN is not recommended")}</p>
+      {status.firewall === "ineffective" && !busy && (
+        <p className={styles.danger}>{t("The allowance cannot take effect. Ask your administrator")}</p>
+      )}
+      {failed && <p className={styles.danger}>{t("Could not ask the server")}</p>}
+    </div>
   )
 }
 

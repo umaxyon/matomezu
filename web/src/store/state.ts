@@ -88,8 +88,9 @@ export interface UpdateStatus {
 }
 
 // ホストどうしの入口の様子: hostId はこのホストの id（鍵の指紋）、name はホスト名（設定か、無ければ OS のホスト名 osHostName）、
-// open は入口が開いているか（port と、待っている所の番地 addrs）、wsl は WSL で動いているか、failed は開こうとして開けなかったときの理由、
-// wslProxy は WSLプロキシの様子と wslProxyAddrs はその待っている所の番地（NAT の WSL で入口が開いているときだけ）
+// open は入口が開いているか（port と、待ち受けアドレスの番地 addrs）、wsl は WSL で動いているか、failed は開こうとして開けなかったときの理由、
+// wslProxy は WSLプロキシの様子と wslProxyAddrs はその待ち受けアドレスの番地（NAT の WSL で入口が開いているときだけ）、
+// firewall は Windows のファイアウォールの規則の様子（Windows で直に動き、つなぐが入のときだけ。許可している間だけ入口を開く）
 // （port-in-use は覚えたポート port がほかに使われていた、listen はそのほか。覚えたポートは取り直さない。足してもらったファイアウォールの規則や相手が覚えた番号を壊さないため）
 export interface HostStatus {
   hostId: string
@@ -102,7 +103,12 @@ export interface HostStatus {
   failed?: "port-in-use" | "listen"
   wslProxy?: WslProxyState
   wslProxyAddrs?: readonly string[]
+  firewall?: FirewallState
 }
+
+// Windows のファイアウォールの規則の様子: allowed は規則がそろって効いている、absent は matomezu の規則が無い（許可していない）、
+// ineffective は許可しようとしたがつなげない（UAC が通らない・PC の設定で効かない など。理由は分けない）
+export type FirewallState = "allowed" | "absent" | "ineffective"
 
 // WSLプロキシ（NAT の WSL の常駐が Windows で立てる matomezu）の様子: starting は立てている（終わって立て直しを待つ間も）、running は Windows の LAN で待っている、
 // unavailable は立たない（Windows に matomezu が無い・古い）、update-windows・update-this はやり取りの版が合わない（古い方を更新する）、
@@ -117,8 +123,8 @@ export type WslProxyState =
   | "listen"
   | "stopped"
 
-// ペアリングしたホストの、常駐だけが持つ様子: state はつながりの様子（確かめた時点で）、lastSeen は最後につながった時刻、addr は待っている所（番地:ポート）、
-// reverseOnly は相手が張ったリバース接続でだけつながっている（相手の待っている所へは届かない）、
+// ペアリングしたホストの、常駐だけが持つ様子: state はつながりの様子（確かめた時点で）、lastSeen は最後につながった時刻、addr は待ち受けアドレス（番地:ポート）、
+// reverseOnly は相手が張ったリバース接続でだけつながっている（相手の待ち受けアドレスへは届かない）、
 // name と userName は相手の今のホスト名と利用者名（つながったときに聞いた物）、
 // label はホストエイリアス（常駐が決める。同じ名前のホストがあれば鍵の印の頭（違うまで伸ばす）を添える）、workrooms は相手のワークルームの一覧の写し（つながっていて写しのあるときだけ）
 export interface PeerLive {
@@ -137,7 +143,7 @@ export interface PeerLive {
   userName?: string
 }
 
-// mDNS で見つけた、ペアリングしていないホスト（相手が名乗ったまま）。addr は待っている所（番地:ポート）
+// mDNS で見つけた、ペアリングしていないホスト（相手が名乗ったまま）。addr は待ち受けアドレス（番地:ポート）
 export interface FoundHost {
   hostId: string
   name: string
@@ -186,6 +192,7 @@ export type HostRequest =
   | { kind: "discover" }
   | { kind: "repick-port" }
   | { kind: "restart-wsl-proxy" }
+  | { kind: "firewall"; allow: boolean }
 
 // 常駐の版とデータの形の番号（移し替えの数）と、配る画面の印（index.html から求めた物。無い常駐もある）
 export interface Build {

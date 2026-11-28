@@ -68,7 +68,7 @@ func userDoes(t *testing.T, h *Hub, action, on string) {
 	}
 }
 
-// A が B に頼むと、B に頼みが載り、両方に同じ接続確認コードが出る。B の利用者が受け入れると、両方にペアリングしたホストが載り、互いの hello に通る。B は A の待っている所を、頼みと A の hello で知る
+// A が B に頼むと、B に頼みが載り、両方に同じ接続確認コードが出る。B の利用者が受け入れると、両方にペアリングしたホストが載り、互いの hello に通る。B は A の待ち受けアドレスを、頼みと A の hello で知る
 func TestPairingAcceptedPutsBothSides(t *testing.T) {
 	t.Parallel()
 	a, as := openHost(t, "masa-wsl")
@@ -98,13 +98,13 @@ func TestPairingAcceptedPutsBothSides(t *testing.T) {
 	if len(requestsOf(b)) != 0 {
 		t.Fatal("the request stays on B")
 	}
-	// B は利用者から A の待っている所を聞かないが、頼みの来た番地と A のポートで知る
+	// B は利用者から A の待ち受けアドレスを聞かないが、頼みの来た番地と A のポートで知る
 	bSeesA := func() bool {
 		l := b.HostPeers().Paired
 		return len(l) == 1 && l[0].State == PeerConnected && l[0].Addr == addrOf(as) && l[0].Name == "masa-wsl"
 	}
 	waitFor(t, "B sees A connected", bSeesA)
-	// B が忘れても（起動し直しなど）、A の確かめで知り直す。起動し直した B は A の待っている所を知らないので、A へリバース接続を張れない
+	// B が忘れても（起動し直しなど）、A の確かめで知り直す。起動し直した B は A の待ち受けアドレスを知らないので、A へリバース接続を張れない
 	// （張ったままだと、A の hello がその上を通り、頼みの来た番地が無いので B は知り直せない）
 	bp := b.entrance.Load().peers
 	bp.mu.Lock()
@@ -197,7 +197,7 @@ func pair(t *testing.T) (a, b *Hub, as, bs HostStatus) {
 	return pairBy(t, true)
 }
 
-// pairBy は、A が B に頼んで B が受け入れた 2 つを返す。manual が false なら、見つかったホストから選んだときと同じく、A のレコードに待っている所が入らない
+// pairBy は、A が B に頼んで B が受け入れた 2 つを返す。manual が false なら、見つかったホストから選んだときと同じく、A のレコードに待ち受けアドレスが入らない
 func pairBy(t *testing.T, manual bool) (a, b *Hub, as, bs HostStatus) {
 	t.Helper()
 	a, as = openHost(t, "a")
@@ -209,7 +209,7 @@ func pairBy(t *testing.T, manual bool) (a, b *Hub, as, bs HostStatus) {
 	return a, b, as, bs
 }
 
-// どちらの利用者がペアリングを解いても、相手に知らせ、相手の側も消える。どちらのレコードにも待っている所が入っていなくても（見つかったホストから選んだ）、つながったときに知った所へ知らせる
+// どちらの利用者がペアリングを解いても、相手に知らせ、相手の側も消える。どちらのレコードにも待ち受けアドレスが入っていなくても（見つかったホストから選んだ）、つながったときに知った所へ知らせる
 func TestUnpairingTellsTheOtherHost(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {

@@ -255,6 +255,7 @@ export {
   type HostPairing,
   type HostPeers,
   type HostRequest,
+  NO_FIREWALL,
   NO_HOST_PEERS,
   NO_HOST_STATUS,
   NO_PAIRING,

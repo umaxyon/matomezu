@@ -1,4 +1,4 @@
-/* 入口が開いているときの行（待っている所・鍵の印） */
+/* 入口が開いているときの行（待ち受けアドレス・鍵の印） */
 .rows {
   display: flex;
   flex-direction: column;
@@ -71,4 +71,14 @@
   display: flex;
   align-items: center;
   gap: 6px;
+}
+/* ファイアウォールの行（matomezuを［許可する｜許可しない］と、赤い行） */
+.firewall {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.danger {
+  margin: 0;
+  color: var(--skin-danger);
 }

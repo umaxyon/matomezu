@@ -5,7 +5,7 @@ export const NETWORK_MESSAGES = defineMessages({
   Network: { en: "Network", ja: "ネットワーク" },
   "Host name": { en: "Host name", ja: "ホスト名" },
   "Connect with other hosts": { en: "Connect with other hosts", ja: "ホストとつなぐ" },
-  "Listening at": { en: "Listening at", ja: "待っている所" },
+  "Listening at": { en: "Listening at", ja: "待ち受けアドレス" },
   "Connecting from the other host": { en: "Connecting from the other host", ja: "相手からつないでいる" },
   "Host key": { en: "Host key", ja: "このホストの鍵の印" },
   "Could not open the entrance for other hosts": {
@@ -19,7 +19,7 @@ export const NETWORK_MESSAGES = defineMessages({
   "Use another port": { en: "Use another port", ja: "別のポートにする" },
   "With another port, firewall rules for port {port} and addresses typed in on other hosts stop working": {
     en: "With another port, firewall rules for port {port} and addresses typed in on other hosts stop working",
-    ja: "別のポートにすると、ポート {port} に足したファイアウォールの規則と、ほかのホストで手で入れた待っている所が効かなくなります",
+    ja: "別のポートにすると、ポート {port} に足したファイアウォールの規則と、ほかのホストで手で入れた待ち受けアドレスが効かなくなります",
   },
   Cancel: { en: "Cancel", ja: "キャンセル" },
   Copy: { en: "Copy", ja: "コピー" },
@@ -59,7 +59,7 @@ export const NETWORK_MESSAGES = defineMessages({
   },
   "If the host is not listed, type where it listens": {
     en: "If the host is not listed, type where it listens",
-    ja: "一覧に出ないときは、待っている所を入れる",
+    ja: "一覧に出ないときは、待ち受けアドレスを入れる",
   },
   "On WSL, other machines are not listed": {
     en: "On WSL, other machines are not listed",
@@ -143,7 +143,7 @@ export const NETWORK_MESSAGES = defineMessages({
   },
   "Pair from this host by typing where the other host listens, and both can use it": {
     en: "Pair from this host by typing where the other host listens, and both can use it",
-    ja: "このホストから相手の待っている所を入れてつなぐと、両方から使えます",
+    ja: "このホストから相手の待ち受けアドレスを入れてつなぐと、両方から使えます",
   },
   "To let other machines find this host too": {
     en: "To let other machines find this host too",
@@ -240,4 +240,22 @@ export const NETWORK_MESSAGES = defineMessages({
     ja: "利用者が話しかけないまま、このホストの AI と続けるやり取り（{min}〜{max}）",
   },
   "From {min} to {max}": { en: "From {min} to {max}", ja: "{min} から {max} までです" },
+  "Firewall setting": { en: "Firewall setting", ja: "ファイアウォール設定" },
+  "To talk with matomezu in the LAN, allow it": {
+    en: "To talk with matomezu in the LAN, allow it",
+    ja: "LAN内のmatomezuと通信するには許可が必要です。",
+  },
+  "{choice} matomezu": { en: "{choice} matomezu", ja: "matomezuを{choice}" },
+  "Allow matomezu": { en: "Allow matomezu through the firewall", ja: "matomezu を許可する" },
+  "Do not allow matomezu": { en: "Do not allow matomezu through the firewall", ja: "matomezu を許可しない" },
+  Allow: { en: "Allow", ja: "許可する" },
+  "Do not allow": { en: "Do not allow", ja: "許可しない" },
+  "Allowing on a public LAN is not recommended": {
+    en: "Allowing on a public LAN is not recommended",
+    ja: "公衆LANでの許可は推奨しません",
+  },
+  "The allowance cannot take effect. Ask your administrator": {
+    en: "The allowance cannot take effect. Ask your administrator",
+    ja: "許可が有効にできません。管理者に問い合わせてください",
+  },
 })

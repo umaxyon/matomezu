@@ -19,7 +19,7 @@ import (
 	"github.com/umaxyon/matomezu/internal/peer"
 )
 
-// peerHello は、hello の口の答え: ホスト名・利用者名・待っている所のポート（常駐間通信プロトコルの版は、包みが見出しで確かめる）
+// peerHello は、hello の口の答え: ホスト名・利用者名・待ち受けアドレスのポート（常駐間通信プロトコルの版は、包みが見出しで確かめる）
 type peerHello struct {
 	Name     string `json:"name"`
 	UserName string `json:"userName"`
@@ -27,7 +27,7 @@ type peerHello struct {
 }
 
 // 頼んだ側は、自分の待っているポートを port に載せる。こちらは、頼みの来た番地とそのポートを、相手へつなぐ所として覚える
-// （受け入れた側は相手の待っている所を利用者から聞かないので、相手の確かめで知る。相手の IP が変わっても追える）
+// （受け入れた側は相手の待ち受けアドレスを利用者から聞かないので、相手の確かめで知る。相手の IP が変わっても追える）
 func (h *Hub) peerHello(w http.ResponseWriter, r *http.Request) {
 	s := h.HostStatus()
 	if e := h.entrance.Load(); e != nil {
@@ -53,8 +53,10 @@ func (h *Hub) peerUnpair(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// CheckPeers は、ペアリングしたホストみなとつながっているかを確かめ始める（待たない）
+// CheckPeers は、ペアリングしたホストみなとつながっているかを確かめ始める（待たない）。
+// Windows のファイアウォールの規則も読み直す（利用者が Windows の設定画面で変えたかもしれないので、画面がネットワークを開いたとき）
 func (h *Hub) CheckPeers() {
+	h.rereadFirewall()
 	e := h.entrance.Load()
 	if e == nil || !h.HostStatus().Open {
 		return
@@ -79,7 +81,7 @@ func (h *Hub) Discover() {
 }
 
 // checkPeer は、ペアリングしたホスト r の hello の口に、固定した鍵で頼み、様子を直して窓に知らせる。addr が空なら peerTarget で決めた先へ、
-// 空でなければ（mDNS で見えた所）その所へ直に頼む。直に答えたときだけ、待っている所を書き直す。相手が「ペアリングしていない」と答えたら、こちらも消す。
+// 空でなければ（mDNS で見えた所）その所へ直に頼む。直に答えたときだけ、待ち受けアドレスを書き直す。相手が「ペアリングしていない」と答えたら、こちらも消す。
 // 常駐間通信プロトコルの版が合わなければ、どちらを更新すれば合うかを様子に書く
 func (h *Hub) checkPeer(e *hostEntrance, r pairedHostRecord, addr string) {
 	var c *http.Client

@@ -1,7 +1,7 @@
 package server
 
 // リバース接続（peer/reverse.go）の指図: 入口が開いている間、ペアリングしたホストみなへ張り続け、相手が張ってきた接続を預かる。
-// ペアリングしたホストへの頼みは、相手が張った接続があればその上で、無ければ相手の待っている所へ直に送る（どの頼みも peerTarget で頼む先を決める）。
+// ペアリングしたホストへの頼みは、相手が張った接続があればその上で、無ければ相手の待ち受けアドレスへ直に送る（どの頼みも peerTarget で頼む先を決める）。
 // つながっているかは、どちらかの向きの接続が生きているか: 接続ができたら確かめ（hello と一覧の取り直し）を起こし、両方が切れたらつながらない様子にする。
 // 張り直すのは、切れた接続と張れなかった接続だけで、hello を間を置いて頼むことはしない
 
@@ -16,7 +16,7 @@ import (
 	"github.com/umaxyon/matomezu/internal/peer"
 )
 
-// 張れなかったとき・切れたときに張り直すまでの間（倍にしていき、上限で止める）。相手の待っている所へ届かないホスト（NAT の後ろ）へも上限の間で張り続ける
+// 張れなかったとき・切れたときに張り直すまでの間（倍にしていき、上限で止める）。相手の待ち受けアドレスへ届かないホスト（NAT の後ろ）へも上限の間で張り続ける
 var (
 	reverseRetryFirst = 2 * time.Second
 	reverseRetryMax   = 60 * time.Second
@@ -31,7 +31,7 @@ type reverseDial struct {
 	up     bool // 今張れている
 }
 
-// peerTarget は、ペアリングしたホスト hostID へ頼む先: 相手が張った接続があればその上、無ければ待っている所（つながったときに聞いた所、無ければ覚えた所）へ直に。
+// peerTarget は、ペアリングしたホスト hostID へ頼む先: 相手が張った接続があればその上、無ければ待ち受けアドレス（つながったときに聞いた所、無ければ覚えた所）へ直に。
 // base は頼みの URL の頭（口の道を足して使う）。どちらも無ければ ok が false
 func (h *Hub) peerTarget(e *hostEntrance, hostID string) (c *http.Client, base string, ok bool) {
 	ps := e.peers
@@ -210,7 +210,7 @@ func (h *Hub) keepReverse(ctx context.Context, e *hostEntrance, hostID string, d
 }
 
 // reverseFailed は、こちらから張れなかったとき: 相手が「ペアリングしていない」と答えたら、こちらも消す。
-// ほかの失敗は、相手が張った接続が生きていなければ様子に書く（生きていれば、相手の待っている所へ届かないだけで、つながっている）
+// ほかの失敗は、相手が張った接続が生きていなければ様子に書く（生きていれば、相手の待ち受けアドレスへ届かないだけで、つながっている）
 func (h *Hub) reverseFailed(e *hostEntrance, hostID string, err error) {
 	if errors.Is(err, peer.ErrNotPaired) {
 		h.dropPairedHost(e.peers, hostID, "because it answered that it is not paired")
