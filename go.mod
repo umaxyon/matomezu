@@ -39,3 +39,6 @@ require (
 )
 
 tool github.com/atombender/go-jsonschema
+
+// regexp2 v2.8.1 に、決まった文字クラスを深く写して渡す直しを入れた写し（third_party/regexp2/MATOMEZU.md）
+replace github.com/dlclark/regexp2/v2 => ./third_party/regexp2
