@@ -924,7 +924,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     tryPerform: (id, ...[args, on]) => {
       const done = performIn(worldOf(getState()), id, args, on, ctx())
-      return (done.ok ? { ok: true, result: done.result } : done) as Performed<typeof id>
+      if (!done.ok && done.reason === "needs-rows") return { ok: false, reason: "needs-rows" }
+      return (done.ok ? { ok: true, result: done.result } : done) as Finished<typeof id>
     },
     openScreenId: (def, props) => {
       const fits = catalog.screens.get(def)?.props.safeParse(props)

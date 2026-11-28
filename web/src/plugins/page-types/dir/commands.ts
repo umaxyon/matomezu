@@ -4,8 +4,8 @@
 // 選んでいる行の＋が、フォルダとファイルを足す（フォルダの行は中の末尾に。閉じていれば開く。ファイルの行はすぐ下に）。
 // 行の右クリックのメニューで、ノードの設定のダイアログを開き、フォルダの直下を名前で並べ（昇順・降順）、消す（Delete・Backspace でも。根は消せない。消したら、すぐ上の行を選ぶ）。
 // フォルダを選んで Tab を押すと、中に足す種類を選び始める（その場の編集の名前 KIND_PICK。選ぶ枠はビューが出す）。キーはディレクトリ構成図のプレゼンテーションの範囲
-import { type CommandContext, SENT_TO_HOST } from "../../../plugin-api"
-import { hasOpenedPage, refusalMessage } from "../../base"
+import type { CommandContext } from "../../../plugin-api"
+import { hasOpenedPage, refusalMessage, whenPerformed } from "../../base"
 import { FOLDER_CLOSE, FOLDER_SORT, NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
 import { DIR_KEY_SCOPE, NODE_SETTINGS_DIALOG } from "./dir"
 import { type AddAt, addAfter, addInto, afterRemove, nodeOf, type Order, parentOf, rowFrom, selectedIn } from "./edit"
@@ -75,14 +75,17 @@ export function addNode(ctx: CommandContext, a: CommandActions, at: AddAt, kind:
     },
     on,
   )
-  if (done.ok && done.result === SENT_TO_HOST) return
-  const added = done.ok ? done.result?.nodes[0]?.id : undefined
-  if (!added) {
-    refused(ctx, a, done.ok ? { reason: "refused" } : done)
+  if (!done.ok) {
+    refused(ctx, a, done)
     return
   }
-  a.select([added])
-  a.setEditing(ADDED_EDIT)
+  // 常駐へ送ったなら、常駐が足したあとで選ぶ
+  whenPerformed(done, made => {
+    const added = made?.nodes[0]?.id
+    if (!added) return refused(ctx, a, { reason: "refused" })
+    a.select([added])
+    a.setEditing(ADDED_EDIT)
+  })
 }
 
 // 選んでいる行

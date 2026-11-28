@@ -234,7 +234,8 @@ export function boundActions(actions: PlaceActions, at: string | null): BoundPla
   ) as unknown as BoundPlaceActions
 }
 
-// perform が、画面の持っていない行を読むアクションを、画面で先に行わずに常駐へ送ったときの result（結果が要るなら performConfirmed で常駐の答えを待つ）
+// perform が、画面の持っていない行を読むアクションを、画面で先に行わずに常駐へ送ったときの result（結果を使うなら、答えを base の whenPerformed に渡す。
+// 常駐が行った結果は答えの confirmed で届く）
 export const SENT_TO_HOST: unique symbol = Symbol("sent-to-host")
 
 // pressKey が、クリップボードを使うコマンドを待たせたときの答え
@@ -270,8 +271,8 @@ export const REFUSED_WINDOW_ACTIONS: WindowActions = {
 // アクションを行わずに確かめる操作。プラグイン API には出さない（base の元に戻す・やり直すが、store/commands/def.ts の tryPerformOf で読む）
 export interface ProbeActions {
   // アクションを行わずに、今の状態で行ったらどうなるかの答えを返す（状態に入れず、ホストにも送らず、画面の履歴にも入れない。
-  // 元に戻す・やり直すが、ぶつかって断られる画面の履歴の段を、置き直さずに確かめるのに使う）
-  tryPerform<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Performed<Id>
+  // 元に戻す・やり直すが、ぶつかって断られる画面の履歴の段を、置き直さずに確かめるのに使う。画面が中身を持っていない行を読むなら、確かめられず needs-rows）
+  tryPerform<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Finished<Id> | { ok: false; reason: "needs-rows" }
 }
 
 export interface Actions extends WindowActions, FrameActions, PlaceActions, ProbeActions {}

@@ -2,10 +2,14 @@
 // 同じアクションバルクの後ろのアクションも送る。ホストが無ければ断る。行い直しは、送ったアクションの手前までを残す
 
 import { expect, test } from "bun:test"
+import { z } from "zod"
 import { pagesOf } from "../../web/src/core/book"
 import { pageMetaRowOf } from "../../web/src/core/folders"
+import { defineMessages } from "../../web/src/core/i18n/messages"
 import type { AnyPage } from "../../web/src/core/schema/book"
+import { BUILTIN } from "../../web/src/plugins"
 import { SENT_TO_HOST } from "../../web/src/store/actions"
+import { pluginKit } from "../../web/src/store/kit"
 import type { DoneBulk, HostAnswer } from "../../web/src/store/state"
 import { drawingPage, testBook } from "../lineup"
 import { type newStore, sizedStore, worldRows } from "../support"
@@ -31,14 +35,36 @@ function worldWithMeta(store: Store) {
   }
 }
 
+// 自分だけのアクションバルクで送る（bulk: "alone"）、引数のブックを読むレコードのアクション（追加プラグインの見本）
+const kit = pluginKit("touches", defineMessages({ touched: { en: "Touched", ja: "触った" } }))
+const TOUCHED = kit.defineSubject({
+  id: "touched",
+  title: "touched",
+  aiDescription: "A touched mark.",
+  record: z.strictObject({ id: z.string() }),
+})
+const TOUCH = kit.defineAction({
+  id: "touch",
+  title: "touched",
+  aiDescription: "Touch the mark.",
+  target: TOUCHED.id,
+  bulk: "alone",
+  args: z.strictObject({ book: z.string() }),
+  readsBooks: (args: { book: string }) => [args.book],
+  run: (now: unknown) => (now === "none" ? null : { next: now, result: { touched: true } }),
+  // 機能台帳の型（core/catalog.ts）に書き足さない、試しのプラグインの種類なので、型は通さない
+} as never)
+const touches = kit.plugin({ subjects: [TOUCHED], actions: [TOUCH] })
+
 function observed(answer: (bulk: DoneBulk) => HostAnswer = () => ({ ok: true })) {
   const sent: DoneBulk[] = []
   const store = sizedStore({
-    observe: bulk => {
+    observe: (bulk: DoneBulk) => {
       sent.push(bulk)
       return Promise.resolve(answer(bulk))
     },
-  })
+    plugins: [...BUILTIN, touches],
+  } as never)
   store.receive(worldWithMeta(store), [])
   return { store, sent }
 }
@@ -99,4 +125,19 @@ test("行い直しは、送ったアクションで止まったバルクの手�
   await settled()
   store.receive(world, [sent[0]!])
   expect(captionsOf(store)).toEqual(["一"])
+})
+
+test("自分だけのアクションバルクのアクションも送り、開いているアクションバルクの後ろに回し、confirmed はその 1 つ目の結果で答える", async () => {
+  const { store, sent } = observed(bulk => ({ ok: true, results: bulk.map(d => ({ of: d.action })) }))
+  place(store, 40, "一")
+  const done = (store.actions.perform as (id: string, args: unknown, on: unknown) => unknown)(
+    TOUCH.id,
+    { book: "b2" },
+    { record: "m1" },
+  )
+  if (!(done as { ok: boolean }).ok || !(typeof done === "object" && done !== null && "confirmed" in done))
+    throw new Error("not sent")
+  expect(await (done as { confirmed: Promise<unknown> }).confirmed).toEqual({ ok: true, result: { of: TOUCH.id } })
+  expect(sent.map(b => b.map(d => d.action))).toEqual([[PLACE], [TOUCH.id]])
+  expect(sent[1]![0]).toMatchObject({ ids: [], on: { record: "m1" } })
 })
