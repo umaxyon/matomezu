@@ -264,6 +264,7 @@ var tools = []tool{
 	{"show", showDescription, showSchema, func(c *conn, args map[string]any) (string, bool) { return show(c, args) }, false},
 	{"perform", performDescription, performSchema, func(c *conn, args map[string]any) (string, bool) { return perform(c, args) }, false},
 	{"import_image", importImageDescription, importImageSchema, func(c *conn, args map[string]any) (string, bool) { return importImage(c, args) }, false},
+	{"read_image", readImageDescription, readImageSchema, readImage, true},
 	{
 		"join_rules",
 		"Read the current matomezu participation rules before requesting to join. Available before joining.",
@@ -481,15 +482,16 @@ func listTools() []map[string]any {
 
 // callTool は MCP 公開ツールを呼び、AI に返す文と、matomezu の側の失敗か（isError にする）を返す。
 // 断り（呼び方の誤り・できない理由）は失敗にせず、文で断りと直し方を言う。matomezu の側の失敗は、常駐につながらない・常駐の答えが読めないなど、AI が呼び方を直しても済まない物
-// 常駐の返事に AI への知らせ（参加しましたなど）があれば、どの MCP 公開ツールでも文の末尾に足す
-func callTool(c *conn, name string, raw json.RawMessage) (string, bool) {
-	c.notice = ""
+// 常駐の返事に AI への知らせ（参加しましたなど）があれば、どの MCP 公開ツールでも文の末尾に足す。文のあとに渡す画像（read_image）があれば、それも返す
+func callTool(c *conn, name string, raw json.RawMessage) (string, *imageBlock, bool) {
+	c.notice, c.image = "", nil
 	text, fault := dispatch(c, name, raw)
 	if c.notice != "" {
 		text += "\n" + c.notice
-		c.notice = ""
 	}
-	return text, fault
+	image := c.image
+	c.notice, c.image = "", nil
+	return text, image, fault
 }
 
 // hostFailed は、常駐を呼んだ誤り err を AI に返す文にする。常駐が 400・404 で答えた物は呼び方への断りなので、常駐の文だけを返し、matomezu の側の失敗にしない。

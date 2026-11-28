@@ -76,7 +76,7 @@ func (h *Hub) Asset(id string) (*storage.Asset, error) {
 	return h.store.Asset(id)
 }
 
-// readImage は、b を中身で見分け、置く形（SVG は落とした後の物）と種類・幅・高さにする
+// readImage は、b を中身で見分け、置く形（SVG は落とした後の物）と種類・幅・高さ（JPEG は EXIF の向きを当てた、見える大きさ。exif.go）にする
 func readImage(b []byte) (storage.Asset, bool) {
 	switch {
 	case bytes.HasPrefix(b, []byte("\x89PNG\r\n\x1a\n")):
@@ -101,7 +101,11 @@ func rasterOf(b []byte, mime string) (storage.Asset, bool) {
 	if err != nil || c.Width <= 0 || c.Height <= 0 {
 		return storage.Asset{}, false
 	}
-	return storage.Asset{Mime: mime, Width: c.Width, Height: c.Height, Bytes: b}, true
+	w, h := c.Width, c.Height
+	if mime == "image/jpeg" && turned(exifOrientation(b)) {
+		w, h = h, w
+	}
+	return storage.Asset{Mime: mime, Width: w, Height: h, Bytes: b}, true
 }
 
 // webpSize は、WebP の幅と高さ（VP8・VP8L・VP8X の頭から読む）

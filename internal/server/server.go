@@ -191,6 +191,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/ai/books", o.ai(o.aiBooks))
 	mux.Handle("GET /api/ai/books/{id}", o.ai(o.aiBook))
 	mux.Handle("GET /api/ai/pages/{page}", o.ai(o.aiPage))
+	mux.Handle("GET /api/ai/pages/{page}/image", o.ai(o.aiPageImage))
 	mux.Handle("GET /api/ai/folder", o.ai(o.aiFolder))
 	mux.Handle("GET /api/ai/awaiting", o.ai(o.aiAwaiting))
 	mux.Handle("GET /api/ai/watch", o.ai(o.aiWatch))
