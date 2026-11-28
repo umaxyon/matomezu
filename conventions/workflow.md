@@ -42,12 +42,12 @@
 
 ## コミット
 
-- main に直接積む。ただし平行作業の worktree では、その worktree のブランチに積み、`bun scripts/merge-request.ts` をバックグラウンドで流して取り込みのキューに並ぶ（main のセッション（main_manager）には頼まない）。平行作業のブランチを main へ入れるのは取り込みのキューだけで、手で fast-forward やマージをしない。全部のテスト・push・入れたあとの常駐などの作り直しはキューが行うので、並ぶ側も main の側も自分ではしない。結果は並んだセッションに返る。外されたら、ブランチの側で main の最新を取り込み、直してから並び直す。落ちたテストが自分の変更に関わらない揺れでも、原因を調べて直す。捨てるかもしれない試みだけブランチを切り、戻る目印はタグ（このブランチを main に入れるときは、main に直接積むときと同じに確かめる）
-- 平行作業の worktree からキューに並ぶ前は、次の順に確かめる。1 変更を全部コミットする 2 main の最新を取り込む 3 テストを流す（「テスト」の作業中の決まり） 4 conventions-review に見せる。3・4 のあとに直したら、直した分を流し直し、見せ直す
-- 区切りのコミットは頼まれなくてよい。push は頼まれたときだけ（取り込みのキューが入れた物は除く）
+- main に直接積む。ただし平行作業の worktree では、その worktree のブランチに積み、`bun scripts/merge-request.ts` をバックグラウンドで流して main へ入れる（main のセッション（main_manager）には頼まない）。差分がテストの読まない md の中身の直し（`scripts/merge-queue.ts` の `UNREAD_BY_TESTS`）だけならテストを流さずに入り、それ以外は取り込みのキューに並ぶ。平行作業のブランチを main へ入れるのは merge-request.ts だけで、手で fast-forward やマージをしない。全部のテスト・push・入れたあとの常駐などの作り直しは merge-request.ts とキューが行うので、流す側も main の側も自分ではしない。結果は流したセッションに返る。外されたら、ブランチの側で main の最新を取り込み、直してから流し直す。落ちたテストが自分の変更に関わらない揺れでも、原因を調べて直す。捨てるかもしれない試みだけブランチを切り、戻る目印はタグ（このブランチを main に入れるときは、main に直接積むときと同じに確かめる）
+- 平行作業の worktree から merge-request.ts を流す前は、次の順に確かめる。1 変更を全部コミットする 2 main の最新を取り込む 3 テストを流す（「テスト」の作業中の決まり。差分がテストの読まない md だけなら省く） 4 conventions-review に見せる。3・4 のあとに直したら、直した分を流し直し、見せ直す
+- 区切りのコミットは頼まれなくてよい。push は頼まれたときだけ（merge-request.ts が入れた物は除く）
 - コミットのたびに、フック（`.githooks/pre-commit`）が、ステージした物に format を当ててから lint を流し、誤りがあればコミットを止める。format と lint は自分では流さず、止められたら lint の誤りだけを直す。フックは `git config core.hooksPath .githooks` で入れる（リポジトリに 1 回。全部の worktree に効く）
-- サブエージェント conventions-review（`.claude/agents/conventions-review.md`）で、変更が規約に違反していないかを確かめる。違反があれば直す。見せる物は、キューに並ぶ前なら main との差分、main に直接積むときは、コミットの前のステージ済みの変更
-- 見せる差分が利用者向けマニュアルの下書き（`.claude/matomezu-manual-memo.md`）だけのときは、conventions-review を省く
+- サブエージェント conventions-review（`.claude/agents/conventions-review.md`）で、変更が規約に違反していないかを確かめる。違反があれば直す。見せる物は、merge-request.ts を流す前なら main との差分、main に直接積むときは、コミットの前のステージ済みの変更
+- 見せる差分が md だけで、規約の md・AGENT.md・CLAUDE.md・`.claude/agents/` の定義のどれも含まないときは、conventions-review を省く
 - AGENT.md の「利用者向けマニュアル」のとおりサブエージェント manual-creator（`.claude/agents/manual-creator.md`）が書き足した下書きは、書き足しを終えたらコミットする。返ってきた問いには答えるかユーザーに聞き、使い方の不備はユーザーに伝える
 - メッセージは英語で、何をどう変えたかを書く。Co-Authored-By を付けない
 - `docs/`（`docs/concept.md`・`docs/usecase.md` のほか）・`_old_docs/`・`tmp/` はコミットしない

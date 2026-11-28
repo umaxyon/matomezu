@@ -408,7 +408,7 @@ func (h *Hub) HostPeers() HostPeers {
 	slices.SortFunc(out.Paired, func(a, b PeerLive) int { return cmpString(a.HostID, b.HostID) })
 	if ps.beacon != nil {
 		for _, s := range ps.beacon.Found() {
-			if _, paired := ps.known[s.HostID]; paired || s.Protocol != e.proto {
+			if _, paired := ps.known[s.HostID]; paired || s.Protocol != int(e.proto.Load()) {
 				continue
 			}
 			out.Found = append(out.Found, FoundHost{HostID: s.HostID, Name: s.Name, UserName: s.UserName, Addr: net.JoinHostPort(s.Addr, strconv.Itoa(s.Port))})
@@ -715,7 +715,7 @@ func (h *Hub) askPairing(ctx context.Context, e *hostEntrance, mine *HostPairing
 	nonce := peer.NewNonce()
 	commit := peer.PairingCommit{Step: "commit", Name: self.Name, UserName: h.userName(), Port: self.Port, Commit: peer.CommitOf(nonce)}
 	var hello peer.PairingHello
-	first, err := postPeer(ctx, peer.Client(e.config.Identity, "", e.proto, peerAskTimeout), addr, commit, &hello)
+	first, err := postPeer(ctx, peer.Client(e.config.Identity, "", int(e.proto.Load()), peerAskTimeout), addr, commit, &hello)
 	if ctx.Err() != nil {
 		return
 	}
@@ -741,7 +741,7 @@ func (h *Hub) askPairing(ctx context.Context, e *hostEntrance, mine *HostPairing
 		p.Phase, p.HostID, p.Name, p.UserName, p.Code = "waiting", other, clipName(hello.Name), clipName(hello.UserName), code
 	})
 	var answer peer.PairingAnswer
-	second, err := postPeer(ctx, peer.Client(e.config.Identity, other, e.proto, peer.PairingWait+pairingAnswerSlack), addr, peer.PairingReveal{Step: "reveal", Nonce: nonce}, &answer)
+	second, err := postPeer(ctx, peer.Client(e.config.Identity, other, int(e.proto.Load()), peer.PairingWait+pairingAnswerSlack), addr, peer.PairingReveal{Step: "reveal", Nonce: nonce}, &answer)
 	if ctx.Err() != nil {
 		return
 	}

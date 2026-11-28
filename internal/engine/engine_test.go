@@ -11,6 +11,9 @@ import (
 	"github.com/umaxyon/matomezu/internal/plugin"
 )
 
+// serial は、ほかのテストと並べないテストの印。何もしない。why に並べない訳を書く（test/rules が、Test 関数の最初の文が t.Parallel() か serial かを見張る）
+func serial(_ *testing.T, why string) {}
+
 const book = `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 
 // rows は、ブックの本文（並びにページとバインダの中身ごと持つ形）を、置き場所と同じ形のページとフォルダの本文に分ける
@@ -121,6 +124,7 @@ func place(ids ...string) Input {
 }
 
 func TestPerformsTheSameActionAsTheScreen(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	out, err := e.Perform(place("abc-123"))
 	if err != nil || !out.OK {
@@ -139,6 +143,7 @@ func TestPerformsTheSameActionAsTheScreen(t *testing.T) {
 }
 
 func TestMakesIdsWhenNoneAreGiven(t *testing.T) {
+	t.Parallel()
 	out, err := newEngine(t).Perform(place())
 	if err != nil || !out.OK || !regexp.MustCompile(`^\{"item":"[0-9a-f]{10}","at":\{"x":10,"y":20\}\}$`).Match(out.Result) {
 		t.Fatalf("Perform = %+v, %v", out, err)
@@ -146,6 +151,7 @@ func TestMakesIdsWhenNoneAreGiven(t *testing.T) {
 }
 
 func TestRefusals(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	cases := map[string]Input{
 		"unknown":  {Actions: []BulkAction{{Action: "nope", Lang: "ja"}}},
@@ -162,6 +168,7 @@ func TestRefusals(t *testing.T) {
 
 // アクションが断った訳を添えたら（ほかの形を動かす所に置くなど）、AI への説明はその訳
 func TestARefusalCarriesTheActionsReason(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	first, err := e.Perform(place("a1"))
 	if err != nil || !first.OK {
@@ -177,6 +184,7 @@ func TestARefusalCarriesTheActionsReason(t *testing.T) {
 
 // AI に見せる描いた位置と大きさ: w・h を書いていない箱は定義の大きさ、子で大きく描く内包ボックスは子が入る大きさで、子は紙の上の位置
 func TestAIPlacedGivesWhereShapesAreDrawn(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	const drawn = `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
 		`{"id":"a","x":10,"y":20,"item":"@matomezu/box:shape-nest-box","w":64,"h":64,"props":{"caption":"","rule":true,"body":"","captionAlign":"center","bodyAlign":"left"},"shapes":[` +
@@ -202,6 +210,7 @@ func TestAIPlacedGivesWhereShapesAreDrawn(t *testing.T) {
 }
 
 func TestLibraryAndSettingsActions(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	out, err := e.Perform(inLibrary(onBook(Input{Actions: []BulkAction{{
 		Action: "@matomezu/base:book-create",
@@ -223,6 +232,7 @@ func TestLibraryAndSettingsActions(t *testing.T) {
 
 // AI が読む設定は、利用者の設定の項目の値（無いか形に合わなければ既定）で、機能台帳に無い項目は出さない
 func TestAISettings(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	got, err := e.AISettings(json.RawMessage(`{"@matomezu/base:lang":"matomezu:ja","@gone/x:y":1,"@matomezu/base:skin":"nothing"}`))
 	if err != nil || string(got) != `{"@matomezu/base:lang":"matomezu:ja","@matomezu/base:skin":"auto","@matomezu/base:keys":{"added":[],"removed":[]},"@matomezu/base:text-colors":{},"@matomezu/base:tool-picker-hold":"250","@matomezu/base:note-expiry":"60","@matomezu/base:mailbox-unread":"all","@matomezu/base:participant-alive":"60","@matomezu/base:context-scale":"auto","@matomezu/base:corner-status-order":[],"@matomezu/base:soft-break":"line-break","@matomezu/markdown:tab-key":{"writes":"tab","spaces":4},"@matomezu/markdown:line-numbers":true,"@matomezu/markdown:current-line":false,"@matomezu/markdown:show-whitespace":false}` {
@@ -234,6 +244,7 @@ func TestAISettings(t *testing.T) {
 }
 
 func TestAICatalogDescribesActionsAndItems(t *testing.T) {
+	t.Parallel()
 	var c struct {
 		Actions []struct {
 			ID          string          `json:"id"`
@@ -284,6 +295,7 @@ func TestAICatalogDescribesActionsAndItems(t *testing.T) {
 }
 
 func TestAICatalogDescribesPageTypesAndItemKinds(t *testing.T) {
+	t.Parallel()
 	var c struct {
 		PageTypes []struct {
 			ID       string          `json:"id"`
@@ -329,6 +341,7 @@ func TestAICatalogDescribesPageTypesAndItemKinds(t *testing.T) {
 }
 
 func TestAICatalogDescribesListRows(t *testing.T) {
+	t.Parallel()
 	var c struct {
 		Actions []struct {
 			ID   string          `json:"id"`
@@ -356,6 +369,7 @@ func TestAICatalogDescribesListRows(t *testing.T) {
 
 // 線の道筋の計算（route）を通るアクションも、画面と同じに行える: つないだ箱が近ければどけ、手で直した区間が引けるかを確かめる
 func TestConnectsItemsWithALine(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	two := `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
 		`{"id":"a","x":100,"y":100,"item":"@matomezu/box:shape-nest-box","w":100,"h":64,"props":{}},` +
@@ -390,6 +404,7 @@ func usePlugin(t *testing.T, e *Engine, dir string) []string {
 
 // 追加プラグインは、利用者が設定で有効にするまで無効で、無効の間は名乗りと文言だけで組む（アクション・種類は AI にも出ない）。設定が変われば、有効になる
 func TestAnAddedPluginIsOffUntilTheUserTurnsItOn(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	b, err := plugin.Build("../../test/added-plugins/ex2", e.Modules())
 	if err != nil {
@@ -421,6 +436,7 @@ func TestAnAddedPluginIsOffUntilTheUserTurnsItOn(t *testing.T) {
 }
 
 func TestUsesAnAddedPlugin(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	if ids := usePlugin(t, e, "../../test/added-plugins/ex2"); len(ids) != 1 || ids[0] != "ex2" {
 		t.Fatalf("ids = %v", ids)
@@ -441,6 +457,7 @@ func TestUsesAnAddedPlugin(t *testing.T) {
 }
 
 func TestKeepsTheCatalogWhenAnAddedPluginDoesNotAssemble(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	b := &plugin.Bundle{Dir: "bad", Manifest: plugin.Manifest{ID: "bad", Engine: "index.ts"}, Engine: `module.exports.default = { id: "bad", items: [{ id: "@matomezu/box:shape-box" }] }`}
 	if _, err := e.UseAllForTest([]*plugin.Bundle{b}); err == nil || !strings.Contains(err.Error(), "E301") {
@@ -465,6 +482,7 @@ func TestKeepsTheCatalogWhenAnAddedPluginDoesNotAssemble(t *testing.T) {
 
 // 追加プラグインは、ホストのエンジンの中でも matomezu の parseMarkdown で Markdown の原文を読める（名前の付いた文字の参照も、DOM なしで戻す）
 func TestAnAddedPluginReadsMarkdownInTheEngine(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	b := &plugin.Bundle{Dir: "reader", Manifest: plugin.Manifest{ID: "reader", Engine: "index.ts"}, Engine: `
 var m = globalThis.__matomezuModules["matomezu"];
@@ -496,6 +514,7 @@ module.exports.default = {
 
 // 新しい組で MCP 公開ツールの actions が返す物を作る所（アクションの describeArgs）が投げたら、組み直しは失敗し、定義も機能台帳も前のまま
 func TestKeepsTheCatalogWhenTheAICatalogCannotBeMade(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	before := string(e.AICatalogForTest())
 	b := &plugin.Bundle{Dir: "thrower", Manifest: plugin.Manifest{ID: "thrower", Engine: "index.ts"}, Engine: `
@@ -523,6 +542,7 @@ module.exports.default = {
 }
 
 func TestWarningLinesUseTheTable(t *testing.T) {
+	t.Parallel()
 	e, err := New()
 	if err != nil {
 		t.Fatal(err)
@@ -546,6 +566,7 @@ func TestWarningLinesUseTheTable(t *testing.T) {
 
 // ブックごと読めないのは、ブックの形が壊れた物（W005）だけ。タイプの無いページ（W027）は読めるブックの中の読めないページで、warning にそのページの id が付く
 func TestCheckBooksSaysWhetherABookIsUnreadable(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	noType := json.RawMessage(`{"id":"x1","title":"S","lineup":[{"kind":"page","id":"p1","type":"@foo/stamps:board","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"},{"kind":"page","id":"p3","type":"@matomezu/drawing:drawing","title":"Q","paper":"@matomezu/base:a4","orientation":"landscape","items":[]}]}`)
 	star := json.RawMessage(`{"id":"y1","title":"T","lineup":[{"kind":"page","id":"p2","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"s","item":"@foo/stars:star","x":1,"y":1,"props":{}}]}]}`)
@@ -576,6 +597,7 @@ func TestCheckBooksSaysWhetherABookIsUnreadable(t *testing.T) {
 
 // 利用者トリガートークのときに行うアクションは、runsWhenUserTalks を名乗ったものだけ（ビルトインでは伝言の note-talked）
 func TestTalkActions(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	ids, err := e.TalkActions()
 	if err != nil || len(ids) != 1 || ids[0] != "@matomezu/base:note-talked" {
@@ -584,6 +606,7 @@ func TestTalkActions(t *testing.T) {
 }
 
 func TestAICatalogIndexListsEverythingAndEntriesGiveTheFullText(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	var idx struct {
 		Version string `json:"version"`
@@ -637,6 +660,7 @@ func TestAICatalogIndexListsEverythingAndEntriesGiveTheFullText(t *testing.T) {
 
 // 頭のプラグイン名を付け忘れた名前は、アクションの名前の終わりが 1 つだけに合うなら全文と正しい名前を返し、2 つ以上なら候補の名前だけ、合わなければ unknown
 func TestAICatalogEntriesAcceptsANameWithoutThePlugin(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	e.aiCatalog = json.RawMessage(`{"index":{},"actions":[{"id":"@a/one:go","args":1},{"id":"@b/two:go","args":2},{"id":"@a/one:solo","args":3},{"id":"@a/one:xgo","args":4}],"items":[{"id":"@a/one:solo"}]}`)
 	var got struct {
@@ -658,6 +682,7 @@ func TestAICatalogEntriesAcceptsANameWithoutThePlugin(t *testing.T) {
 }
 
 func TestAICatalogVersionChangesWithTheAddedPlugins(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	version := func() string {
 		var v struct {
@@ -685,6 +710,7 @@ func (e *Engine) AICatalogForTest() json.RawMessage {
 
 // 止まらない追加プラグインのアクションは、待つ秒数（TimeoutSec）で打ち切って断り、そのあともエンジンは使える。秒数が範囲の外なら bad-args
 func TestStopsAnActionThatDoesNotEnd(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	b := &plugin.Bundle{Dir: "stuck", Manifest: plugin.Manifest{ID: "stuck", Engine: "index.ts"}, Engine: `
 var m = globalThis.__matomezuModules["matomezu"];
@@ -722,6 +748,7 @@ module.exports.default = {
 
 // AI に見せるページ: 背景を持つタイプ（図面）のページは、背景の形の図形の情報を見せず、背景の文字だけを background に入れる。背景を持たないタイプはそのまま
 func TestAIPageShowsOnlyTheTextsOfABackground(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	pageOf := func(typ string) string {
 		return `{"kind":"page","id":"p1","type":"` + typ + `","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","slide":[` +
@@ -756,6 +783,7 @@ func (e *Engine) UseAllForTest(bundles []*plugin.Bundle) (ids []string, err erro
 
 // 参加者のセッションが終わったときに常駐が行うアクションは、アクションの定義が役 runsWhenAIEnds で名乗る（Go は id を知らない）
 func TestEndActionsAreNamedByTheDefinition(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	ids, err := e.EndActions()
 	if err != nil || ids == nil || ids.Leave != "@matomezu/base:participant-remove" {
@@ -765,6 +793,7 @@ func TestEndActionsAreNamedByTheDefinition(t *testing.T) {
 
 // ページが 1 枚も無い書庫（書庫ホームだけ）でも、木の決まりを確かめられる
 func TestChecksALibraryWithNoPages(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	home := json.RawMessage(`{"folderRole":"home","id":"library-home","lineup":[]}`)
 	line, err := e.CheckLibrary([]json.RawMessage{home}, nil)

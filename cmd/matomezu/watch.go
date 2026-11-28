@@ -5,8 +5,8 @@ package main
 // 渡し方は 3 つ（AI の種類は見ない。どれを使うかは clients/<AI の名前> が引数で決める）:
 //   - 何も付けなければ、標準出力に書く。書けたら渡せた（Claude Code のプラグインの monitor。書いた行で AI のターンが始まる）。
 //     --escaped を付けると、知らせ 1 つを JSON の文字列の 1 行で書く（改行を含む知らせも 1 行で渡り、常駐は改行を受ける形で流す。Claude Desktop のプラグインの mod）
-//   - -- のあとに渡すコマンドを付けると、知らせごとにそのコマンドを起動する。本文は標準入力、宛て先の会話のセッション id は環境変数 MATOMEZU_SESSION、
-//     知らせの id は MATOMEZU_WAKE_ID で渡す。終わりの値が 0 なら渡せた、3 なら宛て先の会話がその AI のプログラムに無い、ほかは失敗
+//   - -- のあとに渡すコマンドを付けると、知らせごとにそのコマンドを起動する。本文は標準入力、送り先エッジのセッション id は環境変数 MATOMEZU_SESSION、
+//     知らせの id は MATOMEZU_WAKE_ID で渡す。終わりの値が 0 なら渡せた、3 なら送り先エッジのセッションがその AI のプログラムに無い、ほかは失敗
 //   - --resident を付けると、渡すコマンドを 1 度だけ起動して立てたままにし、知らせごとに標準入力に 1 行の JSON {"id", "session", "text"} を書き、
 //     標準出力の 1 行の JSON {"id", "result"}（result は delivered・absent・failed）で答えを受ける
 // 渡すコマンドが deliverTimeout までに答えなければ、止めて失敗とする。
@@ -58,7 +58,7 @@ const (
 	deliverFailed    = "failed"
 )
 
-// deliverAbsentExit は、知らせごとに起動する渡すコマンドが「宛て先の会話がその AI のプログラムに無い」と答える終わりの値
+// deliverAbsentExit は、知らせごとに起動する渡すコマンドが「送り先エッジのセッションがその AI のプログラムに無い」と答える終わりの値
 const deliverAbsentExit = 3
 
 // deliverTimeout は、渡すコマンドの答えを待つ上限
@@ -125,7 +125,7 @@ func runningServer() *home.Server {
 	return s
 }
 
-// query は、常駐の起こす知らせの口に渡す問い合わせ（宛て先と、受け取る側の流し方）
+// query は、常駐の起こす知らせの口に渡す問い合わせ（送り先エッジと、受け取る側の流し方）
 func (c *watchCmd) query() string {
 	q := url.Values{"host": {c.Host}, "session": {c.Session}}
 	if c.MaxLine > 0 {

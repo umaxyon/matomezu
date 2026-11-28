@@ -180,7 +180,7 @@ type hostBeacon interface {
 // startBeacon は、入口を開いたときに mDNS で知らせ始める。HostConfig の WSLProxy があれば WSLプロキシを立ててそれごしに、
 // 無ければ Discover のときだけこのホストで（e.mu を持って呼ぶ。srv は WSLプロキシ専用の受け口も答える入口）
 func (h *Hub) startBeacon(e *hostEntrance, port int, srv *http.Server) {
-	ad := peer.Advert{HostID: e.config.Identity.HostID, Protocol: e.proto, Port: port, Name: e.status.Name, UserName: h.userName()}
+	ad := peer.Advert{HostID: e.config.Identity.HostID, Protocol: int(e.proto.Load()), Port: port, Name: e.status.Name, UserName: h.userName()}
 	if e.config.WSLProxy != nil {
 		h.startWSLProxy(e, ad, srv)
 		return
@@ -330,6 +330,6 @@ func (h *Hub) updateBeacon(e *hostEntrance) {
 	b := e.peers.beacon
 	e.peers.mu.Unlock()
 	if b != nil {
-		b.Update(peer.Advert{HostID: e.config.Identity.HostID, Protocol: e.proto, Port: e.status.Port, Name: e.status.Name, UserName: h.userName()})
+		b.Update(peer.Advert{HostID: e.config.Identity.HostID, Protocol: int(e.proto.Load()), Port: e.status.Port, Name: e.status.Name, UserName: h.userName()})
 	}
 }

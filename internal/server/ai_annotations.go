@@ -406,12 +406,12 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		lent = o.Hub.WokenBy(req.Prompt)
+		if err := o.Hub.RefreshStarted(req.Prompt); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		if !req.Woken && !lent {
 			o.Hub.UserTalkedIn(req.SessionID)
-			if err := o.Hub.DropRefresh(req.SessionID); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
 			if err := o.Hub.Talked(time.Now()); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -439,7 +439,7 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, done)
 }
 
-// joinedOfSession は、会話のセッション session に結んだ、参加が確定した参加者の id（無いか、2 人以上なら空）。呼んだことにはしない（SessionParticipant と違い、起こす宛て先も残さない）
+// joinedOfSession は、会話のセッション session に結んだ、参加が確定した参加者の id（無いか、2 人以上なら空）。呼んだことにはしない（SessionParticipant と違い、送り先エッジも残さない）
 func (h *Hub) joinedOfSession(session string) string {
 	if session == "" {
 		return ""

@@ -13,6 +13,7 @@ import (
 // AI がリフレッシュリクエストを受けさせると、常駐は、話しかけのフックが会話を空にできると名乗った参加者のときだけ引継ぎページを書いて覚え、
 // AI のプログラムの部品が訊いたら matomezu: で始まる文を 1 度だけ渡す。渡した文で始まるターンは、利用者の話に数えない
 func TestRefreshRequestIsKeptOnlyForARefreshableAI(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	noticeOf(t, s.URL, a)
@@ -89,18 +90,94 @@ func TestRefreshRequestIsKeptOnlyForARefreshableAI(t *testing.T) {
 	if due, _ := call(t, "POST", s.URL+"/api/ai/refresh-due", `{"sessionId":"SA"}`, nil); !strings.Contains(due, `"text":""`) {
 		t.Fatalf("refresh-due after a refused bulk = %s", due)
 	}
-	// 渡す前に利用者が話したら、その頼みは捨てる
+	// 渡す前に利用者が話しても、その頼みは捨てない（ターンの途中で打った言葉は同じターンに入り、そのターンの終わりに空にする）
 	if got, _ := call(t, "POST", s.URL+"/api/ai/perform", strings.Replace(refresh, `"handoff"`, `"handoff 3"`, 1), as); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("refresh-request again = %s", got)
 	}
 	call(t, "POST", s.URL+"/api/ai/talked", `{"sessionId":"SA","prompt":"hello"}`, nil)
-	if due, _ := call(t, "POST", s.URL+"/api/ai/refresh-due", `{"sessionId":"SA"}`, nil); !strings.Contains(due, `"text":""`) {
+	if due, _ := call(t, "POST", s.URL+"/api/ai/refresh-due", `{"sessionId":"SA"}`, nil); !strings.Contains(due, "matomezu: Your conversation was refreshed") {
 		t.Fatalf("refresh-due after the user talked = %s", due)
+	}
+}
+
+// ターンの終わりのフックが訊く、ターンを終える前にする事: 引継ぎ対象チケットがある間は引継ぎページの頼み。頼みを部品が受け取るまでは無し。
+// 部品が受け取ったのに、空にしたあとの会話がその文で始まらなければ、空にならなかった事を 1 度だけ。始まれば無し。会話を空にできると名乗っていなければ、いつも無し
+func TestHandoffDueAsksForTheHandoffPageUntilTheConversationIsCleared(t *testing.T) {
+	t.Parallel()
+	s, _ := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	noticeOf(t, s.URL, a)
+	var project string
+	for id := range recordsOf(t, s.URL, "@matomezu/taskboard:project") {
+		project = id
+	}
+	for _, name := range []string{"x", "y", "z"} {
+		if code, got := postPerform(t, s.URL, `{"action":"@matomezu/taskboard:ticket-add","args":{"project":"`+project+`","name":"`+name+`","assignees":["ひよこ"]}}`); code != 200 || !strings.Contains(got, `"ok":true`) {
+			t.Fatalf("ticket-add %s = %d %s", name, code, got)
+		}
+	}
+	ids := map[string]string{}
+	for id, r := range recordsOf(t, s.URL, "@matomezu/taskboard:ticket") {
+		ids[r["name"].(string)] = id
+	}
+	as := map[string]string{aiwire.ParticipantHeader: a}
+	start := func(name string) {
+		t.Helper()
+		if got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/taskboard:ticket-start","args":{},"on":{"record":"`+ids[name]+`"}}`, as); !strings.HasPrefix(got, `{"ok":true`) {
+			t.Fatalf("ticket-start %s = %s", name, got)
+		}
+	}
+	text := func(path string) string {
+		t.Helper()
+		var got struct{ Text string }
+		out, _ := call(t, "POST", s.URL+path, `{"sessionId":"SA"}`, nil)
+		if json.Unmarshal([]byte(out), &got) != nil {
+			t.Fatalf("%s = %s", path, out)
+		}
+		return got.Text
+	}
+	start("x")
+	start("y")
+	if got := text("/api/ai/handoff-due"); got != "" {
+		t.Fatalf("handoff-due before the announcement = %q", got)
+	}
+	call(t, "POST", s.URL+"/api/ai/talked", `{"sessionId":"SA","refreshable":true}`, nil)
+	if got := text("/api/ai/handoff-due"); !strings.Contains(got, "@matomezu/base:refresh-request") {
+		t.Fatalf("handoff-due with a handoff target = %q", got)
+	}
+	refresh := `{"action":"@matomezu/base:refresh-request","args":{"type":"@matomezu/markdown:markdown","title":"handoff"}}`
+	if got, _ := call(t, "POST", s.URL+"/api/ai/perform", refresh, as); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("refresh-request = %s", got)
+	}
+	if got := text("/api/ai/handoff-due"); got != "" {
+		t.Fatalf("handoff-due before the part takes the request = %q", got)
+	}
+	// 部品が受け取ったが、空にしたあとの会話が始まらない: 1 度だけ伝える
+	if got := text("/api/ai/refresh-due"); got == "" {
+		t.Fatal("refresh-due answered nothing")
+	}
+	if got := text("/api/ai/handoff-due"); !strings.Contains(got, "could not be cleared") {
+		t.Fatalf("handoff-due after the conversation was not cleared = %q", got)
+	}
+	if got := text("/api/ai/handoff-due"); got != "" {
+		t.Fatalf("handoff-due told twice = %q", got)
+	}
+	// 空にしたあとの会話がその文で始まれば、伝えない
+	start("z")
+	if got, _ := call(t, "POST", s.URL+"/api/ai/perform", strings.Replace(refresh, `"handoff"`, `"handoff 2"`, 1), as); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("refresh-request 2 = %s", got)
+	}
+	lent := text("/api/ai/refresh-due")
+	body, _ := json.Marshal(map[string]any{"sessionId": "SB", "prompt": lent})
+	call(t, "POST", s.URL+"/api/ai/talked", string(body), nil)
+	if got := text("/api/ai/handoff-due"); got != "" {
+		t.Fatalf("handoff-due after the conversation was cleared = %q", got)
 	}
 }
 
 // AI の perform に actions を並べると、順に行い、結果を並べた順に返す。断られたら何番目かを添えて何も変えない。action と actions を両方渡すと断る
 func TestAIPerformsActionsInABulk(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	noticeOf(t, s.URL, a)
@@ -133,6 +210,7 @@ func TestAIPerformsActionsInABulk(t *testing.T) {
 
 // AI の呼び出しの答えの見出しには、呼び出しのあとの作業名が載る（作業を替えた perform の答えには、替えたあとの名前）
 func TestAICallsCarryTheWorkTitle(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	noticeOf(t, s.URL, a)

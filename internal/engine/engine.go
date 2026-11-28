@@ -67,6 +67,7 @@ type Engine struct {
 	leftTitle    func(string, string) string
 	isAdmin      func(string) bool
 	myWorkdesk   func(string, string) string
+	handoffDue   func(string) string
 	activities   func(string) string
 	live         func(string, string, string, string) string
 	forAI        func(string) string
@@ -175,6 +176,7 @@ func New() (*Engine, error) {
 		{"matomezuLeftTitle", &e.leftTitle},
 		{"matomezuIsAdminWorkroom", &e.isAdmin},
 		{"matomezuMyWorkdesk", &e.myWorkdesk},
+		{"matomezuHandoffDue", &e.handoffDue},
 		{"matomezuWorkroomActivities", &e.activities},
 		{"matomezuUnexpired", &e.live},
 	} {

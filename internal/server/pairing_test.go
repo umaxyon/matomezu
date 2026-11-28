@@ -70,6 +70,7 @@ func userDoes(t *testing.T, h *Hub, action, on string) {
 
 // A が B に頼むと、B に頼みが載り、両方に同じ接続確認コードが出る。B の利用者が受け入れると、両方にペアリングしたホストが載り、互いの hello に通る。B は A の待っている所を、頼みと A の hello で知る
 func TestPairingAcceptedPutsBothSides(t *testing.T) {
+	t.Parallel()
 	a, as := openHost(t, "masa-wsl")
 	b, bs := openHost(t, "win-lan")
 	if err := a.StartPairing(addrOf(bs), true); err != nil {
@@ -132,6 +133,7 @@ func TestPairingAcceptedPutsBothSides(t *testing.T) {
 
 // B の利用者が断ると A に断りが届き、どちらにも載らない
 func TestPairingDeclined(t *testing.T) {
+	t.Parallel()
 	a, _ := openHost(t, "a")
 	b, bs := openHost(t, "b")
 	_ = a.StartPairing(addrOf(bs), false)
@@ -145,6 +147,7 @@ func TestPairingDeclined(t *testing.T) {
 
 // A がやめると、B の頼みが消える
 func TestPairingEndedByTheAskerRemovesTheRequest(t *testing.T) {
+	t.Parallel()
 	a, _ := openHost(t, "a")
 	b, bs := openHost(t, "b")
 	_ = a.StartPairing(addrOf(bs), false)
@@ -158,6 +161,7 @@ func TestPairingEndedByTheAskerRemovesTheRequest(t *testing.T) {
 
 // 頼みを載せているあいだは、答えを決めない（決めると断ったことになり、頼みが B に残る）
 func TestPairingRequestBeingPutIsNotDecided(t *testing.T) {
+	t.Parallel()
 	b, _ := openHost(t, "b")
 	e := b.entrance.Load()
 	putting := &incomingPairing{request: requestPutting, decided: make(chan peer.PairingOutcome, 1)}
@@ -174,6 +178,7 @@ func TestPairingRequestBeingPutIsNotDecided(t *testing.T) {
 
 // 自分自身には頼めない。届かない所は unreachable
 func TestPairingWithItselfOrNobodyIsRefused(t *testing.T) {
+	serial(t, "閉じたポートを誰も取らないことを当てにする（届かないこと）")
 	a, as := openHost(t, "a")
 	_ = a.StartPairing(addrOf(as), false)
 	waitFor(t, "refused", func() bool { return pairingPhase(a) == "refused" })
@@ -206,6 +211,7 @@ func pairBy(t *testing.T, manual bool) (a, b *Hub, as, bs HostStatus) {
 
 // どちらの利用者がペアリングを解いても、相手に知らせ、相手の側も消える。どちらのレコードにも待っている所が入っていなくても（見つかったホストから選んだ）、つながったときに知った所へ知らせる
 func TestUnpairingTellsTheOtherHost(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		name   string
 		manual bool
@@ -229,6 +235,7 @@ func TestUnpairingTellsTheOtherHost(t *testing.T) {
 
 // 片方にだけ載っているとき: 相手が「ペアリングしていない」と答えたら、自分の側も消す
 func TestAHostThatAnswersNotPairedIsRemoved(t *testing.T) {
+	t.Parallel()
 	a, b, _, _ := pair(t)
 	// B の側だけを、知らせずに消す（常駐として消す）
 	b.dropPairedHost(b.entrance.Load().peers, a.HostStatus().HostID, "for the test")
@@ -239,6 +246,7 @@ func TestAHostThatAnswersNotPairedIsRemoved(t *testing.T) {
 
 // ペアリングしていない相手は Pinned の口に通らず、「ペアリングしていない」と答える。ペアリングの頼みの口は commit が無ければ reveal を断る
 func TestTheEntranceRefusesStrangers(t *testing.T) {
+	t.Parallel()
 	_, bs := openHost(t, "b")
 	other, err := peer.LoadOrCreate(filepath.Join(t.TempDir(), "other.key"))
 	if err != nil {
@@ -260,6 +268,7 @@ func TestTheEntranceRefusesStrangers(t *testing.T) {
 
 // 起動し直す前の受け入れ待ちの頼みは、入口を用意するときに消す
 func TestLeftoverRequestsAreRemovedAtStart(t *testing.T) {
+	t.Parallel()
 	h := emptyHub(t)
 	put := `{"hostId":"` + strings.Repeat("c", 64) + `","name":"x","userName":"","addr":"1.2.3.4:5","code":"123456"}`
 	if out, err := h.Perform(performOne("@matomezu/network:pairing-request-add", json.RawMessage(put), nil)); err != nil || !out.OK {

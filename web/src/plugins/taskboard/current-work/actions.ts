@@ -67,11 +67,11 @@ export const TICKET_START = kit.defineAction({
     // このワークルームの取り替え（ほかの担当のカレントワークは、チケットの変わりに応じるフォローステップが直す）
     const others = before === now.id ? [] : [currentWorkSet(room.id, now.id)]
     // 担当に足したワークルームへの知らせは ticket-update と同じ
-    const messages = assignedMessages(ctx.actor, now.assignees, next.assignees, next, project)
+    const messages = assignedMessages(ctx.actor, now.assignees, next.assignees, next, project, workroomsOf(ctx))
     return {
       next,
       ...(others.length > 0 ? { others } : {}),
-      ...(messages.length > 0 ? { aiMessages: messages } : {}),
+      ...(messages.length > 0 ? { payloads: messages } : {}),
       result: { workroom: room.id, previous: before, lane },
     }
   },

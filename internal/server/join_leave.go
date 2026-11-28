@@ -20,7 +20,7 @@ func (h *Hub) sessionEnded(id string) bool {
 }
 
 // leaveEnded は、セッションが終わった参加者 id を、利用者として退室させる（ワークルームは空室で残る。アクションは定義が役 runsWhenAIEnds で名乗る）。
-// 起こす知らせの行列は、宛先が参加者でなくなったので捨てられる（watch.go の stale）
+// 起こす知らせの行列は、送り先が参加者でなくなったので捨てられる（watch.go の stale）
 func (h *Hub) leaveEnded(id string) error {
 	return h.leave(id, "its session ended")
 }

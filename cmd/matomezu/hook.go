@@ -83,16 +83,17 @@ func runningAPI(path string) hookAPI {
 type hookInput struct {
 	SessionID      string `json:"session_id"`
 	TranscriptPath string `json:"transcript_path"`
-	HookEventName  string `json:"hook_event_name"` // 話しかけのフックのイベント名（Claude Code は UserPromptSubmit、Gemini CLI は BeforeAgent。無ければ UserPromptSubmit）
-	Model          string `json:"model"`           // SessionStart のモデル
-	ToModel        string `json:"to_model"`        // PostModelSwitch の、切り替えた先のモデル
-	Prompt         string `json:"prompt"`          // 話しかけのフックの、ターンを始めた入力
-	ToolName       string `json:"tool_name"`       // ツールを使う前のフックの、使うツールの名前
-	Host           string `json:"-"`               // AI のプログラムのプロセス id（フックが --host で渡す）
-	Woken          bool   `json:"-"`               // 起こす知らせで始まったターン（フックが --woken で渡す。渡せない AI のプログラムは、その AI の事情で入力から見分ける。hookPrompt。知らせをそのまま入力の道で受ける AI のプログラムは、talked に添える入力を常駐が照らす）
-	Titled         bool   `json:"-"`               // formatHook の答えに sessionTitle を書くか（それを読む AI のプログラムだけ。知らない項目のある JSON を断る AI がある）
-	Cwd            string `json:"cwd"`             // AI のセッションのフォルダ
-	AgentID        string `json:"agent_id"`        // サブエージェントの中のフックなら、そのサブエージェントの id（Claude Code）
+	HookEventName  string `json:"hook_event_name"`  // 話しかけのフックのイベント名（Claude Code は UserPromptSubmit、Gemini CLI は BeforeAgent。無ければ UserPromptSubmit）
+	Model          string `json:"model"`            // SessionStart のモデル
+	ToModel        string `json:"to_model"`         // PostModelSwitch の、切り替えた先のモデル
+	Prompt         string `json:"prompt"`           // 話しかけのフックの、ターンを始めた入力
+	ToolName       string `json:"tool_name"`        // ツールを使う前のフックの、使うツールの名前
+	Host           string `json:"-"`                // AI のプログラムのプロセス id（フックが --host で渡す）
+	Woken          bool   `json:"-"`                // 起こす知らせで始まったターン（フックが --woken で渡す。渡せない AI のプログラムは、その AI の事情で入力から見分ける。hookPrompt。知らせをそのまま入力の道で受ける AI のプログラムは、talked に添える入力を常駐が照らす）
+	Titled         bool   `json:"-"`                // formatHook の答えに sessionTitle を書くか（それを読む AI のプログラムだけ。知らない項目のある JSON を断る AI がある）
+	Cwd            string `json:"cwd"`              // AI のセッションのフォルダ
+	AgentID        string `json:"agent_id"`         // サブエージェントの中のフックなら、そのサブエージェントの id（Claude Code）
+	StopHookActive bool   `json:"stop_hook_active"` // ターンの終わりのフックが止めて続けさせた続きのターンの終わり（Claude Code）
 	// Rename は、作業名を ADE のワークスペースの表示名にも書く（dir は AI のセッションのフォルダ。答えを書いたあとに呼ぶ。nil なら書かない）
 	Rename func(dir, name string) `json:"-"`
 	// Thread は、プロセス id host の AI のプログラムがセッション session で動いているときの、チャットスレッドの id（その AI の事情で読む。nil か空なら送らない）

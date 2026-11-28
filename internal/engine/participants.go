@@ -207,6 +207,21 @@ func (e *Engine) MyWorkdesk(workroom string, folders []json.RawMessage, src Sour
 	return out, err
 }
 
+// HandoffDue は、ワークルーム workroom の AI が、ターンを終える前に書く引継ぎページの頼み（AI に渡す英語の文。引継ぎ対象チケットが無い・書けなければ空）。
+// 引継ぎ対象チケットはレコードから決まるので、レコードを引く口 src を渡す
+func (e *Engine) HandoffDue(workroom string, src Source) (text string, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.source = src
+	defer func() { e.source = nil }()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return e.handoffDue(workroom), nil
+}
+
 // IsAdminWorkroom は、ワークルーム（id）が、このホストの管理者のワークルームか（管理者の印が指す）。同じホストの管理者の AI 間メッセージに、利用者の頼みの印を付けるかを決める。
 // 管理者の印はレコードから決まるので、レコードを引く口 src を渡す
 func (e *Engine) IsAdminWorkroom(workroom string, src Source) (admin bool, err error) {

@@ -49,6 +49,7 @@ func sessionNotice(t *testing.T, srv, session string) string {
 // 受け入れで別の会話に替えられた会話には、常駐を起動し直したあとでも、次のターンの始まりのフックで 1 度だけ「別の会話が入った」と伝わり、
 // 外れたと分かるセッション名（作業名ではない）も 1 度だけ渡る。同じセッションの呼び出しの返事では重ねて伝えない
 func TestTakenOverSessionIsToldOnceAtItsNextTurn(t *testing.T) {
+	t.Parallel()
 	store := joinStore(t)
 	s, _ := joinWorld(t, store)
 	room := newRoom(t, s.URL, "ひよこ")
@@ -70,6 +71,7 @@ func TestTakenOverSessionIsToldOnceAtItsNextTurn(t *testing.T) {
 
 // 呼び出しの返事が先に伝えても、外れたと分かるセッション名は次のターンの始まりのフックで渡る（伝える文は重ねない）
 func TestTakenOverSessionToldOnACallStillGetsItsTitle(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	room := newRoom(t, s.URL, "ひよこ")
 	first := joinedWith(t, s.URL, "L1", "SA", room, "")
@@ -89,6 +91,7 @@ func TestTakenOverSessionToldOnACallStillGetsItsTitle(t *testing.T) {
 
 // 自分のセッションで同じワークルームに入り直した会話（前の自分を外して入った）には、何も残さない
 func TestRejoinInTheSameSessionLeavesNoDeparture(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	room := newRoom(t, s.URL, "ひよこ")
 	first := joinedWith(t, s.URL, "L1", "SA", room, "")
@@ -107,6 +110,7 @@ func TestRejoinInTheSameSessionLeavesNoDeparture(t *testing.T) {
 
 // 外れた訳はデータから決まる: 常駐がセッションが終わったと見て外した受け入れ済みの参加者は ended、要求中の参加者は残さない、キャンセルは cancelled
 func TestDepartureReasons(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	room := newRoom(t, s.URL, "ひよこ")
 	ended := joinedWith(t, s.URL, "L1", "SA", room, "")

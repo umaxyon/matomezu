@@ -40,10 +40,10 @@ type PendingMessage struct {
 	At             string `json:"at"`
 }
 
-// pendingMessage は承認待ち 1 件と、知らせに要る内部の値（宛て先のワークルームの名前、AI ラリーの向き）
+// pendingMessage は承認待ち 1 件と、知らせに要る内部の値（送り先のワークルームの名前、AI ラリーの向き）
 type pendingMessage struct {
 	PendingMessage
-	toRoom string   // 宛て先（受け手）のワークルームの名前
+	toRoom string   // 送り先（受け手）のワークルームの名前
 	rally  rallyKey // AI ラリーの向き（承認・キャンセルで、その数を 0 に戻す。rally.go）
 }
 
@@ -91,7 +91,7 @@ func cancelledReceiverLine(p pendingMessage) string {
 	return "matomezu: the user cancelled message " + p.ID + " from " + pendingWho(p) + ": " + quote(gistOf(p.Body)) + "; it is not the user's request"
 }
 
-// cancelledSenderLine は、キャンセルされた AI 間メッセージ id（本文の頭 gist）を送り手に流す 1 行（to は宛て先のワークルームの名前、host はそのホストのホストエイリアス）
+// cancelledSenderLine は、キャンセルされた AI 間メッセージ id（本文の頭 gist）を送り手に流す 1 行（to は送り先のワークルームの名前、host はそのホストのホストエイリアス）
 func cancelledSenderLine(id, gist, to, host string) string {
 	return "matomezu: the user cancelled message " + id + " you sent to AI " + quote(to) + " on host " + quote(host) + ": " + quote(gist) + "; it is not the user's request"
 }
@@ -252,7 +252,7 @@ func (h *Hub) sendCancelToHost(p pendingMessage) {
 	}
 }
 
-// receiveCancelHeld は、ほかのホスト（ホストエイリアス host）から届いた、キャンセルを運ぶ封筒 env を、宛て先（このホストの送り手）の参加者 to に知らせる。
+// receiveCancelHeld は、ほかのホスト（ホストエイリアス host）から届いた、キャンセルを運ぶ封筒 env を、送り先（このホストの送り手）の参加者 to に知らせる。
 // 同じ id の封筒は 1 度だけ（h.mu を持って呼ぶ）
 func (h *Hub) receiveCancelHeld(to string, env Envelope, host string) {
 	if !h.markSeenHeld(env.ID) {

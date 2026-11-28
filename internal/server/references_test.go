@@ -12,11 +12,12 @@ import (
 
 // ブックの並びの参照エントリ（ほかのブックのページを id で指す）は、置き場所に書いて読み直しても、中身ごとそのまま並びに残り、ブックは読める
 func TestReferencesSurviveStorage(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	page := func(id string) string {
 		return `{"kind":"page","id":"` + id + `","type":"@matomezu/drawing:drawing","title":"` + id + `","paper":"@matomezu/base:a4","orientation":"landscape"}`
 	}
@@ -64,6 +65,7 @@ func TestReferencesSurviveStorage(t *testing.T) {
 
 // 常駐の道（Go が選んで渡す行だけで行う）でも、ほかのブックのページを指す参照エントリを置け、指す先のページを消すと、同じ書き込みで参照エントリを置いたブックからも消える
 func TestReferencesThroughTheHost(t *testing.T) {
+	t.Parallel()
 	other := `{"id":"b2","title":"U","lineup":[{"kind":"page","id":"q1","type":"@matomezu/drawing:drawing","title":"Q","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 	hub, store, c := bulkHub(t, other)
 	added, err := hub.Perform(Perform{Actions: []engine.BulkAction{
@@ -97,6 +99,7 @@ func TestReferencesThroughTheHost(t *testing.T) {
 
 // 書庫に無い物を指す参照エントリは、足せる行が無いので、行い直さずに断られる（常駐の道）
 func TestAReferenceToNothingIsRefusedThroughTheHost(t *testing.T) {
+	t.Parallel()
 	other := `{"id":"b2","title":"U","lineup":[]}`
 	hub, _, c := bulkHub(t, other)
 	added, err := hub.Perform(Perform{Actions: []engine.BulkAction{
@@ -112,6 +115,7 @@ func TestAReferenceToNothingIsRefusedThroughTheHost(t *testing.T) {
 
 // 指す先のブックをゴミ箱に入れても参照エントリは残り、ゴミ箱から完全に消すと、同じ書き込みで消える（常駐の道）
 func TestReferencesGoWithAPurgedBook(t *testing.T) {
+	t.Parallel()
 	other := `{"id":"b2","title":"U","lineup":[{"kind":"page","id":"q1","type":"@matomezu/drawing:drawing","title":"Q","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 	hub, _, c := bulkHub(t, other)
 	run := func(seq int64, action, args string, on *engine.On) {
@@ -134,6 +138,7 @@ func TestReferencesGoWithAPurgedBook(t *testing.T) {
 
 // バインダを指す参照エントリの目次は、中のページの id と名前も添える
 func TestAnOutlinedBinderReferenceListsItsPages(t *testing.T) {
+	t.Parallel()
 	hub, _, c := bulkHub(t, `{"id":"b2","title":"U","lineup":[]}`)
 	done, err := hub.Perform(Perform{Actions: []engine.BulkAction{
 		step("@matomezu/base:page-add", `{"type":"@matomezu/slide-page:slide","title":"Q","into":{"newBinder":"D"}}`, &engine.On{Book: "b2"}, "q1", "d1"),
@@ -150,6 +155,7 @@ func TestAnOutlinedBinderReferenceListsItsPages(t *testing.T) {
 
 // 指す先がゴミ箱に入った参照エントリの目次は、見えない事だけを添え、指す先の名前・タイプ・中のページを出さない
 func TestAnOutlinedReferenceToTheTrashHidesItsName(t *testing.T) {
+	t.Parallel()
 	hub, _, c := bulkHub(t, `{"id":"b2","title":"U","lineup":[]}`)
 	done, err := hub.Perform(Perform{Actions: []engine.BulkAction{
 		step("@matomezu/base:page-add", `{"type":"@matomezu/slide-page:slide","title":"Q","into":{"newBinder":"D"}}`, &engine.On{Book: "b2"}, "q1", "d1"),

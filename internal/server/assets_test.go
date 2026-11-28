@@ -64,6 +64,7 @@ func postAsset(t *testing.T, url string, body []byte) map[string]any {
 }
 
 func TestImportAssetKinds(t *testing.T) {
+	t.Parallel()
 	_, s := hubAt(t, filepath.Join(t.TempDir(), "data.db"))
 	for _, c := range []struct {
 		name string
@@ -103,6 +104,7 @@ func TestImportAssetKinds(t *testing.T) {
 }
 
 func TestImportAssetSameContentSameID(t *testing.T) {
+	t.Parallel()
 	h, s := hubAt(t, filepath.Join(t.TempDir(), "data.db"))
 	b := rasterBytes(t, "png", 4, 4)
 	first, second := postAsset(t, s.URL, b), postAsset(t, s.URL, b)
@@ -116,6 +118,7 @@ func TestImportAssetSameContentSameID(t *testing.T) {
 }
 
 func TestCleanSVG(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct{ name, in, want string }{
 		{"script", `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><rect width="1"/></svg>`,
 			`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><rect width="1"></rect></svg>`},
@@ -144,6 +147,7 @@ func TestCleanSVG(t *testing.T) {
 }
 
 func TestServeAsset(t *testing.T) {
+	t.Parallel()
 	_, s := hubAt(t, filepath.Join(t.TempDir(), "data.db"))
 	svg := postAsset(t, s.URL, []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><script>x()</script></svg>`))
 	get := func(id, cookie string) *http.Response {
@@ -153,7 +157,7 @@ func TestServeAsset(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() { res.Body.Close() })
+		cleanup(t, func() { res.Body.Close() })
 		return res
 	}
 	res := get(svg["asset"].(string), testCookie(s.URL))
@@ -190,6 +194,7 @@ func imagesFolder(t *testing.T, h *Hub) string {
 }
 
 func TestDropUnusedAssetsAtStart(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "data.db")
 	h, _ := hubAt(t, path)
 	used, err := h.ImportAsset(rasterBytes(t, "png", 3, 3))
@@ -212,6 +217,7 @@ func TestDropUnusedAssetsAtStart(t *testing.T) {
 
 // AI の口も、同じアセットの置き場に、合言葉で置ける（合言葉が無ければ受けない）。置けるのはワークルームに入った AI だけ（参加していなければ not-joined）
 func TestAIImportsAnAsset(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	svg := `<svg xmlns="http://www.w3.org/2000/svg" width="8" height="4"/>`
 	octet := map[string]string{"Content-Type": "application/octet-stream", "Cookie": ""}

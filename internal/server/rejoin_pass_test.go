@@ -20,6 +20,7 @@ func passFor(t *testing.T, url, room, link string) {
 
 // 前もって承認した合言葉でワークルームの続きを頼むと、画面を通さずに受け入れ、前の参加者を外す。承認は 1 回で消える
 func TestJoinWithARejoinPassIsAcceptedWithoutTheScreen(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "work", `,"sessionId":"S1"`), nil)
 	var first Joined
@@ -55,6 +56,7 @@ func TestJoinWithARejoinPassIsAcceptedWithoutTheScreen(t *testing.T) {
 
 // 合言葉が違う・ワークルームの参加者が生きている・承認が無いワークルームの名前は、参加の要求（画面で受け入れる）になるか、断る
 func TestJoinWithoutAMatchingRejoinPassGoesThroughTheScreen(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "", `,"sessionId":"S1"`), nil)
 	var first Joined
@@ -77,6 +79,7 @@ func TestJoinWithoutAMatchingRejoinPassGoesThroughTheScreen(t *testing.T) {
 
 // 開発用の口は、常駐の合言葉が無ければ断る
 func TestRejoinPassNeedsTheToken(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/dev/rejoin-pass", `{"workroom":"ひよこ","link":"L1"}`, map[string]string{"Authorization": "Bearer wrong"})
 	if !strings.Contains(got, "unauthorized") {
@@ -86,6 +89,7 @@ func TestRejoinPassNeedsTheToken(t *testing.T) {
 
 // 合言葉で入り直すときも、AI の UI は画面で受け入れる道と同じに参加者に残る
 func TestJoinWithARejoinPassKeepsTheAiUi(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "work", `,"sessionId":"S1"`), nil)
 	var first Joined
@@ -103,6 +107,7 @@ func TestJoinWithARejoinPassKeepsTheAiUi(t *testing.T) {
 
 // 合言葉で受け入れても、窓の受け入れと同じく、その参加者が join したプロセス id の通り道に、ワークルーム名つきの 1 行が届く
 func TestJoinWithARejoinPassWakesTheJoinedProcess(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "work", ""), map[string]string{aiwire.HostHeader: "100"})
 	var first Joined

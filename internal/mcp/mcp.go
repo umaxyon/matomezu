@@ -161,7 +161,7 @@ type Joining struct {
 
 // Serve は in から頼みを読み、out に答えを書く。in が終わると戻る
 // joining は join で常駐に添える事柄。branch は git のブランチを読む関数（参加の id と一緒に常駐に添える）、host は AI のプログラムのプロセス id、
-// hostSession は AI のプログラムが MCP を立てたときのセッション id（どちらもいつも添える。起こす知らせの宛て先）。
+// hostSession は AI のプログラムが MCP を立てたときのセッション id（どちらもいつも添える。送り先エッジに書く物）。
 // sessionPid が空でなければ、それがセッションと同じだけ生きるプロセスだと名乗り（pidSpace はその印）、居なくなったら、常駐が退室させる。
 // meta は、呼び出しの _meta のどこにセッション id とモデルがあるか。note は、AI に渡す説明（instructions）の後ろに足す文（空なら足さない）
 func Serve(in io.Reader, out io.Writer, api API, version string, joining Joining, branch func() string, host, hostSession, sessionPid, pidSpace string, meta Meta, note string) error {

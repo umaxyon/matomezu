@@ -8,6 +8,7 @@ import (
 
 // 目次は、並びに直に入るページと、バインダの中のページを、並びの順にたどる（空のバインダは何も足さない）
 func TestWalksTheLineupWithBinders(t *testing.T) {
+	t.Parallel()
 	const book = `{"id":"b1","title":"T","lineup":[` +
 		`{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"図"},` +
 		`{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-page:slide","lineup":[` +
