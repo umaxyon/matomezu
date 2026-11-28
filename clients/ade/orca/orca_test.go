@@ -26,7 +26,7 @@ while [ $# -gt 0 ]; do
 done
 [ -z "$name" ] && name="今の名前"
 echo "crashpad: noise"
-printf '{"ok":true,"result":{"worktree":{"displayName":"%s"}}}\n' "$name"
+printf '{"ok":true,"result":{"worktree":{"path":"/a workspace","displayName":"%s"}}}\n' "$name"
 `
 	cli := filepath.Join(dir, "orca")
 	if err := os.WriteFile(cli, []byte(script), 0o755); err != nil {
@@ -70,17 +70,18 @@ func TestRenameOnlyWhenChanged(t *testing.T) {
 	dir, cache := t.TempDir(), t.TempDir()
 	Rename(dir, "ひよこ T-1 名前", cache)
 	Rename(dir, "ひよこ T-1 名前", cache)
-	if c := calls(t, log); len(c) != 1 || !strings.Contains(c[0], "--display-name ひよこ T-1 名前") {
+	if c := calls(t, log); len(c) != 2 || c[0] != "worktree current --json" ||
+		c[1] != "worktree set --worktree path:/a workspace --display-name ひよこ T-1 名前 --json" {
 		t.Fatalf("calls = %q", c)
 	}
 	Rename(dir, "ひよこ（空き）", cache)
-	if c := calls(t, log); len(c) != 2 {
+	if c := calls(t, log); len(c) != 4 {
 		t.Fatalf("calls = %q", c)
 	}
 	long := strings.Repeat("あ", nameMax+5)
 	Rename(dir, long, cache)
 	c := calls(t, log)
-	if len(c) != 3 || !strings.HasSuffix(c[2], "--display-name "+strings.Repeat("あ", nameMax)+" --json") {
+	if len(c) != 6 || !strings.HasSuffix(c[5], "--display-name "+strings.Repeat("あ", nameMax)+" --json") {
 		t.Fatalf("calls = %q", c)
 	}
 }

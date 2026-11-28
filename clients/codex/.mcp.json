@@ -3,7 +3,7 @@
     "matomezu": {
       "command": "matomezu",
       "args": ["codex", "mcp"],
-      "env_vars": ["CODEX_HOME"]
+      "env_vars": ["CODEX_HOME", "ORCA_CLI_COMMAND"]
     }
   }
 }
