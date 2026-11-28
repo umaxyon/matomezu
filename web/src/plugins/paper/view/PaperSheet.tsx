@@ -47,13 +47,19 @@ export function PaperSheet({ zoom, page, column, row, paper }: PrintSheetProps) 
   })
   // この印刷区画に掛かる形だけを描く（またいだ形は、紙の境目で切れる）
   const items = here.map(item => <SheetItem key={item.id} catalog={catalog} zoom={zoom} item={item} />)
-  return connectors.reduceRight<ReactNode>(
-    (inner, { id: c, View }) => (
-      <TokenScope key={c} def={c}>
-        <View scene={scene}>{inner}</View>
-      </TokenScope>
-    ),
-    items,
+  // つなぐもののビューは、紙の大きさに広げて描く（編集の紙と同じ。大きさの無い所に置くと、線の svg が描かれない）。
+  // 広げるのは、ページの原点からこの印刷区画の右下まで
+  return (
+    <div className={styles.sheetArea} style={{ width: (column + 1) * paper.w, height: (row + 1) * paper.h }}>
+      {connectors.reduceRight<ReactNode>(
+        (inner, { id: c, View }) => (
+          <TokenScope key={c} def={c}>
+            <View scene={scene}>{inner}</View>
+          </TokenScope>
+        ),
+        items,
+      )}
+    </div>
   )
 }
 

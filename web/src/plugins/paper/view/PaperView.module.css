@@ -35,6 +35,12 @@
 .drawing[data-placing="true"] {
   cursor: copy;
 }
+/* 印刷区画 1 つのビューで、ページの原点から広げた紙（大きさはビューが決める） */
+.sheetArea {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
 /* 置いたアイテム（位置と大きさは紙の上の値） */
 /* 薄くする・戻すのは緩やかに（位置は追従させるので、濃さだけ） */
 .item {
