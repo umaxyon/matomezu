@@ -37,6 +37,7 @@ type CallerSays struct {
 	Branch          string // git のブランチ（空はブランチが無い）
 	BranchSent      bool   // ブランチのヘッダが付いていた（付いていなければブランチを変えない）
 	Host            string // AI のプログラムのプロセス id（空なら変えない）
+	HostSpace       string // Host が通じる範囲の印
 	SessionPid      string // セッションと同じだけ生きるプロセスだと MCP が名乗ったプロセス id（空なら変えない）
 	SessionPidSpace string // そのプロセス id が通じる範囲の印
 	Model           string // 呼び出しが運んだモデル（空なら変えない）
@@ -44,7 +45,7 @@ type CallerSays struct {
 
 // callerSays は、呼び出しのヘッダから MCP が添えたものを読む
 func callerSays(header http.Header) CallerSays {
-	says := CallerSays{Host: header.Get(aiwire.HostHeader), SessionPid: header.Get(aiwire.SessionPidHeader), SessionPidSpace: header.Get(aiwire.SessionPidSpaceHeader)}
+	says := CallerSays{Host: header.Get(aiwire.HostHeader), HostSpace: header.Get(aiwire.HostSpaceHeader), SessionPid: header.Get(aiwire.SessionPidHeader), SessionPidSpace: header.Get(aiwire.SessionPidSpaceHeader)}
 	if v := header.Get(aiwire.ModelHeader); v != "" {
 		if m, err := url.QueryUnescape(v); err == nil {
 			says.Model = m
@@ -112,7 +113,7 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 			moved = true
 		}
 		if says.Host != "" {
-			n.Host = says.Host
+			n.Host, n.HostSpace = says.Host, says.HostSpace
 		}
 		if says.SessionPid != "" {
 			n.SessionPid, n.SessionPidSpace = says.SessionPid, says.SessionPidSpace
@@ -161,7 +162,7 @@ func (o Options) ai(h http.HandlerFunc) http.Handler {
 	return o.auth(func(w http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get(aiwire.ParticipantHeader)
 		if id == "" {
-			id = o.Hub.SessionParticipant(r.Header.Get(aiwire.HostSessionHeader), r.Header.Get(aiwire.HostHeader))
+			id = o.Hub.SessionParticipant(r.Header.Get(aiwire.HostSessionHeader), aiProgram{r.Header.Get(aiwire.HostHeader), r.Header.Get(aiwire.HostSpaceHeader)})
 		}
 		r = r.WithContext(context.WithValue(r.Context(), participantKey{}, id))
 		notice := o.Hub.Called(id, callerSays(r.Header), time.Now())

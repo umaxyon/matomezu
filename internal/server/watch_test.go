@@ -270,7 +270,7 @@ func TestLaterSessionReachesQueuedWakesAndReconnectedLines(t *testing.T) {
 	if got := wakes(hub, line); len(got) != 0 {
 		t.Fatalf("woke before the hook: %q", got)
 	}
-	hub.NoteLaterSession("S2", "100", "WSL")
+	hub.NoteLaterSession("S2", aiProgram{"100", "WSL"})
 	hub.CloseWakes(line)
 	again := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
 	if got := wakes(hub, again); len(got) != 1 || !strings.Contains(got[0], "ひよこ") {
@@ -287,7 +287,7 @@ func TestLaterSessionsStayWithTheProgram(t *testing.T) {
 	other := hub.OpenWakesWith("200", "WSL", "S0", WakeLimits{})
 	windows := hub.OpenWakesWith("100", "Windows", "S0", WakeLimits{})
 	learned := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
-	hub.NoteLaterSession("S2", "100", "WSL")
+	hub.NoteLaterSession("S2", aiProgram{"100", "WSL"})
 	reused := hub.OpenWakesWith("100", "WSL", "S9", WakeLimits{})
 	hub.mu.Lock()
 	defer hub.mu.Unlock()

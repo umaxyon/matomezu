@@ -10,6 +10,8 @@ const (
 	BranchHeader = "X-Matomezu-Branch"
 	// HostHeader は、MCP が AI のプログラムのプロセス id を添えるヘッダ（join も含めていつも）
 	HostHeader = "X-Matomezu-Host"
+	// HostSpaceHeader は、MCP が HostHeader のプロセス id の通じる範囲の印を添えるヘッダ（HostHeader を添えるときいつも。WSL と Windows で同じプロセス id を分ける）
+	HostSpaceHeader = "X-Matomezu-Host-Space"
 	// HostSessionHeader は、MCP が、AI のプログラムが MCP を立てたときのセッション id を添えるヘッダ（分かるときだけ。/clear では変わらず、/clear のあとに MCP を立て直すと新しいセッション id になる。送り先エッジに書く物で、参加の id が無い呼び出しでは、常駐がこれに結ばれた参加者を呼び出しの参加者にする）
 	HostSessionHeader = "X-Matomezu-Host-Session"
 	// SessionPidHeader は、MCP が、セッションと同じだけ生きるプロセスの id を名乗るヘッダ（居なくなればセッションが終わった。名乗らない MCP の参加者は、プロセスでは見ない）

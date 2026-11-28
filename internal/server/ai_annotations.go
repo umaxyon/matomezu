@@ -400,10 +400,11 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	if r.ContentLength != 0 && !readJSON(w, r, &req) {
 		return
 	}
-	o.Hub.NoteLaterSession(req.SessionID, req.Host, req.HostSpace)
+	p := aiProgram{req.Host, req.HostSpace}
+	o.Hub.NoteLaterSession(req.SessionID, p)
 	lent := false
 	if len(req.Candidates) == 0 {
-		if err := o.Hub.CarrySession(req.SessionID, req.Host, req.ChatThread); err != nil {
+		if err := o.Hub.CarrySession(req.SessionID, p, req.ChatThread); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -420,7 +421,7 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	done, err := o.Hub.TalkedBy(req.SessionID, req.Host, req.Candidates)
+	done, err := o.Hub.TalkedBy(req.SessionID, p, req.Candidates)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -220,11 +220,11 @@ func (h *Hub) dropStaleAbsentLocked() {
 	}
 }
 
-// reaches は、参加者の記録 n の送り先エッジに、通り道 l が合うか。AI のプログラムのプロセス id かセッション id の少なくとも一方が両方で分かって等しく、
+// reaches は、参加者の記録 n の送り先エッジに、通り道 l が合うか。AI のプログラム（プロセス id と範囲の印。aiProgram.is）かセッション id の少なくとも一方が両方で分かって等しく、
 // もう一方は、両方で分かっていれば等しい（Windows では、AI のプログラムまでたどれない watch がある）。
 // 通り道のセッション id は、立てたときの物か、そのあとに同じ AI のプログラムが動かした会話の物（laterSessions）のどれかが等しければよい
 func (l *wakeLine) reaches(n participantNote) bool {
-	host := l.host != "" && l.host == n.WakeHost
+	host := (aiProgram{l.host, l.hostSpace}).is(n.wakeProgram())
 	session := l.session != "" && (l.session == n.WakeSession || l.laterSessions[n.WakeSession])
 	hostOK := l.host == "" || n.WakeHost == "" || host
 	sessionOK := l.session == "" || n.WakeSession == "" || session
@@ -306,27 +306,26 @@ func (h *Hub) programSessionsLocked(p wakeProgram) map[string]bool {
 	return got.sessions
 }
 
-// NoteLaterSession は、プロセス id host（その範囲の印 hostSpace）の AI のプログラムが今セッション sessionID の会話を動かしているとフックが知らせたとき、
-// 通り道を開いたことのある、host と範囲の印が同じで、立てたときのセッション id の違うプログラムに、sessionID を後の会話として覚えさせる（programSessions）。
-// 通り道が切れてつなぎ直しても、同じプログラムの通り道は同じ物を分け持つ。
-// 範囲の印も比べるのは、WSL と Windows のように範囲が違えば、同じプロセス id でも別の AI のプログラムだから。
+// NoteLaterSession は、AI のプログラム from が今セッション sessionID の会話を動かしているとフックが知らせたとき、
+// 通り道を開いたことのある、from と同じプログラム（aiProgram.is。WSL と Windows の同じプロセス id は別）で、立てたときのセッション id の違う物に、
+// sessionID を後の会話として覚えさせる（programSessions）。通り道が切れてつなぎ直しても、同じプログラムの通り道は同じ物を分け持つ。
 // 使い回されたプロセス id の前のプログラムにも覚えさせるが、その通り道はもう開かないので、届く先は変わらない。
 // Claude Code の monitor は /clear で立て直されず、立てたときのセッション id を名乗り続けるので、/clear のあとの会話の id で join した参加者にも届くようにする。
-// 覚えさせたら、届くかの変わりを窓に知らせ、その会話の参加者に溜まった知らせを流させる。host か sessionID が空なら何もしない。
+// 覚えさせたら、届くかの変わりを窓に知らせ、その会話の参加者に溜まった知らせを流させる。from のプロセス id か sessionID が空なら何もしない。
 // フックの知らせを受けたら、参加者を移すより前に呼ぶ
-func (h *Hub) NoteLaterSession(sessionID, host, hostSpace string) {
-	if sessionID == "" || host == "" {
+func (h *Hub) NoteLaterSession(sessionID string, from aiProgram) {
+	if sessionID == "" || from.Host == "" {
 		return
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	added := false
 	for p, got := range h.programSessions {
-		if p.host != host || p.hostSpace != hostSpace || p.session == sessionID || got.sessions[sessionID] {
+		if !from.is(aiProgram{p.host, p.hostSpace}) || p.session == sessionID || got.sessions[sessionID] {
 			continue
 		}
 		got.sessions[sessionID] = true
-		logWake("program of host %q, session %q also reaches session %q (a later conversation)", host, p.session, sessionID)
+		logWake("program of host %q, space %q, session %q also reaches session %q (a later conversation)", p.host, p.hostSpace, p.session, sessionID)
 		added = true
 	}
 	if !added {

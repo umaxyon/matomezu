@@ -96,7 +96,7 @@ func (h *Hub) userJoinedText(w Welcome) string {
 
 // TalkedBy は、セッション sessionID のターンの始まりについての答え。先にAI のプログラムのプロセス id host の参加者に結び直し、candidates があれば、link が合う参加者にセッション id を結ぶ。
 // sessionID が空なら、結びつけも知らせもしない
-func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk, error) {
+func (h *Hub) TalkedBy(sessionID string, p aiProgram, candidates []string) (SessionTalk, error) {
 	if sessionID == "" {
 		return SessionTalk{Welcomes: []Welcome{}}, nil
 	}
@@ -116,7 +116,7 @@ func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk
 		heard[strings.ToLower(c)] = true
 	}
 	h.mu.Lock()
-	changed := h.rebindByHost(records, sessionID, host)
+	changed := h.rebindByHost(records, sessionID, p)
 	bound := false
 	var told []Welcome
 	var toldIDs []string
@@ -124,7 +124,7 @@ func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk
 	for _, s := range records {
 		n := h.participantNotes[s.ID]
 		if s.sitting() && n.SessionID == "" && heard[strings.ToLower(s.Link)] {
-			h.bindSession(s.ID, sessionID, boundByHook, host)
+			h.bindSession(s.ID, sessionID, boundByHook, p)
 			n = h.participantNotes[s.ID]
 			changed = true
 		}

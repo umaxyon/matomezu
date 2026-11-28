@@ -52,7 +52,7 @@ func (h *Hub) contextOfLocked(sessionID string) contextUse {
 
 // HeardContextUse は、セッション sessionID の今のコンテキストの量が use（分からなければ noContextUse）だと、時点 now にフックが知らせたことを受ける。
 // sessionID が空なら何もしない
-func (h *Hub) HeardContextUse(sessionID, host string, use contextUse, now time.Time) error {
+func (h *Hub) HeardContextUse(sessionID string, p aiProgram, use contextUse, now time.Time) error {
 	if sessionID == "" {
 		return nil
 	}
@@ -62,8 +62,8 @@ func (h *Hub) HeardContextUse(sessionID, host string, use contextUse, now time.T
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	changed := h.rebindByHost(records, sessionID, host)
-	changed = h.followHosts(records, sessionID, host) || changed
+	changed := h.rebindByHost(records, sessionID, p)
+	changed = h.followHosts(records, sessionID, p) || changed
 	if h.contextOfLocked(sessionID) != use {
 		h.rememberContext(sessionID, use, now)
 		for id, n := range h.participantNotes {
@@ -145,13 +145,14 @@ func (o Options) aiContextUse(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
-	o.Hub.NoteLaterSession(req.SessionID, req.Host, req.HostSpace)
+	p := aiProgram{req.Host, req.HostSpace}
+	o.Hub.NoteLaterSession(req.SessionID, p)
 	use, ok := readContextUse(req.ContextUse)
 	if !ok {
 		http.Error(w, "contextUse is neither {used, aiScale} nor \"unknown\"", http.StatusBadRequest)
 		return
 	}
-	if err := o.Hub.HeardContextUse(req.SessionID, req.Host, use, time.Now()); err != nil {
+	if err := o.Hub.HeardContextUse(req.SessionID, p, use, time.Now()); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
