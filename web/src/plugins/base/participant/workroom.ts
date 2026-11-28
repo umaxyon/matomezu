@@ -24,8 +24,8 @@ export const WORKROOM = kit.defineSubject({
     bird: z.enum(BIRD_IDS),
     palette: z.enum(BIRD_PALETTE_IDS).optional(),
     createdAt: z.string(),
-    // 今の作業の写し（作業のレコード。空きなら無い）と、引継ぎ対象チケット（その前の作業のレコード。AI が refresh-request で引継ぎページを書く先。ほかの参加者が入ったら外す）。
-    // どちらも base のフォローステップ（work-change.ts）が、作業が替わった書き込みの中で書く
+    // 今の作業の写し（作業のレコード。空きなら無い）と、引継ぎ対象チケット（その前の作業のレコード。AI が refresh-request で引継ぎページを書く先。書いたら外し、ほかの参加者が入っても外す）。
+    // どちらも base のフォローステップ（work-change.ts）が、作業が替わった書き込みの中で書く（引継ぎ対象チケットを外すのは、refresh-request と参加者の受け入れ）
     work: WORK_KEY.optional(),
     handoffTarget: WORK_KEY.optional(),
   }),

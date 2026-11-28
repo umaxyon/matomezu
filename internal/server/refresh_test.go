@@ -73,6 +73,14 @@ func TestRefreshRequestIsKeptOnlyForARefreshableAI(t *testing.T) {
 	if got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/taskboard:ticket-start","args":{},"on":{"record":"`+x+`"}}`, as); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("ticket-start x = %s", got)
 	}
+	marked := false
+	for _, r := range recordsOf(t, s.URL, "@matomezu/base:workroom") {
+		_, has := r["handoffTarget"]
+		marked = marked || has
+	}
+	if !marked {
+		t.Fatal("changing the work does not mark the handoff target again")
+	}
 	// 断られたバルクの頼みは覚えない
 	broken := `{"actions":[{"action":"@matomezu/base:refresh-request","args":{"type":"@matomezu/markdown:markdown","title":"handoff 2"}},{"action":"@matomezu/base:page-update","args":{"title":"x"},"on":{"page":"none"}}]}`
 	if got, _ := call(t, "POST", s.URL+"/api/ai/perform", broken, as); !strings.Contains(got, `"ok":false`) || !strings.Contains(got, `"at":1`) {

@@ -31,11 +31,12 @@ export const REFRESH_REQUEST = kit.defineAction({
     if (room === NO_WORKROOM) return null
     const read = readerIn(ctx)
     const record = WORKROOM.record.safeParse(read.record(WORKROOM.id, room))
-    if (!record.success) return null
-    const { handoffTarget: target, ...kept } = record.data
-    if (!target) return { declined: "your workroom has no handoff target, so there is no handoff page to write" }
+    const target = record.success ? record.data.handoffTarget : undefined
+    if (!record.success || !target)
+      return { declined: "your workroom has no handoff target, so there is no handoff page to write" }
     if (read.record(target.subject, target.id) === "none")
       return { declined: "the record of your handoff target is gone, so its worker book cannot have a handoff page" }
+    const { handoffTarget: _, ...kept } = record.data
     const done = withWorkerPage(
       library,
       target,

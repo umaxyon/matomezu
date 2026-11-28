@@ -501,3 +501,92 @@ test("バックヤードの中に行う事にも、followed を持つ認可ス�
   expect(run(true)).toMatchObject({ ok: false, reason: "denied", permission: "@ex/tally:keep-books" })
   expect(run(false)).toMatchObject({ ok: true })
 })
+
+// 書庫が対象のアクション: 書庫を next に変え、others で c1 の名前を変える（remove なら消す）
+const fileAction = (next: (library: World) => object, remove: boolean) =>
+  action(remove ? "card-file-remove" : "card-file", {
+    target: "library",
+    permissionScope: "unknown",
+    writes: [CARD],
+    run: ((library: World) => ({
+      next: next(library),
+      result: {},
+      others: [{ subject: CARD, id: "c1", record: remove ? REMOVED : { id: "c1", label: "filed" } }],
+    })) as never,
+  })
+const filedCatalog = (step: FollowStepDef, file: ActionDef) =>
+  assemble(
+    [
+      ...plugins({ backyards: [{ id: YARD_DEF }], followSteps: [step] } as never).filter(
+        p => (p.id as string) !== "@ex/card",
+      ),
+      defineBuiltin({
+        id: "@ex/card",
+        subjects: [subject(CARD)],
+        actions: [RENAME, REMOVE, PEEK, file],
+        controlCenters: [{ id: CENTER, actions: [file.id], subjects: "all" }],
+      } as never),
+    ],
+    CENTER,
+  ).catalog.core
+
+test("書庫が対象のアクションの書庫の変わりと、others に応じたバックヤードの中の変わり・アノテーションを、1 つの結果に重ねる", () => {
+  const added = libraryWith([testBook("b2", "B2", [drawingPage("q1")])])
+  const file = fileAction(
+    library => ({
+      pages: { ...library.pages, ...added.pages },
+      folders: { ...library.folders, ...added.folders },
+    }),
+    false,
+  )
+  const done = performIn(yardWorld(), file.id, {}, undefined, {
+    ...ctx,
+    ...at,
+    catalog: filedCatalog(CLEAR_CARD, file),
+  })
+  expect(done).toMatchObject({
+    ok: true,
+    changes: { pages: { q1: expect.anything() }, folders: { b2: expect.anything() } },
+    annotations: { p1: [] },
+    followedRows: ["p1"],
+    records: [{ subject: CARD, id: "c1", record: { id: "c1", label: "filed" } }],
+  })
+})
+
+test("書庫が対象のアクションが足した行を、応じたフォローステップが消したら、その行は変わりに残さない", () => {
+  const grown = libraryWith([testBook("b1", "B1", [drawingPage("p1"), drawingPage("q1", { title: "Q1" } as never)])])
+  const file = fileAction(
+    library => ({
+      pages: { ...library.pages, q1: grown.pages.q1 },
+      folders: { ...library.folders, b1: grown.folders.b1 },
+    }),
+    true,
+  )
+  const done = performIn(yardWorld(), file.id, {}, undefined, {
+    ...ctx,
+    ...at,
+    catalog: filedCatalog(PURGE_CARD, file),
+  })
+  expect(done).toMatchObject({ ok: true, changes: { pages: { p1: REMOVED }, folders: { b1: REMOVED } } })
+  if (!done.ok) return
+  expect(done.changes?.pages).not.toHaveProperty("q1")
+})
+
+test("書庫が対象のアクションは、others の種類を省けば断る", () => {
+  const bare = action("card-bare", {
+    target: "library",
+    permissionScope: "unknown",
+    writes: [CARD],
+    run: ((library: unknown) => ({
+      next: library,
+      result: {},
+      others: [{ id: "c1", record: { id: "c1", label: "x" } }],
+    })) as never,
+  })
+  const done = performIn({ ...world(), ...libraryWith([]) }, bare.id, {}, undefined, {
+    ...ctx,
+    ...at,
+    catalog: filedCatalog(CLEAR_CARD, bare),
+  })
+  expect(done).toMatchObject({ ok: false, reason: "refused" })
+})

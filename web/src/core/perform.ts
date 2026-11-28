@@ -431,6 +431,8 @@ function recordChanges(
     ? [{ subject: kindOf, now: target.subject, next: target.next }]
     : []
   for (const o of others) {
+    // 書庫が対象のアクションは、種類を省けない（宛先の種類が無い）
+    if (!target && o.subject === undefined) return null
     const kind: string = o.subject ?? kindOf
     if (kind !== kindOf && !(action.writes as readonly string[] | undefined)?.includes(kind)) return null
     const table = source ? undefined : ctx.records?.[kind]

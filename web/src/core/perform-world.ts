@@ -299,7 +299,7 @@ function changedPage(naming: Naming, world: World, at: PageOutsideBook, done: Re
   }
 }
 
-// レコードが対象のアクションを行う: on の record のレコード（無ければ新しく作る）を渡し、宛先と、run が返したほかの同じ種類のレコードを変えた結果を返す。
+// レコードが対象のアクションを行う: on の record のレコード（無ければ新しく作る）を渡し、宛先と、run が返したほかのレコード（同じ種類か writes の種類）を変えた結果を返す。
 // 作るレコードの id は今ある id と重ならない。readsBooks を書いたアクションには、引数が答えた id のブックだけを ctx.books に渡す
 function performRecord(
   world: World,
@@ -372,10 +372,15 @@ function performRecord(
   }
 }
 
-// run が返したほかのレコード others（種類を省いた物は target の種類）のうち、今と違う物の変わり
-function otherChanges(source: RecordSource, target: string, others: readonly OtherRecord<never>[]): RecordChange[] {
+// run が返したほかのレコード others（種類を省いた物は target の種類。書庫が対象のアクションは省けず、perform が断っている）のうち、今と違う物の変わり
+function otherChanges(
+  source: RecordSource,
+  target: string | undefined,
+  others: readonly OtherRecord<never>[],
+): RecordChange[] {
   return others.flatMap(o => {
-    const kind: string = o.subject ?? target
+    const kind = o.subject ?? target
+    if (kind === undefined) return []
     const had = source.byId(kind, o.id)
     return (o.record === REMOVED ? had === undefined : o.record === had)
       ? []
@@ -456,7 +461,7 @@ function withOthersFollowed(
   others: readonly OtherRecord<never>[],
 ): PerformedIn {
   const source = world.source ?? sourceOf(world.records)
-  const changes = otherChanges(source, "", others)
+  const changes = otherChanges(source, undefined, others)
   if (changes.length === 0) return changed
   const after: World = {
     ...world,
@@ -466,11 +471,17 @@ function withOthersFollowed(
   const followed = withFollowed(after, ctx, ctx.catalog.actions.get(id), source, changes)
   if (!followed.ok) return followed
   const out = followedOut(followed)
+  // アクションが足した行を、応じたフォローステップが消したなら、その行は変わりに残さない（前も後も無い）
+  const merged = <T>(
+    was: Readonly<Record<string, T>>,
+    a: Readonly<Record<string, T | typeof REMOVED>>,
+    b: Readonly<Record<string, T | typeof REMOVED>>,
+  ) => Object.fromEntries(Object.entries({ ...a, ...b }).filter(([id, r]) => r !== REMOVED || id in was))
   const tables =
     changed.changes && out.changes
       ? {
-          pages: { ...changed.changes.pages, ...out.changes.pages },
-          folders: { ...changed.changes.folders, ...out.changes.folders },
+          pages: merged(world.pages, changed.changes.pages, out.changes.pages),
+          folders: merged(world.folders, changed.changes.folders, out.changes.folders),
         }
       : (out.changes ?? changed.changes)
   const annotations = { ...changed.annotations, ...out.annotations }

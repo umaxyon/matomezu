@@ -167,7 +167,7 @@ export function perform(of: Assembled, input: Input): Output {
   const at = new Date().toISOString()
   const steps = input.actions.map(a => bulkActionOf(a, () => crypto.randomUUID(), at, langFor(a.lang)))
   // AI のアクションと、利用者でも編集ロックで断るアクションは、利用者が直している物を変えも消しもしない（あとでやり直す）。バルクの中のアクションごとに見る。
-  // レコードが対象のアクションは、変えるレコードのどれかを直しているなら、同じように断る（作るレコードは新しい id なので、直してはいない）。
+  // レコードか書庫が対象のアクションは、変えるレコードのどれかを直しているなら、同じように断る（作るレコードは新しい id なので、直してはいない）。
   // フォローステップが応じて変えたレコードは、利用者のアクションでも断る
   const done = performBulk(
     world,
