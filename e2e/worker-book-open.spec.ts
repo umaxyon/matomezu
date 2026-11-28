@@ -196,7 +196,9 @@ test("書庫の検索は、チケットの番号と名前・ページの名前�
   // チケットの名前に当たると、ブックの行は番号とチケットの名前。クリックで 2 択
   await field.fill("検索で見つける")
   await page.keyboard.press("Enter")
-  await expect(page.getByRole("status")).toHaveText("「検索で見つける」を含む名前: 1 件")
+  await expect(page.getByRole("status").filter({ hasText: "「検索で見つける」を含む名前:" })).toHaveText(
+    "「検索で見つける」を含む名前: 1 件",
+  )
   const book = history.getByRole("button", { name: /S-0001/ })
   await expect(book).toContainText("検索で見つける")
   await book.click()
