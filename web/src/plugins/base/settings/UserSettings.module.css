@@ -20,7 +20,7 @@
   align-items: center;
   gap: 12px;
 }
-/* 名前の列（「ファイアウォール設定」と「？」が 1 行に入る幅） */
+/* 名前の列（長めの項目名と「？」が 1 行に入る幅） */
 .label {
   width: 180px;
   flex: none;
