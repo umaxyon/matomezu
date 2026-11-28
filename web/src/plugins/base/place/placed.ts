@@ -67,6 +67,9 @@ export function stretchOf(catalog: CoreCatalog, item: string): Stretch | typeof 
   return (def !== NO_SHAPE_DEF ? def.stretch : undefined) ?? STRETCH_BOTH
 }
 
+// 置こうとしているアイテムの左上を、ポインタから左上へこれだけ離す（画面の px。紙もスライドも、押すと置く所はここ）
+export const PLACE_OFFSET: Point = { x: 16, y: 12 }
+
 // 機能台帳に無いアイテム（プラグインを外したなど）の形の大きさ（データに w・h が無いとき）
 export const UNKNOWN_SIZE: Size = { w: 64, h: 64 }
 

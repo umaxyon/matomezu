@@ -41,6 +41,33 @@ export interface Clip {
   connectors: PlacedConnector[] // 両端が写した形の中にある線
 }
 
+// OS のクリップボードから読んだ値 data を、写しとして確かめる（古い版の窓や外のページからも来るので、形の定義の項目と中身の形まで見る。表に無い形・線は通らない）。合わなければ null
+export function clipOfData(catalog: CoreCatalog, data: unknown): Clip | null {
+  if (typeof data !== "object" || data === null || !("shapes" in data) || !("connectors" in data)) return null
+  const { shapes, connectors } = data
+  if (!Array.isArray(shapes) || !Array.isArray(connectors) || shapes.length === 0) return null
+  const placed: PlacedShape[] = []
+  for (const shape of shapes) {
+    const one =
+      typeof shape === "object" && shape !== null && "item" in shape && typeof shape.item === "string"
+        ? parsePlaced(catalog, shape as { item: string })
+        : null
+    if (one === null) return null
+    placed.push(one)
+  }
+  const lines: PlacedConnector[] = []
+  for (const line of connectors) {
+    const def =
+      typeof line === "object" && line !== null && "item" in line && typeof line.item === "string"
+        ? catalog.items.get(line.item)
+        : undefined
+    const parsed = def?.kind === "connector" ? connectorSchema(def).safeParse(line) : undefined
+    if (!parsed?.success) return null
+    lines.push(parsed.data as PlacedConnector)
+  }
+  return { shapes: placed, connectors: lines }
+}
+
 // 選び selection（ページ page のアイテムの id）から作る写し。写せる形を選んでいなければ null、写せない形が混じれば "uncopyable"。
 // 選んだ形の子孫は、その形と一緒に写す（祖先も選んでいる形は、根にしない）
 export function clipOf(catalog: CoreCatalog, page: ItemPage, selection: readonly string[]): Clip | "uncopyable" | null {

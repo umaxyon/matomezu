@@ -65,6 +65,7 @@
 }
 .who {
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
 }
@@ -78,6 +79,47 @@
   font-size: 11px;
   color: var(--skin-text-muted);
   overflow-wrap: anywhere;
+}
+
+/* 会話の今のコンテキストの量: 行幅の細い棒と、右に数。物差しの 9 割以上で棒と数を赤に */
+.context {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+.bar {
+  display: flex;
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--skin-surface-muted);
+}
+.fill {
+  display: block;
+  flex: none;
+  height: 100%;
+  background: var(--skin-accent);
+}
+/* 棒のうち matomezu が使っている分（左から）。アクセントの明るい色 */
+.byMatomezu {
+  display: block;
+  flex: none;
+  height: 100%;
+  background: color-mix(in srgb, var(--skin-accent) 50%, #fff);
+}
+.amount {
+  flex: none;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.context[data-near-full="true"] .fill,
+.context[data-near-full="true"] .byMatomezu {
+  background: var(--skin-danger);
+}
+.context[data-near-full="true"] .amount {
+  color: var(--skin-danger);
 }
 
 /* ビジターの節の見出し（ワークルームの行の下） */

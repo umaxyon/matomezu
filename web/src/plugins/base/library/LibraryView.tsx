@@ -40,6 +40,7 @@ import {
 } from "./commands"
 import { holderForNewPage } from "./entries"
 import { FoundView } from "./FoundView"
+import { type LibraryFileDrop, useLibraryFileDrop } from "./file-drop"
 import { HistoryButtons } from "./HistoryButtons"
 import { useChoosing, useKeepFocusIn, useLibraryRows, useNameOf, useWorkdesks } from "./hooks"
 import { CHEVRON, RowIcon, TRASH } from "./icons"
@@ -100,6 +101,7 @@ interface Handlers {
   open(row: LibraryRow): void
   menu(e: MouseEvent, row: LibraryRow): void // 行の右クリックのメニューを開く
   drag: LibraryDrag | null
+  files: LibraryFileDrop["on"] // 外から落としたファイルを受ける（落とすと入るフォルダの id で）
   tabbable: string // ツリーで Tab で止まる行（今いる行。ツリーに出ていなければ書庫ホーム）
 }
 
@@ -203,8 +205,10 @@ export function LibraryView({ className }: { className?: string } = {}) {
         HOME_ID,
       ) ?? HOME_ID,
   )
+  const fileDrop = useLibraryFileDrop()
   const handlers: Handlers = {
     drag,
+    files: fileDrop.on,
     menu: (e, row) =>
       row.kind === "reference"
         ? openReferenceMenu(e, { reference: row.id })
@@ -402,6 +406,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
               ) : rows.length === 0 ? (
                 <p
                   className={styles.blank}
+                  {...fileDrop.on(opened)}
                   onContextMenu={e => openFolderMenu(e, { folder: opened, pressed: { x: e.clientX, y: e.clientY } })}
                 >
                   {t("Nothing inside")}
@@ -410,6 +415,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
                 <ul
                   className={styles.contents}
                   aria-label={t("Contents of {name}", { name: here })}
+                  {...fileDrop.on(opened)}
                   onContextMenu={e => openFolderMenu(e, { folder: opened, pressed: { x: e.clientX, y: e.clientY } })}
                   // ドラッグのあとの click は、useLibraryDrag が止める
                   {...pick.list}
@@ -421,6 +427,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
                       pressProps={pick.row(row.id)}
                       holder={opened}
                       drag={drag}
+                      files={fileDrop.on}
                       onOpen={() => handlers.open(row)}
                       onMenu={e => {
                         setPicked(row.id)
@@ -433,6 +440,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
             </>
           )}
         </div>
+        {fileDrop.confirm}
         {asking && <MoveClashConfirm asking={asking} onDone={answered} />}
         {clearing && <SettingsClearConfirm clearing={clearing} onDone={cleared} />}
       </div>
@@ -452,6 +460,7 @@ function ContentEntry({
   pressProps,
   holder,
   drag,
+  files,
   onOpen,
   onMenu,
 }: {
@@ -459,6 +468,7 @@ function ContentEntry({
   pressProps: { onClick: () => void } & Record<string, unknown>
   holder: string
   drag: LibraryDrag | null
+  files: LibraryFileDrop["on"]
   onOpen: () => void
   onMenu: (e: MouseEvent) => void
 }) {
@@ -478,6 +488,7 @@ function ContentEntry({
             data-reference={row.kind === "reference" ? "" : undefined}
             data-unchoosable={press.faded || undefined}
             {...dragMarks(drag, LIBRARY_CONTENTS_SCOPE, row.id)}
+            {...(row.kind === "folder" ? files(row.id) : files(holder, false))}
             onClick={press.onClick}
             onDoubleClick={press.onDoubleClick}
             onContextMenu={onMenu}
@@ -546,6 +557,7 @@ function TreeNode({
               data-holder={holder}
               data-unchoosable={press.faded || undefined}
               {...dragMarks(handlers.drag, LIBRARY_TREE_SCOPE, row.id)}
+              {...(row.kind === "folder" ? handlers.files(row.id) : handlers.files(holder, false))}
               aria-current={holds && row.id === handlers.opened ? "true" : undefined}
               aria-pressed={!holds && row.id === handlers.picked}
               onClick={press.onClick}

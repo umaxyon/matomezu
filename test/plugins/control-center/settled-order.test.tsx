@@ -4,6 +4,7 @@ import { cleanup, renderHook } from "@testing-library/react"
 import {
   NO_AI_UI,
   NO_BRANCH,
+  NO_CONTEXT_USE,
   NO_MODEL,
   NO_OCCUPANT,
   NOT_CALLED,
@@ -30,6 +31,7 @@ const row = (id: string, state: WorkroomRow["state"], requestedAt?: string): Wor
   wake: "none",
   requestedAt: requestedAt ?? NOT_REQUESTED,
   activity: "unknown",
+  contextUse: NO_CONTEXT_USE,
 })
 
 const ids = (rows: readonly WorkroomRow[]) => rows.map(r => r.room.id)

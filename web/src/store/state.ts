@@ -5,6 +5,7 @@ import type { Address } from "../core/address"
 import type { Annotations } from "../core/annotation"
 import type { AssetPut } from "../core/assets"
 import type { ControlCenterId, MessageKey, SkinId } from "../core/catalog"
+import type { ClipboardUse, ClipTransfer } from "../core/clipboard"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionOn } from "../core/def/action"
 import type { BROKEN, Folders, Library, Pages } from "../core/folders"
@@ -181,11 +182,20 @@ export interface StaleBuild {
 }
 
 // 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチと、起こす知らせを渡せる matomezu watch がつながっているか（reaches。
-// つながっていなければ持たない）（知らされていない物は持たない）
+// つながっていなければ持たない）と、AI のフックが知らせた会話の今のコンテキストの量（知らされていない物は持たない）
 export interface ParticipantLive {
   readonly model?: string
   readonly branch?: string
   readonly wake?: "reaches"
+  readonly contextUse?: ContextUse
+}
+
+// 会話の今のコンテキストの量（used）と、AI の側の物差し（aiScale。自動で縮める所、無ければモデルの上限）と、
+// 量のうち matomezu が使っている分の目安（byMatomezu。会話の記録の字数の割合から出す。分からなければ 0）。どれもトークン
+export interface ContextUse {
+  readonly used: number
+  readonly aiScale: number
+  readonly byMatomezu: number
 }
 
 // 編集ロックの 1 つ: within（ページの id か、ブックの id）の中の物 ids（ページなら、アイテムなどとそのページのアノテーションとページそのもの。ブックなら、バインダとブックそのもの）か、対象の種類 subject のレコード ids
@@ -268,6 +278,9 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   ): void
   // まだ見ていない画面の履歴の段が見えたかを確かめ直す（窓が見えるようになったとき。ホストクライアントだけが使う。プラグインに渡す actions には入れない）
   checkSeen(): void
+  // ブラウザのクリップボードのイベント（use。copy と cut はどちらも書く）が来たら呼ぶ: 待たせているコマンドがあれば、運ぶ物 transfer を常駐 host（窓の源）のクリップボードとして渡して行い、
+  // 行ったか返す（ホストクライアントだけが使う。プラグインに渡す actions には入れない）
+  clipboardEvent(use: ClipboardUse, transfer: ClipTransfer, host: string): boolean
   // ホストの言葉の検索（横断検索）。base のフック useWideSearch を通して使う（プラグインに渡す actions には入れない）。
   // ホストが無いか、頼めなければ、投げる（検索の見た目が受ける）
   search(query: WideSearchQuery): Promise<WideSearchAnswer>
@@ -459,6 +472,12 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   visible?: () => boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。無ければいつも見えている）
   search?: (query: WideSearchQuery) => Promise<WideSearchAnswer> // ホストの言葉の検索（横断検索）。無ければ、どの言葉にも横断検索の当たりなし
   copyText?: (text: string) => Promise<void> // ブラウザのクリップボードに文字を書く。無ければ、書けないとして投げる（E404）
+  // ブラウザに copy のイベントを起こしてもらう（メニューから呼んだコピーを、キーと同じクリップボードの道で行うため）。起きたか返す。無ければ起こせない
+  requestCopyEvent?: () => boolean
+  // キー key でブラウザが起こすクリップボードのイベント（起こさなければ undefined）。無ければ、どのキーも起こさないとして、クリップボードを使うコマンドもその場で行う
+  clipboardEventOf?: (key: string) => ClipboardUse | undefined
+  // キーで待たせたクリップボードを使うコマンドが、ブラウザのクリップボードのイベントを待つ長さ（ミリ秒）。無ければ次のタイマーまで
+  clipboardEventWaitMs?: number
   // アセット（画像のバイト列）をホストに置く口と、中身を読む URL。無ければ、置くと投げ（E416）、URL は NO_ASSET_URL
   assetsHost?: { put(bytes: Blob): Promise<AssetPut>; url(id: string): string }
   command?: string // 利用者が端末で打つ matomezu の名前。無ければ matomezu

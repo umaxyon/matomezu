@@ -44,9 +44,6 @@ import {
 } from "../../base"
 import { type Came, clampBy, dragRects, dropManyRects, dropRects, track } from "./drag"
 
-// 置こうとしているアイテムの左上を、ポインタから左上へこれだけ離す（画面の px）
-export const PLACE_OFFSET: Point = { x: 16, y: 12 }
-
 // 位置の引き算に出る浮動小数点の誤差（99.99999999999999 など）を落とした量（線の手直しの点に足すので、整数の点が整数のままになる）
 const noiseless = (v: number): number => Math.round(v * 1e6) / 1e6
 

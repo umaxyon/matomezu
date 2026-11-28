@@ -1,7 +1,7 @@
 // 参加: AI が join で参加を頼むと、参加要求のしおりが出る（郵便箱には出さない）。しおりのダイアログで断る・受け入れるを選べる。
 // 受け入れるは、ワークルームの名前・鳥・配色を決めるダイアログを開き、決めるとコントロールセンターの参加者リストに出る。断ると何も残さず、AI の次の呼び出しで断られたと分かる。
 // 受け入れのダイアログの［キャンセル］は要求を終え、AI はキャンセルされたと分かる
-import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
+import { aiAuth, BOOK_SCREEN_URL, expect, type Locator, type Page, test } from "./fixtures"
 import { fromMenu } from "./helpers/stage-menu"
 
 const JOINED = "ワークルームに入れます"
@@ -145,6 +145,63 @@ test("セッション id を join で運ぶ AI（フックの無い AI）は、�
     "You joined matomezu",
   )
   await expect(room).toContainText("たった今")
+})
+
+test("フックが知らせた会話のコンテキストの量は、参加者リストの行のいちばん下に棒と数で出て、matomezu の分の目安があれば棒の左から別の色で塗り、物差しの 9 割以上で赤になり、全体設定で物差しを変えると変わり、読めないと知らされると消える", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(BOOK_SCREEN_URL)
+  await join(page, "e2e-link-30", "context", "", "S-e2e-30")
+  await openRequest(page).then(d => d.getByRole("button", { name: "受け入れる" }).click())
+  await page.getByRole("dialog", { name: JOINED }).getByRole("button", { name: "受け入れる" }).click()
+  await closeWelcome(page)
+  await (await fromMenu(page, "コントロールセンター")).click()
+  const row = page.getByRole("listitem").filter({ hasText: "context" })
+  const bar = row.locator("[data-context-use]")
+  await expect(row).toContainText("（空き）")
+  await expect(bar).toHaveCount(0)
+  const tell = (contextUse: unknown) =>
+    page.request.post("/api/ai/context-use", { headers: aiAuth(), data: { sessionId: "S-e2e-30", contextUse } })
+  await tell({ used: 120_400, aiScale: 300_000 })
+  await expect(bar).toHaveText("120k")
+  await expect(bar).toHaveAttribute("data-near-full", "false")
+  // matomezu の分の目安が無ければ色分けせず、あれば棒の左から別の色で塗る
+  const byMatomezu = bar.locator("[data-by-matomezu]")
+  await expect(byMatomezu).toHaveCount(0)
+  await tell({ used: 120_000, aiScale: 300_000, byMatomezu: 30_000 })
+  await expect(byMatomezu).toHaveCount(1)
+  await expect(bar).toHaveAttribute("title", "matomezu 25% / その他 75%")
+  const box = (e: Locator) =>
+    e.evaluate(el => ({
+      color: getComputedStyle(el).backgroundColor,
+      left: el.getBoundingClientRect().left,
+      width: el.getBoundingClientRect().width,
+    }))
+  const mine = await box(byMatomezu)
+  const rest = await box(byMatomezu.locator("xpath=following-sibling::span[1]"))
+  expect(mine.color).not.toBe(rest.color)
+  expect(mine.left).toBeLessThan(rest.left)
+  expect(rest.width / mine.width).toBeCloseTo(3, 1)
+  await tell({ used: 120_400, aiScale: 300_000 })
+  await expect(byMatomezu).toHaveCount(0)
+  await expect(bar).not.toHaveAttribute("title")
+  const amount = bar.getByText("120k")
+  const calm = await amount.evaluate(e => getComputedStyle(e).color)
+  await tell({ used: 280_000, aiScale: 300_000 })
+  await expect(bar).toHaveText("280k")
+  await expect(bar).toHaveAttribute("data-near-full", "true")
+  expect(await bar.getByText("280k").evaluate(e => getComputedStyle(e).color)).not.toBe(calm)
+  // 全体設定で物差しを 100 万にすると、同じ量でも赤でなくなる
+  await page.getByRole("button", { name: "全体設定" }).click()
+  const settings = page.getByRole("dialog", { name: "設定" })
+  await settings.getByRole("combobox", { name: "コンテキストバー上限" }).selectOption({ label: "100 万" })
+  await page.keyboard.press("Escape")
+  await expect(settings).toHaveCount(0)
+  await expect(bar).toHaveText("280k")
+  await expect(bar).toHaveAttribute("data-near-full", "false")
+  await tell("unknown")
+  await expect(bar).toHaveCount(0)
 })
 
 test("保留中の参加要求は参加者の一覧に出ず、一覧が空のうちは空と出る", async ({ page }) => {

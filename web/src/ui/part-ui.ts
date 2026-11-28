@@ -15,7 +15,7 @@ export interface PartUi {
 }
 
 export const PART_UI = {
-  pageTypes: { views: ["pageTypeIcons"], define: ["definePageType"] },
+  pageTypes: { views: ["pageTypeIcons", "binderTypeIcons"], define: ["definePageType"] },
   controlCenters: { views: [], define: ["defineControlCenter"] },
   items: { views: ["items", "connectors"], define: ["defineShape", "defineConnector"] },
   actions: { views: [], define: ["defineAction"] },
@@ -26,7 +26,7 @@ export const PART_UI = {
   toolSets: { views: [], define: ["defineToolSet"] },
   permissions: { views: [], define: ["definePermission"] },
   annotations: { views: [], define: ["defineAnnotation"] },
-  systemFolders: { views: [], define: ["defineSystemFolder"] },
+  systemFolders: { views: ["systemFolderIcons"], define: ["defineSystemFolder"] },
   backyards: { views: [], define: ["defineBackyard"] },
   mails: { views: [], define: ["defineMail"] },
   subjects: { views: [], define: ["defineSubject"] },

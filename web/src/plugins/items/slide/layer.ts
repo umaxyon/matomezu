@@ -49,6 +49,10 @@ export function minSizeOf(catalog: CoreCatalog, item: string): number {
   return def?.kind === "shape" && def.min ? Math.max(def.min.w, def.min.h) : MIN_SIZE
 }
 
+// 大きさが項目で決まる形 item を、項目 props で置いたときの大きさ（決まらなければ NO_SIZE）
+export const stampSize = (catalog: CoreCatalog, item: ItemId, props: Record<string, unknown>) =>
+  placedSize(catalog, { id: "", x: 0, y: 0, item, props } as PlacedShape)
+
 // なぞった点 points に、置こうとしているアイテム item を置く四角と項目（なぞれていなければ、置くときの大きさで始めの点に。置かないなら null）。
 // zoom はステージの倍率（押しただけとみなす動きと、自由な線の点の間引きの間を、紙の上の px にする）。
 // given は置こうとしている物が持つ項目（スクラップトレイから置くスクラップなど）。大きさが項目で決まる形は、なぞらず、始めの点にその項目のまま置く
@@ -65,7 +69,7 @@ export function drawnPlacement(
   if (!from || !to || def?.kind !== "shape") return null
   if (writesSize(catalog, item)) {
     const props = given ?? {}
-    const size = placedSize(catalog, { id: "", x: 0, y: 0, item, props } as PlacedShape)
+    const size = stampSize(catalog, item, props)
     return size === NO_SIZE ? null : { rect: roundRect({ x: from.x, y: from.y, ...size }), props }
   }
   const moved = Math.hypot(to.x - from.x, to.y - from.y) >= CLICK / zoom

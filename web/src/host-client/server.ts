@@ -22,6 +22,7 @@ import { NOT_INSIDE, PURGED, type UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
 import type {
   Build,
+  ContextUse,
   ForeignChange,
   HostPeers,
   HostRequest,
@@ -146,17 +147,19 @@ const browserNet: Net = {
   now: () => Date.now(),
 }
 
-// 参加者の様子のうち、空でない物（モデルもブランチも無く、起こす知らせを渡せる matomezu watch もつながっていなければ undefined）
+// 参加者の様子のうち、空でない物（モデルもブランチもコンテキストの量も無く、起こす知らせを渡せる matomezu watch もつながっていなければ undefined）
 const liveOf = (v: {
   model?: string | undefined
   branch?: string | undefined
   wake?: "reaches" | undefined
+  contextUse?: ContextUse | undefined
 }): ParticipantLive | undefined =>
-  v.model || v.branch || v.wake
+  v.model || v.branch || v.wake || v.contextUse
     ? {
         ...(v.model ? { model: v.model } : {}),
         ...(v.branch ? { branch: v.branch } : {}),
         ...(v.wake ? { wake: v.wake } : {}),
+        ...(v.contextUse ? { contextUse: v.contextUse } : {}),
       }
     : undefined
 
@@ -186,7 +189,7 @@ export function serverClient(net: Net = browserNet): HostClient {
   let hostStatus: HostStatus | undefined // ホストどうしの入口の様子（読んだか知らされた物）
   let hostPeers: HostPeers | undefined // ほかのホストの様子（読んだか知らされた物）
   let participantReady: string[] = [] // 準備中でない参加者の id（増えるだけ）
-  let participantLive: Record<string, ParticipantLive> = {} // 参加者の id → モデルとブランチ（どちらも無い参加者は持たない）
+  let participantLive: Record<string, ParticipantLive> = {} // 参加者の id → 様子（モデル・ブランチ・起こす知らせの通り道・コンテキストの量。どれも無い参加者は持たない）
   let plugins: { id: string; ui: string; css?: string; disabled?: boolean }[] = []
   let client = ""
   let warnings: readonly Warning[] = [] // 画面が見つけた warning（つなぎ直すたびに知らせ直す）

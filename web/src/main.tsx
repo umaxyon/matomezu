@@ -5,6 +5,7 @@
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { fail } from "./core/errors"
+import { followClipboard } from "./host-client/clipboard"
 import { loadFonts } from "./host-client/fonts"
 import { followLocation } from "./host-client/location"
 import { openClient } from "./host-client/open"
@@ -75,6 +76,8 @@ store.startWindow()
 followLocation(store)
 // 画面が頼んだら、ブラウザの印刷ダイアログで刷る
 followPrint(store)
+// キーやメニューのコピー・貼り付けを、ブラウザのクリップボードのイベントで行う
+followClipboard(store)
 
 createRoot(root).render(
   <StrictMode>

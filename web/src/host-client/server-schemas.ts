@@ -122,6 +122,12 @@ export const HostPeersSchema = z.object({
     })
     .optional(),
 })
+// 参加者の会話の今のコンテキストの量と、AI の側の物差し（どちらもトークン。分からなければ常駐が省く）
+const CONTEXT_USE = z.object({
+  used: z.number(),
+  aiScale: z.number().positive(),
+  byMatomezu: z.number().nonnegative().default(0),
+})
 export const DataSchema = z.object({
   pages: z.array(z.object({ id: z.string(), page: z.unknown(), version: z.number().int() })),
   folders: z.array(z.object({ id: z.string(), folder: z.unknown(), version: z.number().int() })),
@@ -141,7 +147,12 @@ export const DataSchema = z.object({
   participantLive: z
     .record(
       z.string(),
-      z.object({ model: z.string().optional(), branch: z.string().optional(), wake: z.literal("reaches").optional() }),
+      z.object({
+        model: z.string().optional(),
+        branch: z.string().optional(),
+        wake: z.literal("reaches").optional(),
+        contextUse: CONTEXT_USE.optional(),
+      }),
     )
     .optional(),
 })
@@ -181,6 +192,7 @@ export const ParticipantLiveSchema = z.object({
   model: z.string().optional(),
   branch: z.string().optional(),
   wake: z.literal("reaches").optional(),
+  contextUse: CONTEXT_USE.optional(),
 })
 export const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 export const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown() })

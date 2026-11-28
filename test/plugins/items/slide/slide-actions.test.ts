@@ -3,6 +3,7 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../../web/src/core/book"
 import { HOME_ID } from "../../../../web/src/core/folders"
+import { NO_PAPER } from "../../../../web/src/core/stage"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../../../web/src/plugins"
 import { createBookIn } from "../../../../web/src/plugins/base"
 import {
@@ -13,7 +14,7 @@ import {
   SLIDE_RESIZE,
   SLIDE_UPDATE,
 } from "../../../../web/src/plugins/items/slide/actions"
-import { SLIDE_SET } from "../../../../web/src/plugins/items/slide/commands"
+import { SLIDE_DROP, SLIDE_SET } from "../../../../web/src/plugins/items/slide/commands"
 import { createMatomezu } from "../../../../web/src/store/create"
 import { SLIDE, testBinder, testBook, testPage, withSlide } from "../../../lineup"
 import { newStore, sequence } from "../../../support"
@@ -219,4 +220,18 @@ test("slide に置けるのは、ページのタイプの slide.allowed のア�
   expect(s.perform(SLIDE_PLACE.id, { item: "@matomezu/box:shape-box", props: {} }, on).ok).toBe(false)
   expect(s.perform(SLIDE_PLACE.id, { item: TEXT, props: { text: 1 } }, on).ok).toBe(false)
   expect(s.perform(SLIDE_PLACE.id, { item: LINE }, on).ok).toBe(true) // 項目が無ければ既定
+})
+
+test("落としたか貼ったファイルの置く所が紙の上に無ければ（slide-drop の at が NO_PAPER）、スライドの左上から右へ shift の所に置く", () => {
+  const store = newStore({ books: [slideBook()] })
+  const ran = store.actions.command("s1", SLIDE_DROP.id, {
+    page: "p1",
+    item: ELLIPSE as never,
+    at: NO_PAPER,
+    shift: 30,
+    props: {},
+  })
+  expect(ran).toBe(true)
+  const slide = (pagesOf(store.state.getState().books.b1!)[0]!.slide ?? []) as unknown as { x: number; y: number }[]
+  expect(slide.map(s => ({ x: s.x, y: s.y }))).toEqual([{ x: 30, y: 0 }])
 })

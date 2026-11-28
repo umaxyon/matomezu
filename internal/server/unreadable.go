@@ -176,7 +176,7 @@ func (h *Hub) writeUnreadable(pages, folders []engine.RowChange, quiet bool) err
 	if err := h.store.Apply(plan.batch); err != nil {
 		return err
 	}
-	h.applyWrites(plan, out, Perform{}, "", "")
+	h.applyWrites(plan, out, Perform{}, "host", "") // 常駐が自分で行った書き込み（窓は by が無い・違う知らせを受けない）
 	return nil
 }
 

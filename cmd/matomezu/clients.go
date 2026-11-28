@@ -107,16 +107,53 @@ type claudeHookCmd struct {
 	Prompt     claudePromptCmd     `cmd:"" help:"UserPromptSubmit: tell matomezu the user talked, and add the notes that wait for AI."`
 	Model      claudeModelCmd      `cmd:"" help:"SessionStart and PostModelSwitch: tell matomezu the session's model."`
 	Permission claudePermissionCmd `cmd:"" help:"PreToolUse: let the matomezu tools that only read be used without asking."`
-	Stop       claudeStopCmd       `cmd:"" help:"Stop: write the work title to the display name of the ADE workspace this session runs in, if any (prints nothing)."`
+	Stop       claudeStopCmd       `cmd:"" help:"Stop: write the work title to the display name of the ADE workspace this session runs in, if any, and tell matomezu how much context the session uses (prints nothing)."`
+	ContextUse claudeContextUseCmd `cmd:"" name:"context-use" help:"PostToolUse: tell matomezu how much context the session uses, read from its transcript (prints nothing)."`
 }
 
 type claudeStopCmd struct{}
 
-// Run は、ターンの終わりに、作業名を ADE のワークスペースの表示名に書く
+// Run は、ターンの終わりに、作業名を ADE のワークスペースの表示名に書き、コンテキストの量を知らせる
 func (claudeStopCmd) Run() error {
 	claudeDev()
-	hookStop()
+	hook := stdinHook()
+	hook.Host = hookHost(claudelaunch.HooksSendHost)
+	hookStop(hook)
+	sendContextUse(hook, claudeContextUse, claudeContextChars, runningAPI("api/ai/context-use"))
 	return nil
+}
+
+type claudeContextUseCmd struct{}
+
+// Run は、ツールを使ったあとに、コンテキストの量を知らせる
+func (claudeContextUseCmd) Run() error {
+	claudeDev()
+	hook := stdinHook()
+	hook.Host = hookHost(claudelaunch.HooksSendHost)
+	sendContextUse(hook, claudeContextUse, claudeContextChars, runningAPI("api/ai/context-use"))
+	return nil
+}
+
+// claudeContextUse は、Claude Code の会話の記録と設定から、今のコンテキストの量と物差しを読む（設定を重ねるプロジェクトは ProjectDirEnv、無ければフックの cwd）
+func claudeContextUse(hook hookInput) (contextUse, bool) {
+	project := os.Getenv(claudelaunch.ProjectDirEnv)
+	if project == "" {
+		project = hook.Cwd
+	}
+	u := claudelaunch.ReadContextUse(hook.TranscriptPath, project, claudelaunch.ConfigDir(), os.Getenv)
+	if u == claudelaunch.NoContextUse {
+		return contextUse{}, false
+	}
+	return contextUse{Used: u.Used, AIScale: u.AIScale}, true
+}
+
+// claudeContextChars は、Claude Code の会話の記録を印 from から読み、中身の字数と matomezu の分を数える
+func claudeContextChars(hook hookInput, from string) (charsRead, bool) {
+	r, ok := claudelaunch.ReadContextChars(hook.TranscriptPath, from)
+	if !ok {
+		return charsRead{}, false
+	}
+	return charsRead{restart: r.Restart, chars: contextChars{Total: r.Chars.Total, Matomezu: r.Chars.Matomezu}, mark: r.Mark}, true
 }
 
 type claudePromptCmd struct {
@@ -133,10 +170,13 @@ func (c claudePromptCmd) Run() error {
 
 type claudeModelCmd struct{}
 
-// Run は、セッションのモデルを知らせる
+// Run は、セッションのモデルとコンテキストの量を知らせる
 func (claudeModelCmd) Run() error {
 	claudeDev()
-	hookModel(hookHost(claudelaunch.HooksSendHost))
+	hook := stdinHook()
+	hook.Host = hookHost(claudelaunch.HooksSendHost)
+	hookModel(hook)
+	sendContextUse(hook, claudeContextUse, claudeContextChars, runningAPI("api/ai/context-use"))
 	return nil
 }
 
@@ -205,18 +245,42 @@ func (codexMCPCmd) Run() error {
 }
 
 type codexHookCmd struct {
-	Prompt codexPromptCmd `cmd:"" help:"UserPromptSubmit: tell matomezu the user talked, and add the notes that wait for AI."`
-	Model  codexModelCmd  `cmd:"" help:"SessionStart: tell matomezu the session's model."`
-	Stop   codexStopCmd   `cmd:"" help:"Stop: write the work title to the display name of the ADE workspace this session runs in, if any (prints nothing)."`
+	Prompt     codexPromptCmd     `cmd:"" help:"UserPromptSubmit: tell matomezu the user talked, and add the notes that wait for AI."`
+	Model      codexModelCmd      `cmd:"" help:"SessionStart: tell matomezu the session's model and how much context it uses."`
+	Stop       codexStopCmd       `cmd:"" help:"Stop: write the work title to the display name of the ADE workspace this session runs in, if any, and tell matomezu how much context the session uses (prints nothing)."`
+	ContextUse codexContextUseCmd `cmd:"" name:"context-use" help:"PostToolUse and PostCompact: tell matomezu how much context the session uses, read from its rollout (prints nothing)."`
 }
 
 type codexStopCmd struct{}
 
-// Run は、ターンの終わりに、作業名を ADE のワークスペースの表示名に書く
+// Run は、ターンの終わりに、作業名を ADE のワークスペースの表示名に書き、コンテキストの量を知らせる
 func (codexStopCmd) Run() error {
 	codexDev()
-	hookStop()
+	hook := stdinHook()
+	hook.Host = hookHost(codexlaunch.HooksSendHost)
+	hookStop(hook)
+	sendContextUse(hook, codexContextUse, nil, runningAPI("api/ai/context-use"))
 	return nil
+}
+
+type codexContextUseCmd struct{}
+
+// Run は、ツールを使ったあとと圧縮のあとに、コンテキストの量を知らせる
+func (codexContextUseCmd) Run() error {
+	codexDev()
+	hook := stdinHook()
+	hook.Host = hookHost(codexlaunch.HooksSendHost)
+	sendContextUse(hook, codexContextUse, nil, runningAPI("api/ai/context-use"))
+	return nil
+}
+
+// codexContextUse は、Codex の会話の記録（rollout）から、今のコンテキストの量と物差しを読む（matomezu の分の字数は読まない。codexlaunch の context.go）
+func codexContextUse(hook hookInput) (contextUse, bool) {
+	u := codexlaunch.ReadContextUse(hook.TranscriptPath)
+	if u == codexlaunch.NoContextUse {
+		return contextUse{}, false
+	}
+	return contextUse{Used: u.Used, AIScale: u.AIScale}, true
 }
 
 type codexPromptCmd struct{}
@@ -233,7 +297,10 @@ type codexModelCmd struct{}
 // Run は、セッションのモデルを知らせる
 func (codexModelCmd) Run() error {
 	codexDev()
-	hookModel(hookHost(codexlaunch.HooksSendHost))
+	hook := stdinHook()
+	hook.Host = hookHost(codexlaunch.HooksSendHost)
+	hookModel(hook)
+	sendContextUse(hook, codexContextUse, nil, runningAPI("api/ai/context-use"))
 	return nil
 }
 
@@ -271,16 +338,13 @@ func hookPrompt(host string, titled bool, woken func(prompt string) bool, thread
 	talked(os.Stdout, hook, notes.String(), formatHook, runningAPI("api/ai/talked"))
 }
 
-// hookStop は、ターンの終わりのフック: 作業名を ADE のワークスペースの表示名に書く（何も出さない）
-func hookStop() {
-	hook := stdinHook()
+// hookStop は、ターンの終わりのフック: 作業名を ADE のワークスペースの表示名に書く（何も出さない。hook はフックの入力）
+func hookStop(hook hookInput) {
 	hook.Rename = renameAdeWorkspace
 	workTitle(hook, runningAPI("api/ai/work-title"))
 }
 
-// hookModel は、モデルのフック: セッションのモデルを常駐に知らせる（host は AI のプログラムのプロセス id、分からなければ空）
-func hookModel(host string) {
-	hook := stdinHook()
-	hook.Host = host
+// hookModel は、モデルのフック: セッションのモデルを常駐に知らせる（hook はフックの入力。Host は AI のプログラムのプロセス id、分からなければ空）
+func hookModel(hook hookInput) {
 	sendModel(hook, runningAPI("api/ai/model"))
 }

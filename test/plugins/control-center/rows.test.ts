@@ -4,6 +4,7 @@ import { NO_STATE } from "../../../web/src/core/def/plugin-state"
 import {
   NO_AI_UI,
   NO_BRANCH,
+  NO_CONTEXT_USE,
   NO_MODEL,
   NO_OCCUPANT,
   NOT_CALLED,
@@ -32,6 +33,7 @@ const row = (state: WorkroomRow["state"], admin = false, id = "a"): WorkroomRow 
   wake: "none",
   requestedAt: NOT_REQUESTED,
   activity: "unknown",
+  contextUse: NO_CONTEXT_USE,
 })
 
 test("一覧の下の 1 行は、空室と準備中だけ文字で出し、参加済みはスロットに任せる", () => {

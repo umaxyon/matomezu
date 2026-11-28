@@ -22,6 +22,11 @@ export const CONTROL_CENTER_MESSAGES = defineMessages({
   "Visitor (read only)": { en: "Visitor (read only)", ja: "ビジター（読むだけ）" },
   "(empty)": { en: "(empty)", ja: "（空室）" },
   "(preparing)": { en: "(preparing)", ja: "（準備中）" },
+  "{n}k": { en: "{n}k", ja: "{n}k" },
+  "matomezu {matomezu}% / Others {rest}%": {
+    en: "matomezu {matomezu}% / Others {rest}%",
+    ja: "matomezu {matomezu}% / その他 {rest}%",
+  },
   "Workroom information": {
     en: "Workroom information, features (undecided)",
     ja: "選択したワークルームの情報、各種機能（未定）",

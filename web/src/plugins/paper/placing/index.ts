@@ -4,15 +4,25 @@ export { ITEM_MOVE, ITEM_PASTE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RES
 export {
   ITEM_KEYS,
   PAPER_DELETE,
+  PAPER_DROP,
   PAPER_EDIT,
   PAPER_MOVE,
   PAPER_PLACE,
   PAPER_REPARENT,
   PAPER_RESIZE,
   PAPER_SELECT_ALL,
+  pastedAt,
   placeAt,
 } from "./commands"
-export { COPY_PASTE_KEYS, PAPER_COPY, PAPER_CUT, PAPER_DUPLICATE, PAPER_PASTE, PAPER_PASTE_AT } from "./copy-paste"
+export {
+  COPY_PASTE_KEYS,
+  PAPER_COPY,
+  PAPER_CUT,
+  PAPER_DUPLICATE,
+  PAPER_PASTE,
+  PAPER_PASTE_AT,
+  PAPER_PASTE_CLIPBOARD,
+} from "./copy-paste"
 export { type Came, DIRS, type Dir } from "./drag"
 export { dragging, dropTarget, movableTogether, type PlaceTarget, placeTarget, placingShape, trackDrag } from "./items"
 export {

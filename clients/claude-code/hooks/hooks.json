@@ -7,6 +7,7 @@
         "hooks": [{ "type": "command", "command": "matomezu claude-code hook permission" }]
       }
     ],
+    "PostToolUse": [{ "hooks": [{ "type": "command", "command": "matomezu claude-code hook context-use" }] }],
     "UserPromptSubmit": [
       { "hooks": [{ "type": "command", "command": "matomezu claude-code hook prompt --refreshable" }] }
     ],

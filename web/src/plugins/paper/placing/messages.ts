@@ -14,6 +14,10 @@ export const PLACING_MESSAGES = defineMessages({
   Paste: { en: "Paste", ja: "貼り付け" },
   Duplicate: { en: "Duplicate", ja: "複製" },
   "Cannot be copied": { en: "Cannot be copied", ja: "コピーできません" },
+  "It was copied in another matomezu": {
+    en: "It was copied in another matomezu",
+    ja: "ほかの matomezu でコピーした物は貼れません",
+  },
   Delete: { en: "Delete", ja: "削除" },
   "Select all": { en: "Select all", ja: "すべて選択" },
   Settings: { en: "Settings", ja: "設定" },

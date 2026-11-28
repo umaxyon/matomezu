@@ -65,7 +65,7 @@ import {
   roomOf,
   shownRects,
 } from "../../base"
-import { modPressed, PaperFrame, useFollowsSelection } from "../../base/ui"
+import { type FileDrop, modPressed, PaperFrame, useFileDrop, useFilePasteAt, useFollowsSelection } from "../../base/ui"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
 import {
@@ -74,11 +74,14 @@ import {
   dropTarget,
   lifted,
   movableTogether,
+  PAPER_DROP,
   PAPER_EDIT,
   PAPER_MOVE,
+  PAPER_PASTE_CLIPBOARD,
   PAPER_PLACE,
   PAPER_REPARENT,
   PAPER_RESIZE,
+  pastedAt,
   pressSelection,
   shapesIn,
   sweptBox,
@@ -105,7 +108,7 @@ interface Sweep {
 const SWEEP_START = 3
 
 // 要素の左上から見たポインタの位置
-const local = (e: PointerEvent<Element>, el: Element): Point => {
+const local = (e: { clientX: number; clientY: number }, el: Element): Point => {
   const r = el.getBoundingClientRect()
   return { x: e.clientX - r.left, y: e.clientY - r.top }
 }
@@ -128,6 +131,17 @@ export function PaperView() {
   const followed = useFollowsSelection()
   const placed = usePlaceTarget(placing ? pointer : null) // 置こうとしている間の、押すと置く所
   const [box, setBox] = useState<Rect | null>(null) // 範囲のドラッグの四角（紙の上）
+  // 外から落としたファイルのスクラップを、落とした所に置く（左上が落とした所に来る）
+  const drop = useCommand(PAPER_DROP.id)
+  const placeFile = (d: FileDrop) =>
+    drop.run({ page: d.page, item: d.item, props: d.props, pointer: d.at, shift: d.shift })
+  const files = useFileDrop(e => local(e, e.currentTarget), placeFile)
+  // Ctrl+V で貼ったファイルも、最後にポインタが在った所に置く（紙の上でなければ、最初の空きに）
+  useFilePasteAt(
+    PAPER_PASTE_CLIPBOARD.id,
+    p => (ref.current && stage !== NO_STAGE ? pastedAt(stage, toPaperAt, local(p, ref.current)) : NO_PAPER),
+    placeFile,
+  )
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (placing && ref.current) setPointer(local(e, ref.current))
@@ -190,6 +204,8 @@ export function PaperView() {
       onPointerDown={onPointerDown}
       onPointerUp={endSweep}
       onPointerCancel={endSweep}
+      onDragOver={files.onDragOver}
+      onDrop={files.onDrop}
     >
       <Content stage={stage} pointer={placing ? pointer : null} placed={placed} box={box} localOf={localOf} />
     </div>

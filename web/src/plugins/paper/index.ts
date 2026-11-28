@@ -17,11 +17,13 @@ import {
   PAPER_COPY,
   PAPER_CUT,
   PAPER_DELETE,
+  PAPER_DROP,
   PAPER_DUPLICATE,
   PAPER_EDIT,
   PAPER_MOVE,
   PAPER_PASTE,
   PAPER_PASTE_AT,
+  PAPER_PASTE_CLIPBOARD,
   PAPER_PLACE,
   PAPER_REPARENT,
   PAPER_RESIZE,
@@ -38,10 +40,12 @@ export const PAPER_PLUGIN = defineBuiltin(
     toolSets: [PAPER_TOOLS],
     actions: [ITEM_PLACE, ITEM_PASTE, ITEM_MOVE, ITEM_UPDATE, ITEM_RESIZE, ITEM_REMOVE, ITEM_REPARENT],
     commands: [
+      PAPER_DROP,
       PAPER_PLACE,
       PAPER_COPY,
       PAPER_CUT,
       PAPER_PASTE,
+      PAPER_PASTE_CLIPBOARD,
       PAPER_PASTE_AT,
       PAPER_DUPLICATE,
       PAPER_MOVE,
@@ -79,10 +83,12 @@ declare module "../../core/catalog" {
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
   interface CommandTable {
+    "@matomezu/paper:paper-drop": typeof PAPER_DROP
     "@matomezu/paper:paper-place": typeof PAPER_PLACE
     "@matomezu/paper:paper-copy": typeof PAPER_COPY
     "@matomezu/paper:paper-cut": typeof PAPER_CUT
     "@matomezu/paper:paper-paste": typeof PAPER_PASTE
+    "@matomezu/paper:paper-paste-clipboard": typeof PAPER_PASTE_CLIPBOARD
     "@matomezu/paper:paper-paste-at": typeof PAPER_PASTE_AT
     "@matomezu/paper:paper-duplicate": typeof PAPER_DUPLICATE
     "@matomezu/paper:paper-move": typeof PAPER_MOVE

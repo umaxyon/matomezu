@@ -8,13 +8,20 @@ import type { PlacedShape } from "../../../../web/src/core/placed"
 import type { Book } from "../../../../web/src/core/schema/book"
 import { NO_PLACING } from "../../../../web/src/core/stage"
 import { screenOf } from "../../../../web/src/core/window"
-import { CANNOT_RESIZE, type Edges, placedSize, resizedBy, sizedTo } from "../../../../web/src/plugins/base"
+import {
+  CANNOT_RESIZE,
+  type Edges,
+  PLACE_OFFSET,
+  placedSize,
+  resizedBy,
+  sizedTo,
+} from "../../../../web/src/plugins/base"
 import { floorsOf } from "../../../../web/src/plugins/base/place/size"
 import { SCRAP } from "../../../../web/src/plugins/base/scrap/scrap"
 import { SCRAP_BOX } from "../../../../web/src/plugins/items/scrap"
 import { lineColor } from "../../../../web/src/plugins/items/scrap/ScrapBoxView"
 import { sizedShapes } from "../../../../web/src/plugins/items/slide/layer"
-import { PLACE_OFFSET, placingShape } from "../../../../web/src/plugins/paper/placing/items"
+import { placingShape } from "../../../../web/src/plugins/paper/placing/items"
 import { placedOf, sizedStore } from "../../../support"
 
 const BOX = SCRAP_BOX.id

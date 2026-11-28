@@ -195,15 +195,25 @@ test.describe("スライドに置くスクラップ", () => {
     await page.goto(bookScreenUrl("slide-scrap-book"))
     await openScrapTray(page)
     await leftPanel(page).locator("[data-scrap-row]").first().getByRole("button").first().click()
+    // 置こうとしている間は、紙と同じく、足す印のポインタと、ポインタから左上へ離した所に置く大きさの点線の箱。押すとその箱の所に置く
     const at = await onPaper(page, 100, 80)
-    await page.mouse.click(at.x, at.y)
+    await page.mouse.move(at.x, at.y)
     const layer = page.locator("[data-slide-layer]")
+    await expect(layer).toHaveCSS("cursor", "copy")
+    const ghost = layer.locator("[data-ghost]")
+    await expect(ghost).toHaveCount(1)
+    const shown = (await ghost.boundingBox())!
+    expect(shown.x).toBeLessThan(at.x)
+    expect(shown.y).toBeLessThan(at.y)
+    await page.mouse.click(at.x, at.y)
     const placed = layer.locator("[data-item]").filter({ has: page.locator('[data-scrap="shown"]') })
     await expect(placed).toHaveCount(1)
     await expect(placed).toContainText("元の箱")
+    await expect(ghost).toHaveCount(0)
     const box = (await placed.boundingBox())!
-    expect(Math.abs(box.x - at.x)).toBeLessThan(3)
-    expect(Math.abs(box.y - at.y)).toBeLessThan(3)
+    expect(Math.abs(box.x - shown.x)).toBeLessThan(3)
+    expect(Math.abs(box.y - shown.y)).toBeLessThan(3)
+    expect(Math.abs(box.width - shown.width)).toBeLessThan(3)
 
     // 置くと選ばれている: つまみは四隅だけで、回すつまみと水平に戻すは無い
     await expect(layer.locator("[data-grip]")).toHaveCount(4)

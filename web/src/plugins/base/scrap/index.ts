@@ -81,6 +81,7 @@ export const SCRAP_OPEN_ORIGINAL = kit.defineCommand({
   // スクラップフレームの形のときだけ出す
   accepts: (ctx, { item }) => scrapOf(ctx, item) !== null,
 })
+export type { PageFromFile, PutAsset } from "./page-from-file"
 export {
   SCRAP,
   SCRAP_CUT,
