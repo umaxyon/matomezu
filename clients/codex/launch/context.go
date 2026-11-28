@@ -2,8 +2,6 @@ package launch
 
 // AI のコンテキストの大きさ: Codex の会話の記録（rollout の jsonl。フックの入力の transcript_path）から、今のコンテキストの量と、AI の側の物差し（model_context_window）を読む。
 // 会話の記録の形は Codex が公式に約束した物ではないので、頼る所はこのファイルの名前の付いた関数に閉じ、根拠を書く。
-// matomezu の分の目安は出さない: Code Mode（exec のツールに渡す JavaScript）の中の MCP の呼び出しは、event_msg の item_completed の McpToolCall で見分けられるが、
-// 結果が切り詰められ、exec の中で捨てたり要約したりできるので、モデルに入った量の目安にならない
 
 import (
 	"bytes"

@@ -130,11 +130,7 @@ export const HostPeersSchema = z.object({
     .optional(),
 })
 // 参加者の会話の今のコンテキストの量と、AI の側の物差し（どちらもトークン。分からなければ常駐が省く）
-const CONTEXT_USE = z.object({
-  used: z.number(),
-  aiScale: z.number().positive(),
-  byMatomezu: z.number().nonnegative().default(0),
-})
+const CONTEXT_USE = z.object({ used: z.number(), aiScale: z.number().positive() })
 export const DataSchema = z.object({
   pages: z.array(z.object({ id: z.string(), page: z.unknown(), version: z.number().int() })),
   folders: z.array(z.object({ id: z.string(), folder: z.unknown(), version: z.number().int() })),

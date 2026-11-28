@@ -189,7 +189,10 @@ test("コンテンツエリアに書庫が出ていても、チケットモー�
   await page.getByRole("button", { name: "横断検索" }).click()
   await panel(page).getByRole("textbox", { name: "検索する言葉" }).fill(label)
   // コンテンツエリアの書庫の表示が引っ込み、プロジェクトの表示が出て、番号に当たったチケットのカードが見える
-  await expect(page.getByRole("button", { name: "プロジェクト" }).first()).toHaveAttribute("aria-pressed", "true")
+  // （打つのを待ってから常駐に問い合わせ、答えで絞ってから表示が替わる。重いときは 5 秒を超えるので長く待つ）
+  await expect(page.getByRole("button", { name: "プロジェクト" }).first()).toHaveAttribute("aria-pressed", "true", {
+    timeout: 10_000,
+  })
   await expect(page.locator(`[data-card="${hit}"]`)).toBeVisible()
 })
 

@@ -377,23 +377,6 @@ func (o Options) aiWorkTitle(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"workTitle": o.Hub.WorkTitle(req.SessionID)})
 }
 
-// aiWorkShift は、ターンの終わりに、セッションの今の作業が替わったかを答える（AI のプログラムの部品が、利用者に聞く問いを読む。{"sessionId"} → {"ask"}。ask が無ければ聞かない。
-// 今の作業の印を覚え直すので、読むだけでない）
-func (o Options) aiWorkShift(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		SessionID string `json:"sessionId"`
-	}
-	if r.ContentLength != 0 && !readJSON(w, r, &req) {
-		return
-	}
-	ask, err := o.Hub.WorkShift(req.SessionID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	writeJSON(w, map[string]any{"ask": ask})
-}
-
 func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SessionID  string   `json:"sessionId"`
@@ -403,6 +386,8 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 		Prompt     string   `json:"prompt"` // ターンの入力
 		// ChatThread は、この会話を動かすチャットスレッドの id（AI の側の部品が読む。分からなければ空）
 		ChatThread string `json:"chatThread"`
+		// Refreshable は、AI のプログラムが会話を空にできると名乗った（その部品がリフレッシュリクエストを受けて空にする。refresh.go）
+		Refreshable bool `json:"refreshable"`
 	}
 	if r.ContentLength != 0 && !readJSON(w, r, &req) {
 		return
@@ -416,6 +401,10 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 		lent = o.Hub.WokenBy(req.Prompt)
 		if !req.Woken && !lent {
 			o.Hub.UserTalkedIn(req.SessionID)
+			if err := o.Hub.DropRefresh(req.SessionID); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			if err := o.Hub.Talked(time.Now()); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -430,6 +419,12 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	if err := o.Hub.NoteChatThread(req.SessionID, req.ChatThread); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	if req.Refreshable && len(req.Candidates) == 0 {
+		if err := o.Hub.NoteRefreshable(req.SessionID); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 	if lent {
 		done.ForAI = strings.TrimSpace(wokenText + "\n" + done.ForAI)

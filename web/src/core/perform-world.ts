@@ -10,6 +10,8 @@ import {
   type ActionTarget,
   type AIEditTicketChange,
   type AIMessage,
+  type OtherRecord,
+  type RefreshRequest,
   takesBook,
 } from "./def/action"
 import type { HostMessage } from "./def/follow-step"
@@ -64,10 +66,11 @@ export type PerformedIn =
       changes?: TableChanges
       settings?: Settings
       annotations?: Annotations
-      records?: readonly RecordChange[] // レコードが対象のアクションで変わったレコード（宛先の 1 件が先で、ほかは run が返した順。1 つのトランザクションで当てる）
+      records?: readonly RecordChange[] // レコードか書庫が対象のアクションで変わったレコード（レコードが対象なら宛先の 1 件が先で、ほかは run が返した順。1 つのトランザクションで当てる）
       counters?: Counters // レコードが対象のアクションが進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）
       aiEditTickets?: readonly AIEditTicketChange[] // レコードが対象のアクションが返した、AI 編集チケットの変え方の並び（レコードと同じ 1 回の書き込みで当てる）
       aiMessages?: readonly AIMessage[] // レコードが対象のアクションが返した、送る AI 間メッセージの並び（常駐がバルクの書き込みと一緒に送る）
+      refreshRequest?: RefreshRequest // 書庫かレコードが対象のアクションが返したリフレッシュリクエスト（常駐が、バルクが通ったら行った参加者に覚える）
       // records のうち、フォローステップが応じて変えたレコード（core/follow.ts。常駐は、行う者に関わらず、これが編集ロックに当たれば断る）
       followed?: readonly { subject: string; id: string }[]
       // フォローステップがバックヤードの中で消したページ・フォルダと、名前を変えたブックと、アノテーションを消したページ（常駐は、行う者に関わらず、これが編集ロックに当たれば断る）
@@ -164,11 +167,10 @@ export function performIn(
     const library: Library = { pages: world.pages, folders: world.folders }
     const subjects = ctx.catalog.actions.get(id)?.readsSubjects?.(ctx.catalog)
     const read = subjects ? readerOf(ctx.catalog, sourceIn(ctx), subjects) : undefined
-    return changedLibrary(
-      naming,
-      world,
-      loose(library, id, args, read ? { ...ctx, record: read.record, find: read.find } : ctx),
-    )
+    const done = loose(library, id, args, read ? { ...ctx, record: read.record, find: read.find } : ctx)
+    const changed = changedLibrary(naming, world, done)
+    if (!changed.ok || !done.ok) return changed
+    return withOthersFollowed(world, ctx, id, changed, done.others ?? [])
   }
   const done = loose(world.settings, id, args, ctx)
   if (!done.ok) return done
@@ -218,6 +220,7 @@ function changedLibrary(naming: Naming, world: World, done: ReturnType<typeof pe
     result: done.result,
     ...(noChanges(changes) ? {} : { changes }),
     ...(Object.keys(changed).length === 0 ? {} : { annotations: changed }),
+    ...(done.refreshRequest ? { refreshRequest: done.refreshRequest } : {}),
   }
 }
 
@@ -262,6 +265,7 @@ function changedBook(naming: Naming, world: World, book: Book, done: ReturnType<
     result: done.result,
     ...(noChanges(changes) ? {} : { changes }),
     ...(Object.keys(changed).length === 0 ? {} : { annotations: changed }),
+    ...(done.refreshRequest ? { refreshRequest: done.refreshRequest } : {}),
   }
 }
 
@@ -295,7 +299,7 @@ function changedPage(naming: Naming, world: World, at: PageOutsideBook, done: Re
   }
 }
 
-// レコードが対象のアクションを行う: on の record のレコード（無ければ新しく作る）を渡し、宛先と、run が返したほかの同じ種類のレコードを変えた結果を返す。
+// レコードが対象のアクションを行う: on の record のレコード（無ければ新しく作る）を渡し、宛先と、run が返したほかのレコード（同じ種類か writes の種類）を変えた結果を返す。
 // 作るレコードの id は今ある id と重ならない。readsBooks を書いたアクションには、引数が答えた id のブックだけを ctx.books に渡す
 function performRecord(
   world: World,
@@ -354,17 +358,60 @@ function performRecord(
       }
     changes.push({ subject: target, id: made, record: next })
   }
-  for (const o of done.others ?? []) {
-    const kind: string = o.subject ?? target
-    const had = source.byId(kind, o.id)
-    if (o.record === REMOVED ? had === undefined : o.record === had) continue
-    changes.push({ subject: kind, id: o.id, record: o.record })
+  changes.push(...otherChanges(source, target, done.others ?? []))
+  const followed = withFollowed(world, ctx, action, source, changes)
+  if (!followed.ok) return followed
+  return {
+    ok: true,
+    result: done.result,
+    ...followedOut(followed),
+    ...(followed.records.length > 0 && Object.keys(used).length > 0 ? { counters: { [target]: used } } : {}),
+    ...(done.aiEditTickets ? { aiEditTickets: done.aiEditTickets } : {}),
+    ...(done.aiMessages ? { aiMessages: done.aiMessages } : {}),
+    ...(done.refreshRequest ? { refreshRequest: done.refreshRequest } : {}),
   }
+}
+
+// run が返したほかのレコード others（種類を省いた物は target の種類。書庫が対象のアクションは省けず、perform が断っている）のうち、今と違う物の変わり
+function otherChanges(
+  source: RecordSource,
+  target: string | undefined,
+  others: readonly OtherRecord<never>[],
+): RecordChange[] {
+  return others.flatMap(o => {
+    const kind = o.subject ?? target
+    if (kind === undefined) return []
+    const had = source.byId(kind, o.id)
+    return (o.record === REMOVED ? had === undefined : o.record === had)
+      ? []
+      : [{ subject: kind, id: o.id, record: o.record as unknown }]
+  })
+}
+
+// フォローステップが応じた結果（records は、アクションが変えたレコードと、応じて変えたレコード）
+type FollowedIn = {
+  ok: true
+  records: readonly RecordChange[]
+  followed: readonly { subject: string; id: string }[]
+  hostMessages: readonly HostMessage[]
+  changes?: TableChanges
+  annotations: Annotations
+  followedRows: readonly string[]
+}
+
+// アクション action が変えたレコード changes にフォローステップを当て、バックヤードの中に行う事を世界 world（アクションが変えた書庫を当てた後）に当てる。
+// レコードが対象のアクションと書庫が対象のアクションで同じ決まりを使う
+function withFollowed(
+  world: World,
+  ctx: ActionContext,
+  action: ActionDef | undefined,
+  source: RecordSource,
+  changes: readonly RecordChange[],
+): FollowedIn | Exclude<PerformedIn, { ok: true }> {
   const followed = action
     ? followChanges(ctx, action, source, changes)
     : { ok: true as const, records: changes, followed: [], backyard: [], hostMessages: [] }
   if (!followed.ok) return followed
-  const records = followed.records
   const yard = followedInBackyard(world, world.annotations, followed.backyard)
   if (!yard.ok) return { ok: false, reason: "needs-rows", books: yard.needs }
   if (action && yard.changes) {
@@ -375,7 +422,7 @@ function performRecord(
     Object.entries(rows).flatMap(([id, r]) => (r === REMOVED ? [id] : []))
   const retitled = (rows: TableChanges["folders"] = {}) =>
     Object.entries(rows).flatMap(([id, r]) => (r !== REMOVED && r.folderRole === "book" ? [id] : []))
-  const yardRows = [
+  const followedRows = [
     ...new Set([
       ...Object.keys(yard.annotations),
       ...removed(yard.changes?.pages),
@@ -385,16 +432,64 @@ function performRecord(
   ]
   return {
     ok: true,
-    result: done.result,
+    records: followed.records,
+    followed: followed.followed,
+    hostMessages: followed.hostMessages,
     ...(yard.changes ? { changes: yard.changes } : {}),
-    ...(Object.keys(yard.annotations).length > 0 ? { annotations: yard.annotations } : {}),
-    ...(yardRows.length > 0 ? { followedRows: yardRows } : {}),
-    ...(followed.hostMessages.length > 0 ? { hostMessages: followed.hostMessages } : {}),
-    ...(records.length > 0 ? { records } : {}),
-    ...(followed.followed.length > 0 ? { followed: followed.followed } : {}),
-    ...(records.length > 0 && Object.keys(used).length > 0 ? { counters: { [target]: used } } : {}),
-    ...(done.aiEditTickets ? { aiEditTickets: done.aiEditTickets } : {}),
-    ...(done.aiMessages ? { aiMessages: done.aiMessages } : {}),
+    annotations: yard.annotations,
+    followedRows,
+  }
+}
+
+// フォローステップが応じた結果 f の、PerformedIn に入れる物（空の物は入れない）
+const followedOut = (f: FollowedIn) => ({
+  ...(f.changes ? { changes: f.changes } : {}),
+  ...(Object.keys(f.annotations).length > 0 ? { annotations: f.annotations } : {}),
+  ...(f.followedRows.length > 0 ? { followedRows: f.followedRows } : {}),
+  ...(f.hostMessages.length > 0 ? { hostMessages: f.hostMessages } : {}),
+  ...(f.records.length > 0 ? { records: f.records } : {}),
+  ...(f.followed.length > 0 ? { followed: f.followed } : {}),
+})
+
+// 書庫が対象のアクション id の結果 changed に、run が返したほかのレコード others の変わりと、それにフォローステップが応じた変わりを足す
+// （バックヤードの中に行う事は、アクションが変えた書庫に当てる）
+function withOthersFollowed(
+  world: World,
+  ctx: ActionContext,
+  id: string,
+  changed: Extract<PerformedIn, { ok: true }>,
+  others: readonly OtherRecord<never>[],
+): PerformedIn {
+  const source = world.source ?? sourceOf(world.records)
+  const changes = otherChanges(source, undefined, others)
+  if (changes.length === 0) return changed
+  const after: World = {
+    ...world,
+    ...(changed.changes ? withChanges(world, changed.changes) : {}),
+    annotations: { ...world.annotations, ...changed.annotations },
+  }
+  const followed = withFollowed(after, ctx, ctx.catalog.actions.get(id), source, changes)
+  if (!followed.ok) return followed
+  const out = followedOut(followed)
+  // アクションが足した行を、応じたフォローステップが消したなら、その行は変わりに残さない（前も後も無い）
+  const merged = <T>(
+    was: Readonly<Record<string, T>>,
+    a: Readonly<Record<string, T | typeof REMOVED>>,
+    b: Readonly<Record<string, T | typeof REMOVED>>,
+  ) => Object.fromEntries(Object.entries({ ...a, ...b }).filter(([id, r]) => r !== REMOVED || id in was))
+  const tables =
+    changed.changes && out.changes
+      ? {
+          pages: merged(world.pages, changed.changes.pages, out.changes.pages),
+          folders: merged(world.folders, changed.changes.folders, out.changes.folders),
+        }
+      : (out.changes ?? changed.changes)
+  const annotations = { ...changed.annotations, ...out.annotations }
+  return {
+    ...changed,
+    ...out,
+    ...(tables ? { changes: tables } : {}),
+    ...(Object.keys(annotations).length > 0 ? { annotations } : {}),
   }
 }
 

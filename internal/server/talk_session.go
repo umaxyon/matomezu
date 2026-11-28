@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
@@ -49,11 +48,6 @@ const wokenText = "This turn was started by a matomezu notice, not typed by the 
 // carriedText は、前の会話（/clear などで置き換えた会話）の参加者を新しい会話に移したとき、新しい会話の AI にだけ伝える文の頭（参加を伝える文が続く）。
 // 利用者には見せない（途切れずに続ける）
 const carriedText = "This conversation continues an earlier one it replaced, and matomezu kept you as its participant (nothing to join again):"
-
-// TalkTexts は、話しかけのフックの答え（SessionTalk）で AI に伝える文のうち、決まった頭で始まる物（AI の側で会話の記録からフックの文を見分ける頭の元。参加を伝える文は頭だけ）
-func TalkTexts() []string {
-	return []string{wokenText, carriedText, joinedText(""), visitorJoinedText}
-}
 
 // candidatesMax は、1 度に受ける候補の数の上限
 const candidatesMax = 1000
@@ -266,6 +260,29 @@ func (h *Hub) soleWorkerHeld(sessionID string) (participant, room, name string, 
 	return participant, room, name, name != ""
 }
 
+// ParticipantWorkTitle は、参加者 id のセッション名に書く作業名（ワークルームに入っていないか、書かないなら空）
+func (h *Hub) ParticipantWorkTitle(id string) string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	room := h.actorOfParticipantHeld(id).Workroom
+	if room == "" {
+		return ""
+	}
+	rooms, err := h.workroomsHeld()
+	if err != nil {
+		return ""
+	}
+	name := roomName(rooms, room)
+	if name == "" {
+		return ""
+	}
+	title, ok, err := h.engine.WorkTitle(h.settings, room, name, recordSource{h})
+	if err != nil || !ok {
+		return ""
+	}
+	return title
+}
+
 // WorkTitle は、セッション sessionID の作業名: そのセッションに結ばれた、受け入れ済みでワークルームに入っている参加者がちょうど 1 人なら、
 // そのワークルームの名前と作業から作った名前（エンジンの WorkTitle）。そうでない・利用者の設定が書くのを止めている・作れないなら空（フックは名前を書かない。
 // 利用者が付けたセッション名を消さないため）
@@ -281,29 +298,4 @@ func (h *Hub) WorkTitle(sessionID string) string {
 		return ""
 	}
 	return title
-}
-
-// WorkShift は、セッション sessionID のターンの終わりに、今の作業が替わったかの答え: そのセッションに結ばれた、ワークルームに入っている参加者がちょうど 1 人なら、
-// その参加者に覚えた前のターンの終わりの印と今の作業を比べ、替わっていれば利用者に聞く問いを返す（nil なら聞かない）。今の印を覚え直すので、1 つの替わりには 1 度だけ答える。
-// 初めてのターンの終わりは、覚えるだけで聞かない。問いを出す・セッションを新しくするのは AI のプログラムの部品が行う
-func (h *Hub) WorkShift(sessionID string) (*engine.WorkShiftAsk, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	participant, room, _, ok := h.soleWorkerHeld(sessionID)
-	if !ok {
-		return nil, nil
-	}
-	n := h.participantNotes[participant]
-	shift, err := h.engine.WorkShift(h.settings, room, n.Work, recordSource{h})
-	if err != nil {
-		return nil, err
-	}
-	if shift.Mark != n.Work {
-		n.Work = shift.Mark
-		h.participantNotes[participant] = n
-		if err := h.putParticipantNotes(); err != nil {
-			return nil, err
-		}
-	}
-	return shift.Ask, nil
 }

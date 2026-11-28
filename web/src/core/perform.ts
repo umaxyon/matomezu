@@ -3,7 +3,7 @@
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
 
 import type { z } from "zod"
-import { NO_WORKROOM, workroomOfActor } from "./actor"
+import { isAI, NO_WORKROOM, workroomOfActor } from "./actor"
 import { type Annotation, annotationsSettle, type PageAnnotations } from "./annotation"
 import { findPage, foundPage, keepsPageTypes, keepsTypesIn, NO_PAGE, outsideHolds, pageSettles, putPage } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
@@ -18,6 +18,7 @@ import {
   type Declined,
   type Done,
   type OtherRecord,
+  type RefreshRequest,
   type SubjectData,
   takesBook,
 } from "./def/action"
@@ -126,6 +127,7 @@ export type Performed<Id extends ActionId, S = SubjectOf<Id>> =
       others?: readonly OtherRecord<never>[]
       aiEditTickets?: readonly AIEditTicketChange[]
       aiMessages?: readonly AIMessage[]
+      refreshRequest?: RefreshRequest
     }
   | Refused
 
@@ -252,8 +254,15 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
   const messages = isRecordTarget(ctx.catalog, action.target) ? (ran.aiMessages ?? []) : []
   if (messages.length > 0 && workroomOfActor(ctx.actor) === NO_WORKROOM)
     return { ok: false, reason: "refused", detail: "only an AI in a workroom sends AI messages" }
-  if (isRecordTarget(ctx.catalog, action.target)) {
-    const changes = recordChanges(ctx, action, subject, done.next, others)
+  // リフレッシュリクエストは、書庫かレコードが対象のアクションで、行う者がワークルームに入っている AI のときだけ
+  const refresh =
+    action.target === "library" || isRecordTarget(ctx.catalog, action.target) ? ran.refreshRequest : undefined
+  if (refresh && (!isAI(ctx.actor) || workroomOfActor(ctx.actor) === NO_WORKROOM))
+    return { ok: false, reason: "refused", detail: "only an AI in a workroom asks to have its conversation refreshed" }
+  const recordTarget = isRecordTarget(ctx.catalog, action.target)
+  // 書庫が対象のアクションも、writes に書いた種類のレコードを others で変えられる（宛先のレコードは無い）
+  if (recordTarget || (action.target === "library" && others.length > 0)) {
+    const changes = recordChanges(ctx, action, recordTarget ? { subject, next: done.next } : undefined, others)
     if (!changes) return { ok: false, reason: "refused" }
     // 変える全部に、形・郵便の種類・認可ステップの守らせることをかける（どれか 1 つでも合わなければ、全部を断る）
     for (const c of changes) {
@@ -272,6 +281,7 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
       ? { aiEditTickets: ran.aiEditTickets }
       : {}),
     ...(messages.length > 0 ? { aiMessages: messages } : {}),
+    ...(refresh ? { refreshRequest: refresh } : {}),
   } as Performed<Id, S>
 }
 
@@ -398,30 +408,33 @@ function keepsOutermostSettings(catalog: CoreCatalog, before: object, after: obj
   return [...catalog.settings.values()].every(d => d.holder !== "outermost" || was[d.id] === now[d.id])
 }
 
-// レコードが対象のアクションが変えるレコードの、種類 subject と、前 now と後 next の組（宛先の 1 件と、ほかの others）。
+// レコードか書庫が対象のアクションが変えるレコードの、種類 subject と、前 now と後 next の組（宛先 target の 1 件〈書庫が対象なら無い〉と、ほかの others）。
 // others の種類は、省けば宛先と同じ種類で、別の種類はアクションの writes に書いた種類だけ（書いていなければ null）。
 // others の前は、読み口から引く（読み口の無い文脈なら、ctx.records のその種類から引き、それも無ければ others は断る）。
 // 同じ（種類, id）を 2 度変える・合わせて RECORDS_MAX 件を超えるなら null
 function recordChanges(
   ctx: ActionContext,
   action: ActionDef,
-  subject: unknown,
-  next: unknown,
+  target: { subject: unknown; next: unknown } | undefined,
   others: readonly OtherRecord<never>[],
 ): { subject: string; now: unknown; next: unknown }[] | null {
-  if (others.length + 1 > RECORDS_MAX) return null
-  const target = action.target
+  if (others.length + (target ? 1 : 0) > RECORDS_MAX) return null
+  const kindOf = action.target
   const source = sourceIn(ctx)
-  const own = next === REMOVED ? subject : next
+  const own = target ? (target.next === REMOVED ? target.subject : target.next) : NO_RECORD
   const seen = new Set<string>(
     own !== NO_RECORD && typeof own === "object" && own !== null
-      ? [`${target}\n${String((own as { id?: unknown }).id)}`]
+      ? [`${kindOf}\n${String((own as { id?: unknown }).id)}`]
       : [],
   )
-  const changes: { subject: string; now: unknown; next: unknown }[] = [{ subject: target, now: subject, next }]
+  const changes: { subject: string; now: unknown; next: unknown }[] = target
+    ? [{ subject: kindOf, now: target.subject, next: target.next }]
+    : []
   for (const o of others) {
-    const kind: string = o.subject ?? target
-    if (kind !== target && !(action.writes as readonly string[] | undefined)?.includes(kind)) return null
+    // 書庫が対象のアクションは、種類を省けない（宛先の種類が無い）
+    if (!target && o.subject === undefined) return null
+    const kind: string = o.subject ?? kindOf
+    if (kind !== kindOf && !(action.writes as readonly string[] | undefined)?.includes(kind)) return null
     const table = source ? undefined : ctx.records?.[kind]
     if (table === undefined && !source) return null
     const key = `${kind}\n${o.id}`

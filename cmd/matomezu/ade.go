@@ -26,3 +26,10 @@ func renameAdeWorkspace(dir, name string) {
 	}
 	orca.Rename(dir, name, cache)
 }
+
+// renameAdeHere は、今のフォルダ（MCP を立てた AI のセッションのフォルダ）の ADE のワークスペースの表示名を name にする（MCP が、常駐の返した作業名が変わったときに呼ぶ）
+func renameAdeHere(name string) {
+	if dir, err := os.Getwd(); err == nil {
+		renameAdeWorkspace(dir, name)
+	}
+}

@@ -25,6 +25,48 @@ type httpAPI struct {
 	s         *home.Server
 	reconnect func() (*home.Server, error)
 	toldOther bool // 常駐の版がこの MCP と違うと、AI にもう知らせたか
+	// titled は、常駐が見出しで返した作業名を、変わったら書く物（nil なら書かない。newTitleWriter）
+	titled *titleWriter
+}
+
+// titleWriter は、常駐が返した作業名を、変わったときだけ、ADE のワークスペースの表示名に書く（書くのは遅いので、1 つの goroutine で、最後に受けた名前だけを順に書く）
+type titleWriter struct {
+	mu     sync.Mutex
+	last   string
+	wanted chan string
+}
+
+// newTitleWriter は、作業名 name を write で書く titleWriter（write は ADE の事情を抱える関数。renameAdeWorkspace）
+func newTitleWriter(write func(name string)) *titleWriter {
+	t := &titleWriter{wanted: make(chan string, 1)}
+	go func() {
+		for name := range t.wanted {
+			write(name)
+		}
+	}()
+	return t
+}
+
+// saw は、常駐の答えの見出し reply に作業名があり、前に受けた物と違えば、書くよう頼む（前の頼みがまだ書かれていなければ置き換える）
+func (t *titleWriter) saw(reply http.Header) {
+	if t == nil {
+		return
+	}
+	name, err := url.QueryUnescape(reply.Get(aiwire.WorkTitleHeader))
+	if err != nil || name == "" {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if name == t.last {
+		return
+	}
+	t.last = name
+	select {
+	case <-t.wanted:
+	default:
+	}
+	t.wanted <- name
 }
 
 func (a *httpAPI) Get(path string, header http.Header) (json.RawMessage, http.Header, error) {
@@ -58,6 +100,9 @@ func (a *httpAPI) do(method, path string, body []byte, header http.Header) (json
 		}
 		a.s = s
 		out, reply, _, err = send(a.s, method, path, body, header)
+	}
+	if err == nil {
+		a.titled.saw(reply)
 	}
 	if err == nil && !a.toldOther {
 		if note := otherVersionNote(a.s.Version); note != "" {

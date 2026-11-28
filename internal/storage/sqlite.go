@@ -247,6 +247,8 @@ var migrations = []string{
 		body TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	);`,
+	// ワークルームのレコードに、今の作業の写し work を書く（作業の替わりのフォローステップが、写しと答え直した作業を比べるため。Go の移し替え。migrate_workroom_work.go）
+	`SELECT 1;`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う
@@ -272,6 +274,7 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	40: addPairedHostRallyLimit,
 	41: dropPageTextColors,
 	42: fixWorkerBookNames,
+	45: fillWorkroomWorks,
 }
 
 type sqliteStorage struct {

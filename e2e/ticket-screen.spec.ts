@@ -184,11 +184,17 @@ test("名前を直している間は、AI がそのチケットを変えると�
   await page.goto(open(ticket))
   const screen = page.getByRole("region", { name: "チケット" }).first()
   const ai = await joinedAiAuth()
+  // 呼ぶたびに優先度を大と小で替える（同じ値を送り直すと何も変えないので、ロックが届く前に一度通ると、そのあとは断られない）
+  let flip = 0
   const rename = async () =>
     (
       await page.request.post("/api/ai/perform", {
         headers: ai,
-        data: { action: "@matomezu/taskboard:ticket-update", args: { priority: "high" }, on: { record: ticket } },
+        data: {
+          action: "@matomezu/taskboard:ticket-update",
+          args: { priority: flip++ % 2 === 0 ? "high" : "low" },
+          on: { record: ticket },
+        },
       })
     ).json()
   await screen.getByRole("button", { name: "名前を編集" }).click()

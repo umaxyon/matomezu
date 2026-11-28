@@ -1093,7 +1093,6 @@ test("base の入口が出す名前は、どれもプラグイン API からも�
     "VISITOR_JOINED_MESSAGE",
     "workTitleIn",
     "leftTitleIn",
-    "workShiftIn",
     "myWorkdeskIn",
     "workroomActivitiesFrom",
   ]

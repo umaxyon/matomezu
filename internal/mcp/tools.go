@@ -397,29 +397,48 @@ func idsQuery(args map[string]any) string {
 }
 
 // performSchema は perform の受ける形
+// performOnSchema は perform の on の形（アクション 1 つでも、actions の 1 つでも同じ）
+var performOnSchema = map[string]any{
+	"type":        "object",
+	"description": "What the action is done on: the book, for an action whose target is book (or a binder that is not in a book, to add, duplicate, move, remove or change the pages in it); the page, for an action whose target is page or annotations (the page's id alone; no book: for annotations, the page the annotation is on); the record, for an action whose target is a subject listed in actions (subjects). Leave on out to make a new record.",
+	"properties": map[string]any{
+		"book":   map[string]any{"type": "string", "description": "The book's id, or the id of a binder that is not in a book (see read_folder)."},
+		"page":   map[string]any{"type": "string", "description": "The page's id (see read_book or view)."},
+		"record": map[string]any{"type": "string", "description": "The record's id."},
+	},
+	"additionalProperties": false,
+}
+
 var performSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
 		"action": map[string]any{"type": "string", "description": "The action's id (see actions)."},
 		"args":   map[string]any{"type": "object", "description": "The action's arguments, matching its args in actions."},
-		"on": map[string]any{
-			"type":        "object",
-			"description": "What the action is done on: the book, for an action whose target is book (or a binder that is not in a book, to add, duplicate, move, remove or change the pages in it); the page, for an action whose target is page or annotations (the page's id alone; no book: for annotations, the page the annotation is on); the record, for an action whose target is a subject listed in actions (subjects). Leave on out to make a new record.",
-			"properties": map[string]any{
-				"book":   map[string]any{"type": "string", "description": "The book's id, or the id of a binder that is not in a book (see read_folder)."},
-				"page":   map[string]any{"type": "string", "description": "The page's id (see read_book or view)."},
-				"record": map[string]any{"type": "string", "description": "The record's id."},
+		"on":     performOnSchema,
+		"actions": map[string]any{
+			"type":        "array",
+			"minItems":    1,
+			"maxItems":    aiwire.BulkMax,
+			"description": "In place of action, args and on: actions to perform in this order, all done or none (if one is refused, nothing changes). Each sees what the ones before it changed.",
+			"items": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"action": map[string]any{"type": "string", "description": "The action's id."},
+					"args":   map[string]any{"type": "object", "description": "The action's arguments."},
+					"on":     performOnSchema,
+				},
+				"required":             []string{"action", "args"},
+				"additionalProperties": false,
 			},
-			"additionalProperties": false,
 		},
 		"timeoutSec": map[string]any{"type": "integer", "minimum": 1, "maximum": 60, "description": "How many seconds to wait for the action (5 without it). Give more (up to 60) only for an action you know is heavy; an action that takes longer is stopped and refused with nothing changed."},
 	},
-	"required":             []string{"action", "args"},
 	"additionalProperties": false,
 }
 
 const performDescription = "Perform an action listed by actions, as the user would on the screen: the change appears at once on screens showing that book. " +
-	"Returns the action's result (such as the id of what it made), with a notice on the next line when the action changed something else you should know (such as positions), or why it was refused."
+	"Returns the action's result (such as the id of what it made), with a notice on the next line when the action changed something else you should know (such as positions), or why it was refused. " +
+	"With actions, returns the results as a JSON array in the same order, or why it was refused and which action (counted from 0)."
 
 // showSchema は show の受ける形
 var showSchema = map[string]any{
@@ -518,32 +537,50 @@ func dispatch(c *conn, name string, raw json.RawMessage) (string, bool) {
 }
 
 func perform(api caller, args map[string]any) (string, bool) {
+	bulk, _ := args["actions"].([]any)
+	if _, one := args["action"]; one == (len(bulk) > 0) {
+		return "bad-args: give action (with args), or actions, not both", false
+	}
 	out, err := api.Post("api/ai/perform", args)
 	if err != nil {
 		return hostFailed(err)
 	}
 	var done struct {
-		OK     bool            `json:"ok"`
-		Reason string          `json:"reason"`
-		Detail string          `json:"detail"`
-		Result json.RawMessage `json:"result"`
-		Notice string          `json:"notice"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
+		OK      bool              `json:"ok"`
+		Reason  string            `json:"reason"`
+		Detail  string            `json:"detail"`
+		Result  json.RawMessage   `json:"result"`
+		Results []json.RawMessage `json:"results"`
+		At      *int              `json:"at"`
+		Notice  string            `json:"notice"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 	}
 	if err := json.Unmarshal(out, &done); err != nil {
 		return string(out), true
 	}
 	if !done.OK {
 		text := refusalText(done.Reason, done.Detail)
-		if done.Reason == "bad-args" {
-			text += argsSchemaOf(api, args["action"].(string))
+		action, _ := args["action"].(string)
+		if len(bulk) > 0 && done.At != nil && *done.At >= 0 && *done.At < len(bulk) {
+			text = fmt.Sprintf("action %d: %s", *done.At, text)
+			if a, ok := bulk[*done.At].(map[string]any); ok {
+				action, _ = a["action"].(string)
+			}
+		}
+		if done.Reason == "bad-args" && action != "" {
+			text += argsSchemaOf(api, action)
 		}
 		return text, false
 	}
+	result := string(done.Result)
+	if len(bulk) > 0 {
+		b, _ := json.Marshal(done.Results)
+		result = string(b)
+	}
 	// 知らせは結果の次の行に添える
 	if done.Notice != "" {
-		return string(done.Result) + "\n" + done.Notice, false
+		return result + "\n" + done.Notice, false
 	}
-	return string(done.Result), false
+	return result, false
 }
 
 // argsSchemaOf は、引数が合わないと断ったアクションの引数の Schema（添えて、AI が 1 回で直せるように）。取れなければ空

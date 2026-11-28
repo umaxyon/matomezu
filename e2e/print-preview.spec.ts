@@ -1,6 +1,6 @@
 // 印刷プレビュー: フッタメニューのボタンで開くと、ブックの全ページの印刷区画を並べ、右サイドパネルに設定を出す。間はブックを変えるキー（元に戻す）が効かない。ロック中は変える前に聞く。
 // 右サイドパネルを閉じる（Esc）か読み直すと編集に戻る。印刷区画をダブルクリックすると、そのページの編集に戻る。右端にスクロールバーを出す
-import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, type Locator, type Page, test } from "./fixtures"
 import { afterFrames } from "./helpers/frames"
 import { addFromTabs, newBook } from "./helpers/new-book"
 import { panel } from "./helpers/note"
@@ -133,6 +133,19 @@ test("印刷プレビューの紙に、ページの形と線を描く（見る�
   await expect(sheet).toContainText("左")
   await expect(sheet).toContainText("右")
   await expect(sheet.locator("polyline")).not.toHaveCount(0)
+  // 線を描く svg が紙の上で大きさを持つ（大きさが 0 の svg は、中の線が描かれない）。刷る物は、刷るときの見た目で測る
+  const lineSvg = (at: Locator) =>
+    at
+      .locator("polyline")
+      .first()
+      .evaluate(l => {
+        const r = (l as SVGElement).ownerSVGElement!.getBoundingClientRect()
+        return r.width * r.height
+      })
+  expect(await lineSvg(sheet)).toBeGreaterThan(0)
+  await page.emulateMedia({ media: "print" })
+  expect(await lineSvg(page.locator("[data-print-output]"))).toBeGreaterThan(0)
+  await page.emulateMedia({ media: "screen" })
   // 紙の中の形には、e2e や操作が探す印（data-shape）も、アンカー（data-anchor）も付けない（印刷プレビューにも刷る物にも）
   await expect(sheet.locator("[data-shape]")).toHaveCount(0)
   await expect(sheets(page).locator("[data-anchor]")).toHaveCount(0)

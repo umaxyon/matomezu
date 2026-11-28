@@ -236,3 +236,80 @@ describe("ワーカーブックを持てる作業のレコードの種類", () =
     expect(codes(["u", "v", "none"])).toEqual(["E133", "E133", "E133"])
   })
 })
+
+describe("引継ぎページを書いて会話をリフレッシュする（refresh-request）", () => {
+  const room = (id: string, extra: object = {}) => ({
+    id,
+    name: id,
+    bird: "suzume",
+    createdAt: "2026-11-01T00:00:00Z",
+    ...extra,
+  })
+  // r2 の引継ぎ対象チケットは r1 の作業（r1 のワーカーブック b1 が在る）
+  const ask = (opts: { target?: boolean; gone?: boolean; action?: string } = {}) => {
+    const rooms = {
+      ...(opts.gone ? {} : { r1: room("r1") }),
+      r2: room("r2", opts.target === false ? {} : { handoffTarget: roomKey("r1") }),
+    }
+    return performIn(
+      { ...yardWorld(), records: { [WORKROOM]: rooms } as never },
+      opts.action ?? "@matomezu/base:refresh-request",
+      { type: "@matomezu/drawing:drawing", title: "Handoff" },
+      undefined,
+      yardCtx({ kind: "ai", workroom: { id: "r2" } }),
+    )
+  }
+  const lineupOf = (done: ReturnType<typeof ask>) =>
+    done.ok
+      ? (
+          done.changes?.folders as unknown as Record<string, { lineup: { id: string }[] } | undefined> | undefined
+        )?.b1?.lineup.map(e => e.id)
+      : undefined
+
+  test("引継ぎ対象チケットのワーカーブックの最後に引継ぎページを足し、そのページを読めと言う文のリフレッシュリクエストを返す", () => {
+    const done = ask()
+    expect(done.ok).toBe(true)
+    const added = lineupOf(done)
+    expect(added).toEqual(["p1", expect.any(String)])
+    if (!done.ok) return
+    expect(done.refreshRequest?.text).toContain(`page "${added?.[1]}" in book "b1"`)
+    expect(done.refreshRequest?.text).toContain('read_folder with folder "my-workdesk"')
+  })
+
+  test("書けたら、同じ書き込みでワークルームの引継ぎ対象チケットを外す（ほかの物は残す）", () => {
+    const done = ask()
+    if (!done.ok) throw new Error("refused")
+    expect(done.records).toEqual([{ subject: WORKROOM, id: "r2", record: room("r2") }])
+  })
+
+  test("ほかのアクションでは、引継ぎ対象チケットのワーカーブックに書けない（worker-page-add は自分のワークルームのブックに書く）", () => {
+    expect(lineupOf(ask({ action: "@matomezu/base:worker-page-add" }))).toBeUndefined()
+    const direct = performIn(
+      {
+        ...yardWorld(),
+        records: { [WORKROOM]: { r1: room("r1"), r2: room("r2", { handoffTarget: roomKey("r1") }) } } as never,
+      },
+      "@matomezu/base:page-add",
+      { type: "@matomezu/drawing:drawing", title: "x" },
+      { book: "b1" },
+      yardCtx({ kind: "ai", workroom: { id: "r2" } }),
+    )
+    expect(direct).toMatchObject({ ok: false })
+  })
+
+  test("引継ぎ対象チケットが無い・そのレコードが消えたなら、理由を添えて断る。利用者には行えない", () => {
+    expect(ask({ target: false })).toMatchObject({ ok: false, detail: expect.stringContaining("no handoff target") })
+    expect(ask({ gone: true })).toMatchObject({ ok: false, detail: expect.stringContaining("is gone") })
+    const byUser = performIn(
+      {
+        ...yardWorld(),
+        records: { [WORKROOM]: { r1: room("r1"), r2: room("r2", { handoffTarget: roomKey("r1") }) } } as never,
+      },
+      "@matomezu/base:refresh-request",
+      { type: "@matomezu/drawing:drawing", title: "x" },
+      undefined,
+      yardCtx(USER),
+    )
+    expect(byUser.ok).toBe(false)
+  })
+})
