@@ -119,17 +119,17 @@ type HostMessage struct {
 	Text     string `json:"text"`
 }
 
-// Address は、matomezu ペイロードの送り先: このホストの、名前が Workroom のワークルーム（Participant を書けば、その参加者が今そこに入っているときだけ）
-type Address struct {
+// Destination は、matomezu ペイロードの送り先: このホストの、名前が Workroom のワークルーム（Participant を書けば、その参加者が今そこに入っているときだけ）
+type Destination struct {
 	Workroom    string `json:"workroom"`
 	Participant string `json:"participant,omitempty"`
 }
 
 // Payload は、アクションが送る matomezu ペイロード 1 通（送り手は行った者）
 type Payload struct {
-	To          Address `json:"to"`
-	Text        string  `json:"text"`
-	NoRecipient string  `json:"noRecipient,omitempty"` // 送り先に届けられないとき: refuse（空のとき）はバルクを断る、skip はその 1 通を送らない
+	To          Destination `json:"to"`
+	Text        string      `json:"text"`
+	NoRecipient string      `json:"noRecipient,omitempty"` // 送り先に届けられないとき: refuse（空のとき）はバルクを断る、skip はその 1 通を送らない
 }
 
 // RowChange は、変わったページ・フォルダ 1 つ（Row は新しい本文。無くなったなら Removed）

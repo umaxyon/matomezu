@@ -48,8 +48,8 @@ export { pageType } from "../core/core-catalog"
 export type {
   ActionContext,
   ActionDef,
-  Address,
   Declined,
+  Destination,
   NoRecipient,
   Payload,
   RecordOf,

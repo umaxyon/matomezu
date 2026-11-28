@@ -349,11 +349,11 @@ func TestPayloadsNoRecipient(t *testing.T) {
 	actor := &engine.Actor{Kind: "ai", Workroom: ids["ひよこ"]}
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
-	if _, refused := hub.payloadDeliveries([]engine.Payload{{To: engine.Address{Workroom: "からす"}, Text: "x"}}, actor, false, time.Now()); refused == nil || refused.Reason != "no-recipient" {
+	if _, refused := hub.payloadDeliveries([]engine.Payload{{To: engine.Destination{Workroom: "からす"}, Text: "x"}}, actor, false, time.Now()); refused == nil || refused.Reason != "no-recipient" {
 		t.Fatalf("refuse = %+v", refused)
 	}
 	for _, to := range []string{"からす", "ひよこ", "ない"} {
-		envelopes, refused := hub.payloadDeliveries([]engine.Payload{{To: engine.Address{Workroom: to}, Text: "x", NoRecipient: "skip"}}, actor, false, time.Now())
+		envelopes, refused := hub.payloadDeliveries([]engine.Payload{{To: engine.Destination{Workroom: to}, Text: "x", NoRecipient: "skip"}}, actor, false, time.Now())
 		if refused != nil || len(envelopes) != 0 {
 			t.Fatalf("skip to %s = %+v %+v", to, envelopes, refused)
 		}
@@ -455,7 +455,7 @@ func TestUserPayload(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	user := &engine.Actor{Kind: "user"}
-	to := engine.Payload{To: engine.Address{Workroom: "すずめ"}, Text: "clear"}
+	to := engine.Payload{To: engine.Destination{Workroom: "すずめ"}, Text: "clear"}
 	hub.mu.Lock()
 	if _, refused := hub.payloadDeliveries([]engine.Payload{to}, user, false, time.Now()); refused == nil || refused.Reason != "refused" {
 		hub.mu.Unlock()

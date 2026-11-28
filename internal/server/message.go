@@ -2,9 +2,9 @@ package server
 
 // AI 間メッセージ: 参加が確定した AI が、ほかのワークルームの参加者へ、利用者を介さずに送る文。郵便とは別物で、ブックもレコードも変えない。
 // MCP の send_message はアクションを通さずに送り、レコードが対象のアクションの run が返して送ることもある（送り手は行った参加者。アクションバルクが通ったときだけ送る。actionEnvelopes）。
-// 常駐は封筒（Envelope）を宛て先の参加者の、起こす知らせの行列に入れ、受け取られるまで持つ（watch.go）。宛て先は宛て先のホストが受けた時点の参加者で、その参加者が受け入れ済みでなくなったら捨てる（引き継いだ参加者には渡さない）。
-// 送り手は呼び出しの参加の id から決め、引数では受けない（偽れない）。宛て先はワークルームの名前で指す。
-// 封筒の形（id・送り手・宛て先・本文・送った時刻。送り手と宛て先はホスト id とワークルームの名前）は、マシンをまたいで運ぶときも変えない。id で重なりを見分け、同じ封筒は二度入れない
+// 常駐は封筒（Envelope）を送り先の参加者の、起こす知らせの行列に入れ、受け取られるまで持つ（watch.go）。送り先は送り先のホストが受けた時点の参加者で、その参加者が受け入れ済みでなくなったら捨てる（引き継いだ参加者には渡さない）。
+// 送り手は呼び出しの参加の id から決め、引数では受けない（偽れない）。送り先はワークルームの名前で指す。
+// 封筒の形（id・送り手・送り先・本文・送った時刻。送り手と送り先はホスト id とワークルームの名前）は、マシンをまたいで運ぶときも変えない。id で重なりを見分け、同じ封筒は二度入れない
 //
 // host を付けると、ペアリングしたホストのワークルームへ運ぶ（peer_message.go）。アクションが返す AI 間メッセージは、ホストをまたがない
 //
@@ -25,7 +25,7 @@ import (
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
-// Address は、AI 間メッセージの送り手か宛て先: どのホストの、どのワークルームか。宛て先の参加者は、宛て先のホストが受けたときに引く（送り手のホストは知らない）
+// Address は、AI 間メッセージの送り手か送り先: どのホストの、どのワークルームか。送り先の参加者は、送り先のホストが受けたときに引く（送り手のホストは知らない）
 type Address struct {
 	Host     string `json:"host"`     // ホスト id（自分のホストも自分の id）
 	Workroom string `json:"workroom"` // ワークルームの名前
@@ -38,15 +38,15 @@ type Envelope struct {
 	To     Address `json:"to"`
 	Text   string  `json:"text"`
 	SentAt string  `json:"sentAt"`
-	Rally  int     `json:"rally,omitempty"` // ほかのホストへ送る物の、送り手の AI の利用者トリガートークの後に、その宛て先へ送った何通目か（rally.go。載せないホストもある）
-	// Cancel は、ほかのホストへ運ぶ、キャンセルの知らせの封筒だけが持つ: 宛て先（送り手の AI）が送った封筒の、利用者がキャンセルした id。Text はその本文の頭（pending_message.go）
+	Rally  int     `json:"rally,omitempty"` // ほかのホストへ送る物の、送り手の AI の利用者トリガートークの後に、その送り先へ送った何通目か（rally.go。載せないホストもある）
+	// Cancel は、ほかのホストへ運ぶ、キャンセルの知らせの封筒だけが持つ: 送り先（送り手の AI）が送った封筒の、利用者がキャンセルした id。Text はその本文の頭（pending_message.go）
 	Cancel string `json:"cancel,omitempty"`
 }
 
 // MessageRequest は AI 間メッセージを送る頼み。Participant は呼び出しに付いていた参加の id
 type MessageRequest struct {
 	To          string `json:"to"`
-	Host        string `json:"host"` // 宛て先のホストエイリアス（ペアリングしたホスト。空なら自分のホスト）
+	Host        string `json:"host"` // 送り先のホストエイリアス（ペアリングしたホスト。空なら自分のホスト）
 	Text        string `json:"text"`
 	Participant string `json:"-"`
 }
@@ -90,7 +90,7 @@ func (h *Hub) occupants(records []participantRecord) map[string]string {
 // payloadDeliveries は、アクションバルクが返した matomezu ペイロード payloads を、行った者から送る封筒にする（h.mu を持って呼ぶ）。
 // 行ったのが、画面の利用者（byWindow）でも、参加の確定した AI でもなければ、バルクを断る答えを返す（常駐が利用者として行うアクションは送れない）。
 // 送り先のワークルームに参加の確定したほかの参加者がいない（Participant を書いたなら、その参加者でない）とき、
-// NoRecipient が skip のその 1 通は送らず、ほかはバルクを断る答えを返す。AI ラリーの上限を超える物も同じに扱う（宛て先には止めた事を知らせる。rally.go）。
+// NoRecipient が skip のその 1 通は送らず、ほかはバルクを断る答えを返す。AI ラリーの上限を超える物も同じに扱う（送り先には止めた事を知らせる。rally.go）。
 // 利用者が送り手の物は、利用者の頼みの印を付け、AI ラリーに数えない
 func (h *Hub) payloadDeliveries(payloads []engine.Payload, actor *engine.Actor, byWindow bool, now time.Time) ([]delivery, *Performed) {
 	if len(payloads) == 0 {
@@ -123,7 +123,7 @@ func (h *Hub) payloadDeliveries(payloads []engine.Payload, actor *engine.Actor, 
 	}
 	self := h.selfHostID()
 	envelopes := make([]delivery, 0, len(payloads))
-	ahead := map[string]int{} // 宛て先の参加者ごとの、このバルクで先に送る数
+	ahead := map[string]int{} // 送り先の参加者ごとの、このバルクで先に送る数
 	for _, m := range payloads {
 		room := roomIDByName(rooms, m.To.Workroom)
 		to := occupant[room]
@@ -184,7 +184,7 @@ func (h *Hub) SendMessage(req MessageRequest, now time.Time) (MessageSent, error
 	return held.sent, nil
 }
 
-// sendHeld の答え: 決まった答え sent か、ほかのホストへ運ぶ（toHost。送り手のワークルームの名前 from）か、宛て先がいない（noRecipient。このホストの送れる先 open）
+// sendHeld の答え: 決まった答え sent か、ほかのホストへ運ぶ（toHost。送り手のワークルームの名前 from）か、送り先がいない（noRecipient。このホストの送れる先 open）
 type sendDecision struct {
 	sent        MessageSent
 	toHost      bool
@@ -194,7 +194,7 @@ type sendDecision struct {
 	open        []string
 }
 
-// sendHeld は、h.mu を持って、送り手を確かめ、このホストの宛て先に届けるか、h.mu の外でする事を返す（断りの句は写しを読むので、鍵を放してから作る）
+// sendHeld は、h.mu を持って、送り手を確かめ、このホストの送り先に届けるか、h.mu の外でする事を返す（断りの句は写しを読むので、鍵を放してから作る）
 func (h *Hub) sendHeld(records []participantRecord, rooms []workroomRecord, req MessageRequest, now time.Time) sendDecision {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -235,7 +235,7 @@ func (h *Hub) sendHeld(records []participantRecord, rooms []workroomRecord, req 
 	return sendDecision{sent: h.queuedFor(occupant[to.ID])}
 }
 
-// delivery は、封筒と、それを入れる宛て先の参加者（宛て先のホストが引いた物）。ほかのホストから届いた物は、送り手のホストエイリアスと、印を付けるか（requests が as-user か）も
+// delivery は、封筒と、それを入れる送り先の参加者（送り先のホストが引いた物）。ほかのホストから届いた物は、送り手のホストエイリアスと、印を付けるか（requests が as-user か）も
 type delivery struct {
 	envelope Envelope
 	to       string // 参加者の id
@@ -243,7 +243,7 @@ type delivery struct {
 	host     string // 送り手のホストエイリアス（同じホストの中なら空）
 	peer     string // 送り手のホスト id（同じホストの中なら空）
 	asUser   bool   // 利用者の頼みの印を付けるか（送り手のホストの requests が as-user か、送り手がこのホストの管理者か利用者）
-	fromUser bool   // 送り手が画面の利用者か（AI ラリーに数えず、宛て先の AI ラリーの数を 0 に戻す）
+	fromUser bool   // 送り手が画面の利用者か（AI ラリーに数えず、送り先の AI ラリーの数を 0 に戻す）
 	limit    int    // ほかのホストから届いた物の、AI ラリーの上限（送り手のホストの rallyLimit）
 }
 
@@ -277,7 +277,7 @@ func (h *Hub) markSeenHeld(id string) bool {
 	return true
 }
 
-// deliver は、封筒 d.envelope を宛て先の参加者 d.to の行列に入れる。同じ id の封筒は二度入れない。
+// deliver は、封筒 d.envelope を送り先の参加者 d.to の行列に入れる。同じ id の封筒は二度入れない。
 // AI ラリーの上限を超える物は入れずに偽を返す（rally.go）（h.mu を持って呼ぶ）
 func (h *Hub) deliver(d delivery) bool {
 	e := d.envelope
@@ -366,14 +366,14 @@ func (o Options) aiMessage(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, done)
 }
 
-// hostEnvelope は、常駐メッセージ 1 通の宛先の参加者と本文
+// hostEnvelope は、常駐メッセージ 1 通の送り先の参加者と本文
 type hostEnvelope struct {
 	participant string
 	text        string
 }
 
-// hostEnvelopes は、アクションバルクのフォローステップが返した常駐メッセージ messages の宛先を決める（h.mu を持って呼ぶ）。
-// 宛先のワークルームに参加の確定した参加者がいないときと、宛先が行った参加者のワークルームのとき（行った AI には、エンジンが結果の notice で渡す）は、その 1 通を送らない
+// hostEnvelopes は、アクションバルクのフォローステップが返した常駐メッセージ messages の送り先を決める（h.mu を持って呼ぶ）。
+// 送り先のワークルームに参加の確定した参加者がいないときと、送り先が行った参加者のワークルームのとき（行った AI には、エンジンが結果の notice で渡す）は、その 1 通を送らない
 func (h *Hub) hostEnvelopes(messages []engine.HostMessage, actor *engine.Actor) ([]hostEnvelope, error) {
 	if len(messages) == 0 {
 		return nil, nil
@@ -394,7 +394,7 @@ func (h *Hub) hostEnvelopes(messages []engine.HostMessage, actor *engine.Actor) 
 	return out, nil
 }
 
-// deliverHost は、常駐メッセージ e を宛て先の参加者の行列に入れる（h.mu を持って呼ぶ）
+// deliverHost は、常駐メッセージ e を送り先の参加者の行列に入れる（h.mu を持って呼ぶ）
 func (h *Hub) deliverHost(e hostEnvelope) {
 	h.enqueueWake(wakeItem{participant: e.participant, kind: wakeHost, line: hostLine(e.text)})
 }

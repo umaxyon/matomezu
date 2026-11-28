@@ -162,7 +162,7 @@ func TestActionEnvelopesStopAtTheRallyLimit(t *testing.T) {
 	actor := &engine.Actor{Kind: "ai", Workroom: ids["ひよこ"]}
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
-	to := engine.Payload{To: engine.Address{Workroom: "すずめ"}, Text: "x"}
+	to := engine.Payload{To: engine.Destination{Workroom: "すずめ"}, Text: "x"}
 	envelopes, refused := hub.payloadDeliveries([]engine.Payload{to, to}, actor, false, time.Now())
 	if refused != nil || len(envelopes) != 2 {
 		t.Fatalf("under the limit = %+v %+v", envelopes, refused)

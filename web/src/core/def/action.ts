@@ -120,7 +120,7 @@ export type AIEditTicketRemovedCause = "limit" | "user"
 
 // 送り先: matomezu ペイロードを届ける先。このホストの、名前が workroom のワークルームの AI。
 // participant（参加者の id）を書けば、その参加者が今そのワークルームに入っているときだけ届く（入れ替わった別の AI には届かない）
-export interface Address {
+export interface Destination {
   workroom: string
   participant?: string
 }
@@ -128,13 +128,13 @@ export interface Address {
 // 送り先に届けられないときの扱い: refuse はアクションバルクごと断り、skip はその 1 通を送らないだけにする（送らなかったことは返さない）
 export type NoRecipient = "refuse" | "skip"
 
-// レコードが対象のアクションが送る matomezu ペイロード 1 通: 送り先 to と文 text（AI に見せる英語）。送り手は行った者で、ここには書かない。
+// レコードが対象のアクションが送る matomezu ペイロード 1 通: 送り先 to と文 text（AI に見せる英語。利用者の言語に合わせない）。送り手は行った者で、ここには書かない。
 // 返せるのは、行う者が利用者か、ワークルームに入っている AI のときだけ。常駐は、アクションバルクが通ったときだけ送る。
 // 利用者が画面で行ったアクションが送った物には、利用者の頼みの印が付く（常駐が利用者として行うアクションは送れない）。
 // 送り先のワークルームに参加の確定したほかの参加者がいないとき（participant を書いたなら、その参加者でないとき）、noRecipient が refuse（省いたとき）ならバルクごと断り（no-recipient）、
 // skip ならその 1 通を送らないだけにする。AI ラリーの上限を超える 1 通も同じ（断るときは rally-limit）
 export interface Payload {
-  to: Address
+  to: Destination
   text: string
   noRecipient?: NoRecipient
 }
