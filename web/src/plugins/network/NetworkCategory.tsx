@@ -132,7 +132,7 @@ function FirewallSetting({ status }: { status: HostEntrance }) {
       </SettingRow>
       <p className={styles.danger}>{t("Allowing on a public LAN is not recommended")}</p>
       {status.firewall === "ineffective" && !busy && (
-        <p className={styles.danger}>{t("The allowance cannot take effect. Ask your administrator")}</p>
+        <p className={styles.danger}>{t("The allowance cannot take effect. Ask the person in charge")}</p>
       )}
       {failed && <p className={styles.danger}>{t("Could not ask the server")}</p>}
     </div>

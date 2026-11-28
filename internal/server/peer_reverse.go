@@ -32,8 +32,11 @@ type reverseDial struct {
 }
 
 // peerTarget は、ペアリングしたホスト hostID へ頼む先: 相手が張った接続があればその上、無ければ待ち受けアドレス（つながったときに聞いた所、無ければ覚えた所）へ直に。
-// base は頼みの URL の頭（口の道を足して使う）。どちらも無ければ ok が false
+// base は頼みの URL の頭（口の道を足して使う）。どちらも無いか、つなぐが切か、ファイアウォールで許可していなければ ok が false
 func (h *Hub) peerTarget(e *hostEntrance, hostID string) (c *http.Client, base string, ok bool) {
+	if !e.lan.Load() {
+		return nil, "", false // つなぐが切か、ファイアウォールで許可していない間は、LAN へ頼みに行かない
+	}
 	ps := e.peers
 	ps.mu.Lock()
 	in := ps.reverseIn[hostID]

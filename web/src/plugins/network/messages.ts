@@ -254,8 +254,8 @@ export const NETWORK_MESSAGES = defineMessages({
     en: "Allowing on a public LAN is not recommended",
     ja: "公衆LANでの許可は推奨しません",
   },
-  "The allowance cannot take effect. Ask your administrator": {
-    en: "The allowance cannot take effect. Ask your administrator",
-    ja: "許可が有効にできません。管理者に問い合わせてください",
+  "The allowance cannot take effect. Ask the person in charge": {
+    en: "The allowance cannot take effect. Ask the person in charge",
+    ja: "許可が有効にできません。責任者に問い合わせてください",
   },
 })

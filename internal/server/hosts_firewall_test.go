@@ -134,11 +134,14 @@ func TestTheHostEntranceOpensOnlyWhileTheFirewallAllows(t *testing.T) {
 	if elevated, reads := f.count(); elevated != 0 || reads != 1 {
 		t.Fatalf("before pressing: %d UAC, %d reads", elevated, reads)
 	}
+	if h.entrance.Load().lan.Load() {
+		t.Fatal("goes to other hosts before allowing")
+	}
 	if err := h.SetFirewall(true); err != nil {
 		t.Fatal(err)
 	}
 	s := waitHost(t, h, func(s HostStatus) bool { return s.Open })
-	if elevated, _ := f.count(); s.Firewall != firewall.Allowed || s.Port != saved || !f.allowed[saved] || elevated != 1 {
+	if elevated, _ := f.count(); s.Firewall != firewall.Allowed || s.Port != saved || !f.allowed[saved] || elevated != 1 || !h.entrance.Load().lan.Load() {
 		t.Fatalf("allowed = %+v, saved %d, %d UAC", s, saved, elevated)
 	}
 	if err := h.SetFirewall(false); err != nil {
@@ -273,5 +276,20 @@ func TestAnOldReadingDoesNotOverwriteTheFirewallChange(t *testing.T) {
 	}
 	if s := waitHost(t, h, func(s HostStatus) bool { return s.Open }); s.Firewall != firewall.Allowed {
 		t.Fatalf("allowed = %+v", s)
+	}
+}
+
+// つなぐを切れば、ペアリングしたホストへも頼みに行かない（ファイアウォールで許可していない間も同じ印 lan で止める）
+func TestNothingGoesToPairedHostsWhileNotConnecting(t *testing.T) {
+	t.Parallel()
+	_, _, a, b := pairedWorlds(t)
+	other := b.HostStatus().HostID
+	if _, _, ok := a.peerTarget(a.entrance.Load(), other); !ok {
+		t.Fatal("cannot reach the paired host")
+	}
+	setHostSettings(t, a, `{"@matomezu/network:connect-hosts":false}`)
+	waitHost(t, a, func(s HostStatus) bool { return !s.Open })
+	if _, _, ok := a.peerTarget(a.entrance.Load(), other); ok {
+		t.Fatal("goes to the paired host while not connecting")
 	}
 }

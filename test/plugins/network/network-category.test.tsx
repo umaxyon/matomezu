@@ -278,7 +278,7 @@ test("Windows で直に動くときは、つなぐの下にファイアウォー
   expect(within(panel()).getByText("192.168.1.10:41234")).toBeTruthy()
 
   setStatus({ firewall: "ineffective" })
-  expect(within(panel()).getByText("許可が有効にできません。管理者に問い合わせてください")).toBeTruthy()
+  expect(within(panel()).getByText("許可が有効にできません。責任者に問い合わせてください")).toBeTruthy()
   expect(deny().checked).toBe(true)
   expect(allow().disabled).toBe(false)
 })

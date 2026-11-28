@@ -84,6 +84,7 @@ type hostEntrance struct {
 	fwState     firewall.State // 最後に読んで決めた規則の様子（"" はまだ読んでいない）。開け閉めはこれを使い、読み直すのは要るときだけ
 	fwReread    bool           // 次の開け閉めで規則を読み直す（画面がネットワークを開いたとき）
 	fwGen       uint64         // 規則を変えるたびに進める。変える前に始めた読みが、変えたあとの様子を上書きしないため
+	lan         atomic.Bool    // ほかのホストへ頼みに行ってよいか（つなぐが入で、Firewall があれば許可している間。開け閉めが決める）
 	proto       atomic.Int64   // 常駐間通信プロトコルの版（peer.Protocol。版の違う常駐を組むテストだけが、閉じているあいだに替える。閉じたあとも、裏で頼む goroutine が読む）
 }
 
@@ -195,6 +196,7 @@ func (h *Hub) applyHostEntrance(e *hostEntrance) {
 	}
 	e.status.Firewall = fw
 	allowed := e.config.Firewall == nil || fw == firewall.Allowed
+	e.lan.Store(s.Connect && allowed)
 	name := s.Name
 	if name == "" {
 		name = e.config.OSHostName

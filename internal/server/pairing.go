@@ -366,6 +366,10 @@ func (h *Hub) tellUnpaired(e *hostEntrance, r pairedHostRecord, addr string, in 
 		fmt.Fprintln(os.Stderr, "hosts: could not tell", r.HostID[:16], "it was unpaired: where it listens is not known")
 		return
 	}
+	if !e.lan.Load() {
+		fmt.Fprintln(os.Stderr, "hosts: did not tell", r.HostID[:16], "it was unpaired: not connecting to other hosts")
+		return
+	}
 	resp, err := c.Post(base+"/peer/v1/unpair", "application/json", nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "hosts: could not tell", r.HostID[:16], "it was unpaired:", err)

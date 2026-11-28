@@ -31,7 +31,7 @@ func TestDecide(t *testing.T) {
 		{"止める規則が無い", Reading{Active: noBlock, Persistent: noBlock}, 47391, false, Ineffective},
 		{"止める規則が切られた", Reading{Active: disabled, Persistent: disabled}, 47391, false, Ineffective},
 		{"exe を止める規則がある", Reading{Active: all, Persistent: all, ExeBlocked: true}, 47391, false, Ineffective},
-		{"exe を止める規則だけ", Reading{ExeBlocked: true}, 47391, false, Ineffective},
+		{"exe を止める規則だけ（まだ許可を押していない）", Reading{ExeBlocked: true}, 47391, false, Absent},
 		{"直前に許可しようとしてそろわなかった", Reading{}, 47391, true, Ineffective},
 	}
 	for _, c := range cases {

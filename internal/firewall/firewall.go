@@ -65,7 +65,8 @@ func TCPBlockRuleName(port int) string { return fmt.Sprintf("matomezu-tcp-%d-blo
 
 const MDNSRuleName = "matomezu-udp-5353"
 
-// Decide は、読んだ規則 r と入口のポート port から、様子を決める。failed は、直前に許可しようとして（付け替えも）、そろわなかった
+// Decide は、読んだ規則 r と入口のポート port から、様子を決める。failed は、直前に許可しようとして（付け替えも）、そろわなかった。
+// exe を止める規則だけがあるときは、まだ許可を押していないので無い様子（許可すれば、その規則を消す）
 func Decide(r Reading, port int, failed bool) State {
 	if failed {
 		return Ineffective
@@ -73,7 +74,7 @@ func Decide(r Reading, port int, failed bool) State {
 	if !r.ExeBlocked && has(r.Active, TCPRuleName(port), "Allow") && has(r.Active, TCPBlockRuleName(port), "Block") && has(r.Active, MDNSRuleName, "Allow") {
 		return Allowed
 	}
-	if r.ExeBlocked || has(r.Persistent, TCPRuleName(port), "") || has(r.Persistent, TCPBlockRuleName(port), "") {
+	if has(r.Persistent, TCPRuleName(port), "") || has(r.Persistent, TCPBlockRuleName(port), "") || has(r.Active, TCPRuleName(port), "") {
 		return Ineffective
 	}
 	return Absent
