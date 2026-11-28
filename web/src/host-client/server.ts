@@ -193,7 +193,7 @@ export function serverClient(net: Net = browserNet): HostClient {
   let hostStatus: HostStatus | undefined // ホストどうしの入口の様子（読んだか知らされた物）
   let hostPeers: HostPeers | undefined // ほかのホストの様子（読んだか知らされた物）
   let participantReady: string[] = [] // 準備中でない参加者の id（増えるだけ）
-  let participantLive: Record<string, ParticipantLive> = {} // 参加者の id → 様子（モデル・ブランチ・起こす知らせの通り道・コンテキストの量。どれも無い参加者は持たない）
+  let participantLive: Record<string, ParticipantLive> = {} // 参加者の id → 様子（モデル・ブランチ・起こす知らせの通り道・コンテキストの量・会話を空にできるという名乗り。どれも無い参加者は持たない）
   let plugins: { id: string; ui: string; css?: string; disabled?: boolean }[] = []
   let client = ""
   let warnings: readonly Warning[] = [] // 画面が見つけた warning（つなぎ直すたびに知らせ直す）
