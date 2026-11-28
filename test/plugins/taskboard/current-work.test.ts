@@ -10,6 +10,7 @@ import { withCounters, withRecords } from "../../../web/src/core/records"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { workroomActivityOf, workroomWorkIn, workroomWorkOf } from "../../../web/src/plugins/base/participant/activity"
 import { myWorkdeskIn } from "../../../web/src/plugins/base/participant/my-workdesk"
+import { handoffDueIn } from "../../../web/src/plugins/base/participant/refresh-request"
 import { workTitleIn } from "../../../web/src/plugins/base/participant/work-title"
 import { workerBookOf, workerBookReadsOf } from "../../../web/src/plugins/base/participant/worker-book"
 import { WORKROOM } from "../../../web/src/plugins/base/participant/workroom"
@@ -387,6 +388,49 @@ test("今の作業が替わると、同じ書き込みでワークルームの�
   expect(ended).toContain('read_folder with folder "my-workdesk"')
   expect(roomRecord().work).toBeUndefined()
   expect(roomRecord().handoffTarget).toEqual({ subject: TICKET.id, id: t1 })
+})
+
+test("今の作業が替わると、管理者のワークルームにも、替わったワークルームの全部を 1 通にまとめて知らせる。管理者のワークルームの替わりは載せない。完了の知らせはこれだけ", () => {
+  const { act, user, room, doing, add } = board()
+  const admin = room("管理")
+  const a = room("あ")
+  const b = room("い")
+  user("@matomezu/base:admin-set", { workroom: admin })
+  const toAdmin = (d: Done) =>
+    ((d as Done & { hostMessages?: { workroom: string; text: string }[] }).hostMessages ?? [])
+      .filter(m => m.workroom === admin && m.text.startsWith("The current work of workrooms"))
+      .map(m => m.text)
+  const t1 = add({ name: "一", lane: doing, assignees: [a, b] })
+  // 2 つのワークルームが同じ書き込みで替わる: 1 通。閉じたときの知らせはこれだけ
+  const done = act(ai(b), "ticket-complete", {}, { record: t1 }) as Done & { aiMessages?: unknown }
+  expect(done.aiMessages).toBeUndefined()
+  expect(toAdmin(done)).toEqual([
+    "The current work of workrooms changed: あ: T-0001 一 ended, no current work now. い: T-0001 一 ended, no current work now.",
+  ])
+  const t2 = add({ name: "二", lane: doing, assignees: [a] })
+  const t3 = add({ name: "三" })
+  expect(toAdmin(act(ai(a), "ticket-start", {}, { record: t3 }))).toEqual([
+    "The current work of workrooms changed: あ: from T-0002 二 to T-0003 三.",
+  ])
+  // 管理者のワークルームだけが替わったときは送らない
+  expect(toAdmin(act(ai(admin), "ticket-start", {}, { record: t2 }))).toEqual([])
+  // 管理者がいなければ送らない
+  user("@matomezu/base:admin-set", { workroom: "none" }, { record: "admin" })
+  const none = user("ticket-complete", {}, { record: t3 }) as Done & { hostMessages?: { workroom: string }[] }
+  expect(none.hostMessages?.map(m => m.workroom)).toEqual([a])
+})
+
+test("引継ぎページの頼み: 引継ぎ対象チケットがあり、そのレコードが在れば refresh-request を頼む文。無い・レコードが消えたなら空", () => {
+  const { act, user, room, doing, add, world } = board()
+  const a = room("ひよこ")
+  const due = () => handoffDueIn(CORE_CATALOG, sourceOf(world().records as Records), a)
+  const t1 = add({ name: "一", lane: doing, assignees: [a] })
+  expect(due()).toBe("")
+  act(ai(a), "ticket-start", {}, { record: add({ name: "二" }) })
+  expect(due()).toContain("You left T-0001 一")
+  expect(due()).toContain("@matomezu/base:refresh-request")
+  user("ticket-remove", {}, { record: t1 })
+  expect(due()).toBe("")
 })
 
 test("ワークルームの作業は、答える種類のうち機能台帳の並びで最初に作業中と答えた物。どれも作業中でなければ空き", () => {

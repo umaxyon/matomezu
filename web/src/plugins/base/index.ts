@@ -389,6 +389,7 @@ export {
   type ContextScale,
   contextGauge,
   type FoundWorkerBook,
+  handoffDueIn,
   isAdminActor,
   JOINED_MESSAGE,
   leftTitleIn,

@@ -63,7 +63,8 @@ type participantNote struct {
 	SessionPid      string `json:"sessionPid,omitempty"`      // セッションと同じだけ生きるプロセスだと MCP が名乗ったプロセス id（居なくなったら退室。名乗った呼び出しが書き、起こす知らせの宛て先を移すときに消す）
 	SessionPidSpace string `json:"sessionPidSpace,omitempty"` // そのプロセス id が通じる範囲の印（常駐の印と同じときだけ、居るかを確かめる）
 	Refreshable     bool   `json:"refreshable,omitempty"`     // 結んだ会話の AI のプログラムが、会話を空にできると名乗った（話しかけのフックが添える。refresh.go）
-	RefreshDue      string `json:"refreshDue,omitempty"`      // 受けたリフレッシュリクエストの、空にしたあとの新しい会話に打つ文（AI のプログラムの部品が訊いたら渡して消す。refresh.go）
+	RefreshDue      string `json:"refreshDue,omitempty"`      // 受けたリフレッシュリクエストの、空にしたあとの新しい会話に打つ文（AI のプログラムの部品が訊いたら渡して RefreshLent へ移す。refresh.go）
+	RefreshLent     string `json:"refreshLent,omitempty"`     // 部品に渡した RefreshDue（空にしたあとの会話がその文で始まったら消す。始まらないままターンが終われば、空にならなかったと AI に 1 度伝えて消す。refresh.go）
 }
 
 // live は、窓に知らせる参加者の様子（モデルとブランチ。空は省く）

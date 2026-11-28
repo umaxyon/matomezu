@@ -107,7 +107,7 @@ export const VISITOR_JOINED_MESSAGE = kit.message("Joined matomezu as a visitor 
 
 export { workroomActivitiesFrom } from "./activity"
 export { myWorkdeskIn } from "./my-workdesk"
-export { REFRESH_REQUEST } from "./refresh-request"
+export { handoffDueIn, REFRESH_REQUEST } from "./refresh-request"
 export { REFRESH_REQUEST_ID } from "./refresh-request-id"
 export { FOLLOW_WORK_CHANGED } from "./work-change"
 export { leftTitleIn, SESSION_RENAME, workTitleIn } from "./work-title"
