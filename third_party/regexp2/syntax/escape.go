@@ -10,7 +10,17 @@ import (
 func Escape(input string) string {
 	b := &bytes.Buffer{}
 	for _, r := range input {
-		escape(b, r, false)
+		switch r {
+		case ' ':
+			// Hex escapes for space and '#' are valid in every mode,
+			// including IgnorePatternWhitespace and ECMAScript|Unicode,
+			// where "\ " and "\#" are compile errors.
+			b.WriteString(`\x20`)
+		case '#':
+			b.WriteString(`\x23`)
+		default:
+			escape(b, r, false)
+		}
 	}
 	return b.String()
 }
@@ -28,7 +38,8 @@ func escape(b *bytes.Buffer, r rune, force bool) {
 
 	switch r {
 	case '\a':
-		b.WriteString(`\a`)
+		// \a is an identity escape in non-Unicode ECMAScript patterns.
+		b.WriteString(`\x07`)
 	case '\f':
 		b.WriteString(`\f`)
 	case '\n':
@@ -70,7 +81,7 @@ func Unescape(input string) (string, error) {
 		if p.rightMost() {
 			return "", p.getErr(ErrIllegalEndEscape)
 		}
-		r, err := p.scanCharEscape()
+		r, err := p.scanCharEscape(false)
 		if err != nil {
 			return "", err
 		}

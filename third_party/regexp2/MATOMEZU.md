@@ -1,6 +1,6 @@
 # regexp2 の写し
 
-github.com/dlclark/regexp2/v2 v2.8.1（goja が使う正規表現のライブラリ）の写し。go.mod の replace で、取り寄せた物の代わりに使う。テストと fuzz の種は外した。
+github.com/dlclark/regexp2/v2 v2.13.3（goja が使う正規表現のライブラリ）の写し。go.mod の replace で、取り寄せた物の代わりに使う。テストと fuzz の種は外した。
 
 ## 直した所
 

@@ -338,18 +338,21 @@ const GO_ALLOWED: Record<string, readonly string[]> = {
   peer: [],
 }
 
-test("Go のパッケージは internal の下と、実行ファイルの入口（cmd/matomezu）と埋め込みの画面（web）と、AI のプログラムと ADE ごとの部品（clients/<AI の名前>・clients/ade/<ADE の名前>）だけ。web と clients は matomezu のほかのパッケージを読まず、clients を読むのは cmd/matomezu だけ", () => {
+test("Go のパッケージは internal の下と、実行ファイルの入口（cmd/matomezu）と埋め込みの画面（web）と、AI のプログラムと ADE ごとの部品（clients/<AI の名前>・clients/ade/<ADE の名前>）と、外のモジュールの写し（third_party/<名前>）だけ。web・clients・third_party は matomezu のほかのパッケージを読まず、clients を読むのは cmd/matomezu だけ", () => {
   const tops = readdirSync(ROOT, { withFileTypes: true })
     .filter(e => e.isDirectory() && !e.name.startsWith(".") && !["node_modules", "internal"].includes(e.name))
     .map(e => e.name)
   const outside = [
     ...new Set(tops.flatMap(d => filesEnding(join(ROOT, d), ".go")).map(f => relative(ROOT, dirname(f)))),
   ].sort()
-  expect(outside.filter(d => !d.startsWith("clients/"))).toEqual(["cmd/matomezu", "web"])
+  expect(outside.filter(d => !d.startsWith("clients/") && !d.startsWith("third_party/"))).toEqual([
+    "cmd/matomezu",
+    "web",
+  ])
   const own = /"github\.com\/umaxyon\/matomezu\//
-  const bad = [...filesEnding(join(ROOT, "web"), ".go"), ...filesEnding(join(ROOT, "clients"), ".go")].filter(f =>
-    own.test(readFileSync(f, "utf8")),
-  )
+  const bad = ["web", "clients", "third_party"]
+    .flatMap(d => filesEnding(join(ROOT, d), ".go"))
+    .filter(f => own.test(readFileSync(f, "utf8")))
   expect(bad).toEqual([])
   const readsClients = filesEnding(join(ROOT, "internal"), ".go").filter(f =>
     /"github\.com\/umaxyon\/matomezu\/clients\//.test(readFileSync(f, "utf8")),
