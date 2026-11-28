@@ -276,7 +276,7 @@ test("送った置き直しが、ぶつかって断られたら、トースト�
   expect(libraryHistory(store)).toMatchObject({ undo: [older], redo: [] })
 })
 
-// 送ったアクションの答えを待つ間に呼ばれた元に戻す・やり直す（whileSent: "waits"）は、並べて、答えが来てから行う
+// 送ったアクションの答えを待つ間に呼ばれた元に戻す・やり直す（whileSent: "waits"）は、1 つだけ並べて、答えが来てから行う
 // （answer は、ゴミ箱に入れるのを除く送った物への常駐の答え。release を呼ぶまで、ゴミ箱に入れるのへの答えを止める）
 function holding(answer: (bulk: DoneBulk) => HostAnswer = bulk => ({ ok: true, results: bulk.map(() => ({})) })) {
   const releases: ((a: HostAnswer) => void)[] = []
@@ -313,38 +313,57 @@ test("送った物の答えを待つ間に押した書庫の元に戻すは、�
   expect(history.redo[0]?.pages.q1).toMatchObject({ before: { body: "常駐の中身" } })
 })
 
-test("送った置き直しの答えを待つ間に続けて押した元に戻すは、同じ書庫の履歴の段を送り直さず、その前の段を戻す", async () => {
+test("送った置き直しの答えを待つ間に続けて押した元に戻すは、1 回だけ並べ、同じ書庫の履歴の段を送り直さずにその前の段を戻す（それより後の分は捨てる）", async () => {
   let release: () => void = () => {}
-  const { store, sent, older, newer } = await (async () => {
-    let first = true
-    const sent: DoneBulk[] = []
-    const store = sizedStore({
-      observe: (bulk: DoneBulk) => {
-        sent.push(bulk)
-        const a: HostAnswer = bulk[0]?.action === REVERT ? { ok: true, results: bulk.map(() => ({})) } : trashed(bulk)
-        if (bulk[0]?.action !== REVERT || !first) return Promise.resolve(a)
-        first = false
-        return new Promise<HostAnswer>(r => (release = () => r(a)))
-      },
-      plugins: [...BUILTIN, touches],
-    } as never)
-    store.receive(worldWithMeta(store), [])
-    for (const _ of [1, 2]) {
-      store.actions.perform(TRASH, { entry: "b2" })
-      await answered()
-    }
-    const [older, newer] = libraryHistory(store).undo
-    return { store, sent, older: older!, newer: newer! }
-  })()
-  libraryUndo(store)
-  libraryUndo(store)
+  let first = true
+  const sent: DoneBulk[] = []
+  const store = sizedStore({
+    observe: (bulk: DoneBulk) => {
+      sent.push(bulk)
+      const a: HostAnswer = bulk[0]?.action === REVERT ? { ok: true, results: bulk.map(() => ({})) } : trashed(bulk)
+      if (bulk[0]?.action !== REVERT || !first) return Promise.resolve(a)
+      first = false
+      return new Promise<HostAnswer>(r => (release = () => r(a)))
+    },
+    plugins: [...BUILTIN, touches],
+  } as never)
+  store.receive(worldWithMeta(store), [])
+  for (const _ of [1, 2, 3]) {
+    store.actions.perform(TRASH, { entry: "b2" })
+    await answered()
+  }
+  const [oldest, older, newer] = libraryHistory(store).undo
+  for (const _ of [1, 2, 3]) expect(libraryUndo(store)).toBe(true)
   await answered()
   expect(reverts(sent)).toHaveLength(1)
   release()
   await answered()
   expect(reverts(sent)).toHaveLength(2)
   expect(reverts(sent)[0]).not.toEqual(reverts(sent)[1])
-  expect(libraryHistory(store)).toMatchObject({ undo: [], redo: [newer, older] })
+  expect(libraryHistory(store)).toMatchObject({ undo: [oldest], redo: [newer, older] })
+})
+
+test("待つ間にほかのコマンドを行ったら、並べた元に戻すは捨てる", async () => {
+  const { store, sent, release } = holding()
+  store.actions.perform(TRASH, { entry: "b2" })
+  await settled()
+  libraryUndo(store)
+  store.actions.command("s1", "@matomezu/base:stage-split")
+  await release()
+  expect(reverts(sent)).toHaveLength(0)
+  expect(libraryHistory(store).undo).toHaveLength(1)
+})
+
+test("待つ間に利用者の操作が履歴に入ったら、並べた元に戻すは捨てる", async () => {
+  const { store, sent, release } = holding()
+  store.actions.perform(TRASH, { entry: "b2" })
+  await settled()
+  libraryUndo(store)
+  place(store, 40, "一")
+  await settled()
+  await release()
+  expect(reverts(sent)).toHaveLength(0)
+  expect(store.state.getState().history.b1?.undo).toHaveLength(1)
 })
 
 test("待っていた操作を常駐が断っても、並べた元に戻すは答えのあとに行う（その前の書庫の履歴の段を戻す）", async () => {

@@ -373,6 +373,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const history = { ...getState().history }
     history[LIBRARY_HISTORY] = { undo: place(history[LIBRARY_HISTORY] ?? NO_HISTORY, step), redo: [] }
     setState({ history })
+    // 答えを待っていた操作の書庫の履歴の段（始めた順の位置に入る）は、並べた元に戻すが戻す物なので、捨てない
+    if (place === atEnd) dropHeld()
   }
   // 閉じた段を画面の履歴に入れる
   const putStep = (was: OpenStep) => {
@@ -406,6 +408,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       history[id] = { undo: [...(history[id] ?? NO_HISTORY).undo, step].slice(-HISTORY_LIMIT), redo: [] }
     setState({ history })
     lastPut = { ...lastPut, ...Object.fromEntries(step.outermosts.map(id => [id, step])) }
+    dropHeld()
   }
   // 続ける前の画面の履歴の段 prior を、画面の履歴の最後に戻す（続けた画面の履歴の段が断られたとき）
   const putBack = (prior: HistoryStep) => {
@@ -638,16 +641,20 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     void confirmed.then(answered, answered)
     return { ok: true, result: SENT_TO_HOST, next: {}, confirmed }
   }
-  // 常駐へ送って、まだ答えの来ないアクションの数と、その間に呼ばれた whileSent: "waits" のコマンド（呼ばれた順）
+  // 常駐へ送って、まだ答えの来ないアクションの数と、その間に呼ばれた whileSent: "waits" のコマンド（1 つだけ。答えが来るまでに続けて呼ばれた物は捨てる。
+  // 連打した元に戻すが、答えが来たとたんにまとめて戻さないように）
   let sentAwaiting = 0
-  const held: { stage: string; id: CommandId; args: unknown[] }[] = []
-  // 並べたコマンドを、答えを待つ物が無い間、1 つずつ行う（行ったコマンドがまた送ったら、残りはその答えを待つ。続けて押した元に戻すが同じ段を送り直さないように）
+  let held: { stage: string; id: CommandId; args: unknown[] } | null = null
+  // 並べたコマンドを捨てる（答えを待つ間にほかのコマンドを行ったか、利用者の操作が履歴に入ったとき。並べた元に戻すが、押した時に戻すはずだった物と違う物を戻さないように）
+  const dropHeld = () => {
+    held = null
+  }
+  // 答えを待つ物が無くなったら、並べたコマンドを行う
   const runHeld = () => {
-    while (sentAwaiting === 0) {
-      const next = held.shift()
-      if (!next) return
-      runCommand(next.stage, next.id, ...next.args)
-    }
+    if (sentAwaiting > 0 || held === null) return
+    const next = held
+    held = null
+    runCommand(next.stage, next.id, ...next.args)
   }
   // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じ、そのステージごとのプラグイン状態は消す
   const commit = (next: Partial<MatomezuState>) => {
@@ -867,12 +874,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     // 1 回のコマンドの書き込みは、購読に 1 回で知らせる（together）
     command: (stage, id, ...args) => {
       runWaiting()
-      // 送ったアクションの答えを待つなら、並べて行ったことにする（キーは次の範囲へ流さない）。押せるかは行う時に見る
+      // 送ったアクションの答えを待つなら、並べて行ったことにする（キーは次の範囲へ流さない）。押せるかは行う時に見る。もう並べていれば、捨てる
       if (sentAwaiting > 0 && defs.catalog.store.commands.get(id)?.whileSent === "waits") {
         if (!called(defs, getState(), stage, id)) return false
-        held.push({ stage, id, args })
+        held ??= { stage, id, args }
         return true
       }
+      dropHeld()
       // メニューなどから呼んだ copy・cut: ブラウザに copy のイベントを起こしてもらい、その中で行う（起きなければ、クリップボード無しで下で行う）
       const use = clipboardUseOf(id)
       if ((use === "copy" || use === "cut") && inEvent === null && options.requestCopyEvent) {
