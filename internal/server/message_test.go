@@ -364,11 +364,11 @@ func TestPayloadsNoRecipient(t *testing.T) {
 	actor := &engine.Actor{Kind: "ai", Workroom: ids["ひよこ"]}
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
-	if _, refused := hub.payloadDeliveries([]engine.Payload{{To: engine.Destination{Workroom: "からす"}, Text: "x"}}, actor, false, time.Now()); refused == nil || refused.Reason != "no-recipient" {
+	if _, _, refused := hub.payloadDeliveries([]engine.Payload{{To: engine.Destination{Workroom: "からす"}, Text: "x"}}, actor, "", sendChain{byWindow: false}, time.Now()); refused == nil || refused.Reason != "no-recipient" {
 		t.Fatalf("refuse = %+v", refused)
 	}
 	for _, to := range []string{"からす", "ひよこ", "ない"} {
-		envelopes, refused := hub.payloadDeliveries([]engine.Payload{{To: engine.Destination{Workroom: to}, Text: "x", NoRecipient: "skip"}}, actor, false, time.Now())
+		envelopes, _, refused := hub.payloadDeliveries([]engine.Payload{{To: engine.Destination{Workroom: to}, Text: "x", NoRecipient: "skip"}}, actor, "", sendChain{byWindow: false}, time.Now())
 		if refused != nil || len(envelopes) != 0 {
 			t.Fatalf("skip to %s = %+v %+v", to, envelopes, refused)
 		}
@@ -476,19 +476,19 @@ func TestUserPayload(t *testing.T) {
 	user := &engine.Actor{Kind: "user"}
 	to := engine.Payload{To: engine.Destination{Workroom: "すずめ"}, Text: "clear"}
 	hub.mu.Lock()
-	if _, refused := hub.payloadDeliveries([]engine.Payload{to}, user, false, time.Now()); refused == nil || refused.Reason != "refused" {
+	if _, _, refused := hub.payloadDeliveries([]engine.Payload{to}, user, "", sendChain{byWindow: false}, time.Now()); refused == nil || refused.Reason != "refused" {
 		hub.mu.Unlock()
 		t.Fatalf("not from a window = %+v", refused)
 	}
 	pinned := to
 	pinned.To.Participant = "someone-else"
-	if _, refused := hub.payloadDeliveries([]engine.Payload{pinned}, user, true, time.Now()); refused == nil || refused.Reason != "no-recipient" {
+	if _, _, refused := hub.payloadDeliveries([]engine.Payload{pinned}, user, "", sendChain{byWindow: true}, time.Now()); refused == nil || refused.Reason != "no-recipient" {
 		hub.mu.Unlock()
 		t.Fatalf("pinned to another participant = %+v", refused)
 	}
 	// AI ラリーの上限より多く送っても止まらない
 	for range rallyLocalLimit + 1 {
-		envelopes, refused := hub.payloadDeliveries([]engine.Payload{to}, user, true, time.Now())
+		envelopes, _, refused := hub.payloadDeliveries([]engine.Payload{to}, user, "", sendChain{byWindow: true}, time.Now())
 		if refused != nil || len(envelopes) != 1 || !hub.deliver(envelopes[0]) {
 			hub.mu.Unlock()
 			t.Fatalf("from the user = %+v %+v", envelopes, refused)

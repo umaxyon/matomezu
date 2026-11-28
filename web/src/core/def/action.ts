@@ -1,7 +1,7 @@
 // アクションの定義: できること（動詞）。データを変える入口はアクションだけで、画面の操作も AI の操作も同じものを通る。
 // run は新しい値と結果（作ったものの id など）を返す純粋な関数。対象に合わなければ null を返して断る
 
-import type { z } from "zod"
+import { z } from "zod"
 import { type Actor, isAI } from "../actor"
 import type { PageAnnotations } from "../annotation"
 import type { ActionExtras, SubjectId, SubjectTable } from "../catalog"
@@ -107,6 +107,8 @@ export interface ActionContext {
   find?(subject: string, where: readonly Condition[]): readonly unknown[]
   // 番号を振る種類（対象の定義の numbered）のアクションが、区切り scope の次の番号を受け取る。常駐が決めた値で、使い回さない（ほかのアクションには無い）
   number?(scope: string): number
+  // レシーバー（receives を書いたアクション）だけが、届いた 1 通から行うときに受ける（ほかのアクションと、届いた 1 通でない時には無い）
+  received?: Received
 }
 
 // AI 編集チケットの変え方。key で 1 つを見分け（郵便の id など）、ブック book の AI 編集チケットとして、作る（open）・閉じる（closed）・失敗にする（failed。changed は
@@ -118,26 +120,69 @@ export type AIEditTicketChange =
   | { book: string; key: string; outcome: "removed"; cause: AIEditTicketRemovedCause }
 export type AIEditTicketRemovedCause = "limit" | "user"
 
-// 送り先: matomezu ペイロードを届ける先。このホストの、名前が workroom のワークルームの AI。
+// ワークルームの送り先: このホストの、名前が workroom のワークルームの AI。
 // participant（参加者の id）を書けば、その参加者が今そのワークルームに入っているときだけ届く（入れ替わった別の AI には届かない）
-export interface Destination {
+export interface WorkroomDestination {
   workroom: string
   participant?: string
 }
 
+// レシーバーの送り先: レシーバーのアクション receiver（定義に receives を書いた、レコードが対象のアクションの id）を、レコード on に行う。on を省けば、レコードを作る形で行う
+export interface ReceiverDestination {
+  receiver: string
+  on?: string
+}
+
+// matomezu ペイロードの送り先: ワークルームか、レシーバー
+export type Destination = WorkroomDestination | ReceiverDestination
+
 // 送り先に届けられないときの扱い: refuse はアクションバルクごと断り、skip はその 1 通を送らないだけにする（送らなかったことは返さない）
 export type NoRecipient = "refuse" | "skip"
 
-// レコードが対象のアクションが送る matomezu ペイロード 1 通: 送り先 to と文 text（AI に見せる英語。利用者の言語に合わせない）。送り手は行った者で、ここには書かない。
+// レコードが対象のアクションが送る matomezu ペイロード 1 通。送り手は行った者で、ここには書かない。
 // 返せるのは、行う者が利用者か、ワークルームに入っている AI のときだけ。常駐は、アクションバルクが通ったときだけ送る。
 // 利用者が画面で行ったアクションが送った物には、利用者の頼みの印が付く（常駐が利用者として行うアクションは送れない）。
-// 送り先のワークルームに参加の確定したほかの参加者がいないとき（participant を書いたなら、その参加者でないとき）、noRecipient が refuse（省いたとき）ならバルクごと断り（no-recipient）、
-// skip ならその 1 通を送らないだけにする。AI ラリーの上限を超える 1 通も同じ（断るときは rally-limit）
-export interface Payload {
-  to: Destination
+// 届けられないとき（ワークルーム宛てなら、参加の確定したほかの参加者がいない・AI ラリーの上限を超える。レシーバー宛てなら、段数の上限を超える）、
+// noRecipient が refuse（省いたとき）ならバルクごと断り（no-recipient・rally-limit・hop-limit）、skip ならその 1 通を送らないだけにする
+export type Payload = MessagePayload | ReceiverPayload
+
+// ワークルームの AI への 1 通: 文 text（AI に見せる英語。利用者の言語に合わせない）。
+// replyReceiver を書けば、受けた AI は send_message の replyTo でこの 1 通に 1 回だけ返事でき、返事はそのレシーバーに届く
+export interface MessagePayload {
+  to: WorkroomDestination
   text: string
   noRecipient?: NoRecipient
+  replyReceiver?: ReceiverDestination
 }
+
+// レシーバーへの 1 通: 引数 args（レシーバーの args の形で確かめる）。id は封筒の id（run が ctx.newId で振る。届かなかった結果とレシーバーの ctx.received に載る）。
+// レシーバーが断ったら、undelivered を書いていれば、そのレシーバー（receives が "undelivered"）に届かなかった結果（Undelivered）を送り手と同じ者で行う
+export interface ReceiverPayload {
+  to: ReceiverDestination
+  id: string
+  args: unknown
+  noRecipient?: NoRecipient
+  undelivered?: ReceiverDestination
+}
+
+export const isReceiverPayload = (p: Payload): p is ReceiverPayload => "receiver" in p.to
+
+// レシーバーが受けた 1 通の、送り手（同じホストの利用者か、ワークルームの AI〈ワークルームの名前〉か、常駐〈届かなかった結果〉）
+export type PayloadSender = { kind: "user" } | { kind: "ai"; workroom: string } | { kind: "matomezu" }
+
+// レシーバーの run が受ける、届いた 1 通: 封筒の id・送り手・返事なら返した元の封筒の id
+export interface Received {
+  envelope: string
+  from: PayloadSender
+  inReplyTo?: string
+}
+
+// 届かなかった結果（receives が "undelivered" のレシーバーの引数）: 届かなかった封筒の id・理由・AI への説明
+export const UNDELIVERED_ARGS = z.object({ envelope: z.string(), reason: z.string(), detail: z.string().optional() })
+export type Undelivered = z.infer<typeof UNDELIVERED_ARGS>
+
+// レシーバーの印: messages は matomezu ペイロードと AI の返事を受け、undelivered は届かなかった結果を受ける
+export type Receives = "messages" | "undelivered"
 
 // レコードが対象のアクションが、宛先の 1 件のほかに変えるレコード 1 件（record は新しいレコードか、消すなら removed）。
 // subject を省けば、対象の種類 T のレコード。別の種類のレコードは subject に種類の id を書く（アクションの定義の writes に書いた種類だけ）
@@ -463,6 +508,8 @@ export interface ActionDef<
   // 常駐が初めて起動したとき（その行ったという記録がまだ無いとき）に、利用者として 1 度だけ行う（引数は {}。最初の 1 件を作るなど。行えたら記録し、
   // 利用者があとで消しても作り直さない。行えなければ記録せず、次の起動でまた行う）
   runsOnceAtStart?: true
+  // レシーバーの印（Receives）。レシーバーは届いた 1 通からだけ行い、AI や画面が直に行うと断る。対象の定義の種類が対象のアクションだけが書ける
+  receives?: T extends SubjectId ? Receives : never
   // 画面の窓を開いて常駐につながったときに、その窓が利用者として 1 度行う。窓から決まる事（WindowStart）と機能台帳を受けて、行う引数を答える（行わないなら null）。
   // 窓から決まる値〈窓の言語など〉を、まだ無いときだけ書くなど。窓がいくつ開いても、行う前に在る物は変えない作りにする（行うかの条件は run の中で確かめる）
   runsAtWindowStart?(window: WindowStart, catalog: CoreCatalog): I | null

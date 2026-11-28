@@ -32,6 +32,8 @@ type Perform struct {
 	Participant string `json:"-"`
 	// ended は、常駐がセッションが終わったと見て参加者を外す頼みか（leave だけが入れる。外れた記録の訳。departure.go）
 	ended bool
+	// chain は、レシーバーを届いた 1 通から行う頼みの、その 1 通と鎖（receiver.go。ほかの頼みでは空）
+	chain chain
 }
 
 // performOne は、アクション 1 つのバルクの頼み
@@ -59,22 +61,33 @@ type Performed struct {
 	Notice string `json:"notice,omitempty"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 }
 
-// Perform はアクションバルクを行い、変わったものを 1 回で書いて知らせる。行い終えた番号（Key）がまた届いたら、行わずに前の結果を返す（ack も送る）
+// Perform はアクションバルクを行い、変わったものを 1 回で書いて知らせる。行い終えた番号（Key）がまた届いたら、行わずに前の結果を返す（ack も送る）。
+// アクションが返したレシーバー宛ての matomezu ペイロードは、書き終えて鍵を外したあとに、順に行ってから返す（receiver.go）
 func (h *Hub) Perform(p Perform) (Performed, error) {
+	done, receives, err := h.performOnce(p)
+	if err != nil {
+		return Performed{}, err
+	}
+	h.receiveAll(receives)
+	return done, nil
+}
+
+// performOnce は、h.mu を持ってアクションバルク p を行い、結果と、あとで行うレシーバー宛ての 1 通を返す
+func (h *Hub) performOnce(p Perform) (Performed, []receive, error) {
 	if len(p.Actions) == 0 {
-		return Performed{}, ErrNoActions
+		return Performed{}, nil, ErrNoActions
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if done, ok := h.performed[p.Key]; ok && p.Key != "" {
 		h.ack(p, done)
-		return done, nil
+		return done, nil, nil
 	}
 	// 時点の無いアクション（AI やホストが頼んだ物）は、ここで時計を 1 回読んで時点と日付を決める（前に決めた時点より後）
 	h.actionNow = laterThan(h.actionNow, time.Now())
-	in := engine.Input{Actions: stamped(p.Actions, h.actionNow), Settings: h.settings, Actor: h.actorOfHeld(p), TimeoutSec: p.TimeoutSec}
+	in := engine.Input{Actions: stamped(p.Actions, h.actionNow), Settings: h.settings, Actor: h.actorOfHeld(p), TimeoutSec: p.TimeoutSec, Received: p.chain.received}
 	if err := h.performInputs(&in); err != nil {
-		return Performed{}, err
+		return Performed{}, nil, err
 	}
 	in.Watched = h.watched()
 	in.WatchedRecords = h.watchedRecords()
@@ -89,7 +102,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		out, err = h.engine.PerformWith(in, recordSource{h})
 	}
 	if err != nil {
-		return Performed{}, err
+		return Performed{}, nil, err
 	}
 	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Kind: out.Kind, SystemFolder: out.SystemFolder, Result: out.Result, Results: out.Results, At: out.At, Notice: out.Notice}
 	if !out.OK {
@@ -98,14 +111,14 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		}
 		h.remember(p.Key, done)
 		h.ack(p, done)
-		return done, nil
+		return done, nil, nil
 	}
 	// AI のアクションは、窓に出ているステージエントリ（ブックと、ブックの外のページ）をゴミ箱に入れない（AI は利用者に聞く）
 	if p.By == "ai" && h.trashesShown(out.Trashing) {
 		done = Performed{OK: false, Reason: "open-on-screen"}
 		h.remember(p.Key, done)
 		h.ack(p, done)
-		return done, nil
+		return done, nil, nil
 	}
 	by := "host"
 	if p.By == "ai" {
@@ -121,29 +134,30 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 			cancelled = h.cancelledIn(p.Actions)
 		}
 	}
-	// アクションが返した matomezu ペイロードは、送り手が画面の利用者か参加の確定した AI で、全部の送り先に参加の確定した参加者がいるときだけ送る（でなければ、何も変えずにバルクごと断る）
-	envelopes, envelopesRefused := h.payloadDeliveries(out.Payloads, in.Actor, by == "window", time.Now())
+	// アクションが返した matomezu ペイロードは、送り手が画面の利用者か参加の確定した AI で、全部の送り先に届けられるときだけ送る（でなければ、何も変えずにバルクごと断る）。
+	// 窓から始まり、AI を挟まずに利用者のままの鎖のレシーバーが返した物も、窓から送った物とみなす
+	envelopes, receives, envelopesRefused := h.payloadDeliveries(out.Payloads, in.Actor, p.Participant, p.chain.next(by == "window"), time.Now())
 	if envelopesRefused != nil {
 		h.remember(p.Key, *envelopesRefused)
 		h.ack(p, *envelopesRefused)
-		return *envelopesRefused, nil
+		return *envelopesRefused, nil, nil
 	}
 	// リフレッシュリクエストは、会話を空にできると名乗った参加者のときだけ受ける（でなければ、何も変えずにバルクごと断る。refresh.go）
 	if refused := h.refreshRefused(out.RefreshRequest, p.Participant); refused != nil {
 		h.remember(p.Key, *refused)
 		h.ack(p, *refused)
-		return *refused, nil
+		return *refused, nil, nil
 	}
 	hostEnvelopes, err := h.hostEnvelopes(out.HostMessages, in.Actor)
 	if err != nil {
-		return Performed{}, err
+		return Performed{}, nil, err
 	}
 	act := h.actPrefix + "-" + strconv.FormatInt(h.acts+1, 10)
 	shared := h.sharedWithUnreadable()
 	out = withoutSharedRemovals(out, shared)
 	plan, err := h.planWrites(out, by, act, stamp())
 	if err != nil {
-		return Performed{}, err
+		return Performed{}, nil, err
 	}
 	if plan != nil {
 		keepSharedPlaces(plan, shared)
@@ -153,11 +167,11 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		done = Performed{OK: false, Reason: "refused"}
 		h.remember(p.Key, done)
 		h.ack(p, done)
-		return done, nil
+		return done, nil, nil
 	}
 	// 変わった物の全部を 1 つのまとまりで書く。書けなければ、置き場所もメモリも窓も何も変わらず、行い直せる
 	if err := h.store.Apply(plan.batch); err != nil {
-		return Performed{}, err
+		return Performed{}, nil, err
 	}
 	h.acts++
 	leaving, leavingRooms := h.leavingParticipants(out.Records)
@@ -174,7 +188,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	h.keepRefresh(out.RefreshRequest, p.Participant)
 	h.remember(p.Key, done)
 	h.ack(p, done)
-	return done, nil
+	return done, receives, nil
 }
 
 // performInputs は、バルク in.Actions を行う前に、エンジンへ渡すページ・フォルダ・アノテーション・レコード・番号の表を in に入れる（h.mu を持って呼ぶ）。
