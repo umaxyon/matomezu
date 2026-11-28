@@ -138,7 +138,7 @@ func (h *Hub) carrySession(id, sessionID, host string) {
 // 移すときは、古いプロセスで退室の見張りをしないよう、セッションと同じだけ生きるプロセスの印を消す（次の MCP の呼び出しが名乗り直す）。h.mu を持って呼ぶ
 func (h *Hub) followHost(id, sessionID, host string, moved bool) {
 	n := h.participantNotes[id]
-	if host == "" || host == n.WakeHost || (!moved && n.WakeSession != "" && n.WakeSession != sessionID) || h.wakeReachLocked(id) == engine.WakeReaches {
+	if host == "" || host == n.WakeHost || (!moved && n.WakeSession != "" && n.WakeSession != sessionID) || h.wakeReachKept(id) {
 		return
 	}
 	n.Host = host
@@ -148,6 +148,11 @@ func (h *Hub) followHost(id, sessionID, host string, moved bool) {
 	logWake("participant %s is reached at host %q, session %q (hook)", id, host, sessionID)
 	h.noteWakesLocked()
 	h.signalWakes(id)
+}
+
+// wakeReachKept は、参加者 id の起こす知らせの宛て先を、書き直さずに残すか: 今その宛て先に届く通り道がある（h.mu を持って呼ぶ）
+func (h *Hub) wakeReachKept(id string) bool {
+	return h.wakeReachLocked(id) == engine.WakeReaches
 }
 
 // followHosts は、セッション sessionID に結ばれた参加（要求）中の参加者の起こす知らせの宛て先を、host に移す（followHost）。移したか（置き場所には書かない。h.mu を持って呼ぶ）
@@ -252,7 +257,8 @@ func (h *Hub) settleNotes() error {
 
 // SessionParticipant は、セッション id session が結ばれた参加者の id（無ければ、AI のプログラムのプロセス id host の参加者。hostParticipantHeld）。受け入れ済みで準備中でない参加者が、ちょうど 1 人のときだけ返す（ほかは空。
 // フックは会話に出た link の参加者のどれにも同じセッション id を結ぶので、1 人に決まらなければ選ばない）。
-// 返すときは、起こす知らせの宛て先を、この呼び出しの AI のプログラムのプロセス id host とセッション id に書き直す（起動し直した AI のプログラムは、プロセス id が変わる）
+// 返すときは、起こす知らせの宛て先を、この呼び出しの AI のプログラムのプロセス id host とセッション id に書き直す（起動し直した AI のプログラムは、プロセス id が変わる）。
+// 今その参加者に届く通り道があれば書き直さない（wakeReachKept。/clear のあとに立て直した MCP は新しいセッション id を添えるが、Claude Code の monitor は立てたときのセッション id を名乗り続ける）
 func (h *Hub) SessionParticipant(session, host string) string {
 	if session == "" {
 		return ""
@@ -271,9 +277,9 @@ func (h *Hub) SessionParticipant(session, host string) string {
 		return ""
 	}
 	n := h.participantNotes[found]
-	if n.WakeHost != host || n.WakeSession != session {
+	if (n.WakeHost != host || n.WakeSession != session) && !h.wakeReachKept(found) {
 		n.WakeHost, n.WakeSession = host, session
-		logWake("participant %s is reached at host %q, session %q (hook)", found, host, session)
+		logWake("participant %s is reached at host %q, session %q (call)", found, host, session)
 		h.participantNotes[found] = n
 		h.noteWakesLocked()
 		if err := h.putParticipantNotes(); err != nil {
@@ -286,7 +292,7 @@ func (h *Hub) SessionParticipant(session, host string) string {
 
 // hostParticipantHeld は、参加者 records のうち、AI のプログラムのプロセス id host の、受け入れ済みで準備中でない参加者の id（host が空か、無いか、2 人以上なら空。h.mu を持って呼ぶ）。
 // MCP を立てたあとに会話のセッションが変わり（再開した AI のプログラムで /clear したなど）、フックが参加者をプロセス id で新しいセッションに移したとき、
-// MCP が添えるセッション id は古いままなので、プロセス id で引く
+// MCP を立て直していなければ、MCP が添えるセッション id は古いままなので、プロセス id で引く
 func (h *Hub) hostParticipantHeld(records []participantRecord, host string) string {
 	if host == "" {
 		return ""
