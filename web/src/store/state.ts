@@ -337,7 +337,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   askUpdate(workroom: string): Promise<boolean>
   // 参加者 participant（ワークルームの AI）に、切りのよい所で引継ぎページを書いて会話を空にするよう頼むのをホストに頼む。その参加者がワークルームの AI でないか、
   // 会話を空にできると名乗っていなければ false。base のフックを通して使う。ホストが無いか、頼めなければ投げる
-  askHandOff(participant: string): Promise<boolean>
+  askRefresh(participant: string): Promise<boolean>
   // 窓を読み込み直す（画面の場所は URL に残る）
   reloadWindow(): void
   // この窓が、最後にフォーカスされた窓か（lastWindow）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
@@ -487,7 +487,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   // 新しい版を確かめる・ワークルームの AI に更新を頼むのをホストに頼む口。無ければ、頼むと投げる（E409）
   updateHost?: { check(): Promise<void>; ask(workroom: string): Promise<boolean> }
   // ワークルームの AI に、引継ぎページを書いて会話を空にするよう頼むのをホストに頼む口。無ければ、頼むと投げる（E418）
-  handOffHost?: { ask(participant: string): Promise<boolean> }
+  askRefreshHost?: { ask(participant: string): Promise<boolean> }
   // ほかのホストについてホストに頼む口。無ければ、頼むと投げる（E412）
   hostsHost?: { ask(request: HostRequest): Promise<void> }
   // 承認待ちの AI 間メッセージの承認・キャンセルをホストに頼む口。無ければ、頼むと投げる（E414）

@@ -15,7 +15,7 @@ import {
 } from "../base"
 import { CrownIcon, Elapsed, IconButton, Panel, Tip, useWorkroomActions, VisitorIcon } from "../base/ui"
 import { BIRD_SIZE, Bird } from "./Bird"
-import { HAND_OFF_DIALOG, type Picked, VISITOR_LEAVE_DIALOG, WORKROOM_LEAVE_DIALOG } from "./control-center"
+import { ASK_REFRESH_DIALOG, type Picked, VISITOR_LEAVE_DIALOG, WORKROOM_LEAVE_DIALOG } from "./control-center"
 import { ClearIcon, LeaveIcon, TrashIcon } from "./icons"
 import { kit } from "./kit"
 import { lastAccessOf } from "./rows"
@@ -182,7 +182,7 @@ function ClearButton({ participant }: { participant: string }) {
         className={styles.leaveButton}
         label={t("Clear")}
         title={undefined}
-        onClick={() => openDialog(HAND_OFF_DIALOG.id, { participant })}
+        onClick={() => openDialog(ASK_REFRESH_DIALOG.id, { participant })}
       >
         <ClearIcon />
       </IconButton>

@@ -56,7 +56,7 @@ export interface HostClient {
   askUpdate(workroom: string): Promise<boolean>
   // 参加者 participant（ワークルームの AI）に、切りのよい所で引継ぎページを書いて会話を空にするよう頼む（起こす知らせ）。
   // その参加者がワークルームの AI でないか、会話を空にできると名乗っていなければ false。常駐が断るか（200 でない）つながらなければ E419 を投げる
-  askHandOff(participant: string): Promise<boolean>
+  askRefresh(participant: string): Promise<boolean>
   // ほかのホストについて頼む（様子は知らせで入る）。常駐が断るか（200 でない）つながらなければ E413 を投げる
   askHosts(request: HostRequest): Promise<void>
   // 承認待ちの AI 間メッセージに、承認（approve）かキャンセル（cancel）を頼む（答えは知らせでも入る）。not-pending で断られても投げない（もう承認待ちでない）。常駐が断るか（200 でない）つながらなければ E415 を投げる

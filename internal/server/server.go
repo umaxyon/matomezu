@@ -21,8 +21,8 @@
 //	                      {"ok"} か、外せなかった所で止めて {"ok": false, "id", "reason"}（それより前の物は外れたまま）  … 画面から
 //	POST /api/update/check   新しい版を今確かめ、結果（UpdateStatus）を返す（全部の窓にも update-status で知らせる）。聞けなければ 502 で、前の結果は変えない  … 画面から
 //	POST /api/update/ask {"workroom"} ワークルーム（id）の、参加が確定した AI に、版を上げるよう頼む（起こす知らせ）。{"ok": true} か、そこに AI がいなければ {"ok": false, "reason": "no-recipient"}  … 画面から
-//	POST /api/participants/hand-off {"participant"} その参加者（ワークルームに入っている参加の確定した AI）に、切りのよい所で引継ぎページを書いて
-//	                      会話を空にするよう頼む（起こす知らせ。hand_off.go）。{"ok": true} か、頼めなければ {"ok": false, "reason"}
+//	POST /api/participants/ask-refresh {"participant"} その参加者（ワークルームに入っている参加の確定した AI）に、切りのよい所で引継ぎページを書いて
+//	                      会話を空にするよう頼む（起こす知らせ。ask_refresh.go）。{"ok": true} か、頼めなければ {"ok": false, "reason"}
 //	                      （ワークルームの AI でなければ no-recipient、会話を空にできると名乗っていなければ not-refreshable）  … 画面から
 //	POST /api/unreadable/purge {"id"} 読めない物のフォルダの直下の物 id を、中の物の行ごと完全に消す（アクションでなく、窓の履歴に入らない）。
 //	                      {"ok"} か、直下に無ければ {"ok": false, "reason": "not-inside"}（何も書かない）  … 画面から
@@ -186,7 +186,7 @@ func Handler(o Options) http.Handler {
 		writeJSON(w, map[string]bool{"ok": true})
 	}))
 	mux.Handle("POST /api/update/ask", o.screen(o.askUpdate))
-	mux.Handle("POST /api/participants/hand-off", o.screen(o.handOff))
+	mux.Handle("POST /api/participants/ask-refresh", o.screen(o.askRefresh))
 	mux.Handle("POST /api/message/approve", o.screen(o.approveMessage))
 	mux.Handle("POST /api/message/cancel", o.screen(o.cancelMessage))
 	mux.Handle("POST /api/unreadable/if-off", o.screen(o.movedIfOff))

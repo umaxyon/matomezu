@@ -2,10 +2,10 @@
 // インスタンスのコントロールセンターにすると（createMatomezu の controlCenter: CONTROL_CENTER.id）、ブックの一覧などを変えるアクションを許す
 import { defineBuiltin } from "../../plugin-api/builtin"
 import {
+  ASK_REFRESH_DIALOG,
   CONTENT_AREA,
   CONTROL_CENTER,
   CONTROL_CENTER_SCREEN,
-  HAND_OFF_DIALOG,
   LIBRARY_MAXIMIZED,
   MAILBOX_MAXIMIZED,
   PICKED,
@@ -15,10 +15,10 @@ import {
 import { kit } from "./kit"
 
 export {
+  ASK_REFRESH_DIALOG,
   CONTENT_AREA,
   CONTROL_CENTER,
   CONTROL_CENTER_SCREEN,
-  HAND_OFF_DIALOG,
   LIBRARY_MAXIMIZED,
   MAILBOX_MAXIMIZED,
   PICKED,
@@ -32,7 +32,7 @@ export const CONTROL_CENTER_PLUGIN = defineBuiltin(
     controlCenters: [CONTROL_CENTER],
     screens: [CONTROL_CENTER_SCREEN],
     pluginStates: [CONTENT_AREA, PICKED, LIBRARY_MAXIMIZED, MAILBOX_MAXIMIZED],
-    dialogs: [WORKROOM_LEAVE_DIALOG, VISITOR_LEAVE_DIALOG, HAND_OFF_DIALOG],
+    dialogs: [WORKROOM_LEAVE_DIALOG, VISITOR_LEAVE_DIALOG, ASK_REFRESH_DIALOG],
   }),
 )
 
@@ -52,7 +52,7 @@ declare module "../../core/catalog" {
   interface DialogTable {
     "@matomezu/control-center:workroom-leave": typeof WORKROOM_LEAVE_DIALOG
     "@matomezu/control-center:visitor-leave": typeof VISITOR_LEAVE_DIALOG
-    "@matomezu/control-center:hand-off": typeof HAND_OFF_DIALOG
+    "@matomezu/control-center:ask-refresh": typeof ASK_REFRESH_DIALOG
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
 }

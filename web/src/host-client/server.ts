@@ -39,11 +39,11 @@ import { createSendQueue, RETRY_MS } from "./send-queue"
 import {
   AckSchema,
   AnnotationsSchema,
+  ASK_REFRESH_ANSWER,
   ASK_UPDATE_ANSWER,
   ASSET_PUT,
   ChangedSchema,
   DataSchema,
-  HAND_OFF_ANSWER,
   HelloSchema,
   HostPeersSchema,
   HostStatusSchema,
@@ -631,16 +631,16 @@ export function serverClient(net: Net = browserNet): HostClient {
       if (!res?.ok) fail("E411", { workroom, status: res ? `${res.status}` : "no answer" })
       return ASK_UPDATE_ANSWER.parse(await res.json()).ok
     },
-    askHandOff: async participant => {
+    askRefresh: async participant => {
       const res = await net
-        .fetch("api/participants/hand-off", {
+        .fetch("api/participants/ask-refresh", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ participant }),
         })
         .catch(() => null)
       if (!res?.ok) fail("E419", { participant, status: res ? `${res.status}` : "no answer" })
-      return HAND_OFF_ANSWER.parse(await res.json()).ok
+      return ASK_REFRESH_ANSWER.parse(await res.json()).ok
     },
     askHosts: async request => {
       const { kind, ...body } = request
