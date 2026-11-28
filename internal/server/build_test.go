@@ -16,7 +16,7 @@ func emptyHub(t *testing.T) *Hub {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	eng, err := engine.New()
 	if err != nil {
 		t.Fatal(err)
@@ -29,6 +29,7 @@ func emptyHub(t *testing.T) *Hub {
 }
 
 func TestHelloTellsTheBuild(t *testing.T) {
+	t.Parallel()
 	h := emptyHub(t)
 	if e := <-h.Join().ch; e.name != "hello" || string(e.data) != `{"client":"c1"}` {
 		t.Fatalf("before SetBuild: %s %s", e.name, e.data)
@@ -40,6 +41,7 @@ func TestHelloTellsTheBuild(t *testing.T) {
 }
 
 func TestHelloTellsTheWebPrint(t *testing.T) {
+	t.Parallel()
 	h := emptyHub(t)
 	h.SetBuild(Build{Version: "dev", DataVersion: 7, Web: "abc"})
 	if e := <-h.Join().ch; string(e.data) != `{"build":{"version":"dev","dataVersion":7,"web":"abc"},"client":"c1"}` {
@@ -48,6 +50,7 @@ func TestHelloTellsTheWebPrint(t *testing.T) {
 }
 
 func TestWebPrintFollowsIndexHTML(t *testing.T) {
+	t.Parallel()
 	if p := WebPrint(fstest.MapFS{}); p != "" {
 		t.Fatalf("no index.html: %q", p)
 	}

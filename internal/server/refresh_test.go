@@ -13,6 +13,7 @@ import (
 // AI がリフレッシュリクエストを受けさせると、常駐は、話しかけのフックが会話を空にできると名乗った参加者のときだけ引継ぎページを書いて覚え、
 // AI のプログラムの部品が訊いたら matomezu: で始まる文を 1 度だけ渡す。渡した文で始まるターンは、利用者の話に数えない
 func TestRefreshRequestIsKeptOnlyForARefreshableAI(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	noticeOf(t, s.URL, a)
@@ -101,6 +102,7 @@ func TestRefreshRequestIsKeptOnlyForARefreshableAI(t *testing.T) {
 
 // AI の perform に actions を並べると、順に行い、結果を並べた順に返す。断られたら何番目かを添えて何も変えない。action と actions を両方渡すと断る
 func TestAIPerformsActionsInABulk(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	noticeOf(t, s.URL, a)
@@ -133,6 +135,7 @@ func TestAIPerformsActionsInABulk(t *testing.T) {
 
 // AI の呼び出しの答えの見出しには、呼び出しのあとの作業名が載る（作業を替えた perform の答えには、替えたあとの名前）
 func TestAICallsCarryTheWorkTitle(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	noticeOf(t, s.URL, a)

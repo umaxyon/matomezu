@@ -8,6 +8,7 @@ import (
 
 // 自分のプロセスは居て、数でない id は居るとみなし、居ない id は居ない。印は同じプロセスの中で変わらない
 func TestProcessAlive(t *testing.T) {
+	t.Parallel()
 	if !ProcessAlive(strconv.Itoa(os.Getpid())) {
 		t.Fatal("this process is not alive")
 	}
@@ -24,6 +25,7 @@ func TestProcessAlive(t *testing.T) {
 
 // 印が同じなら居るかを見る。起動ごとの識別子が変わっていれば（機械が起動し直された）終わっている。名前空間だけが違うときと、ほかの OS の印が違うときは、終わったとは言わない
 func TestProcessSpaceEnded(t *testing.T) {
+	t.Parallel()
 	gone := func(string) bool { return false }
 	here := func(string) bool { return true }
 	for _, c := range []struct {

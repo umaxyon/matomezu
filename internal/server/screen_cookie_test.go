@@ -10,6 +10,7 @@ import (
 
 // 画面からの入口は、画面 cookie を持たないブラウザ（cookie が無い・違う）には、どれも断る（reset-for-test などテストの用意の入口は対象外）
 func TestScreenRoutesNeedTheScreenCookie(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	routes := []struct{ method, path, body string }{
 		{"GET", "/api/data", ""},
@@ -42,6 +43,7 @@ func TestScreenRoutesNeedTheScreenCookie(t *testing.T) {
 
 // コードは 1 度だけ使え、期限が切れたら使えない。使うと鍵が cookie（HttpOnly・SameSite=Strict）に置かれ、その鍵で通る
 func TestCookieCodeIsUsedOnceAndExpires(t *testing.T) {
+	t.Parallel()
 	p := NewScreenCookies(nil, nil)
 	now := time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC)
 	p.now = func() time.Time { return now }
@@ -89,6 +91,7 @@ func TestCookieCodeIsUsedOnceAndExpires(t *testing.T) {
 
 // show がブラウザを開くとき、コードはブラウザの URL にだけ載り、どの返事にも載らない（開けなかったときのコードは使えなくなる）
 func TestCookieCodeIsOnlyInTheBrowserURL(t *testing.T) {
+	t.Parallel()
 	var opened []string
 	var failing bool
 	p := NewScreenCookies(nil, nil)
@@ -127,6 +130,7 @@ func TestCookieCodeIsOnlyInTheBrowserURL(t *testing.T) {
 
 // 常駐が起こし直されても、保存した鍵のハッシュで通る。鍵は最後に使った順に maxCookieKeys 件まで
 func TestCookieKeysSurviveARestartAndAreLimited(t *testing.T) {
+	t.Parallel()
 	var saved []CookieKey
 	p := NewScreenCookies(nil, func(ks []CookieKey) error { saved = ks; return nil })
 	now := time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC)
@@ -163,6 +167,7 @@ func TestCookieKeysSurviveARestartAndAreLimited(t *testing.T) {
 
 // 画面 cookie を持たない画面を開くだけ（画面のファイルは配る。データは配らない）
 func TestScreenFilesNeedNoCookie(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	res, err := http.Get(s.URL + "/")
 	if err != nil {

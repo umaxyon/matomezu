@@ -6,6 +6,7 @@ import (
 )
 
 func TestUpdateCheckIsOnUnlessTheUserTurnedItOff(t *testing.T) {
+	t.Parallel()
 	e := newEngine(t)
 	for _, c := range []struct {
 		settings string
