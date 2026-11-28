@@ -470,6 +470,7 @@ func TestTalkedTellsTheAIAWokenTurnIsNotTheUsers(t *testing.T) {
 // 画面の利用者が行ったアクションの matomezu ペイロードは、利用者の頼みの印を付けて届き、AI ラリーに数えない。
 // 常駐が利用者として行うアクション（窓からでない）は送れない。participant を書いた送り先は、その参加者が今そのワークルームに入っているときだけ届く
 func TestUserPayload(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	user := &engine.Actor{Kind: "user"}
