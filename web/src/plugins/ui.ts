@@ -76,7 +76,8 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/control-center:picked-detail": ["@matomezu/network:paired-host-detail"],
     "@matomezu/base:one-screen": ["@matomezu/base:screens-view"],
     "@matomezu/base:split-rows": ["@matomezu/base:screens-view"],
-    "@matomezu/base:stage-top": ["@matomezu/base:tool-switch"],
+    "@matomezu/base:stage-top": [],
+    "@matomezu/base:stage-bottom-left": ["@matomezu/base:tool-switch"],
     "@matomezu/base:stage-side": ["@matomezu/base:page-list"],
     "@matomezu/base:stage-body": ["@matomezu/base:book-view", "@matomezu/base:print-preview-scrollbars"],
     "@matomezu/base:book-layers": [

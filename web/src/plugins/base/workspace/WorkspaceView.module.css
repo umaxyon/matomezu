@@ -43,6 +43,7 @@
 }
 /* ステージの本体の行: 左に並べる列（stage-side。何も置かなければ幅を取らない）と本体 */
 .body {
+  position: relative;
   flex: 1;
   min-height: 0;
   min-width: 0;
@@ -66,9 +67,9 @@
   min-height: 0;
 }
 /* 上の行。バーは持たず、置いたウィジェットをステージの左上に浮かべて左から横に並べる（並べた物の間の何も無い所は、下の紙へ通す） */
-.top {
+.top,
+.bottomLeft {
   position: absolute;
-  top: 8px;
   left: 8px;
   z-index: 4;
   display: flex;
@@ -77,10 +78,19 @@
   pointer-events: none;
   user-select: none;
 }
-.top > * {
+.top {
+  top: 8px;
+}
+/* フッタ行のすぐ上。フッタメニューが上がると、その裏に隠れる */
+.bottomLeft {
+  bottom: 8px;
+}
+.top > *,
+.bottomLeft > * {
   pointer-events: auto;
 }
-.top:empty {
+.top:empty,
+.bottomLeft:empty {
   display: none;
 }
 /* 下の行 */
