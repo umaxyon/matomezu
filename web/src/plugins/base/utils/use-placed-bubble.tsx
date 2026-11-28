@@ -6,13 +6,17 @@ import { type BubbleAt, placeBubble } from "./fit"
 
 export function usePlacedBubble(box: RefObject<HTMLElement | null>, at: BubbleAt): Point {
   const [placed, setPlaced] = useState<Point | null>(null)
-  const { x, y, above } = at
+  const { x, y, above, side } = at
   useLayoutEffect(() => {
     const r = box.current?.getBoundingClientRect()
     if (!r) return
     setPlaced(
-      placeBubble({ x, y, above }, { w: r.width, h: r.height }, { w: window.innerWidth, h: window.innerHeight }),
+      placeBubble(
+        { x, y, ...(above === undefined ? {} : { above }), ...(side === undefined ? {} : { side }) },
+        { w: r.width, h: r.height },
+        { w: window.innerWidth, h: window.innerHeight },
+      ),
     )
-  }, [box, x, y, above])
+  }, [box, x, y, above, side])
   return placed ?? { x, y }
 }

@@ -67,18 +67,20 @@ type participantNote struct {
 	RefreshLent     string `json:"refreshLent,omitempty"`     // 部品に渡した RefreshDue（空にしたあとの会話がその文で始まったら消す。始まらないままターンが終われば、空にならなかったと AI に 1 度伝えて消す。refresh.go）
 }
 
-// live は、窓に知らせる参加者の様子（モデルとブランチ。空は省く）
+// live は、窓に知らせる参加者の様子（モデルとブランチと、会話を空にできると名乗ったか。空は省く）
 func (n participantNote) live() participantLive {
-	return participantLive{Model: n.Model, Branch: n.Branch}
+	return participantLive{Model: n.Model, Branch: n.Branch, Refreshable: n.Refreshable}
 }
 
 // participantLive は、窓に知らせる参加者 1 人の様子（Wake は、起こす知らせを渡せる通り道がつながっていれば engine.WakeReaches。ほかは省く。
-// ContextUse は、結ばれたセッションの今のコンテキストの量。分からなければ noContextUse で、省く）
+// ContextUse は、結ばれたセッションの今のコンテキストの量。分からなければ noContextUse で、省く。
+// Refreshable は、結んだ会話の AI のプログラムが会話を空にできると名乗ったか（名乗っていなければ省く）
 type participantLive struct {
-	Model      string     `json:"model,omitempty"`
-	Branch     string     `json:"branch,omitempty"`
-	Wake       string     `json:"wake,omitempty"`
-	ContextUse contextUse `json:"contextUse,omitzero"`
+	Model       string     `json:"model,omitempty"`
+	Branch      string     `json:"branch,omitempty"`
+	Wake        string     `json:"wake,omitempty"`
+	ContextUse  contextUse `json:"contextUse,omitzero"`
+	Refreshable bool       `json:"refreshable,omitempty"`
 }
 
 // liveLocked は、参加者 id の窓に知らせる様子（コンテキストの量は、結ばれたセッションの物。h.mu を持って呼ぶ）

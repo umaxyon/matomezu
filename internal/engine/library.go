@@ -12,6 +12,8 @@ type BookWarning struct {
 	Code       string `json:"code"`
 	Warning    string `json:"warning"`
 	Unreadable bool   `json:"unreadable"`
+	// warning の文に埋める値（book・title と、読めないページを持つなら page など。画面に warning の形で渡す）
+	Params map[string]string `json:"params"`
 }
 
 // CheckBooks はブックを今の機能台帳で確かめ、warning のあるものを返す（データには手を付けない）

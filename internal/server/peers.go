@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/umaxyon/matomezu/internal/peer"
 )
@@ -168,12 +169,25 @@ func (h *Hub) sighted(e *hostEntrance, s peer.Sighting, gone bool) {
 	h.tellPeers()
 }
 
-// startBeacon は、入口を開いたときに mDNS で知らせ始める（HostConfig の Discover のときだけ。e.mu を持って呼ぶ）
-func (h *Hub) startBeacon(e *hostEntrance, port int) {
+// hostBeacon は、mDNS で自分を知らせ、ほかのホストを見つける物（peer.Beacon か、WSLプロキシごしの peer.WSLProxyLink）
+type hostBeacon interface {
+	Update(peer.Advert)
+	Query()
+	Found() []peer.Sighting
+	Close()
+}
+
+// startBeacon は、入口を開いたときに mDNS で知らせ始める。HostConfig の WSLProxy があれば WSLプロキシを立ててそれごしに、
+// 無ければ Discover のときだけこのホストで（e.mu を持って呼ぶ。srv は WSLプロキシ専用の受け口も答える入口）
+func (h *Hub) startBeacon(e *hostEntrance, port int, srv *http.Server) {
+	ad := peer.Advert{HostID: e.config.Identity.HostID, Protocol: int(e.proto.Load()), Port: port, Name: e.status.Name, UserName: h.userName()}
+	if e.config.WSLProxy != nil {
+		h.startWSLProxy(e, ad, srv)
+		return
+	}
 	if !e.config.Discover {
 		return
 	}
-	ad := peer.Advert{HostID: e.config.Identity.HostID, Protocol: int(e.proto.Load()), Port: port, Name: e.status.Name, UserName: h.userName()}
 	b, err := peer.StartBeacon(ad, func(s peer.Sighting, gone bool) { h.sighted(e, s, gone) })
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "hosts: mDNS could not start:", err)
@@ -184,12 +198,127 @@ func (h *Hub) startBeacon(e *hostEntrance, port int) {
 	e.peers.mu.Unlock()
 }
 
-// stopBeacon は、「いなくなる」を知らせて止める（入口を閉じたとき）
+// startWSLProxy は、WSLプロキシを立て、専用の受け口も srv で答える。様子は立ったあとで知らせる（e.mu を持って呼ぶ。待たない）
+func (h *Hub) startWSLProxy(e *hostEntrance, ad peer.Advert, srv *http.Server) {
+	var link *peer.WSLProxyLink
+	ready := make(chan struct{})
+	link, err := peer.StartWSLProxy(peer.WSLProxyOptions{
+		Port: ad.Port, Advert: ad, Launch: e.config.WSLProxy, Discover: e.config.Discover, Loopback: e.config.Loopback,
+		OnChange: func(s peer.Sighting, gone bool) { h.sighted(e, s, gone) },
+		OnState: func(st peer.WSLProxyState, addrs []string) {
+			<-ready
+			h.wslProxyState(e, link, st, addrs)
+		},
+	})
+	close(ready)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "hosts: the WSL proxy could not start:", err)
+		e.status.WSLProxy = peer.WSLProxyUnavailable
+		return
+	}
+	go func() { _ = srv.ServeTLS(link.Listener(), "", "") }() // 受け口を閉じたら戻る（入口の止まりとは扱わない）
+	e.status.WSLProxy = link.State()
+	e.peers.mu.Lock()
+	e.peers.beacon = link
+	e.peers.mu.Unlock()
+}
+
+// wslRestartWaits は、待ち始めたあとで終わった WSLプロキシを立て直すまでの間（回ごと。使い切ったら立て直さず、利用者の［立て直す］を待つ）。
+// 終わる訳が一度きりの事（Windows の側で終わらされた・Windows の matomezu を更新した）なら、間を置けば立つ
+var wslRestartWaits = []time.Duration{2 * time.Second, 10 * time.Second, 30 * time.Second}
+
+// wslSteady は、WSLプロキシがこれだけ続けて動いてから終わったら、立て直しの数を数え直す間（すぐ終わる物は使い切って止まり、まれに終わる物はいつまでも立て直す）
+var wslSteady = time.Minute
+
+// wslProxyState は、WSLプロキシの様子が変わったとき: 今の入口の WSLプロキシなら様子を書き、窓に知らせる。
+// 終わったら、WSLプロキシの見つけたホストも消えているので、ほかのホストの一覧も知らせる。待ち始めたあとで終わったら、間を置いて立て直す（そのあいだは starting）
+func (h *Hub) wslProxyState(e *hostEntrance, link *peer.WSLProxyLink, st peer.WSLProxyState, addrs []string) {
+	e.mu.Lock()
+	e.peers.mu.Lock()
+	current := e.peers.beacon == hostBeacon(link)
+	e.peers.mu.Unlock()
+	if !current {
+		e.mu.Unlock()
+		return
+	}
+	was := e.status
+	if st == peer.WSLProxyRunning {
+		e.wslRunning = time.Now()
+	}
+	if st == peer.WSLProxyStopped && !e.wslRunning.IsZero() && time.Since(e.wslRunning) >= wslSteady {
+		e.wslRestarts = 0
+	}
+	if st == peer.WSLProxyStopped && e.wslRestarts < len(wslRestartWaits) {
+		wait := wslRestartWaits[e.wslRestarts]
+		e.wslRestarts++
+		st = peer.WSLProxyStarting
+		time.AfterFunc(wait, func() { h.restartWSLProxy(e, link) })
+	}
+	e.status.WSLProxy, e.status.WSLProxyAddrs = st, addrs
+	now := e.status
+	e.mu.Unlock()
+	h.tellHostStatus(was, now)
+	if st != peer.WSLProxyStarting && st != peer.WSLProxyRunning {
+		h.tellPeers()
+	}
+}
+
+// restartWSLProxy は、終わった WSLプロキシ old を立て直す（入口が開いたままで、old がまだ今の物のときだけ）
+func (h *Hub) restartWSLProxy(e *hostEntrance, old *peer.WSLProxyLink) {
+	e.mu.Lock()
+	e.peers.mu.Lock()
+	current := e.peers.beacon == hostBeacon(old)
+	e.peers.mu.Unlock()
+	if e.closed || e.srv == nil || !current {
+		e.mu.Unlock()
+		return
+	}
+	was := e.status
+	h.stopBeacon(e)
+	h.startBeacon(e, e.status.Port, e.srv)
+	now := e.status
+	e.mu.Unlock()
+	h.tellHostStatus(was, now)
+}
+
+// wslRestartable は、利用者の［立て直す］で立て直せる WSLプロキシの様子か（立たなかった・止まった。Windows の側を直したあとで試せるように）。
+// Windows でポートが使われているときは［別のポートにする］で、立てている最中と動いているときは立て直さない
+func wslRestartable(st peer.WSLProxyState) bool {
+	switch st {
+	case peer.WSLProxyStopped, peer.WSLProxyUnavailable, peer.WSLProxyUpdateWindows, peer.WSLProxyUpdateThis, peer.WSLProxyListen:
+		return true
+	}
+	return false
+}
+
+// RestartWSLProxy は、立たなかったか、立て直しを使い切って止まった WSLプロキシを立て直す（利用者が［立て直す］を押したとき）
+func (h *Hub) RestartWSLProxy() error {
+	e := h.entrance.Load()
+	if e == nil {
+		return errors.New("there is no entrance for other hosts")
+	}
+	e.mu.Lock()
+	if e.closed || e.srv == nil || !wslRestartable(e.status.WSLProxy) {
+		e.mu.Unlock()
+		return errors.New("the WSL proxy is starting or running")
+	}
+	was := e.status
+	e.wslRestarts = 0
+	h.stopBeacon(e)
+	h.startBeacon(e, e.status.Port, e.srv)
+	now := e.status
+	e.mu.Unlock()
+	h.tellHostStatus(was, now)
+	return nil
+}
+
+// stopBeacon は、「いなくなる」を知らせて止める（入口を閉じたとき。e.mu を持って呼ぶ）
 func (h *Hub) stopBeacon(e *hostEntrance) {
 	e.peers.mu.Lock()
 	b := e.peers.beacon
 	e.peers.beacon = nil
 	e.peers.mu.Unlock()
+	e.status.WSLProxy, e.status.WSLProxyAddrs = "", nil
 	if b != nil {
 		go b.Close()
 	}

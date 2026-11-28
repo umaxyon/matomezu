@@ -32,6 +32,7 @@ const row = (id: string, state: WorkroomRow["state"], requestedAt?: string): Wor
   requestedAt: requestedAt ?? NOT_REQUESTED,
   activity: "unknown",
   contextUse: NO_CONTEXT_USE,
+  refreshable: false,
 })
 
 const ids = (rows: readonly WorkroomRow[]) => rows.map(r => r.room.id)

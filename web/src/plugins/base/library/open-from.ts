@@ -16,6 +16,7 @@ import {
 } from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
 import { kit } from "../kit"
+import { whenPerformed } from "../utils/performed"
 import { refusalMessage } from "../utils/refusal"
 import { showBookSplit } from "../window/apply-split"
 import { stageAboveLower } from "../window/lower-row"
@@ -91,5 +92,7 @@ export function placeChosen(
     a.showToast({ kind: "success", message: kit.message("Placed a reference in {book}"), params: { book } })
     return
   }
-  openAndLeave(ctx, a, { to: "book", book: chosen.book, reference: done.result.reference }, stageAboveLower)
+  whenPerformed(done, made =>
+    openAndLeave(ctx, a, { to: "book", book: chosen.book, reference: made.reference }, stageAboveLower),
+  )
 }

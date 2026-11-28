@@ -45,5 +45,21 @@ export const CONTROL_CENTER_MESSAGES = defineMessages({
   "No AI can continue": { en: "No AI can continue this room.", ja: "次の AI は引き継げなくなります。" },
   Cancel: { en: "Cancel", ja: "キャンセル" },
   "Leave the room": { en: "Leave the room", ja: "部屋を出る" },
+  Clear: { en: "Clear", ja: "クリア" },
+  "Send the instruction to clear the context": {
+    en: "Send the instruction\nto clear the context",
+    ja: "コンテキストをクリアする\n指示を送る",
+  },
+  "Send the instruction to clear the context?": {
+    en: "Send the instruction to clear the context?",
+    ja: "コンテキストをクリアする指示を送りますか？",
+  },
+  "What the instruction to clear the context sends": {
+    en: "Sends the AI: write the handoff at a good point, then ask for the conversation to be cleared. Whether and when it does depends on the model. Claude Code only for now",
+    ja: "AI に「切りのよい所で引き継ぎを書き、クリアの頼みを出して」と送ります。従うか・いつかはモデル次第です。今は Claude Code のみ。",
+  },
+  Send: { en: "Send", ja: "送る" },
+  "Don't send": { en: "Don't send", ja: "やめる" },
+  "Could not send the instruction": { en: "Could not send the instruction", ja: "指示を送れませんでした" },
   "Delete the room": { en: "Delete the room", ja: "部屋を削除する" },
 })

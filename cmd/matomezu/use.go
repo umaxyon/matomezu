@@ -86,11 +86,11 @@ func (useWindowsCmd) Run() error {
 	if !onWSL() {
 		return errors.New("matomezu use windows is for WSL: on Windows, run matomezu use wsl to use the server of WSL")
 	}
-	mode, err := commandOutput("", "wslinfo", "--networking-mode")
+	m, err := wslNetworkingMode()
 	if err != nil {
-		return fmt.Errorf("the networking mode of WSL could not be read: %w", err)
+		return err
 	}
-	if m := strings.TrimSpace(string(mode)); m != "mirrored" {
+	if m != "mirrored" {
 		return fmt.Errorf("WSL uses %s networking, so it cannot reach the server of Windows: set networkingMode=mirrored under [wsl2] in %%UserProfile%%\\.wslconfig, run wsl --shutdown, and try again", m)
 	}
 	u := home.Counterpart{OS: home.CounterpartWindows}
@@ -227,6 +227,15 @@ func shellDir(dir string) string {
 		return `"$HOME"/` + quote(dir[2:])
 	}
 	return quote(dir)
+}
+
+// wslNetworkingMode は、WSL のネットワークの形（nat・mirrored など。wslinfo --networking-mode）
+func wslNetworkingMode() (string, error) {
+	mode, err := commandOutput("", "wslinfo", "--networking-mode")
+	if err != nil {
+		return "", fmt.Errorf("the networking mode of WSL could not be read: %w", err)
+	}
+	return strings.TrimSpace(string(mode)), nil
 }
 
 // commandOutput は、コマンドを動かして標準出力を返す。標準エラーは、失敗したときだけ誤りの文に入れる（相手の OS の matomezu の案内を、こちらの出力に混ぜない）。テストで差し替える

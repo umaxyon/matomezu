@@ -5,6 +5,7 @@ import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
 import { NO_AREA, NO_ORIGIN, openedEntry, setArea, setStart } from "../../web/src/core/stage"
 import { ZOOM_MAX, ZOOM_MIN } from "../../web/src/core/viewport"
 import { recentBookScreen, screenOf } from "../../web/src/core/window"
+import { SENT_TO_HOST } from "../../web/src/store/actions"
 import { newStore, sheetOf } from "../support"
 
 const CENTER = "@matomezu/control-center:screen"
@@ -237,7 +238,7 @@ test("場所を当てはめても、開いていたページをそのまま開�
     { type: "@matomezu/drawing:drawing", title: "次" },
     { book: "b1" },
   )
-  const next = other.ok ? other.result.page : ""
+  const next = other.ok && other.result !== SENT_TO_HOST ? other.result.page : ""
   expect(next).not.toBe("")
   const opened = placedAt(next)
   expect(opened).toMatchObject({ page: next })

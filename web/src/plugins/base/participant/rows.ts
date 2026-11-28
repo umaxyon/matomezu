@@ -37,6 +37,7 @@ export interface WorkroomRow {
   requestedAt: string | typeof NOT_REQUESTED // このワークルームの名前で入りたいと頼んでいる要求中の参加者の、頼んだ時刻（いちばん新しいもの。無ければ NOT_REQUESTED）
   activity: WorkroomActivity | "unknown" // 作業の様子（activity.ts。見せるためだけ。答える種類が無ければ unknown）
   contextUse: ContextUse | typeof NO_CONTEXT_USE // 参加者の会話の今のコンテキストの量（AI のフックが知らせた物。空室か、分からなければ NO_CONTEXT_USE）
+  refreshable: boolean // 参加者の AI のプログラムが、会話を空にできると名乗ったか（空室なら偽）
 }
 
 // 管理者の印（ADMIN_MARK のレコード。無い・none・ワークルームが無ければ undefined）が指す、ワークルームの id
@@ -78,6 +79,7 @@ export function workroomRows(input: {
       requestedAt: requestedAt ? requestedAt : NOT_REQUESTED,
       activity: input.activities[room.id] ?? "unknown",
       contextUse: live?.contextUse ?? NO_CONTEXT_USE,
+      refreshable: live?.refreshable === true,
     }
   })
   return [...rows.filter(r => r.admin), ...rows.filter(r => !r.admin)]

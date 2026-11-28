@@ -24,6 +24,7 @@ import {
   UNRENEWABLE_SHAPE,
 } from "../pages"
 import { hasOpenedPage } from "../utils/opened-page"
+import { whenPerformed } from "../utils/performed"
 import { refusalMessage } from "../utils/refusal"
 import { lineupIn, NO_LINEUP, showsPageDelete } from "./opened-lineup"
 
@@ -214,7 +215,7 @@ export const PAGE_ADD_AFTER = kit.defineCommand({
       { type: at.page.type, index, ...(at.binder !== NO_BINDER ? { into: { binder: at.binder.id } } : {}) },
       { book: book.id },
     )
-    if (done.ok) a.openPage(done.result.page)
+    whenPerformed(done, made => a.openPage(made.page))
   },
   when: ctx => lineupIn(ctx) !== NO_LINEUP,
 })
@@ -237,7 +238,7 @@ export const PAGE_DUPLICATE_COMMAND = kit.defineCommand({
     const lineup = lineupIn(ctx)
     if (lineup === NO_LINEUP) return
     const done = a.perform(PAGE_DUPLICATE.id, { page }, { book: lineup.id })
-    if (done.ok) a.openPage(done.result.page)
+    if (done.ok) whenPerformed(done, made => a.openPage(made.page))
     else a.showToast({ kind: "warn", message: duplicateRefusal(ctx.catalog, done) })
   },
   // エントリとして複製する（ロックしたページも押せる。書庫の行の複製と同じ）
@@ -302,7 +303,7 @@ export const BINDER_DUPLICATE_COMMAND = kit.defineCommand({
   run: (ctx, a, { binder }: BinderSettingsArgs) => {
     if (ctx.book === NO_BOOK) return
     const done = a.perform(BINDER_DUPLICATE.id, { binder }, { book: ctx.book.id })
-    if (done.ok) a.openBinder(done.result.binder)
+    if (done.ok) whenPerformed(done, made => a.openBinder(made.binder))
     else a.showToast({ kind: "warn", message: duplicateRefusal(ctx.catalog, done) })
   },
   when: ctx => ctx.book !== NO_BOOK,

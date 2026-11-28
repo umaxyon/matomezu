@@ -1,6 +1,6 @@
 // ホストをつなぐ（このホストからペアリングを頼む）: 頼んでいる様子（常駐が持つ。読み直しても［＋］で開けば今の様子から出す）で見え方が決まる。
 // 頼んでいなければ、見つかったホスト（mDNS。開いたときに問い直す。見つかった分から足される）から 1 つ選ぶか、待っている所を手で入れて［つなぐ］。
-// WSL で動いているときは、ほかのマシンが一覧に出ない（mDNS が NAT を越えない）ことを 1 行で言い、待っている所を入れる所を開いて出す。
+// WSL で動いているときは（WSLプロキシが稼働して mDNS を受け持っているときを除く）、ほかのマシンが一覧に出ない（mDNS が NAT を越えない）ことを 1 行で言い、待っている所を入れる所を開いて出す。
 // 待っている間は、相手のホスト名と接続確認コードと［やめる］。受け入れられたらダイアログを閉じ、そのホストの行を選ぶ。うまくいかなければ理由の 1 行と［やり直す］。
 // × と Esc は［やめる］と同じ（頼みを取り下げる。閉じたあとの頼みを見る所が無いため）。どの閉じ方でも、終わった様子を常駐から消す
 import { type FormEvent, useEffect, useId, useState } from "react"
@@ -51,7 +51,7 @@ function Choose({ onCancel }: { onCancel: () => void }) {
   const found = peers === NO_HOST_PEERS ? [] : peers.found
   const [chosen, setChosen] = useState<string | undefined>(undefined)
   const status = useHostStatus()
-  const wsl = status !== NO_HOST_STATUS && status.wsl === true
+  const wsl = status !== NO_HOST_STATUS && status.wsl === true && status.wslProxy !== "running"
   const [manual, setManual] = useState("")
   const [typing, setTyping] = useState(wsl)
   const [failed, setFailed] = useState(false)

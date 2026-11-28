@@ -81,6 +81,46 @@ test("WSL で動いていて、つなぐが入でポートが決まっていれ�
   expect(within(panel()).getByText(/-LocalPorts 41234/)).toBeTruthy()
 })
 
+test("NAT の WSL では WSLプロキシの札を出す。稼働中は Windows の番地を待っている所に出し、WSL の手引きは出さない。非稼働は様子ごとの訳と、立たなかった・止まれば［立て直す］、ポートが使われていれば［別のポートにする］", () => {
+  const { panel, setStatus } = openNetwork()
+  fireEvent.click(within(panel()).getByRole("switch", { name: "ホストとつなぐ" }))
+  const base = { wsl: true, open: true, port: 41234, addrs: ["172.21.69.139"] }
+  setStatus({ ...base, wslProxy: "running", wslProxyAddrs: ["192.168.1.20"] })
+  expect(within(panel()).getByText("WSLプロキシ稼働中")).toBeTruthy()
+  expect(within(panel()).getByText("192.168.1.20:41234")).toBeTruthy()
+  expect(within(panel()).queryByText("172.21.69.139:41234")).toBeNull()
+  expect(within(panel()).queryByText("相手からも見つけられるようにするには")).toBeNull()
+  fireEvent.click(within(panel()).getByRole("button", { name: "WSLプロキシ稼働中" }))
+  expect(screen.getByRole("note").textContent).toContain("Windowsファイヤーウォール")
+  fireEvent.click(within(panel()).getByRole("button", { name: "WSLプロキシ稼働中" }))
+  const why = (state: HostStatus["wslProxy"], text: string) => {
+    setStatus({ ...base, wslProxy: state })
+    expect(within(panel()).getByText("WSLプロキシ非稼働")).toBeTruthy()
+    fireEvent.click(within(panel()).getByRole("button", { name: "WSLプロキシ非稼働" }))
+    expect(screen.getByRole("note").textContent).toBe(text)
+    fireEvent.click(within(panel()).getByRole("button", { name: "WSLプロキシ非稼働" }))
+  }
+  why(
+    "unavailable",
+    "Windows側にもmatomezuの同じバージョンを入れると、中継プロキシが稼働し、LAN内にmatomezuが公開されます",
+  )
+  expect(within(panel()).getByText("172.21.69.139:41234")).toBeTruthy()
+  expect(within(panel()).getByText("相手からも見つけられるようにするには")).toBeTruthy()
+  why(
+    "update-windows",
+    "Windows側とWSL側のmatomezuのバージョンを合わせると中継プロキシが稼働し、LAN内にmatomezuが公開されます",
+  )
+  expect(within(panel()).getByRole("button", { name: "立て直す" })).toBeTruthy()
+  why("starting", "Windows側で中継プロキシを立てています")
+  expect(within(panel()).queryByRole("button", { name: "立て直す" })).toBeNull()
+  why("listen", "Windows側で待ち受けを開けませんでした")
+  expect(within(panel()).getByRole("button", { name: "立て直す" })).toBeTruthy()
+  why("stopped", "Windows側の中継プロキシが止まりました")
+  expect(within(panel()).getByRole("button", { name: "立て直す" })).toBeTruthy()
+  why("port-in-use", "Windows でポート 41234 がほかに使われています")
+  expect(within(panel()).getByRole("button", { name: "別のポートにする" })).toBeTruthy()
+})
+
 test("覚えたポートが使われていれば［別のポートにする］を出し、確かめのダイアログで頼む。どちらで閉じても「ネットワーク」に戻る", async () => {
   const asked: unknown[] = []
   const store = createMatomezu({
@@ -132,6 +172,46 @@ test("覚えたポートが使われていれば［別のポートにする］�
   })
   expect(asked).toEqual([{ kind: "repick-port" }])
   expect(screen.getByRole("tabpanel", { name: "ネットワーク" })).toBeTruthy()
+})
+
+test("WSLプロキシが止まれば［立て直す］で立て直しを頼み、Windows でポートが使われていれば［別のポートにする］の確かめから取り直しを頼む", async () => {
+  const asked: unknown[] = []
+  const store = createMatomezu({
+    controlCenter: CONTROL_CENTER.id,
+    books: [],
+    lang: "ja",
+    plugins: BUILTIN_UI,
+    hostsHost: {
+      ask: async r => {
+        if (r.kind === "restart-wsl-proxy" || r.kind === "repick-port") asked.push(r)
+      },
+    },
+  })
+  render(
+    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
+      <WindowRoot />
+    </MatomezuProvider>,
+  )
+  const proxy = (wslProxy: HostStatus["wslProxy"]) =>
+    act(() =>
+      store.setHostStatus({ hostId: HOST_ID, name: "d", osHostName: "d", open: true, port: 7240, wsl: true, wslProxy }),
+    )
+  fireEvent.click(screen.getByRole("button", { name: "全体設定", hidden: true }))
+  fireEvent.click(screen.getByRole("tab", { name: "ネットワーク" }))
+  const panel = () => screen.getByRole("tabpanel", { name: "ネットワーク" })
+  fireEvent.click(within(panel()).getByRole("switch", { name: "ホストとつなぐ" }))
+  proxy("stopped")
+  await act(async () => {
+    fireEvent.click(within(panel()).getByRole("button", { name: "立て直す" }))
+  })
+  expect(asked).toEqual([{ kind: "restart-wsl-proxy" }])
+  proxy("port-in-use")
+  fireEvent.click(within(panel()).getByRole("button", { name: "別のポートにする" }))
+  const dialog = screen.getByRole("dialog", { name: "別のポートにする" })
+  await act(async () => {
+    fireEvent.click(within(dialog).getByRole("button", { name: "別のポートにする" }))
+  })
+  expect(asked).toEqual([{ kind: "restart-wsl-proxy" }, { kind: "repick-port" }])
 })
 
 test("AI 用ホストリストに載せるこのホストのワークルームは、つなぐが切でも［全部｜5 件］で選べ、全部に戻すと値を消す", () => {

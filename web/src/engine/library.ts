@@ -24,6 +24,7 @@ export function checkBookLines(of: Assembled, books: string): string {
     code: n.code,
     warning: warningText(n),
     unreadable,
+    params: n.params,
   })
   return JSON.stringify([...read.warnings.map(n => line(n, true)), ...read.partial.map(n => line(n, false))])
 }

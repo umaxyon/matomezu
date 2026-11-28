@@ -122,6 +122,24 @@ func (h *Hub) recordWarnings(ids []string, found []engine.BookWarning) {
 	}
 }
 
+// unreadableBooks は、窓に渡す読めないブック（ブックごと読めない warning のあるブック。ゴミ箱の中も入れ、読めない物のフォルダの中は除く）の
+// warning {code, plugin, params} の並び（id の順。窓はこれを読めないブックとし、判じずに書庫の表から外す。h.mu を持って呼ぶ）
+func (h *Hub) unreadableBooks() []map[string]any {
+	out := []map[string]any{}
+	for _, id := range slices.Sorted(maps.Keys(h.bookWarnings)) {
+		n := h.bookWarnings[id]
+		if !n.Unreadable || h.inUnreadable(id) {
+			continue
+		}
+		params := n.Params
+		if params == nil {
+			params = map[string]string{}
+		}
+		out = append(out, map[string]any{"code": n.Code, "plugin": "", "params": params})
+	}
+	return out
+}
+
 // OutsidePageWarnings は、warning のあるブックの外のページの id → その warning の 1 行
 func (h *Hub) OutsidePageWarnings() map[string]string {
 	h.mu.Lock()

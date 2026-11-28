@@ -14,7 +14,10 @@ import {
   libraryTopIdsIn,
   type MovedCode,
   namesHomeOrFolder,
+  namesPageMetaRow,
+  type PageMeta,
   type PageRow,
+  pageMetaRowRead,
   type TrashRef,
 } from "./folders"
 import { tablesOf } from "./folders-books"
@@ -276,7 +279,7 @@ function judgeOutsideBinder(catalog: CoreCatalog, raw: Readonly<Record<string, u
   return { code: first.code, ...(first.type === undefined ? {} : { type: first.type }) }
 }
 
-// 残したブック 1 冊 raw（並びにページとバインダの中身ごと持つ形。形を確かめる前）を今の機能台帳で読んだ物。読めるかの判定は、画面もホストもこれ 1 つで決める。
+// 残したブック 1 冊 raw（並びにページとバインダの中身ごと持つ形。形を確かめる前）を今の機能台帳で読んだ物。読めるかの判定は、画面もホストもこれ 1 つで決める（窓が中身を持っていない行を含むブックは判じない。readLibrary）。
 // ブックごと読めなければ、その訳: 読めない物を除いてもブックの形に合わない・行の無い物を指したまま組まれている W005／並びの決まりを守らない W006。
 // 読めれば、読めない物を除いたブックと、中の読めない物（ページ・バインダ。外側の 1 つだけ。バインダごと読めないバインダの中のページは数えない）
 // 同じ値は覚えておき、確かめ直さない（窓は知らせを受けるたびに書庫を読み直すが、変わらないブックの行は同じ値のまま）
@@ -374,28 +377,48 @@ export interface LibraryRead {
 // ブックの外のページは、そのタイプのページの形で読め、まとまるタイプでないときだけ入れる（読めなければ入れず、残したデータには手を付けない）。
 // ブックの外のバインダは、形に合い、中のページの行が全部在って読め、バインダの決まりを守り、空でないときだけ、中のページごと入れる。
 // 入らなかった物を指す並びは、表に無い物を指すので、木の決まりが破れて見える（書庫が対象のアクションは断られる）。
-// どのフォルダにも持たれていないページの行と、読めないブックの行と、読めない物のフォルダの行とその中の物の行は、表に入れない
+// どのフォルダにも持たれていないページの行と、読めないブックの行と、読めない物のフォルダの行とその中の物の行は、表に入れない。
+// unreadable は、ほかで読めないと決まったブックの id（常駐が決めた物）。それらは判じずに外す（id の重なりを比べる前に外し、どちらを読めないとするかを常駐の決めに揃える）。warnings には入らない。
+// metaRows を渡すのは窓だけ: 中身を持っていない行（ページメタだけの行）を含むブック・ブックの外のページ・ブックの外のバインダは、読めるかを判じず（常駐が決める）、
+// 形だけを確かめて行のまま表に入れる（metaRowsOf。確かめに落ちた物は入れず、warning も出さない）。ブックは組まない。常駐は渡さず、そうした行は形に合わない物として判じる
 export function readLibrary(
   catalog: CoreCatalog,
   allPages: readonly unknown[],
   allFolders: readonly unknown[],
+  given: { unreadable?: ReadonlySet<string>; metaRows?: true } = {},
 ): LibraryRead {
+  const { unreadable = new Set<string>(), metaRows } = given
   const { pageRows, folderRows } = outsideUnreadable(allPages, allFolders)
-  const checked = checkBooks(catalog, rawBooksOf(pageRows, folderRows))
+  const all = rawBooksOf(pageRows, folderRows).filter(b => !unreadable.has(String((b as { id?: unknown } | null)?.id)))
+  const unheld = metaRows ? all.filter(hasMetaRow) : []
+  const checked = checkBooks(catalog, unheld.length > 0 ? all.filter(b => !unheld.includes(b)) : all)
   const tables = tablesOf(checked.books)
   const open = homeAndFoldersOf(folderRows)
-  if (open.length === 0) return { library: tables, ...checked }
+  if (open.length === 0 && unheld.length === 0) return { library: tables, ...checked }
   const pages: Record<string, PageRow> = { ...tables.pages }
   const folders: Record<string, Folder> = { ...tables.folders }
-  for (const f of open) folders[f.id] = f
   const pageRow = rowsById(pageRows)
   const folderRow = rowsById(folderRows)
+  // 表にもう在る id は上書きしない
+  const put = (rows: MetaRows | undefined) => {
+    if (!rows || [...rows.folders, ...rows.pages].some(r => Object.hasOwn(folders, r.id) || Object.hasOwn(pages, r.id)))
+      return
+    for (const f of rows.folders) folders[f.id] = f
+    for (const p of rows.pages) pages[p.id] = p
+  }
+  for (const b of unheld) put(metaBookRowsOf(catalog, b, folderRow))
+  for (const f of open) folders[f.id] = f
   for (const f of open)
     for (const r of f.lineup) {
       if (r.kind === "page") {
         // 行が無い・もう表に在る物は読まない（2 度持たれた物と行の無い物は、木の決まりが見る）
         const raw = pageRow.get(r.id)
         if (!raw || Object.hasOwn(pages, r.id)) continue
+        if (metaRows && namesPageMetaRow(raw)) {
+          const meta = pageMetaRowRead(catalog.pageTypes, raw)
+          if (meta && pageHoldsOutside(catalog, meta)) pages[r.id] = meta
+          continue
+        }
         const page = judgeOutsidePage(catalog, raw)
         if (typeof page !== "string") pages[r.id] = page as PageRow
       }
@@ -407,12 +430,88 @@ export function readLibrary(
       )
       if (inside.some(p => p === undefined || Object.hasOwn(pages, p.id as string))) continue
       const { folderRole: _, ...fields } = row
-      const binder = judgeOutsideBinder(catalog, { ...fields, kind: "binder", lineup: inside })
+      const raw = { ...fields, kind: "binder", lineup: inside }
+      if (metaRows && hasMetaRow(raw)) {
+        put(metaBinderRowsOf(catalog, raw, folderRow, true))
+        continue
+      }
+      const binder = judgeOutsideBinder(catalog, raw)
       if ("code" in binder || binder.inner.length > 0) continue
       folders[r.id] = binderFolderOf(row) as Folder
       for (const p of binder.binder.lineup) pages[p.id] = p as PageRow
     }
   return { library: { pages, folders }, ...checked }
+}
+
+// 中身を持っていない行を含む物を、行のまま表に入れるときの行（フォルダの行とページの行）
+interface MetaRows {
+  folders: Folder[]
+  pages: PageRow[]
+}
+
+// 組んだブックかバインダ raw（rawBooksOf の形。並びはページとバインダの中身ごと）の並びに、中身を持っていない行が在るか（バインダの中も見る）
+const hasMetaRow = (raw: unknown): boolean =>
+  isRecord(raw) &&
+  Array.isArray(raw.lineup) &&
+  raw.lineup.some(e => namesPageMetaRow(e) || (isRecord(e) && e.kind === "binder" && hasMetaRow(e)))
+
+// 並びのページ raws を、中身を持っていない行はその形で、持っている行は judgePage で読んだ物（type を渡せば、どれもそのタイプ）。1 つでも読めなければ undefined
+function metaPagesOf(catalog: CoreCatalog, raws: readonly unknown[], type?: string): PageRow[] | undefined {
+  const read: PageRow[] = []
+  for (const raw of raws) {
+    if (!isRecord(raw)) return undefined
+    const page = namesPageMetaRow(raw) ? pageMetaRowRead(catalog.pageTypes, raw) : judgePage(catalog, raw)
+    if (page === undefined || typeof page === "string" || (type !== undefined && page.type !== type)) return undefined
+    read.push(page)
+  }
+  return read
+}
+
+// 中身を持っていない行を含むバインダ raw（並びのエントリの形で、中のページは中身ごと）の行: バインダの行の形・設定の項目の値の形・入れるタイプが機能台帳に在ること・
+// 中のページが読めて入れるタイプであることを確かめる（judgeBinder の、中身を持っていない行を受ける物）。outside なら、ブックの外のバインダ（空でない決まりも見る）
+function metaBinderRowsOf(
+  catalog: CoreCatalog,
+  raw: Readonly<Record<string, unknown>>,
+  folderRow: ReadonlyMap<string, Readonly<Record<string, unknown>>>,
+  outside = false,
+): MetaRows | undefined {
+  const row = binderFolderOf(folderRow.get(String(raw.id)))
+  if (!row || !Array.isArray(raw.lineup)) return undefined
+  const shape = outside ? catalog.outermostSettingsSchema : catalog.innerBinderSettingsSchema
+  if (!shape.safeParse(row.settings).success || !catalog.pageTypes.has(row.pageType)) return undefined
+  const pages = metaPagesOf(catalog, raw.lineup, row.pageType)
+  if (!pages || (outside && pages.length === 0)) return undefined
+  return { folders: [row as Folder], pages }
+}
+
+// 中身を持っていない行を含むブック raw（rawBooksOf の形）の行: 中身を持っていない行と、それを含むバインダの中身を除いた形をブックの形で確かめ、
+// 除いた物を metaPagesOf・metaBinderRowsOf で確かめる
+function metaBookRowsOf(
+  catalog: CoreCatalog,
+  raw: unknown,
+  folderRow: ReadonlyMap<string, Readonly<Record<string, unknown>>>,
+): MetaRows | undefined {
+  if (!isRecord(raw) || !Array.isArray(raw.lineup)) return undefined
+  const book = folderRow.get(String(raw.id))
+  if (book?.folderRole !== "book") return undefined
+  const frame = raw.lineup.flatMap(e =>
+    namesPageMetaRow(e) ? [] : isRecord(e) && e.kind === "binder" && hasMetaRow(e) ? [{ ...e, lineup: [] }] : [e],
+  )
+  if (!catalog.bookSchema.safeParse({ ...raw, lineup: frame }).success) return undefined
+  const rows: MetaRows = { folders: [book as unknown as Folder], pages: [] }
+  for (const e of raw.lineup) {
+    if (!isRecord(e)) return undefined
+    const got =
+      e.kind === "binder"
+        ? metaBinderRowsOf(catalog, e, folderRow)
+        : e.kind === "page"
+          ? { folders: [], pages: metaPagesOf(catalog, [e]) }
+          : { folders: [], pages: [] }
+    if (!got?.pages) return undefined
+    rows.folders.push(...got.folders)
+    rows.pages.push(...got.pages)
+  }
+  return rows
 }
 
 // ブックの並び（ページタブの順。1 つはページか、1 つのタイプのページだけを入れるバインダ）
@@ -699,8 +798,11 @@ function binderHolds(catalog: CoreCatalog, binder: BinderEntry): boolean {
   return distinctTitles(ownTitlesOf(binder.lineup)) && typesAndPaperHold(catalog, binder)
 }
 
+// バインダの入れるタイプと、中のページのページメタ（名前に依らない決まりは、これだけで決まる）
+type MetaBinder = { pageType: string; lineup: readonly PageMeta[] }
+
 // バインダの決まりのうち、名前に依らない物を守っているか: 入れるタイプは、まとまるタイプ／中のページは、入れるタイプのページ／中のページは、紙と向きが同じ
-function typesAndPaperHold(catalog: CoreCatalog, binder: Pick<BinderEntry, "pageType" | "lineup">): boolean {
+function typesAndPaperHold(catalog: CoreCatalog, binder: MetaBinder): boolean {
   if (binder.lineup.some(p => p.type !== binder.pageType)) return false
   if (catalog.pageTypes.get(binder.pageType)?.grouping !== "binder") return false
   return sharesPaper(binder)
@@ -708,7 +810,12 @@ function typesAndPaperHold(catalog: CoreCatalog, binder: Pick<BinderEntry, "page
 
 // 書庫 library のバインダ binder が、ページ page を入れられるか（バインダの決まりのうち名前に依らない物 typesAndPaperHold を、
 // page を入れた並びが守るか。中に page が在れば、それを除いて比べる。名前の重なりは見ない）。binder がバインダでなければ false
-export function binderTakes(catalog: CoreCatalog, { pages, folders }: Library, binder: string, page: AnyPage): boolean {
+export function binderTakes(
+  catalog: CoreCatalog,
+  { pages, folders }: Library,
+  binder: string,
+  page: PageMeta,
+): boolean {
   const to = folders[binder]
   if (to?.folderRole !== "binder") return false
   const lineup = [...to.lineup.flatMap(r => (r.id === page.id ? [] : (pages[r.id] ?? []))), page]
@@ -720,7 +827,7 @@ export const binderIsEmpty = (folders: Library["folders"], binder: string): bool
   folders[binder]?.folderRole === "binder" && folders[binder].lineup.length === 0
 
 // ブックの外（書庫ホーム・ゴミ箱・フォルダの直下）に、バインダに入らずに置けるページか: まとまるタイプ（grouping が binder）でない
-export const pageHoldsOutside = (catalog: CoreCatalog, page: Pick<AnyPage, "type">): boolean =>
+export const pageHoldsOutside = (catalog: CoreCatalog, page: Pick<PageMeta, "type">): boolean =>
   catalog.pageTypes.get(page.type)?.grouping !== "binder"
 
 // ブックの外のバインダの決まりを守っているか: バインダの決まり（binderHolds）を守り、空でない
@@ -770,7 +877,7 @@ export function outsideHolds(catalog: CoreCatalog, was: Library, next: Library):
 }
 
 // バインダの中のページが、紙と向きをそろえているか
-function sharesPaper(binder: Pick<BinderEntry, "lineup">): boolean {
+function sharesPaper(binder: Pick<MetaBinder, "lineup">): boolean {
   const pages = binder.lineup
   const lead = pages[0]
   return pages.every(p => p.paper === lead?.paper && p.orientation === lead.orientation)

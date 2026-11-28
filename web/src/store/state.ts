@@ -8,9 +8,9 @@ import type { ControlCenterId, MessageKey, SkinId } from "../core/catalog"
 import type { ClipboardUse, ClipTransfer } from "../core/clipboard"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionOn } from "../core/def/action"
-import type { BROKEN, Folders, Library, Pages } from "../core/folders"
+import type { BROKEN, Folder, Folders, Library, PageRow, Pages } from "../core/folders"
 import type { UnreadableItem } from "../core/folders-unreadable"
-import type { History } from "../core/history"
+import type { History, HistoryStep, RowChange } from "../core/history"
 import type { Lang, Params } from "../core/i18n/i18n"
 import { type Books, splitTrash } from "../core/library"
 import type { PageUsers } from "../core/page-users"
@@ -88,7 +88,8 @@ export interface UpdateStatus {
 }
 
 // ホストどうしの入口の様子: hostId はこのホストの id（鍵の指紋）、name はホスト名（設定か、無ければ OS のホスト名 osHostName）、
-// open は入口が開いているか（port と、待っている所の番地 addrs）、wsl は WSL で動いているか、failed は開こうとして開けなかったときの理由
+// open は入口が開いているか（port と、待っている所の番地 addrs）、wsl は WSL で動いているか、failed は開こうとして開けなかったときの理由、
+// wslProxy は WSLプロキシの様子と wslProxyAddrs はその待っている所の番地（NAT の WSL で入口が開いているときだけ）
 // （port-in-use は覚えたポート port がほかに使われていた、listen はそのほか。覚えたポートは取り直さない。足してもらったファイアウォールの規則や相手が覚えた番号を壊さないため）
 export interface HostStatus {
   hostId: string
@@ -99,7 +100,22 @@ export interface HostStatus {
   addrs?: readonly string[]
   wsl?: boolean
   failed?: "port-in-use" | "listen"
+  wslProxy?: WslProxyState
+  wslProxyAddrs?: readonly string[]
 }
+
+// WSLプロキシ（NAT の WSL の常駐が Windows で立てる matomezu）の様子: starting は立てている（終わって立て直しを待つ間も）、running は Windows の LAN で待っている、
+// unavailable は立たない（Windows に matomezu が無い・古い）、update-windows・update-this はやり取りの版が合わない（古い方を更新する）、
+// port-in-use は Windows でそのポートがほかに使われている、listen は Windows で待てない（そのほか）、stopped は待ち始めたあとで終わり、立て直しも使い切った
+export type WslProxyState =
+  | "starting"
+  | "running"
+  | "unavailable"
+  | "update-windows"
+  | "update-this"
+  | "port-in-use"
+  | "listen"
+  | "stopped"
 
 // ペアリングしたホストの、常駐だけが持つ様子: state はつながりの様子（確かめた時点で）、lastSeen は最後につながった時刻、addr は待っている所（番地:ポート）、
 // reverseOnly は相手が張ったリバース接続でだけつながっている（相手の待っている所へは届かない）、
@@ -161,13 +177,15 @@ export interface PendingMessage {
 }
 
 // ほかのホストについてホストに頼む事: pair は addr（番地:ポート）のホストにペアリングを頼む（manual は利用者が手で入れたか）、end-pairing は頼んでいるのをやめる（終わった様子も消す）、
-// check はペアリングしたホストとつながっているか確かめる、discover は mDNS で今すぐ問う、repick-port は覚えたポートが使われているとき別の番号で開き直す
+// check はペアリングしたホストとつながっているか確かめる、discover は mDNS で今すぐ問う、repick-port は覚えたポートが使われているとき別の番号で開き直す、
+// restart-wsl-proxy は止まった WSLプロキシを立て直す
 export type HostRequest =
   | { kind: "pair"; addr: string; manual: boolean }
   | { kind: "end-pairing" }
   | { kind: "check" }
   | { kind: "discover" }
   | { kind: "repick-port" }
+  | { kind: "restart-wsl-proxy" }
 
 // 常駐の版とデータの形の番号（移し替えの数）と、配る画面の印（index.html から求めた物。無い常駐もある）
 export interface Build {
@@ -183,12 +201,14 @@ export interface StaleBuild {
 }
 
 // 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチと、起こす知らせを渡せる matomezu watch がつながっているか（reaches。
-// つながっていなければ持たない）と、AI のフックが知らせた会話の今のコンテキストの量（知らされていない物は持たない）
+// つながっていなければ持たない）と、AI のフックが知らせた会話の今のコンテキストの量（知らされていない物は持たない）と、
+// 結んだ会話の AI のプログラムが会話を空にできると名乗ったか（名乗っていなければ持たない）
 export interface ParticipantLive {
   readonly model?: string
   readonly branch?: string
   readonly wake?: "reaches"
   readonly contextUse?: ContextUse
+  readonly refreshable?: true
 }
 
 // 会話の今のコンテキストの量（used）と、AI の側の物差し（aiScale。自動で縮める所、無ければモデルの上限）。どちらもトークン
@@ -229,6 +249,17 @@ export interface ForeignLibraryRows {
   pages: Readonly<Record<string, RowSides>>
   folders: Readonly<Record<string, RowSides>>
 }
+// 常駐が知らせた書庫の前と後 rows を、画面の履歴の段の形にする（無い側は none。値は常駐が確かめた行）
+export function librarySidesOf(rows: ForeignLibraryRows): Pick<HistoryStep, "pages" | "folders"> {
+  const sides = <T>(changed: Readonly<Record<string, RowSides>>) =>
+    Object.fromEntries(
+      Object.entries(changed).map(([id, r]): [string, RowChange<T>] => [
+        id,
+        { before: (r.before ?? "none") as T | "none", after: (r.after ?? "none") as T | "none" },
+      ]),
+    )
+  return { pages: sides<PageRow>(rows.pages), folders: sides<Folder>(rows.folders) }
+}
 
 // 画面で行ったアクション 1 つ（ホストが常駐に送り、行い直しに使う）。ids は行ったときに振った id の順、lang はそのときの言語
 export interface DoneAction {
@@ -244,8 +275,12 @@ export interface DoneAction {
 // アクションバルク: 同期の 1 回の流れで行ったアクションの並び（画面の履歴の段と同じ区切り）。ホストは 1 回で書き、全部通すか全部断る
 export type DoneBulk = readonly DoneAction[]
 
-// ホストが、画面で行ったアクションバルクを確かめた答え（断ったなら reason。届けられなかったものは not-saved）
-export type HostAnswer = { ok: true } | { ok: false; reason: string }
+// ホストが、画面で行ったアクションバルクを確かめた答え（断ったなら reason と、あれば断りの種類 kind と止めた認可ステップ permission。届けられなかったものは not-saved）
+// results は、行えたときのアクションごとの結果（バルクの順。先に行わずに送ったアクションの結果を、ホストから受け取る）。
+// library は、そのバルクの書庫の履歴に入るアクションが変えたページとフォルダごとの、常駐が書く前と後（ForeignChange の library と同じ形。先に行わずに送ったバルクの、書庫の履歴の段にする）
+export type HostAnswer =
+  | { ok: true; results?: readonly unknown[]; library?: ForeignLibraryRows }
+  | { ok: false; reason: string; kind?: string; permission?: string }
 
 export type ReadonlyStore = Pick<StoreApi<MatomezuState>, "getState" | "getInitialState" | "subscribe">
 
@@ -374,6 +409,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
 export interface LibraryRows {
   pages: readonly unknown[]
   folders: readonly unknown[]
+  // 常駐が読めないと決めたブックの warning（行と同じ時点の物）。在れば、画面はそれらを判じずに読めないブックにする。ホストの無い窓とテストには無く、画面が全部を判じる
+  unreadableBooks?: readonly Warning[]
 }
 
 // 行を今の機能台帳で読んだ物: 書庫の表 library と、読めないブックの warning・読めるブックの中の問題（core/book.ts の readLibrary）と、読めない物のフォルダの直下の物

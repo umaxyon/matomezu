@@ -158,7 +158,7 @@ export {
 export { NO_TOOL } from "../core/tools"
 export type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../core/wide-search"
 export type { StageView } from "../core/workspace"
-export { KEY_WAITS } from "../store/actions"
+export { KEY_WAITS, NO_DENIED_BY, NO_REFUSAL_KIND, SENT_TO_HOST } from "../store/actions"
 export type { CalledScreen, CommandContext, ScreenCommandContext } from "../store/commands/def"
 export { NO_BOOK, NO_OUTSIDE_BINDER, NO_PAGE } from "../store/commands/def"
 export type { NewPageDialogArgs, PageSettingsArgs } from "../store/dialogs"
