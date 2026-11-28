@@ -18,7 +18,6 @@ import (
 	"net"
 	"net/netip"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -103,7 +102,7 @@ func RunWSLProxy(in io.Reader, out io.Writer) error {
 		bind = "127.0.0.1"
 	}
 	// Windows の 0.0.0.0:P は、WSL の localhost 転送が取る 127.0.0.1:P とぶつからない
-	ln, err := net.Listen("tcp", net.JoinHostPort(bind, strconv.Itoa(start.Port)))
+	ln, err := net.Listen("tcp4", net.JoinHostPort(bind, strconv.Itoa(start.Port)))
 	if err != nil {
 		failed := WSLProxyListen
 		if errors.Is(err, errAddrInUse) {
@@ -164,8 +163,6 @@ func (p *wslProxy) sighted(s Sighting, gone bool) {
 }
 
 func (p *wslProxy) accept(ln net.Listener, start WSLProxyStart) {
-	var mu sync.Mutex
-	targets := start.Targets
 	for {
 		c, err := ln.Accept()
 		if err != nil {
@@ -173,29 +170,50 @@ func (p *wslProxy) accept(ln net.Listener, start WSLProxyStart) {
 		}
 		go func() {
 			defer c.Close()
-			mu.Lock()
-			order := targets
-			mu.Unlock()
-			for i, t := range order {
-				u, err := net.DialTimeout("tcp", t, wslDialWait)
-				if err != nil {
-					continue
-				}
-				if i > 0 { // つながった番地を次から先に試す
-					mu.Lock()
-					targets = append([]string{t}, slices.DeleteFunc(slices.Clone(order), func(x string) bool { return x == t })...)
-					mu.Unlock()
-				}
-				defer u.Close()
-				if _, err := io.WriteString(u, wslHeader(start.Secret, c.RemoteAddr().String())); err != nil {
-					return
-				}
-				pipe(c, u)
+			u, err := dialFirst(start.Targets)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "wsl-proxy: no address of WSL answered:", strings.Join(start.Targets, ", "))
 				return
 			}
-			fmt.Fprintln(os.Stderr, "wsl-proxy: no address of WSL answered:", strings.Join(order, ", "))
+			defer u.Close()
+			if _, err := io.WriteString(u, wslHeader(start.Secret, c.RemoteAddr().String())); err != nil {
+				return
+			}
+			pipe(c, u)
 		}()
 	}
+}
+
+// dialFirst は、targets のどれにも同時につなぎ、最初につながった物を返す（届かない番地を順に待たない）
+func dialFirst(targets []string) (net.Conn, error) {
+	type result struct {
+		c   net.Conn
+		err error
+	}
+	results := make(chan result, len(targets))
+	for _, t := range targets {
+		go func() {
+			c, err := net.DialTimeout("tcp", t, wslDialWait)
+			results <- result{c, err}
+		}()
+	}
+	var last error = errors.New("no address")
+	for i := range targets {
+		r := <-results
+		if r.err != nil {
+			last = r.err
+			continue
+		}
+		go func(left int) { // 遅れてつながった物は閉じる
+			for range left {
+				if r := <-results; r.err == nil {
+					_ = r.c.Close()
+				}
+			}
+		}(len(targets) - i - 1)
+		return r.c, nil
+	}
+	return nil, last
 }
 
 // pipe は、a と b の間を両方の向きに流す。片方の向きが終わったら、その向きの書き手を半分だけ閉じる（リバース接続のような長い接続にも間合いを設けない）

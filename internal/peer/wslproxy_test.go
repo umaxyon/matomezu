@@ -294,3 +294,30 @@ func TestWSLProxyRefusesAnotherVersion(t *testing.T) {
 		t.Fatalf("answer = %q, %v", out.String(), err)
 	}
 }
+
+// 届かない番地が先に並んでいても、届く番地へ待たずにつなぐ
+func TestDialFirstDoesNotWaitForDeadAddresses(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			c.Close()
+		}
+	}()
+	began := time.Now()
+	c, err := dialFirst([]string{"192.0.2.1:9", "127.0.0.1:" + strconv.Itoa(freePort(t)), ln.Addr().String()}) // 192.0.2.1 は届かない番地（RFC 5737）
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Close()
+	if d := time.Since(began); d > time.Second {
+		t.Fatalf("took %s", d)
+	}
+}

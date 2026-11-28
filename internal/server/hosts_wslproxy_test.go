@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/umaxyon/matomezu/internal/peer"
 )
@@ -152,13 +153,25 @@ func TestARequestThroughTheWSLProxyComesFromTheHeaderAddress(t *testing.T) {
 	})
 }
 
-// running のあとで WSLプロキシが終わると、様子は stopped になり、入口は開いたまま、WSLプロキシの見つけたホストは消える
+// running のあとで WSLプロキシが終わると、様子は stopped になり、入口は開いたまま、WSLプロキシの見つけたホストは消えて窓に知らせる
 func TestTheWSLProxyEndingDropsItsSightings(t *testing.T) {
 	seen, _ := json.Marshal(map[string]any{"sighting": map[string]any{"HostID": "mac", "Protocol": peer.Protocol, "Name": "mac", "Addr": "192.0.2.9", "Port": 7300, "life": 120}})
 	f := newFakeWSLProxy(`{"v":1,"ready":true}`, string(seen))
 	h, _, _ := openWSLHost(t, f)
 	waitFor(t, "the sighting through the WSL proxy", func() bool { return len(h.HostPeers().Found) == 1 })
+	c := h.Join()
+	t.Cleanup(func() { h.Leave(c) })
 	close(f.end)
+	told := false
+	for deadline := time.After(5 * time.Second); !told; {
+		select {
+		case ev := <-c.ch:
+			var p HostPeers
+			told = ev.name == "host-peers" && json.Unmarshal(ev.data, &p) == nil && len(p.Found) == 0
+		case <-deadline:
+			t.Fatal("the window was not told the host list without the sighting")
+		}
+	}
 	s := waitHost(t, h, func(s HostStatus) bool { return s.WSLProxy == peer.WSLProxyStopped })
 	if !s.Open {
 		t.Fatalf("the entrance closed: %+v", s)
