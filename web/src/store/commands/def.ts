@@ -3,6 +3,7 @@
 
 import type { Annotation } from "../../core/annotation"
 import type { ActionId, ActionTable, CommandExtras, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
+import type { Clipboard, ClipboardUse } from "../../core/clipboard"
 import type { CoreCatalog } from "../../core/core-catalog"
 import { ANY_PAGE_TYPE, type ArgsOfType, type NO_CONTROL_CENTER, type Where } from "../../core/def/action"
 import type { NO_STATE, PluginStateDef, PluginStateRead, StateRead } from "../../core/def/plugin-state"
@@ -222,6 +223,8 @@ export interface CommandActions extends WindowActions, BoundPlaceActions {
   ): void
   // 同じく、def の値を消す（既定を持つ宣言は既定を、持たない宣言は NO_STATE を読むようになる）
   resetPluginState(def: PluginStateDef<unknown>): void
+  // OS のクリップボード（clipboard を名乗るコマンドが、クリップボードのイベントの中で呼ばれたときだけ読み書きできる。ほかは NO_CLIPBOARD）
+  clipboard: Clipboard
 }
 
 // コマンドに渡した操作ごとの、store の素の操作（ほかのスクリーン・ステージを名指す操作も持つ。プラグイン API には出さない。base のコマンドが storeActionsOf で読む）
@@ -278,6 +281,9 @@ export interface StageCommandDef<A = undefined, Tt extends string = MessageKey> 
   // "runs" なら、行うアクションが認可ステップに止められても押せる（止められたアクションは perform が断るので、run はそれで何も変えずに終える。
   // 取り消しのように、行えなくても終えられるコマンドのため）。書かなければ、どれも止められると押せない。使えない（出さない）ことと印刷プレビューの間は変えない
   denied?: "runs"
+  // クリップボードの使い方（core/clipboard.ts）。名乗れば、キーで呼んだときは、続くブラウザのクリップボードのイベントの中で行い、操作の clipboard で読み書きする。
+  // copy・cut はメニューから呼んでも、ホストクライアントにイベントを起こしてもらって同じ道で行う（起こせなければ、クリップボード無しで行う）
+  clipboard?: ClipboardUse
   when(ctx: CommandContext): boolean // 出すか
   enabled?(ctx: CommandContext): boolean // 押せるか。無ければ、出ていれば押せる
   active?(ctx: CommandContext): boolean // 押されている状態か（メニューのボタンの見た目・OS のメニューの印）。無ければ押されていない

@@ -53,8 +53,9 @@ export interface WindowActions {
   submitDialog(): void // 開いているダイアログに、決めるように頼む（枠が中身の form を送る）
   // 押したキー（そろえた書き方）を、開いているメニュー・ダイアログ・カレントのステージの範囲で引き、当たったコマンドを行う。
   // 範囲は狭い方から順に引き、その場で使えるコマンドに当たった所で行う（使えないキーバインドは無いものとして、次の範囲の同じキーを探す）。scopes は押した所の要素が名乗ったプラグインの範囲。
-  // reach が "named" なら scopes だけを引く（テキストFormが自分で名乗った範囲）。行ったか返す
-  pressKey(key: string, scopes?: readonly string[], reach?: KeyReach): boolean
+  // reach が "named" なら scopes だけを引く（テキストFormが自分で名乗った範囲）。行ったか返す。
+  // クリップボードを使うコマンド（clipboard を名乗る）に当たれば、行わずに待たせて KEY_WAITS を返す（続くブラウザのクリップボードのイベントで clipboardEvent が行う。呼んだ側はブラウザの動きを止めない）
+  pressKey(key: string, scopes?: readonly string[], reach?: KeyReach): boolean | typeof KEY_WAITS
   closeContextMenu(): void
   showToast(toast: ToastInput): string // トーストを出し、その id を返す
   dismissToast(id: string): void // トーストを消す（もう無ければ何もしない）
@@ -113,6 +114,8 @@ export interface FrameActions {
   showStage(id: string): void // ステージ id をカレントにし、それを並べているスクリーンをカレントスクリーンにする（そのステージを見せる）
   // ステージ stage をカレントにして右に何も開いていないステージを足し、足したステージの id を返す（足せなければ NO_STAGE）。ほかは split と同じ
   splitStage(stage: string): string
+  // ステージ stage のビューが、貼り付けのコマンド command で貼ったファイル（クリップボードの passFiles）を受ける。受けるのをやめる関数を返す
+  receivePastedFiles(stage: string, command: string, receive: (files: readonly File[]) => void): () => void
 }
 
 // 画面の操作のうち、場所（ステージの id。ダイアログとコマンドは、ステージを持たないスクリーンの id も）に向ける物。どれも第 1 引数が向ける場所。
@@ -222,6 +225,9 @@ export function boundActions(actions: PlaceActions, at: string | null): BoundPla
     ]),
   ) as unknown as BoundPlaceActions
 }
+
+// pressKey が、クリップボードを使うコマンドを待たせたときの答え
+export const KEY_WAITS = "waits"
 
 // 何も行わない、窓に向ける操作（操作を向ける先が無い所で使う。アクションは no-book で断り、id を返す操作は空の文字を返す）
 const NOTHING = () => {}

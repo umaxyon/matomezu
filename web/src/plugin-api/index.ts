@@ -41,6 +41,7 @@ export type {
   ThemeId,
   WidgetId,
 } from "../core/catalog"
+export { type Clipboard, type ClipboardUse, NO_CLIP_DATA, NO_CLIPBOARD, OTHER_HOST } from "../core/clipboard"
 export { HEX, isLight, isPaletteName, PALETTE } from "../core/color"
 export type { CoreCatalog, ItemProps } from "../core/core-catalog"
 export { pageType } from "../core/core-catalog"
@@ -148,6 +149,7 @@ export {
 export { NO_TOOL } from "../core/tools"
 export type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../core/wide-search"
 export type { StageView } from "../core/workspace"
+export { KEY_WAITS } from "../store/actions"
 export type { CalledScreen, CommandContext, ScreenCommandContext } from "../store/commands/def"
 export { NO_BOOK, NO_OUTSIDE_BINDER, NO_PAGE } from "../store/commands/def"
 export type { NewPageDialogArgs, PageSettingsArgs } from "../store/dialogs"

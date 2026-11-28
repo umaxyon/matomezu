@@ -15,6 +15,7 @@ import {
   type Point,
   type ShapeAddArgs,
   type ShapeParent,
+  type StageView,
   shapeDialogs,
   shapesOf,
   toPaperDelta,
@@ -36,6 +37,18 @@ import type { Came } from "./drag"
 import { nearestMove, nearestReparent, placeTarget, placingShape, stretchedBy } from "./items"
 
 // 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所を、toPaperAt で紙の上の点に直す
+// 貼ったファイルを置く所: ステージの上の点 pointer が、ステージ stage の描く広さ（伸びるページなら印刷区画を並べた広さ）の紙の上なら pointer、外なら NO_PAPER（最初の空きに置く）
+export function pastedAt(
+  stage: Pick<StageView, "opened">,
+  toPaperAt: (p: Point) => Point | typeof NO_PAPER,
+  pointer: Point,
+): Point | typeof NO_PAPER {
+  const area = areaOf(stage)
+  const at = toPaperAt(pointer)
+  if (area === NO_PAPER || at === NO_PAPER) return NO_PAPER
+  return at.x >= 0 && at.y >= 0 && at.x <= area.w && at.y <= area.h ? pointer : NO_PAPER
+}
+
 export function placeAt(toPaperAt: (p: Point) => Point | typeof NO_PAPER, pointer: Point): Point | typeof NO_PAPER {
   return toPaperAt({ x: pointer.x - PLACE_OFFSET.x, y: pointer.y - PLACE_OFFSET.y })
 }
@@ -114,8 +127,9 @@ export const PAPER_PLACE = kit.defineCommand({
   when: ctx => hasOpenedPage(ctx) && ctx.stage.placing !== NO_PLACING,
 })
 
-// 外から落としたファイルから作ったアイテム item（項目の値 props）を、左上がポインタ pointer の所から右へ shift（紙の px）の所に来るよう置く
-// （置き方は PAPER_PLACE と同じ。置こうとしている物は変えない）。ファイルを取り込む間に開いているページが替わっていたら（落としたページ page でなければ）置かない
+// 外から落としたか貼ったファイルから作ったアイテム item（項目の値 props）を、左上がポインタ pointer の所から右へ shift（紙の px）の所に来るよう置く
+// （置き方は PAPER_PLACE と同じ。置こうとしている物は変えない）。pointer が NO_PAPER なら（貼ったときに、ポインタが紙の上を通っていない）、ページの最初の空きに置く。
+// ファイルを取り込む間に開いているページが替わっていたら（落としたページ page でなければ）置かない
 export const PAPER_DROP = kit.defineCommand({
   id: "paper-drop",
   performs: [ITEM_PLACE.id],
@@ -125,9 +139,25 @@ export const PAPER_DROP = kit.defineCommand({
   run: (
     ctx,
     a,
-    args: { page: string; pointer: Point; shift: number; item: string; props: Readonly<Record<string, unknown>> },
+    args: {
+      page: string
+      pointer: Point | typeof NO_PAPER
+      shift: number
+      item: string
+      props: Readonly<Record<string, unknown>>
+    },
   ) => {
     if (!hasOpenedPage(ctx) || ctx.page.id !== args.page) return
+    if (args.pointer === NO_PAPER) {
+      const done = a.perform(
+        ITEM_PLACE.id,
+        { item: args.item, props: args.props, crowd: "push" },
+        { page: ctx.page.id },
+      )
+      if (done.ok) a.select([done.result.item])
+      else a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("No free spot")) })
+      return
+    }
     const at = ctx.toPaper(args.pointer)
     const shifted = at === NO_PAPER ? NO_PAPER : { x: at.x + args.shift, y: at.y }
     placeItem(ctx, a, shifted, shifted, args)

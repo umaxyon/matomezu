@@ -23,6 +23,7 @@ import {
   PAPER_MOVE,
   PAPER_PASTE,
   PAPER_PASTE_AT,
+  PAPER_PASTE_CLIPBOARD,
   PAPER_PLACE,
   PAPER_REPARENT,
   PAPER_RESIZE,
@@ -44,6 +45,7 @@ export const PAPER_PLUGIN = defineBuiltin(
       PAPER_COPY,
       PAPER_CUT,
       PAPER_PASTE,
+      PAPER_PASTE_CLIPBOARD,
       PAPER_PASTE_AT,
       PAPER_DUPLICATE,
       PAPER_MOVE,
@@ -86,6 +88,7 @@ declare module "../../core/catalog" {
     "@matomezu/paper:paper-copy": typeof PAPER_COPY
     "@matomezu/paper:paper-cut": typeof PAPER_CUT
     "@matomezu/paper:paper-paste": typeof PAPER_PASTE
+    "@matomezu/paper:paper-paste-clipboard": typeof PAPER_PASTE_CLIPBOARD
     "@matomezu/paper:paper-paste-at": typeof PAPER_PASTE_AT
     "@matomezu/paper:paper-duplicate": typeof PAPER_DUPLICATE
     "@matomezu/paper:paper-move": typeof PAPER_MOVE

@@ -5,7 +5,8 @@ import { pagesOf } from "../../../web/src/core/book"
 import { connectorsOf, type ItemPage, PAGE_ITSELF, shapesOf, walkShapes } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
-import { type Clip, clipOf, nearestPaste } from "../../../web/src/plugins/paper/placing/clip"
+import { CLIPBOARD_KEYS } from "../../../web/src/host-client/window-io"
+import { type Clip, clipOf, clipOfData, nearestPaste } from "../../../web/src/plugins/paper/placing/clip"
 import { CORE_CATALOG, newStore, pageOf, shapeOf, sizedStore } from "../../support"
 
 const NEST = "@matomezu/box:shape-nest-box"
@@ -234,4 +235,153 @@ test("写した入れ物を選んだまま貼ると、その中でなく隣に�
   expect(made).not.toBe(a)
   expect(shapesOf(page(store as never))).toHaveLength(2)
   expect(shapeOf(page(store as never), made as string).parent).toBe(PAGE_ITSELF)
+})
+
+// OS のクリップボード: キーはクリップボードのイベントを待ち、そのイベントの運ぶ物に書き・読む
+const transfer = (files: File[] = []) => {
+  const data = new Map<string, string>()
+  return {
+    data,
+    getData: (format: string) => data.get(format) ?? "",
+    setData: (format: string, value: string) => void data.set(format, value),
+    files,
+  }
+}
+const HOST = "http://localhost:1"
+// ブラウザがクリップボードのイベントを起こすキーを知るストア（画面の窓と同じ表）
+const readyClip = () => sizedStore({ clipboardEventOf: key => CLIPBOARD_KEYS[key] })
+
+test("キーのコピーはクリップボードのイベントを待って OS のクリップボードに書き、別の窓のキーの貼り付けがそれを貼る", () => {
+  const from = readyClip()
+  const a = place(from as never, NEST, { at: { x: 0, y: 0 } })
+  from.actions.select("s1", [a])
+  expect(from.actions.pressKey("Mod+C", ["stage"])).toBe("waits")
+  expect(frameClip(from)).toBeUndefined() // イベントが来るまで行わない
+  const carried = transfer()
+  expect(from.clipboardEvent("copy", carried, HOST)).toBe(true)
+  expect(frameClip(from)?.shapes.map(s => s.id)).toEqual([a])
+  expect(JSON.parse(carried.data.get("application/x-matomezu") ?? "{}")).toMatchObject({
+    host: HOST,
+    kind: "@matomezu/paper:clip",
+  })
+
+  const to = readyClip()
+  expect(to.actions.pressKey("Mod+V", ["stage"])).toBe("waits")
+  expect(to.clipboardEvent("paste", carried, HOST)).toBe(true)
+  expect(shapesOf(page(to as never))).toHaveLength(1)
+  expect(frameClip(to)?.shapes).toHaveLength(1) // 窓の写しにも置く（右クリックの貼り付けで貼れる）
+})
+
+test("ほかの常駐でコピーした物はトーストで断る。写しでない物にファイルがあれば、紙のビューに渡す", () => {
+  const from = readyClip()
+  from.actions.select("s1", [place(from as never, NEST, { at: { x: 0, y: 0 } })])
+  from.actions.pressKey("Mod+C", ["stage"])
+  const carried = transfer()
+  from.clipboardEvent("copy", carried, "http://other:1")
+
+  const to = readyClip()
+  to.actions.pressKey("Mod+V", ["stage"])
+  expect(to.clipboardEvent("paste", carried, HOST)).toBe(true)
+  expect(shapesOf(page(to as never))).toHaveLength(0)
+  expect(toasts(to)).toBe(1)
+
+  const got: (readonly File[])[] = []
+  const stop = to.actions.receivePastedFiles("s1", "@matomezu/paper:paper-paste-clipboard", files => got.push(files))
+  const image = new File(["x"], "a.png", { type: "image/png" })
+  to.actions.pressKey("Mod+V", ["stage"])
+  to.clipboardEvent("paste", transfer([image]), HOST)
+  expect(got).toEqual([[image]])
+  stop()
+})
+
+test("待っているコピーは、イベントが来ないまま次のタイマーになったら、クリップボード無しで行う（窓の写しに置く）。遅れて来たイベントでは 2 度行わない", async () => {
+  const store = readyClip()
+  store.actions.select("s1", [place(store as never, NEST, { at: { x: 0, y: 0 } })])
+  expect(store.clipboardEvent("copy", transfer(), HOST)).toBe(false)
+  store.actions.pressKey("Mod+C", ["stage"])
+  expect(frameClip(store)).toBeUndefined()
+  await new Promise(done => setTimeout(done, 0))
+  expect(frameClip(store)?.shapes).toHaveLength(1)
+  expect(store.clipboardEvent("copy", transfer(), HOST)).toBe(false)
+})
+
+test("クリップボードのイベントの外で呼んだキーの貼り付け（イベントを起こさないキーに替えたとき）は、窓の写しを貼る", () => {
+  const store = readyClip()
+  store.actions.select("s1", [place(store as never, NEST, { at: { x: 0, y: 0 } })])
+  expect(command(store, "paper-copy")).toBe(true)
+  expect(command(store, "paper-paste-clipboard")).toBe(true)
+  expect(shapesOf(page(store as never))).toHaveLength(2)
+})
+
+test("イベントを起こさないキーに替えたコピーは、待たずにその場で行う。キーのイベントの種類が違っても（Mod+V に copy）待たない", () => {
+  const store = readyClip()
+  store.actions.select("s1", [place(store as never, NEST, { at: { x: 0, y: 0 } })])
+  const done = (store.actions.perform as (id: string, args: object) => { ok: boolean })("@matomezu/base:settings-set", {
+    values: {
+      "@matomezu/base:keys": {
+        added: [
+          { key: "Mod+K", command: "@matomezu/paper:paper-copy", scope: "stage" },
+          { key: "Mod+V", command: "@matomezu/paper:paper-copy", scope: "stage" },
+        ],
+        removed: [{ key: "Mod+V", command: "@matomezu/paper:paper-paste-clipboard", scope: "stage" }],
+      },
+    },
+  } as never)
+  expect(done.ok).toBe(true)
+  expect(store.actions.pressKey("Mod+K", ["stage"])).toBe(true)
+  expect(frameClip(store)?.shapes).toHaveLength(1)
+  expect(store.actions.pressKey("Mod+V", ["stage"])).toBe(true)
+})
+
+test("メニューのコピーは、ブラウザに copy のイベントを起こしてもらってその中で OS のクリップボードに書く。起きなければクリップボード無しで行う", () => {
+  const carried = transfer()
+  let host: { clipboardEvent: Store["clipboardEvent"] } | null = null
+  const store = sizedStore({ requestCopyEvent: () => host?.clipboardEvent("copy", carried, HOST) ?? false })
+  host = store
+  store.actions.select("s1", [place(store as never, NEST, { at: { x: 0, y: 0 } })])
+  expect(command(store, "paper-copy")).toBe(true)
+  expect(carried.data.has("application/x-matomezu")).toBe(true)
+
+  const none = sizedStore({ requestCopyEvent: () => false })
+  none.actions.select("s1", [place(none as never, NEST, { at: { x: 0, y: 0 } })])
+  expect(command(none, "paper-copy")).toBe(true)
+  expect(frameClip(none)?.shapes).toHaveLength(1)
+})
+
+test("OS のクリップボードから読んだ物は、形の崩れた写しを受けない", () => {
+  const store = ready()
+  const a = place(store as never, NEST, { at: { x: 0, y: 0 } })
+  const clip = clipFrom(store as never, [a])
+  expect(clipOfData(CORE_CATALOG, JSON.parse(JSON.stringify(clip)))).not.toBeNull()
+  expect(clipOfData(CORE_CATALOG, { shapes: [], connectors: [] })).toBeNull()
+  expect(clipOfData(CORE_CATALOG, { ...clip, shapes: [{ ...clip.shapes[0], item: "@x/y:none" }] })).toBeNull()
+  expect(
+    clipOfData(CORE_CATALOG, { ...clip, connectors: [{ id: "c", item: NEST, from: a, to: a, props: {} }] }),
+  ).toBeNull()
+  expect(clipOfData(CORE_CATALOG, "x")).toBeNull()
+})
+
+test("イベントが遅れて来るブラウザでも（Mac の Chrome は Command+V のあと 20 ms ほど）、待つ長さのうちに来れば、その中の OS のクリップボードから貼る", async () => {
+  const from = readyClip()
+  from.actions.select("s1", [place(from as never, NEST, { at: { x: 0, y: 0 } })])
+  from.actions.pressKey("Mod+C", ["stage"])
+  const carried = transfer()
+  from.clipboardEvent("copy", carried, HOST)
+
+  const to = sizedStore({ clipboardEventOf: key => CLIPBOARD_KEYS[key], clipboardEventWaitMs: 100 })
+  expect(to.actions.pressKey("Mod+V", ["stage"])).toBe("waits")
+  await new Promise(done => setTimeout(done, 20))
+  expect(to.clipboardEvent("paste", carried, HOST)).toBe(true)
+  expect(shapesOf(page(to as never))).toHaveLength(1)
+})
+
+test("イベントを待っている間に次のキーを押せば、待っていたコマンドを先にクリップボード無しで行う（イベントを起こさないブラウザでの Ctrl+C のすぐ後の Ctrl+V が、写した物を貼る）", () => {
+  const store = sizedStore({ clipboardEventOf: key => CLIPBOARD_KEYS[key], clipboardEventWaitMs: 1000 })
+  store.actions.select("s1", [place(store as never, NEST, { at: { x: 0, y: 0 } })])
+  store.actions.pressKey("Mod+C", ["stage"])
+  expect(frameClip(store)).toBeUndefined()
+  store.actions.pressKey("Mod+V", ["stage"])
+  expect(frameClip(store)?.shapes).toHaveLength(1)
+  store.actions.pressKey("Escape", ["stage"])
+  expect(shapesOf(page(store as never))).toHaveLength(2)
 })

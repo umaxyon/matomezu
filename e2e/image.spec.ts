@@ -185,6 +185,26 @@ async function dropFiles(
   if (drops) await target.dispatchEvent("drop", init)
 }
 
+// Ctrl+V で、files を OS のクリップボードから貼ったことにする（ブラウザの paste のイベントを、files を運ぶ物に替える。テストからは OS のクリップボードにファイルを置けない）
+async function pasteFiles(page: Page, files: readonly { name: string; type: string; bytes: Buffer }[]) {
+  await page.evaluate(
+    fs => {
+      const swap = (e: Event) => {
+        if (!(e instanceof ClipboardEvent) || e.clipboardData?.files.length) return
+        window.removeEventListener("paste", swap, { capture: true })
+        e.stopImmediatePropagation()
+        const dt = new DataTransfer()
+        for (const f of fs)
+          dt.items.add(new File([Uint8Array.from(atob(f.b64), c => c.charCodeAt(0))], f.name, { type: f.type }))
+        document.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true }))
+      }
+      window.addEventListener("paste", swap, { capture: true })
+    },
+    files.map(f => ({ name: f.name, type: f.type, b64: f.bytes.toString("base64") })),
+  )
+  await page.keyboard.press("Control+v")
+}
+
 test.describe("画像のファイルを落として置く", () => {
   test.use({
     books: [
@@ -244,6 +264,35 @@ test.describe("画像のファイルを落として置く", () => {
     await expect(images.getByRole("button", { name: "犬", exact: true })).toHaveCount(1)
     await expect(images.getByRole("button", { name: /^犬 / })).toHaveCount(0)
     await expect(images.getByRole("button", { name: "写真", exact: true })).toHaveCount(1)
+  })
+
+  test("Ctrl+V で画像を貼ると、ポインタの所にスクラップを置き、ポインタが紙の外なら空きに置く", async ({ page }) => {
+    await page.goto(bookScreenUrl("drop-book"))
+    const at = await onPaper(page, 200, 150)
+    await page.mouse.click(at.x, at.y)
+    await pasteFiles(page, [{ name: "写真.png", type: "image/png", bytes: PNG }])
+    const placed = items(page).filter({ has: page.locator('[data-scrap="shown"]') })
+    await expect(placed).toHaveCount(1)
+    const box = (await placed.boundingBox())!
+    expect(Math.abs(box.x - at.x)).toBeLessThan(4)
+    expect(Math.abs(box.y - at.y)).toBeLessThan(4)
+
+    await page.mouse.move(2, 2) // 紙の外
+    await pasteFiles(page, [{ name: "犬.svg", type: "image/svg+xml", bytes: SVG }])
+    await expect(placed).toHaveCount(2)
+  })
+
+  test("スライドで Ctrl+V で画像を貼ると、ポインタの所にスクラップを置く", async ({ page }) => {
+    await page.goto(bookScreenUrl("drop-slide-book"))
+    const layer = page.locator("[data-slide-layer]")
+    const at = await onPaper(page, 100, 80)
+    await page.mouse.click(at.x, at.y)
+    await pasteFiles(page, [{ name: "写真.png", type: "image/png", bytes: PNG }])
+    const placed = layer.locator("[data-item]").filter({ has: page.locator('[data-scrap="shown"]') })
+    await expect(placed).toHaveCount(1)
+    const box = (await placed.boundingBox())!
+    expect(Math.abs(box.x - at.x)).toBeLessThan(4)
+    expect(Math.abs(box.y - at.y)).toBeLessThan(4)
   })
 
   test("スライドに落とすと、左上が落とした所に来るスクラップを置く", async ({ page }) => {

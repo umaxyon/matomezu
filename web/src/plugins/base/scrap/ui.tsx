@@ -26,6 +26,6 @@ export const SCRAP_TRAY_BUTTON = defineWidget({
   view: ScrapTrayButton,
 })
 
-export { useFileDrop } from "./file-drop"
+export { type FileDrop, useFileDrop, useFilePasteAt } from "./file-drop"
 export { ScrapForm } from "./ScrapForm"
 export { ScrapView, type ScrapViewProps } from "./ScrapView"

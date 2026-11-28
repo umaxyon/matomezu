@@ -3,7 +3,9 @@
 // どのワークルームかは、AI なら自分のワークルーム（workroom を省ける）、利用者なら workroom で渡す。書けるかは認可ステップ worker-book が決める
 import { z } from "zod"
 import { NO_WORKROOM, workroomOfActor } from "../../../core/actor"
+import type { ActionContext } from "../../../core/def/action"
 import { backyardBookOf, placedInBackyard } from "../../../core/entries"
+import type { Library, WorkKey } from "../../../core/folders"
 import { bookOf, withBook } from "../../../core/folders-books"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
@@ -13,7 +15,7 @@ import { describeNewPage, NEW_PAGE_ARGS, type NewPageResult, withNewPage } from 
 import { readerIn } from "./activity"
 import { workerBookOf, workerBookReadsOf } from "./worker-book"
 
-const PAGE_ARGS = NEW_PAGE_ARGS.omit({ index: true })
+export const PAGE_ARGS = NEW_PAGE_ARGS.omit({ index: true })
 const ARGS = PAGE_ARGS.extend({ workroom: z.string().min(1).optional() })
 
 // 今の作業について利用者に書く（相談・質問）ならワーカーブックへ、と AI に伝える文
@@ -34,15 +36,25 @@ export const WORKER_PAGE_ADD = kit.defineAction({
     const room = workroom ?? workroomOfActor(ctx.actor)
     if (room === NO_WORKROOM) return null
     const { workKey, title } = workerBookOf(ctx.catalog, readerIn(ctx), room)
-    const found = backyardBookOf(library, TICKETS_HISTORY.id, workKey)
-    const book: Book | undefined = found ? bookOf(library, found) : { id: ctx.newId(), title, lineup: [] }
-    if (!book || (!found && (book.id in library.folders || book.id in library.pages))) return null
-    const made = withNewPage(ctx.catalog, book, page, ctx)
-    if (!made) return null
-    const added = withBook(library, made.book)
-    const next = found ? added : placedInBackyard(added, book.id, TICKETS_HISTORY.id, workKey)
-    if (typeof next === "string") return null
-    const result: NewPageResult & { book: string } = { book: book.id, ...made.result }
-    return { next, result }
+    return withWorkerPage(library, workKey, title, page, ctx)
   },
 })
+
+// 書庫 library の、workKey が workKey のワーカーブック（無ければ名前 title で同じ書き込みで作る）の最後に、ページ page を足す（足せなければ null）
+export function withWorkerPage(
+  library: Library,
+  workKey: WorkKey,
+  title: string,
+  page: z.output<typeof PAGE_ARGS>,
+  ctx: ActionContext,
+): { next: Library; result: NewPageResult & { book: string } } | null {
+  const found = backyardBookOf(library, TICKETS_HISTORY.id, workKey)
+  const book: Book | undefined = found ? bookOf(library, found) : { id: ctx.newId(), title, lineup: [] }
+  if (!book || (!found && (book.id in library.folders || book.id in library.pages))) return null
+  const made = withNewPage(ctx.catalog, book, page, ctx)
+  if (!made) return null
+  const added = withBook(library, made.book)
+  const next = found ? added : placedInBackyard(added, book.id, TICKETS_HISTORY.id, workKey)
+  if (typeof next === "string") return null
+  return { next, result: { book: book.id, ...made.result } }
+}

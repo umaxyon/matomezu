@@ -232,7 +232,7 @@ func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 	}
 	_, h := call(t, "GET", s.URL+"/api/ai/books", "", id)
 	if text, _ := url.QueryUnescape(h.Get(aiwire.NoticeHeader)); text != "You joined matomezu. Workroom name: ひよこ\n"+joinedAllowText+"\n"+
-		`Your worker book has no pages yet: add one with @matomezu/base:worker-page-add. It changes when your current work changes, so do not keep the book's id: write down the ids of pages. read_folder with folder "my-workdesk" shows it. ` +
+		`Your worker book has no pages yet: add one with @matomezu/base:worker-page-add. It changes when your current work changes, so do not keep the book's id: write down the ids of pages. read_folder with folder "my-workdesk" shows it. `+
 		`To write to the user about your current work (to consult or to ask), add a page to your worker book with worker-page-add instead of making a book with book-create.` {
 		t.Fatalf("notice = %q", text)
 	}

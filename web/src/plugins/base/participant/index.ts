@@ -60,7 +60,7 @@ export const PARTICIPANT = kit.defineSubject({
     .strictObject({
       id: z.string().min(1),
       state: z.enum(PARTICIPANT_STATES),
-      ai: z.string(), // AI の名前（claude・codex など）
+      ai: z.string(), // AI のプログラムが MCP で名乗った名前と版（claude-code 2.1.332・codex-mcp-client 0.172.0 など）
       model: z.string(),
       env: z.string(), // 環境名
       sessionName: z.string(), // 元のセッション名（空でもよい）
@@ -107,7 +107,9 @@ export const VISITOR_JOINED_MESSAGE = kit.message("Joined matomezu as a visitor 
 
 export { workroomActivitiesFrom } from "./activity"
 export { myWorkdeskIn } from "./my-workdesk"
-export { type WorkShift, type WorkShiftChoice, workShiftIn } from "./work-shift"
+export { REFRESH_REQUEST } from "./refresh-request"
+export { REFRESH_REQUEST_ID } from "./refresh-request-id"
+export { FOLLOW_WORK_CHANGED } from "./work-change"
 export { leftTitleIn, SESSION_RENAME, workTitleIn } from "./work-title"
 export { type FoundWorkerBook, NO_WORKER_BOOK, WORKER_BOOK } from "./worker-book"
 export { FOLLOW_WORK_ENDED, FOLLOW_WORK_RENAMED, FOLLOW_WORKROOM_BOOK, WORK_SUBJECTS_CHECK } from "./worker-book-follow"
@@ -269,12 +271,19 @@ export const PARTICIPANT_ACCEPT = kit.defineAction({
         ? [{ subject: ADMIN_MARK.id, id: "admin", record: { id: "admin", workroom, by: "auto" as const } }]
         : []
     if (!("newWorkroom" in args)) {
-      if (ctx.records?.[WORKROOM.id]?.[args.workroom] === undefined) return { declined: "the workroom is not there" }
+      const entered = ctx.records?.[WORKROOM.id]?.[args.workroom]
+      if (entered === undefined) return { declined: "the workroom is not there" }
       const out = leaving(ctx, args.workroom, args.occupant)
       if (out === null) return { declined: "a participant is in the workroom already" }
+      // 入った参加者は前の作業を知らないので、引継ぎ対象チケットを外す（引継ぎページを書けるのは、その作業をしていた会話だけ）
+      const room = WORKROOM.record.safeParse(entered)
+      const forgot =
+        room.success && room.data.handoffTarget
+          ? (({ handoffTarget: _, ...kept }) => [{ subject: WORKROOM.id, id: args.workroom, record: kept }])(room.data)
+          : []
       return {
         next: joined(args.workroom),
-        others: [...out.map(id => ({ id, record: "removed" as const })), ...admin(args.workroom, undefined)],
+        others: [...out.map(id => ({ id, record: "removed" as const })), ...forgot, ...admin(args.workroom, undefined)],
         result: { workroom: args.workroom },
       }
     }

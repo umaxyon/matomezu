@@ -208,8 +208,28 @@ func TestPerformingAnAction(t *testing.T) {
 		t.Fatalf("call with a notice = %v", r)
 	}
 	got = talk(t, api, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"perform","arguments":{"args":{}}}}`)
-	if r := got[0]["result"].(map[string]any); r["isError"] != false || !strings.HasPrefix(textOf(got[0]), "bad-args: action is needed\nthe arguments of perform (JSON Schema): ") {
+	if r := got[0]["result"].(map[string]any); r["isError"] != false || textOf(got[0]) != "bad-args: give action (with args), or actions, not both" {
 		t.Fatalf("perform without action = %v", r)
+	}
+}
+
+// actions を並べた perform は、結果を並べた順の JSON の並びで返し、断られたら何番目かを頭に添える。action と actions を両方渡すと、常駐に頼まずに断る
+func TestPerformingActionsInABulk(t *testing.T) {
+	api := &fakeAPI{answer: `{"ok":true,"result":{"page":"p2"},"results":[{"page":"p1"},{"page":"p2"}]}`}
+	bulk := `"actions":[{"action":"x.y","args":{}},{"action":"x.z","args":{}}]`
+	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"perform","arguments":{`+bulk+`}}}`)
+	if text := textOf(got[0]); text != `[{"page":"p1"},{"page":"p2"}]` {
+		t.Fatalf("bulk = %q", text)
+	}
+	api.answer = `{"ok":false,"reason":"no-page","at":1}`
+	got = talk(t, api, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"perform","arguments":{`+bulk+`}}}`)
+	if text := textOf(got[0]); !strings.HasPrefix(text, "action 1: no-page:") {
+		t.Fatalf("refused bulk = %q", text)
+	}
+	posts := len(api.posts)
+	got = talk(t, api, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"perform","arguments":{"action":"x.y",`+bulk+`}}}`)
+	if text := textOf(got[0]); text != "bad-args: give action (with args), or actions, not both" || len(api.posts) != posts {
+		t.Fatalf("action and actions = %q (%d posts)", text, len(api.posts)-posts)
 	}
 }
 

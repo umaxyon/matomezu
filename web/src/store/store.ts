@@ -8,6 +8,8 @@ import { restoreAllAnnotations, withAnnotations } from "../core/annotation"
 import { NO_ASSET_URL } from "../core/assets"
 import { findReference, readLibrary } from "../core/book"
 import { bulkActionOf, entersLibraryHistory, laterThan, localDateOf, performBulk } from "../core/bulk"
+import type { CommandId } from "../core/catalog"
+import { type ClipboardUse, type ClipTransfer, clipboardOn, NO_CLIPBOARD } from "../core/clipboard"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionContext, type ActionOn, NO_CONTROL_CENTER } from "../core/def/action"
 import { type PluginStateDef, stateRead, storedOf } from "../core/def/plugin-state"
@@ -103,7 +105,7 @@ import {
   unsplit,
   type Workspace,
 } from "../core/workspace"
-import { type Actions, boundActions, type Performed, SCREEN_REFUSED, windowActionsOf } from "./actions"
+import { type Actions, boundActions, KEY_WAITS, type Performed, SCREEN_REFUSED, windowActionsOf } from "./actions"
 import { called, commandOwner, isEnabled } from "./commands"
 import {
   type CommandActions,
@@ -599,6 +601,33 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     return screen === undefined ? undefined : { stage: inWindow(at) ? at : NO_STAGE, screen }
   }
   let toasts = 0 // トーストの id の番号（出すたびに 1 つ進める）
+  // クリップボードを使うコマンドの、続くブラウザのクリップボードのイベントを待っている物（キーを押した時か、メニューから copy を起こしてもらう時に置く）。
+  // イベントを待つのは、ホストクライアントが言う長さ（clipboardEventWaitMs。無ければ次のタイマーまで）。来なければ、そこでクリップボード無しで行う（窓の写しを使う）。
+  // 行う時に待ちを空にするので、イベントが遅れて来ても 2 度は行わない。
+  // 待つ間にほかのコマンドやアクションを行うときは、先に待っている物をクリップボード無しで行う（押した順に行うため。Ctrl+C のすぐ後の Ctrl+V が、写す前に貼らないように）
+  // ran は、イベントの中で行ったときの、行えたか
+  let waiting: { stage: string; id: CommandId; args: unknown[]; use: ClipboardUse; ran?: boolean } | null = null
+  const runWaiting = () => {
+    const w = waiting
+    if (w === null) return
+    waiting = null
+    runCommand(w.stage, w.id, ...w.args)
+  }
+  const wait = (w: NonNullable<typeof waiting>) => {
+    runWaiting()
+    waiting = w
+    setTimeout(() => {
+      if (waiting === w) runWaiting()
+    }, options.clipboardEventWaitMs ?? 0)
+  }
+  // 今行っている、クリップボードのイベントの中のコマンドに渡す物（イベントの外なら null）
+  let inEvent: { transfer: ClipTransfer; host: string } | null = null
+  const fileReceivers = new Map<string, (files: readonly File[]) => void>() // ステージと貼り付けのコマンドごとの、貼ったファイルを受けるビュー
+  const receiverKey = (stage: string, command: string) => `${stage}\n${command}`
+  const clipboardUseOf = (id: string): ClipboardUse | undefined => {
+    const def = defs.catalog.store.commands.get(id)
+    return def && def.from !== "screen" ? def.clipboard : undefined
+  }
   // プラグイン状態の宣言 id の値を value にした値の組 values（plugin-state.ts の withPluginValueIn。今の台帳の宣言と今の窓で決める）
   const withPluginValue = (values: PluginValues, id: string, at: PluginPlace, value: unknown): PluginValues =>
     withPluginValueIn(defs.catalog.store.pluginStates, getState().window, values, id, at, value)
@@ -623,8 +652,96 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     setPluginState(id, at, value)
     return true
   }
+  // コマンドを行う（command の中身。クリップボードのイベントの中でも呼ぶ）
+  const runCommand = (stage: string, id: CommandId, ...args: unknown[]): boolean =>
+    together(() => {
+      if (!open?.continued) closeStep() // continueStep で続けている段は、このコマンドが行うアクションを足すまで閉じない
+      const state = getState()
+      const call = called(defs, state, stage, id)
+      if (!call || !isEnabled(defs, state, stage, id, args[0])) return false
+      const owner = commandOwner(id)
+      // 1 回のコマンドで複数の値を書いても、store には 1 回で書く（途中の、片方だけ変わった状態を知らせない）。読む値は、書いた分を重ねたもの
+      const pending: [string, PluginPlace, unknown][] = []
+      const working = () =>
+        pending.reduce((v, [id, st, value]) => withPluginValue(v, id, st, value), getState().pluginValues)
+      // 呼ばれた場所の、宣言 stateDef の値を next にする（undefined なら消す）
+      const writeHere = (
+        stateDef: PluginStateDef<unknown>,
+        next: (own: PluginStateDef<unknown>, at: PluginPlace) => unknown,
+      ) => {
+        const own = ownedPluginState(owner, stateDef)
+        // スクリーンごとの宣言は、呼ばれた場所のスクリーンの値
+        const at = placeOf(own.scope, { stage, screen: calledScreenIdOf(call.ctx) })
+        const value = next(own, at)
+        withPluginValue(working(), own.id, at, value) // 書く前に、範囲と形を確かめる
+        pending.push([own.id, at, value])
+      }
+      const updatePluginState: CommandActions["updatePluginState"] = (stateDef, change) =>
+        writeHere(stateDef, (own, at) => storedOf(change(stateRead(stateDef, pluginValueOf(working(), at, own)))))
+      const resetPluginState = (stateDef: PluginStateDef<unknown>) => writeHere(stateDef, () => undefined)
+      // ほかのスクリーン screen の、スクリーンごとの宣言の値（base のコマンドだけが updatePluginStateAtOf で使う）
+      const updatePluginStateAt: UpdatePluginStateAt = (screen, stateDef, change) => {
+        const own = ownedPluginState(owner, stateDef)
+        // 渡したスクリーンに書くのはスクリーンごとの宣言だけ（ステージ・窓の範囲の宣言を、呼ばれた場所に黙って書かない）
+        if (own.scope !== "screen") fail("E124", { id: own.id, scope: own.scope, need: "use updatePluginState" })
+        const at = placeOf(own.scope, { stage, screen })
+        const next = storedOf(change(stateRead(stateDef, pluginValueOf(working(), at, own))))
+        withPluginValue(working(), own.id, at, next)
+        pending.push([own.id, at, next])
+      }
+      // ほかのスクリーン screen の、スクリーンごとの宣言の値を消す（base のコマンドだけが resetPluginStateAtOf で使う）
+      const resetPluginStateAt: ResetPluginStateAt = (screen, stateDef) => {
+        const own = ownedPluginState(owner, stateDef)
+        if (own.scope !== "screen") fail("E124", { id: own.id, scope: own.scope, need: "use resetPluginState" })
+        const at = placeOf(own.scope, { stage, screen })
+        withPluginValue(working(), own.id, at, undefined)
+        pending.push([own.id, at, undefined])
+      }
+      const run = call.def.run as (ctx: unknown, actions: CommandActions, args: never) => void
+      // 呼ばれた場所（ステージか、スクリーン）に向けた操作
+      const given: CommandActions = {
+        ...windowActionsOf(actions),
+        ...boundActions(actions, stage),
+        updatePluginState,
+        resetPluginState,
+        clipboard:
+          inEvent === null
+            ? NO_CLIPBOARD
+            : clipboardOn(inEvent.transfer, inEvent.host, owner, files => {
+                const receive = fileReceivers.get(receiverKey(stage, id))
+                if (!receive) return false
+                receive(files)
+                return true
+              }),
+      }
+      givenActions.set(given, actions)
+      givenScreenWrites.set(given, updatePluginStateAt)
+      givenScreenResets.set(given, resetPluginStateAt)
+      givenWindowReads.set(given, () => getState().window)
+      run(call.ctx, given, args[0] as never)
+      if (pending.length > 0) {
+        const now = getState().pluginValues
+        const next = working()
+        if (next !== now) setState({ pluginValues: next })
+      }
+      return true
+    })
+  // ブラウザのクリップボードのイベントで、待たせているコマンドを行う（インスタンスの clipboardEvent）
+  const clipboardEvent = (use: ClipboardUse, transfer: ClipTransfer, host: string): boolean => {
+    const w = waiting
+    if (w === null || (use === "paste") !== (w.use === "paste")) return false
+    waiting = null
+    inEvent = { transfer, host }
+    try {
+      w.ran = runCommand(w.stage, w.id, ...w.args)
+      return w.ran
+    } finally {
+      inEvent = null
+    }
+  }
   const actions: Actions = {
     perform: (id, ...[args, on]) => {
+      runWaiting()
       const done = run(id, args, on)
       if (!done.ok) return done
       commit(done.next)
@@ -639,70 +756,20 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return { ok: true, result: done.result } as Performed<typeof id>
     },
     // 1 回のコマンドの書き込みは、購読に 1 回で知らせる（together）
-    command: (stage, id, ...args) =>
-      together(() => {
-        if (!open?.continued) closeStep() // continueStep で続けている段は、このコマンドが行うアクションを足すまで閉じない
+    command: (stage, id, ...args) => {
+      runWaiting()
+      // メニューなどから呼んだ copy・cut: ブラウザに copy のイベントを起こしてもらい、その中で行う（起きなければ、クリップボード無しで下で行う）
+      const use = clipboardUseOf(id)
+      if ((use === "copy" || use === "cut") && inEvent === null && options.requestCopyEvent) {
         const state = getState()
-        const call = called(defs, state, stage, id)
-        if (!call || !isEnabled(defs, state, stage, id, args[0])) return false
-        const owner = commandOwner(id)
-        // 1 回のコマンドで複数の値を書いても、store には 1 回で書く（途中の、片方だけ変わった状態を知らせない）。読む値は、書いた分を重ねたもの
-        const pending: [string, PluginPlace, unknown][] = []
-        const working = () =>
-          pending.reduce((v, [id, st, value]) => withPluginValue(v, id, st, value), getState().pluginValues)
-        // 呼ばれた場所の、宣言 stateDef の値を next にする（undefined なら消す）
-        const writeHere = (
-          stateDef: PluginStateDef<unknown>,
-          next: (own: PluginStateDef<unknown>, at: PluginPlace) => unknown,
-        ) => {
-          const own = ownedPluginState(owner, stateDef)
-          // スクリーンごとの宣言は、呼ばれた場所のスクリーンの値
-          const at = placeOf(own.scope, { stage, screen: calledScreenIdOf(call.ctx) })
-          const value = next(own, at)
-          withPluginValue(working(), own.id, at, value) // 書く前に、範囲と形を確かめる
-          pending.push([own.id, at, value])
-        }
-        const updatePluginState: CommandActions["updatePluginState"] = (stateDef, change) =>
-          writeHere(stateDef, (own, at) => storedOf(change(stateRead(stateDef, pluginValueOf(working(), at, own)))))
-        const resetPluginState = (stateDef: PluginStateDef<unknown>) => writeHere(stateDef, () => undefined)
-        // ほかのスクリーン screen の、スクリーンごとの宣言の値（base のコマンドだけが updatePluginStateAtOf で使う）
-        const updatePluginStateAt: UpdatePluginStateAt = (screen, stateDef, change) => {
-          const own = ownedPluginState(owner, stateDef)
-          // 渡したスクリーンに書くのはスクリーンごとの宣言だけ（ステージ・窓の範囲の宣言を、呼ばれた場所に黙って書かない）
-          if (own.scope !== "screen") fail("E124", { id: own.id, scope: own.scope, need: "use updatePluginState" })
-          const at = placeOf(own.scope, { stage, screen })
-          const next = storedOf(change(stateRead(stateDef, pluginValueOf(working(), at, own))))
-          withPluginValue(working(), own.id, at, next)
-          pending.push([own.id, at, next])
-        }
-        // ほかのスクリーン screen の、スクリーンごとの宣言の値を消す（base のコマンドだけが resetPluginStateAtOf で使う）
-        const resetPluginStateAt: ResetPluginStateAt = (screen, stateDef) => {
-          const own = ownedPluginState(owner, stateDef)
-          if (own.scope !== "screen") fail("E124", { id: own.id, scope: own.scope, need: "use resetPluginState" })
-          const at = placeOf(own.scope, { stage, screen })
-          withPluginValue(working(), own.id, at, undefined)
-          pending.push([own.id, at, undefined])
-        }
-        const run = call.def.run as (ctx: unknown, actions: CommandActions, args: never) => void
-        // 呼ばれた場所（ステージか、スクリーン）に向けた操作
-        const given: CommandActions = {
-          ...windowActionsOf(actions),
-          ...boundActions(actions, stage),
-          updatePluginState,
-          resetPluginState,
-        }
-        givenActions.set(given, actions)
-        givenScreenWrites.set(given, updatePluginStateAt)
-        givenScreenResets.set(given, resetPluginStateAt)
-        givenWindowReads.set(given, () => getState().window)
-        run(call.ctx, given, args[0] as never)
-        if (pending.length > 0) {
-          const now = getState().pluginValues
-          const next = working()
-          if (next !== now) setState({ pluginValues: next })
-        }
-        return true
-      }),
+        if (!called(defs, state, stage, id) || !isEnabled(defs, state, stage, id, args[0])) return false
+        const w: NonNullable<typeof waiting> = { stage, id, args, use }
+        wait(w)
+        if (options.requestCopyEvent() && w.ran !== undefined) return w.ran
+        waiting = null
+      }
+      return runCommand(stage, id, ...args)
+    },
     openDialog: (at, id, ...args) => {
       if (!defs.catalog.store.dialogs.has(id)) fail("E108", { id })
       const place = placeOpenedFrom(at)
@@ -747,9 +814,24 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         const hit = findKey(table, scope, key)
         if (!hit) continue
         const { command, args } = hit.binding
+        const given = args === undefined ? [] : [args]
+        // クリップボードを使うコマンドは、ブラウザがそのキーで同じ種類のクリップボードのイベントを起こすなら、行わずに待たせる（その場で使えなければ、次の範囲の同じキーを探す）。
+        // イベントを起こさないキーに替えてあれば、下で、クリップボード無しでその場で行う
+        const use = clipboardUseOf(command)
+        const raised = options.clipboardEventOf?.(key)
+        if (use !== undefined && raised !== undefined && (raised === "paste") === (use === "paste")) {
+          const state = getState()
+          if (
+            !called(defs, state, stage, command as CommandId) ||
+            !isEnabled(defs, state, stage, command as CommandId, given[0])
+          )
+            continue
+          wait({ stage, id: command as CommandId, args: given, use })
+          return KEY_WAITS
+        }
         const call = actions.command as (stage: string, id: string, ...args: unknown[]) => boolean
         // その場で使えないコマンドなら、次の範囲の同じキーを探す
-        if (call(stage, command, ...(args === undefined ? [] : [args]))) return true
+        if (call(stage, command, ...given)) return true
       }
       return false
     },
@@ -786,6 +868,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return id
     },
     openScreen: (def, props) => actions.openScreenId(def, props) !== SCREEN_REFUSED,
+    receivePastedFiles: (stage, command, receive) => {
+      const key = receiverKey(stage, command)
+      fileReceivers.set(key, receive)
+      return () => {
+        if (fileReceivers.get(key) === receive) fileReceivers.delete(key)
+      }
+    },
     showBookStage: (bookId, page) => {
       const book = getState().books[bookId]
       if (!book) return NO_STAGE
@@ -1137,6 +1226,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       checkSeen()
     },
     checkSeen,
+    clipboardEvent,
     search: query => options.search?.(query) ?? Promise.resolve(NO_WIDE_SEARCH_HITS),
     copyText: async text => {
       if (!options.copyText) fail("E404")

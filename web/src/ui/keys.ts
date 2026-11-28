@@ -1,4 +1,5 @@
-// キーの受け口: 画面で押したキーを 1 か所で受け、store のキーバインドで引いてコマンドを行う（行ったらブラウザの動きを止める）。
+// キーの受け口: 画面で押したキーを 1 か所で受け、store のキーバインドで引いてコマンドを行う（行ったらブラウザの動きを止める。
+// クリップボードを使うコマンドは止めず、続くブラウザのクリップボードのイベントで ホストクライアントのクリップボードの受け口（host-client/clipboard.ts） が行う）。
 // 日本語の変換中のキーは見ない。テキストFormの中では、Escape と 1 行のテキストFormの Enter だけを見る（ほかはテキストFormに任せる）。
 // ただし、テキストFormが自分で data-key-scope を名乗っていれば、その中のほかのキーは、その範囲だけで引く。
 // 焦点のあるボタン・リンクの Space と Enter は、それを押す動きに任せる。ただし、ボタン・リンクが自分で data-key-scope を名乗っていれば、その上の Enter は、
@@ -47,7 +48,7 @@ export function KeyListener() {
       const field = textField(target)
       if (field && !seenInText(key, field.lines)) {
         const own = field.el.getAttribute("data-key-scope")
-        if (own && pressKey(key, [own], "named")) e.preventDefault()
+        if (own && pressKey(key, [own], "named") === true) e.preventDefault()
         return
       }
       // 焦点のあるボタン・リンクの Space と Enter は、それを押す動き（ブラウザ）に任せる。自分で範囲を名乗るボタン・リンクの Enter だけは、その範囲で引く
@@ -55,10 +56,11 @@ export function KeyListener() {
         key === "Space" || key === "Enter" ? target?.closest("button, a[href], [role=button], summary") : null
       if (pressable) {
         const own = pressable.getAttribute("data-key-scope")
-        if (key === "Enter" && own && pressKey(key, [own], "named")) e.preventDefault()
+        if (key === "Enter" && own && pressKey(key, [own], "named") === true) e.preventDefault()
         return
       }
-      if (pressKey(key, scopesOf(target))) e.preventDefault()
+      // クリップボードを使うコマンドを待たせたら（KEY_WAITS）、止めずに、ブラウザにクリップボードのイベントを起こさせる（ホストクライアントのクリップボードの受け口（host-client/clipboard.ts） が行う）
+      if (pressKey(key, scopesOf(target)) === true) e.preventDefault()
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)

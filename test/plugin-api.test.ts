@@ -70,6 +70,7 @@ test("matomezu が出す名前", () => {
     "HEX",
     "HOME_ID",
     "IN_BACKYARD",
+    "KEY_WAITS",
     "LEN",
     "LISTED_WORKROOMS",
     "MARKDOWN_DOCUMENT_TOKENS",
@@ -90,6 +91,8 @@ test("matomezu が出す名前", () => {
     "NO_BOOK",
     "NO_BRANCH",
     "NO_CATEGORY",
+    "NO_CLIPBOARD",
+    "NO_CLIP_DATA",
     "NO_CONTEXT_USE",
     "NO_CONTROL_CENTER",
     "NO_DIALOG",
@@ -122,6 +125,7 @@ test("matomezu が出す名前", () => {
     "NO_VIEW_AREA",
     "NO_WORKER_BOOK",
     "NO_WORKROOM",
+    "OTHER_HOST",
     "PAGE_ITSELF",
     "PAGE_PAPER_COLOR",
     "PAGE_THEME",
@@ -523,6 +527,8 @@ test("matomezu/ui が出す名前", () => {
     "useElapsed",
     "useEndWhenBlocked",
     "useFileDrop",
+    "useFilePaste",
+    "useFilePasteAt",
     "useFolderEntries",
     "useFollowsSelection",
     "useHighlightRanges",
@@ -997,6 +1003,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     def.run = run
   }
   expect(names(got)).toEqual([
+    "clipboard",
     "closeContextMenu",
     "closeDialog",
     "closePicker",
@@ -1056,13 +1063,16 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
   // useActions の操作は、そこから updatePluginState と resetPluginState を除いた物（store の素の操作のうち、ほかのスクリーン・ステージを名指す FrameActions と、
   // 行わずに確かめる ProbeActions は渡さない）
   const given = { ...windowActionsOf(store.actions), ...boundActions(store.actions, "s1") }
-  expect(names(given)).toEqual(names(got).filter(n => n !== "updatePluginState" && n !== "resetPluginState"))
+  expect(names(given)).toEqual(
+    names(got).filter(n => n !== "updatePluginState" && n !== "resetPluginState" && n !== "clipboard"),
+  )
   expect(names(store.actions).filter(n => !names(given).includes(n))).toEqual([
     "makeScreenCurrent",
     "openOutsideBinder",
     "openOutsidePage",
     "openScreenId",
     "openToStage",
+    "receivePastedFiles",
     "showBookStage",
     "showOutsideBinderStage",
     "showOutsidePageStage",
@@ -1082,7 +1092,6 @@ test("base の入口が出す名前は、どれもプラグイン API からも�
     "VISITOR_JOINED_MESSAGE",
     "workTitleIn",
     "leftTitleIn",
-    "workShiftIn",
     "myWorkdeskIn",
     "workroomActivitiesFrom",
   ]

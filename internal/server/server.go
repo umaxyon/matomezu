@@ -44,10 +44,10 @@
 //	                         郵便が消えたと記した AI 編集チケット（cause は上限で消えた limit か、利用者が消した user）の全部
 //	                         （undone と failed と removed は、渡したら、次の利用者トリガートークのときに消える）
 //	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine&maxNotice&gap&breaks]  SSE。そのプロセス id かセッション id の AI を起こす知らせ（event: wake、data: {"line", "id", "session", "text"}。参加の要求が受け入れられた・断られた、AI 間メッセージ。watch.go）
+//	POST /api/ai/refresh-due {"sessionId"} そのセッションが受けたリフレッシュリクエストの、空にしたあとの新しい会話に打つ文 {"text"}（無ければ空。渡したら消す。AI のプログラムの部品がターンの終わりに訊く。refresh.go）
 //	POST /api/ai/work-title {"sessionId"} そのセッションの作業名 {"workTitle"}（読むだけ。ターンの終わりのフックが読む。書かないなら空。talk_session.go の WorkTitle）
-//	POST /api/ai/work-shift {"sessionId"} ターンの終わりの、そのセッションの今の作業が替わったか {"ask"}（替わっていなければ ask は null。今の作業の印を覚え直す。AI のプログラムの部品が、利用者に聞く問いを読む。talk_session.go の WorkShift）
 //	POST /api/ai/watch/ack   {"line", "id", "result"} 通り道に流した知らせを渡せたか（delivered・absent・failed）。{} を返す（watch.go）
-//	POST /api/ai/talked      {"sessionId", "host", "candidates", "woken", "prompt"} AI のターンが始まった（AI のフックが知らせる）。candidates が無く woken でなければ、利用者トリガートークのときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
+//	POST /api/ai/talked      {"sessionId", "host", "candidates", "woken", "prompt", "refreshable"} AI のターンが始まった（AI のフックが知らせる）。candidates が無く woken でなければ、利用者トリガートークのときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
 //	                         woken は、利用者トリガートークでなく、裏の知らせ（watch の 1 行など）で始まったターンのフック（結びつけと「参加しました」の知らせだけを行う）。prompt（ターンの入力）が通り道に貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）でも同じ。
 //	                         どちらも {"welcomes", "unbound", "workTitle"} を返す（セッションと参加者の結びつけと「参加しました」の知らせと、作業名。talk_session.go）。prompt が貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）なら、利用者の言葉でないと AI に伝える文の forAi も返す
 //	POST /api/ai/model       {"sessionId", "model", "host"} AI のフックがセッションのモデルを知らせる（model.go）。{} を返す
@@ -86,6 +86,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
 )
 
@@ -197,7 +198,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/ai/search", o.ai(o.search(false)))
 	mux.Handle("POST /api/ai/talked", o.ai(o.aiTalked))
 	mux.Handle("POST /api/ai/work-title", o.ai(o.aiWorkTitle))
-	mux.Handle("POST /api/ai/work-shift", o.ai(o.aiWorkShift))
+	mux.Handle("POST /api/ai/refresh-due", o.ai(o.aiRefreshDue))
 	mux.Handle("POST /api/ai/model", o.ai(o.aiModel))
 	mux.Handle("POST /api/ai/context-use", o.ai(o.aiContextUse))
 	mux.Handle("POST /api/ai/assets", o.ai(o.importAIAsset))
@@ -697,24 +698,50 @@ func (o Options) aiBook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
-	// AI の頼みはアクション 1 つ（1 アクションのバルクとして行う）
+	// AI の頼みは、アクション 1 つ（action・args・on）か、順に行い全部通るか全部断られるアクションの並び（actions。aiwire.BulkMax まで）
 	var p struct {
-		Action     string          `json:"action"`
-		Args       json.RawMessage `json:"args"`
-		On         *engine.On      `json:"on,omitempty"`
-		TimeoutSec int             `json:"timeoutSec,omitempty"`
+		Action     string              `json:"action"`
+		Args       json.RawMessage     `json:"args"`
+		On         *engine.On          `json:"on,omitempty"`
+		Actions    []engine.BulkAction `json:"actions,omitempty"`
+		TimeoutSec int                 `json:"timeoutSec,omitempty"`
 	}
 	if !readJSON(w, r, &p) {
 		return
 	}
-	one := performOne(p.Action, p.Args, p.On)
-	one.By, one.Participant, one.TimeoutSec = "ai", participantOf(r), p.TimeoutSec
-	done, err := o.Hub.Perform(one)
+	bulk := performOne(p.Action, p.Args, p.On)
+	if len(p.Actions) > 0 {
+		if p.Action != "" || len(p.Actions) > aiwire.BulkMax {
+			writeJSON(w, Performed{OK: false, Reason: "bad-args", Detail: fmt.Sprintf("give action, or actions (1 to %d), not both", aiwire.BulkMax)})
+			return
+		}
+		bulk = Perform{Actions: aiBulkActions(p.Actions)}
+	}
+	bulk.By, bulk.Participant, bulk.TimeoutSec = "ai", participantOf(r), p.TimeoutSec
+	done, err := o.Hub.Perform(bulk)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, done)
+	if len(p.Actions) == 0 {
+		writeJSON(w, done)
+		return
+	}
+	// 並べて頼んだときだけ、アクションごとの結果と、断られたアクションの番号を添える
+	writeJSON(w, struct {
+		Performed
+		Results []json.RawMessage `json:"results,omitempty"`
+		At      *int              `json:"at,omitempty"`
+	}{done, done.Results, done.At})
+}
+
+// aiBulkActions は、AI が並べたアクションの、アクション・引数・宛先だけ（画面の値の id・時点・言語は AI から受けない）
+func aiBulkActions(given []engine.BulkAction) []engine.BulkAction {
+	out := make([]engine.BulkAction, len(given))
+	for i, a := range given {
+		out[i] = engine.BulkAction{Action: a.Action, Args: a.Args, On: a.On}
+	}
+	return out
 }
 
 func (o Options) aiShow(w http.ResponseWriter, r *http.Request) {

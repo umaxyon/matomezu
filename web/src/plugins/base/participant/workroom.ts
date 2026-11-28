@@ -7,13 +7,16 @@ import { BIRD_PALETTE_IDS } from "../birds/colors"
 import { kit } from "../kit"
 import type { Participant, Workroom } from "."
 
+// 作業のレコードの印（種類と id）
+const WORK_KEY = z.strictObject({ subject: z.string().min(1), id: z.string().min(1) })
+
 export const WORKROOM_NAME_MAX = 20 // ワークルームの名前の長さの上限（字。常駐がホストをまたぐ封筒で確かめる workroomNameMax と同じ）
 
 export const WORKROOM = kit.defineSubject({
   id: "workroom",
   title: "workroom",
   aiDescription:
-    "A workroom: a name (up to 20 characters, not repeated), a bird and its palette. A workroom with no participant in it is empty.",
+    "A workroom: a name (up to 20 characters, not repeated), a bird and its palette. A workroom with no participant in it is empty. work is the record of its current work (none when idle); handoffTarget is the work it had before that (its AI writes the handoff page into that work's worker book with refresh-request; it is cleared when that page is written and when another participant enters the workroom).",
   role: "workrooms",
   record: z.strictObject({
     id: z.string().min(1),
@@ -21,6 +24,10 @@ export const WORKROOM = kit.defineSubject({
     bird: z.enum(BIRD_IDS),
     palette: z.enum(BIRD_PALETTE_IDS).optional(),
     createdAt: z.string(),
+    // 今の作業の写し（作業のレコード。空きなら無い）と、引継ぎ対象チケット（その前の作業のレコード。AI が refresh-request で引継ぎページを書く先。書いたら外し、ほかの参加者が入っても外す）。
+    // どちらも base のフォローステップ（work-change.ts）が、作業が替わった書き込みの中で書く（引継ぎ対象チケットを外すのは、refresh-request と参加者の受け入れ）
+    work: WORK_KEY.optional(),
+    handoffTarget: WORK_KEY.optional(),
   }),
   keys: {
     name: { type: "text", of: w => w.name },

@@ -55,6 +55,7 @@ export {
   useAllowedOn,
   useBook,
   useCoreCatalog,
+  useFilePaste,
   useItem,
   useLatestPan,
   useOutsideBinder,

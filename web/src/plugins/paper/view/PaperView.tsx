@@ -65,7 +65,7 @@ import {
   roomOf,
   shownRects,
 } from "../../base"
-import { modPressed, PaperFrame, useFileDrop, useFollowsSelection } from "../../base/ui"
+import { type FileDrop, modPressed, PaperFrame, useFileDrop, useFilePasteAt, useFollowsSelection } from "../../base/ui"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
 import {
@@ -77,9 +77,11 @@ import {
   PAPER_DROP,
   PAPER_EDIT,
   PAPER_MOVE,
+  PAPER_PASTE_CLIPBOARD,
   PAPER_PLACE,
   PAPER_REPARENT,
   PAPER_RESIZE,
+  pastedAt,
   pressSelection,
   shapesIn,
   sweptBox,
@@ -131,9 +133,14 @@ export function PaperView() {
   const [box, setBox] = useState<Rect | null>(null) // 範囲のドラッグの四角（紙の上）
   // 外から落としたファイルのスクラップを、落とした所に置く（左上が落とした所に来る）
   const drop = useCommand(PAPER_DROP.id)
-  const files = useFileDrop(
-    e => local(e, e.currentTarget),
-    d => drop.run({ page: d.page, item: d.item, props: d.props, pointer: d.at, shift: d.shift }),
+  const placeFile = (d: FileDrop) =>
+    drop.run({ page: d.page, item: d.item, props: d.props, pointer: d.at, shift: d.shift })
+  const files = useFileDrop(e => local(e, e.currentTarget), placeFile)
+  // Ctrl+V で貼ったファイルも、最後にポインタが在った所に置く（紙の上でなければ、最初の空きに）
+  useFilePasteAt(
+    PAPER_PASTE_CLIPBOARD.id,
+    p => (ref.current && stage !== NO_STAGE ? pastedAt(stage, toPaperAt, local(p, ref.current)) : NO_PAPER),
+    placeFile,
   )
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {

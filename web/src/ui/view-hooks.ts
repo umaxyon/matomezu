@@ -2,10 +2,10 @@
 // 読む物（ブック・ページ・アイテム）は描くページから、操作（アクション・ステージごとのプラグイン状態・紙をずらす量など）は向け先から引く。
 // ステージは読むだけの StageView（プラグインが持つ状態は ui/plugin-state-hooks.ts の usePluginState・useSetPluginState）、ほかに機能台帳と利用者の設定。データを変える入口は usePerform（アクション）だけ。
 
-import { useCallback, useLayoutEffect, useMemo } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react"
 import { USER } from "../core/actor"
 import { withSettings } from "../core/book"
-import type { ActionId, ItemId } from "../core/catalog"
+import type { ActionId, CommandId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, isInStageEntry, isOnPage, type PageTarget, type Where } from "../core/def/action"
 import type { Point, Size } from "../core/geom"
@@ -203,6 +203,19 @@ export function useStage(): StageView | typeof NO_STAGE {
 }
 
 const ORIGIN: Point = { x: 0, y: 0 }
+
+// プレゼンテーションのビューやレイヤーが、貼り付けのコマンド command（Ctrl+V など）で貼ったファイルを受ける（コマンドが、クリップボードの passFiles で、呼ばれたステージのビューに渡す）。
+// 受けるのは、描いている向け先のステージで貼ったときだけ。receive は描くたびに替わってよい（最後に描いた物で受ける）
+export function useFilePaste(command: CommandId, receive: (files: readonly File[]) => void): void {
+  const stage = useStageId()
+  const { receivePastedFiles } = useStoreActions()
+  const latest = useRef(receive)
+  latest.current = receive
+  useEffect(() => {
+    if (stage === NO_STAGE) return
+    return receivePastedFiles(stage, command, files => latest.current(files))
+  }, [receivePastedFiles, stage, command])
+}
 
 // プレゼンテーションのビューが、向け先のステージに描く広さ（可変ページで、印刷区画を並べた広さ）を知らせる。NO_AREA なら紙 1 枚。
 // 位置をデータに持たないプレゼンテーションは、描く中身を右・下へずらした量 origin（印刷区画の数）も知らせる（変わったら、ステージがパンを合わせる）。

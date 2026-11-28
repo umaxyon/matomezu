@@ -97,6 +97,8 @@ type hookInput struct {
 	Rename func(dir, name string) `json:"-"`
 	// Thread は、プロセス id host の AI のプログラムがセッション session で動いているときの、チャットスレッドの id（その AI の事情で読む。nil か空なら送らない）
 	Thread func(host, session string) string `json:"-"`
+	// Refreshable は、AI のプログラムが会話を空にできる（プラグインの部品がリフレッシュリクエストを受けて空にする。話しかけに添えて名乗る）
+	Refreshable bool `json:"-"`
 }
 
 // eventName は、フックの出力に書くイベント名（入力のイベント名。無ければ UserPromptSubmit）
@@ -222,6 +224,9 @@ func askTalked(hook hookInput, api hookAPI) talkReply {
 	if thread != "" {
 		first["chatThread"] = thread
 	}
+	if hook.Refreshable {
+		first["refreshable"] = true
+	}
 	body, _ := json.Marshal(first)
 	out, err := api(body)
 	if err != nil || json.Unmarshal(out, &reply) != nil {
@@ -342,19 +347,18 @@ func workTitle(hook hookInput, api hookAPI) {
 	hook.Rename(hook.Cwd, reply.WorkTitle)
 }
 
-// workShift は、ターンの終わりに、セッション session の今の作業が替わったかを常駐に訊き、利用者に聞く問いがあればその JSON（question・choices・read）を 1 行書く。
-// 無い・常駐が立っていない・読めなければ何も書かない
-func workShift(out io.Writer, session string, api hookAPI) {
+// refreshDue は、セッション session の AI が受けたリフレッシュリクエストの、空にしたあとに打つ文を常駐に訊いて 1 行出す（無い・届かなければ何も出さない）
+func refreshDue(out io.Writer, session string, api hookAPI) {
 	if api == nil || session == "" {
 		return
 	}
 	body, _ := json.Marshal(map[string]any{"sessionId": session})
 	got, err := api(body)
 	var reply struct {
-		Ask json.RawMessage `json:"ask"`
+		Text string `json:"text"`
 	}
-	if err != nil || json.Unmarshal(got, &reply) != nil || len(reply.Ask) == 0 || string(reply.Ask) == "null" {
+	if err != nil || json.Unmarshal(got, &reply) != nil || reply.Text == "" {
 		return
 	}
-	_, _ = fmt.Fprintln(out, string(reply.Ask))
+	fmt.Fprintln(out, reply.Text)
 }
