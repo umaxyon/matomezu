@@ -48,6 +48,7 @@ export const SCRAP_BOX = kit.defineShape({
   capabilities: ["connectable", "resizable", "@matomezu/slide:on-slide"], // 形だけの並び（slide）にも置ける（回せない）
   toolbox: false,
   scrapFrame: true,
+  drawsFrom: s => [s.props.page],
   dialogs: { edit: SCRAP_BOX_EDIT_DIALOG.id },
   props: ScrapSchema.extend({ line: z.union([z.literal(NO_LINE), ColorSchema]).optional() })
     .refine(scrapScaleFits, SCRAP_SCALE_TOO_SMALL)
