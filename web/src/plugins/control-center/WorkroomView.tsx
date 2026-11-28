@@ -134,7 +134,7 @@ function Occupied({ row }: { row: WorkroomRow }) {
         <span className={styles.leave}>
           {participant !== NO_OCCUPANT ? (
             <>
-              <ClearButton participant={participant.id} />
+              <ClearButton workroom={row.room.id} participant={participant.id} />
               <LeaveButton workroom={row.room.id} participant={participant.id} />
             </>
           ) : (
@@ -171,9 +171,9 @@ function LeaveIconButton({ workroom, enabled }: { workroom: string; enabled: boo
   )
 }
 
-// 参加者 participant に、引継ぎページを書いて会話を空にするよう頼むボタン（確かめのダイアログを開く。送れるかはダイアログの送るが決める）。
+// ワークルーム workroom の参加者 participant に、引継ぎページを書いて会話を空にするよう頼むボタン（確かめのダイアログを開く。送れるかはダイアログの送るが決める）。
 // 題は吹き出しの幅に入らないので、文言の改行で 2 行に分ける
-function ClearButton({ participant }: { participant: string }) {
+function ClearButton({ workroom, participant }: { workroom: string; participant: string }) {
   const t = useMessages(kit)
   const { openDialog } = useActions()
   return (
@@ -182,7 +182,7 @@ function ClearButton({ participant }: { participant: string }) {
         className={styles.leaveButton}
         label={t("Clear")}
         title={undefined}
-        onClick={() => openDialog(ASK_REFRESH_DIALOG.id, { participant })}
+        onClick={() => openDialog(ASK_REFRESH_DIALOG.id, { workroom, participant })}
       >
         <ClearIcon />
       </IconButton>

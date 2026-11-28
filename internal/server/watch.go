@@ -78,7 +78,7 @@ func (lim WakeLimits) fits(line string) bool {
 type wakeItem struct {
 	seq         int64     // 行列の中で見分ける番号
 	participant string    // 送り先の参加者の id
-	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage・wakeUpdate・wakeAskRefresh・wakeHost・wakeRally・wakeMessageApproved・wakeMessageCancelled
+	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage・wakeUpdate・wakeHost・wakeRally・wakeMessageApproved・wakeMessageCancelled
 	line        string    // 流す 1 行
 	head        string    // AI 間メッセージの、送り手を名乗る頭（messageHead・remoteMessageHead）
 	peer        string    // ほかのホストから届いた AI 間メッセージの、送り手のホスト id
@@ -100,14 +100,13 @@ type WakeOut struct {
 }
 
 const (
-	wakeAccepted   = "accepted"    // 参加の要求が受け入れられた
-	wakeDeclined   = "declined"    // 参加の要求が断られた
-	wakeCancelled  = "cancelled"   // 参加の要求を利用者がキャンセルした
-	wakeMessage    = "message"     // AI 間メッセージと、利用者が送り手の matomezu ペイロード
-	wakeUpdate     = "update"      // 利用者が、matomezu の版を上げるよう頼んだ（update.go）
-	wakeAskRefresh = "ask-refresh" // 利用者が、引継ぎページを書いて会話を空にするよう頼んだ（ask_refresh.go）
-	wakeHost       = "host"        // 常駐メッセージ（フォローステップが返した、常駐からの知らせ。message.go）
-	wakeRally      = "rally"       // AI ラリーを上限で止め、送り先に届けなかったという知らせ（rally.go）
+	wakeAccepted  = "accepted"  // 参加の要求が受け入れられた
+	wakeDeclined  = "declined"  // 参加の要求が断られた
+	wakeCancelled = "cancelled" // 参加の要求を利用者がキャンセルした
+	wakeMessage   = "message"   // AI 間メッセージと、利用者が送り手の matomezu ペイロード
+	wakeUpdate    = "update"    // 利用者が、matomezu の版を上げるよう頼んだ（update.go）
+	wakeHost      = "host"      // 常駐メッセージ（フォローステップが返した、常駐からの知らせ。message.go）
+	wakeRally     = "rally"     // AI ラリーを上限で止め、送り先に届けなかったという知らせ（rally.go）
 
 	wakeMessageApproved  = "message-approved"  // 承認待ちの AI 間メッセージを利用者が承認した（受け手に、利用者の頼みとして。pending_message.go）
 	wakeMessageCancelled = "message-cancelled" // 承認待ちの AI 間メッセージを利用者がキャンセルした（送り手と受け手に。pending_message.go）

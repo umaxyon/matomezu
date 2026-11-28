@@ -22,6 +22,7 @@ import {
   type Workroom,
 } from "."
 import { workroomActivityOf } from "./activity"
+import { ASK_REFRESH } from "./ask-refresh"
 import { CONTEXT_SCALE, type ContextGauge, contextGauge, contextScaleOf, type NO_CONTEXT_USE } from "./context-gauge"
 import { adminRoomOf, type VisitorRow, visitorRows, type WorkroomRow, workroomRows } from "./rows"
 import { ownBookPagesOf } from "./workdesks"
@@ -169,9 +170,15 @@ export function useWorkroomActions(): WorkroomActions {
   }, [perform, showToast, catalog, marked])
 }
 
-// 参加者（ワークルームの AI）に、切りのよい所で引継ぎページを書いて会話を空にするよう頼む（その参加者がワークルームの AI でないか、
-// 会話を空にできると名乗っていなければ false）。頼めなければ投げる
-export const useAskRefresh = (): ((participant: string) => Promise<boolean>) => useInstance().askRefresh
+// ワークルーム room に入っている参加者 participant の AI に、切りのよい所で引継ぎページを書いて会話を空にするよう頼む（リフレッシュを頼むアクション）。
+// 頼めたかを返す（常駐が届けられずに断ったときは、アクションバルクの断りとして知らされる）
+export function useAskRefresh(): (room: string, participant: string) => boolean {
+  const { perform } = useActions()
+  return useCallback(
+    (room, participant) => (perform as unknown as Do)(ASK_REFRESH.id, { participant }, { record: room }).ok,
+    [perform],
+  )
+}
 
 // ワークルーム room 自身のワーカーブックのページの数（ワークルームを消す・引き継がずに入り直すと消える。ブックが無ければ 0）
 export function useOwnBookPages(room: string): number {

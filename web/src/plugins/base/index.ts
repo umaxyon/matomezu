@@ -208,6 +208,7 @@ import {
 import {
   ADMIN_MARK,
   ADMIN_SET,
+  ASK_REFRESH,
   CONTEXT_SCALE,
   FOLLOW_WORK_CHANGED,
   FOLLOW_WORK_ENDED,
@@ -616,6 +617,7 @@ export const BASE = defineBuiltin(
       PARTICIPANT_DECLINE,
       PARTICIPANT_CANCEL,
       PARTICIPANT_REMOVE,
+      ASK_REFRESH,
       WORKROOM_ADD,
       WORKROOM_UPDATE,
       WORKROOM_REMOVE,
@@ -943,6 +945,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:participant-decline": typeof PARTICIPANT_DECLINE
     "@matomezu/base:participant-cancel": typeof PARTICIPANT_CANCEL
     "@matomezu/base:participant-remove": typeof PARTICIPANT_REMOVE
+    "@matomezu/base:ask-refresh": typeof ASK_REFRESH
     "@matomezu/base:workroom-add": typeof WORKROOM_ADD
     "@matomezu/base:workroom-update": typeof WORKROOM_UPDATE
     "@matomezu/base:workroom-remove": typeof WORKROOM_REMOVE

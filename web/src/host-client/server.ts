@@ -39,7 +39,6 @@ import { createSendQueue, RETRY_MS } from "./send-queue"
 import {
   AckSchema,
   AnnotationsSchema,
-  ASK_REFRESH_ANSWER,
   ASK_UPDATE_ANSWER,
   ASSET_PUT,
   ChangedSchema,
@@ -631,17 +630,6 @@ export function serverClient(net: Net = browserNet): HostClient {
         .catch(() => null)
       if (!res?.ok) fail("E411", { workroom, status: res ? `${res.status}` : "no answer" })
       return ASK_UPDATE_ANSWER.parse(await res.json()).ok
-    },
-    askRefresh: async participant => {
-      const res = await net
-        .fetch("api/participants/ask-refresh", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ participant }),
-        })
-        .catch(() => null)
-      if (!res?.ok) fail("E421", { participant, status: res ? `${res.status}` : "no answer" })
-      return ASK_REFRESH_ANSWER.parse(await res.json()).ok
     },
     askHosts: async request => {
       const { kind, ...body } = request

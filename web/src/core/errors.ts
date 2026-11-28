@@ -157,8 +157,6 @@ export const ERRORS = {
   E417: "the server could not take the image: {status}",
   E418: "this window has no server to ask what uses pages",
   E419: "the server could not tell what uses the pages: {status}",
-  E420: "this window has no server to ask participants to refresh",
-  E421: "the server could not ask the participant {participant} to refresh: {status}",
 } as const
 
 export type ErrorCode = keyof typeof ERRORS

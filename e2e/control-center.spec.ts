@@ -204,7 +204,7 @@ test("枠の右下の、退室の左の丸い矢印はどの参加者にも出�
   await expect(dialog.getByRole("button", { name: "送る" })).toBeDisabled()
   await dialog.getByRole("button", { name: "やめる" }).click()
   await expect(dialog).toHaveCount(0)
-  // 名乗った参加者: (?) に説明があり、説明を開いたまま送るを押せる。送るとダイアログが閉じ、AI の呼び出しの返事に指示が届く
+  // 名乗った参加者: (?) に説明があり、説明を開いたまま送るを押せる。送るとダイアログが閉じ、AI の呼び出しの返事に matomezu ペイロードで指示が届く
   await row(page, "sub_a").getByRole("button", { name: "sub_a", exact: true }).click()
   await roomPanel(page).getByRole("button", { name: "クリア" }).click()
   await dialog.getByRole("button", { name: question }).click()
@@ -212,9 +212,7 @@ test("枠の右下の、退室の左の丸い矢印はどの参加者にも出�
   const note = await dialog.getByRole("note").boundingBox()
   const send = await dialog.getByRole("button", { name: "送る" }).boundingBox()
   expect(note && send && note.y + note.height <= send.y).toBe(true)
-  const sent = page.waitForResponse(r => r.url().endsWith("/api/participants/ask-refresh"))
   await dialog.getByRole("button", { name: "送る" }).click()
-  expect(await (await sent).json()).toEqual({ ok: true })
   await expect(dialog).toHaveCount(0)
   // AI の呼び出しの返事の知らせ（ヘッダ）を集め、指示が来るまで呼ぶ（先に「参加しました」が来る）
   let told = ""
