@@ -16,7 +16,7 @@
 
 import type { z } from "zod"
 import { fail, matomezuError, problem } from "../core/errors"
-import { BROKEN } from "../core/folders"
+import { BROKEN, namesPageMetaRow } from "../core/folders"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import { NOT_INSIDE, PURGED, type UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
@@ -182,6 +182,12 @@ function noticeOf(carried: string | undefined): UnreadableNotice | undefined {
 export function serverClient(net: Net = browserNet): HostClient {
   // 確かめた世界のページとフォルダ（id → 置き場所から読んだままの中身と版）
   type Rows = Map<string, { row: unknown; version: number }>
+  // 届いた行 row（版 version）で、持っている行 have を置き換えるか: 版が新しいか、同じ版で、持っているのがページメタだけの行で、届いたのが中身を持つ行
+  // （中身を持つ物を名乗ったあとに、名乗る前に出たページメタだけの知らせが遅れて届いても、中身をページメタに戻さない）
+  const replaces = (have: { row: unknown; version: number } | undefined, row: unknown, version: number) =>
+    !have ||
+    have.version < version ||
+    (have.version === version && namesPageMetaRow(have.row) && !namesPageMetaRow(row))
   const confirmed: { pages: Rows; folders: Rows } = { pages: new Map(), folders: new Map() }
   let settings: unknown
   let unreadableBooks: readonly Warning[] | undefined // 常駐が読めないと決めたブック（読んだか知らされた物。行と組で store に渡す）
@@ -297,8 +303,9 @@ export function serverClient(net: Net = browserNet): HostClient {
         if (during.has(r.id) && !now) continue
         if (now && now.version < r.version)
           logLine(`took ${what} ${r.id} v${r.version}; the window had v${now.version}`)
-        if (!now || now.version < r.version) rows.set(r.id, { row: r.row, version: r.version })
-        else if (now.version > r.version) logLine(`kept ${what} ${r.id} v${now.version}; the server has v${r.version}`)
+        if (replaces(now, r.row, r.version)) rows.set(r.id, { row: r.row, version: r.version })
+        else if (now && now.version > r.version)
+          logLine(`kept ${what} ${r.id} v${now.version}; the server has v${r.version}`)
       }
     }
     takeRows(
@@ -452,7 +459,7 @@ export function serverClient(net: Net = browserNet): HostClient {
       ) => {
         const have = rows.get(id)
         if (removed) rows.delete(id)
-        else if (version !== undefined && (!have || have.version < version)) rows.set(id, { row, version })
+        else if (version !== undefined && replaces(have, row, version)) rows.set(id, { row, version })
         else if (have && version !== undefined && have.version > version)
           logLine(`kept ${what} ${id} v${have.version}; the notice had v${version}`)
         changed(id)

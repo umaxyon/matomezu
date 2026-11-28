@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import type { Annotation } from "../../web/src/core/annotation"
 import { pagesOf } from "../../web/src/core/book"
-import { BROKEN, HOME_ID, TRASH_ID } from "../../web/src/core/folders"
+import { BROKEN, HOME_ID, isHeld, pageMetaRowOf, TRASH_ID } from "../../web/src/core/folders"
 import { recordsOf } from "../../web/src/core/folders-books"
 import { rawBooksOf } from "../../web/src/core/folders-unreadable"
 import type { Book } from "../../web/src/core/schema/book"
@@ -436,6 +436,27 @@ test("古い版の知らせは使わない（版はページごと。ブック�
   emit("changed", pageChangedOf(b1With("x"), "p1", 3))
   emit("changed", pageChangedOf(b1With("old"), "p1", 2))
   expect(itemsOf(store)).toEqual(["x"])
+})
+
+// ページ p1 のページメタだけの行（中身を持たない窓に、常駐が送る形）の知らせ
+const p1MetaChanged = (version: number) => ({
+  pages: [{ id: "p1", page: { ...pageMetaRowOf(p1With()) }, version }],
+  folders: [],
+  books: ["b1"],
+})
+const p1Held = (store: ReturnType<typeof newStore>) => isHeld(store.state.getState().pages.p1!)
+
+test("ページメタだけの知らせは、版が新しいときだけ中身を置き換え、中身を持つ行は、同じ版のページメタだけの行を置き換える", async () => {
+  const { store, emit } = await connected()
+  emit("changed", pageChangedOf(b1With("x"), "p1", 3))
+  // 名乗る前に出た、同じ版のページメタだけの知らせが遅れて届いても、中身を持つ行を残す
+  emit("changed", p1MetaChanged(3))
+  expect(p1Held(store)).toBe(true)
+  emit("changed", p1MetaChanged(4))
+  expect(p1Held(store)).toBe(false)
+  emit("changed", pageChangedOf(b1With("y"), "p1", 4))
+  expect(p1Held(store)).toBe(true)
+  expect(itemsOf(store)).toEqual(["y"])
 })
 
 test("断られた（ack で確かめ終わり、変わったブックが来ない）アクションは画面から消える", async () => {
