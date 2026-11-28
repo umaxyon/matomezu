@@ -25,6 +25,7 @@ import {
 import { warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../plugins"
+import { scrapUsersOf } from "../plugins/base"
 import { assemble, type Plugin, warningsOf, withoutParts } from "../store/plugin"
 import { aiCatalog } from "./ai-catalog"
 import { itemForAi, pageForAi, pagePlacedForAi, placedForAi } from "./ai-page"
@@ -127,6 +128,19 @@ let lastAdded: readonly Plugin[] = []
 // ページの行の全部が指すアセットの id と、全部のページで答えられたか（{ ids, sure }。常駐が起動のときに、指されないアセットを消すのに使う。core/assets.ts）
 ;(globalThis as { matomezuAssetsInUse?: (pages: string) => string }).matomezuAssetsInUse = pages =>
   JSON.stringify(assetsInUse(assembled.catalog.core, JSON.parse(pages) as unknown[]))
+
+// ページを使っている所（core/page-users.ts）: ページ targets（JSON の並び）のそれぞれを使っている、見える所のページ。書庫の行の全部 pages・folders から引く。
+// 使っている物はスクラップ（base の scrapUsersOf）。常駐が、完全に消す前の確かめに画面から頼まれて呼ぶ
+;(globalThis as { matomezuPageUsers?: (pages: string, folders: string, targets: string) => string }).matomezuPageUsers =
+  (pages, folders, targets) =>
+    JSON.stringify(
+      scrapUsersOf(
+        assembled.catalog.core,
+        JSON.parse(pages) as unknown[],
+        JSON.parse(folders) as unknown[],
+        JSON.parse(targets) as string[],
+      ),
+    )
 
 // 残したフォルダの行の全部（書庫ホーム・フォルダ・ブック・バインダ）とページの行の id の全部が木の決まりを守るかを確かめ、破れていれば warning（W030）の 1 行を、守っていれば空の文字列を返す
 // （常駐が一覧に持つ。データには手を付けない）

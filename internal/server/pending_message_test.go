@@ -55,6 +55,7 @@ func fromHost(hub *Hub, to, id, text string) {
 // ほかのホストから届いた AI 間メッセージは受け手に届き、承認待ちが 1 件できる。承認すると受け手に利用者の頼みとして扱う知らせが流れ、承認待ちは消える。
 // 2 度目の承認は not-pending
 func TestAIMessageWaitsForTheUsersApproval(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	fromHost(hub, b, "m1", "hi")
@@ -82,6 +83,7 @@ func TestAIMessageWaitsForTheUsersApproval(t *testing.T) {
 
 // キャンセルは受け手に 1 通知らせ（送り手へは封筒で運ぶ。TestCancelReachesASenderOnAnotherHost）、AI ラリーの数をその組で 0 に戻す。利用者の頼みの印は付けない
 func TestCancelNoticesTheReceiverAndResetsTheRally(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	for _, id := range []string{"one", "two", "three"} {
@@ -113,6 +115,7 @@ func TestCancelNoticesTheReceiverAndResetsTheRally(t *testing.T) {
 
 // 利用者が受け手の AI に話しかけても、承認待ちは残り、キャンセルの知らせは出ない（承認のつもりの話しかけもある）
 func TestUserTalkingKeepsThePending(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	fromHost(hub, b, "m1", "hello")
@@ -127,6 +130,7 @@ func TestUserTalkingKeepsThePending(t *testing.T) {
 
 // 受け手が参加者でなくなったら、承認待ちは知らせずに消える
 func TestLeavingReceiverDropsThePendingSilently(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	fromHost(hub, b, "m1", "hello")
@@ -141,6 +145,7 @@ func TestLeavingReceiverDropsThePendingSilently(t *testing.T) {
 // 承認待ちを作るのは、ほかのホストから届いて、利用者の頼みの印が付かない物だけ。
 // 同じホストの中の物（印の有無によらず）と、as-user のホストから届いた物は作らない
 func TestOnlyAnUnmarkedMessageFromAnotherHostMakesAPending(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -165,6 +170,7 @@ func TestOnlyAnUnmarkedMessageFromAnotherHostMakesAPending(t *testing.T) {
 
 // 承認待ちの並びは、窓につながったときと、変わったときに pending-messages で知らせる
 func TestPendingListIsToldToWindows(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	c := hub.Join()
@@ -190,6 +196,7 @@ func TestPendingListIsToldToWindows(t *testing.T) {
 
 // 起こされる通り道を持たない AI にも、承認とキャンセルの知らせは、呼び出しの返事に添って届く
 func TestApprovalAndCancelComeWithACallReply(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	fromHost(hub, b, "one", "one")
@@ -203,6 +210,7 @@ func TestApprovalAndCancelComeWithACallReply(t *testing.T) {
 
 // 承認・キャンセルの知らせは、どの 1 通かを本文の頭で示す（長ければ gistMax 字で切り、本文の中の引用符は包んで偽の行にしない）
 func TestNoticesNameTheMessageByItsHead(t *testing.T) {
+	t.Parallel()
 	long := strings.Repeat("あ", gistMax+5)
 	p := pendingMessage{PendingMessage: PendingMessage{ID: "m1", SenderRoom: "ひよこ", SenderHostName: "h2", Body: long}}
 	if got := approvedLine(p); !strings.Contains(got, `"`+strings.Repeat("あ", gistMax)+`…"`) {
@@ -216,6 +224,7 @@ func TestNoticesNameTheMessageByItsHead(t *testing.T) {
 
 // 受け手 1 人の承認待ちは wakeQueueMax 件までで、超えたら古い物から捨てる（ほかの受け手の分は残る）
 func TestPendingKeepsAtMostTheQueueSizePerReceiver(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -234,6 +243,7 @@ func TestPendingKeepsAtMostTheQueueSizePerReceiver(t *testing.T) {
 // ほかのホストから届いた AI 間メッセージをキャンセルすると、受け手と、ほかのホストの送り手の両方に知らせる（送り手へは封筒で運ぶ）。
 // 画面に出す承認待ちは、送り手のワークルームの名前とホストエイリアスを持つ
 func TestCancelReachesASenderOnAnotherHost(t *testing.T) {
+	t.Parallel()
 	as, bs, a, b := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
 	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
@@ -264,6 +274,7 @@ func TestCancelReachesASenderOnAnotherHost(t *testing.T) {
 
 // 受け手が、ほかのホストの送り手へ返事を送ったら、承認待ちは知らせずに消える
 func TestReplyToAnotherHostDropsThePending(t *testing.T) {
+	t.Parallel()
 	as, bs, a, b := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
 	s2 := joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
@@ -288,6 +299,7 @@ func TestReplyToAnotherHostDropsThePending(t *testing.T) {
 
 // 承認待ちの無い id の承認・キャンセルは not-pending。body の無い呼び出しは 400
 func TestPendingRoutesRefuseUnknownIDs(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	if out := answerPending(t, s.URL, "/api/message/approve", "nope"); !strings.Contains(out, `"reason":"not-pending"`) {
 		t.Fatalf("approve = %s", out)

@@ -17,6 +17,7 @@ const mailRecords = "/api/ai/records?kind=%40matomezu%2Fbase%3Amail"
 // AI が手紙を送ると、利用者の郵便箱に 1 通だけ届き、画面の読む口（/api/data）と AI の読む口（read_records の郵便の種類）に出る。
 // 画面から利用者が見たと知らせると、AI の読む口に見た時点が出る（AI に断る所は store のテストが見る）
 func TestAISendsMail(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := joinedAI(t, s)
 	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:mail-send","args":{"from":"D64","title":"済みました"}}`, writerAI(t, s.URL))
@@ -38,6 +39,7 @@ func TestAISendsMail(t *testing.T) {
 
 // AI の読む口は、一覧（中身を外して題を付け、total と older を添える）と、指した郵便の全文を、取り方の問い合わせで返し、合わない取り方は 400 で断る（取り方の細かな境界は core のテストが見る）
 func TestAIMailQuery(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := joinedAI(t, s)
 	for _, title := range []string{"一", "二", "三"} {
@@ -75,11 +77,12 @@ func TestAIMailQuery(t *testing.T) {
 
 // 効かない郵便（種類が機能台帳に無い）は、消さずに warning（W022）として一覧に持つ
 func TestUnknownMailIsAWarning(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	if err := store.Apply(storage.Batch{Records: []storage.RecordWrite{{Subject: mailKind, ID: "m1", Body: json.RawMessage(`{"id":"m1","mail":"@ex/x:gone","from":"a","sentAt":"t","props":{},"order":1}`)}}}); err != nil {
 		t.Fatal(err)
 	}
@@ -107,11 +110,12 @@ func TestUnknownMailIsAWarning(t *testing.T) {
 // 郵便箱が上限（200 通）なら、1 通足すアクションは、既読の古い郵便を消すのと一緒に 1 つのトランザクションで書き、
 // 窓には 1 つの changed の知らせ（足した郵便と消した郵便、進めた番号、最後にフォーカスされた窓）で送る
 func TestMailLimitDropsTheOldestInOneAction(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	batch := storage.Batch{Counters: []storage.Counter{{Subject: mailKind, Scope: "mail", Next: 201}}}
 	for i := 1; i <= 200; i++ {
 		id := fmt.Sprintf("m%03d", i)
@@ -195,6 +199,7 @@ func TestMailLimitDropsTheOldestInOneAction(t *testing.T) {
 
 // 種類と key で引くので、別の種類の同じ key の AI 編集チケットは閉じない。種類を持たないチケットは key だけで合う
 func TestAIEditTicketsAreFoundBySubjectAndKey(t *testing.T) {
+	t.Parallel()
 	list, _ := changedTickets(nil, mailKind, engine.AIEditTicketChange{Book: "b1", Key: "k", Outcome: "open"}, "t")
 	if len(list) != 1 || list[0].Subject != mailKind {
 		t.Fatalf("opened = %+v", list)
@@ -214,11 +219,12 @@ func TestAIEditTicketsAreFoundBySubjectAndKey(t *testing.T) {
 // 郵便箱が上限のとき、変更提案郵便を送ると、新しい提案の AI 編集チケットを開くのと、上限で消えた反映していない提案の AI 編集チケットを
 // 消えたと記す（cause limit）のを、郵便のレコードと一緒に 1 回の書き込みで行う
 func TestProposalSendOpensAndRemovesTicketsInOneWrite(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	batch := bookBatch(t, store, boxed)
 	batch.Counters, batch.AIEditTickets = []storage.Counter{{Subject: mailKind, Scope: "mail", Next: 201}},
 		json.RawMessage(`[{"key":"m001","subject":"`+mailKind+`","book":"b1","at":"t"}]`)

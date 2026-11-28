@@ -37,7 +37,7 @@ func bulkHub(t *testing.T, more ...string) (*Hub, *refusing, *client) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	putBook(t, store, drawing)
 	for _, body := range more {
 		putBook(t, store, body)
@@ -51,9 +51,9 @@ func bulkHub(t *testing.T, more ...string) (*Hub, *refusing, *client) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(hub.CloseAll)
+	cleanup(t, hub.CloseAll)
 	c := hub.Join()
-	t.Cleanup(func() { hub.Leave(c) })
+	cleanup(t, func() { hub.Leave(c) })
 	<-c.ch // hello
 	r.applied = 0
 	return hub, r, c
@@ -81,6 +81,7 @@ func step(action, args string, on *engine.On, ids ...string) engine.BulkAction {
 
 // ページの物を変え、郵便（レコード）を送り、設定を変えるバルクは、1 回の書き込みで、窓への知らせは changed 1 つ（settings・records も載る）と ack
 func TestABulkIsOneWriteAndOneChanged(t *testing.T) {
+	t.Parallel()
 	hub, store, c := bulkHub(t)
 	done, err := hub.Perform(Perform{Actions: []engine.BulkAction{
 		step("@matomezu/paper:item-place", `{"item":"@matomezu/box:shape-nest-box","at":{"x":1,"y":2}}`, &engine.On{Page: "p1"}, "k1"),
@@ -119,6 +120,7 @@ func TestABulkIsOneWriteAndOneChanged(t *testing.T) {
 
 // バルクの 2 つ目のアクションが断られたら、1 つ目の分も書かず、窓には changed を送らず ack（ok が false）だけ
 func TestABulkRefusedAtTheSecondActionChangesNothing(t *testing.T) {
+	t.Parallel()
 	hub, store, c := bulkHub(t)
 	done, err := hub.Perform(Perform{Actions: []engine.BulkAction{
 		step("@matomezu/paper:item-place", `{"item":"@matomezu/box:shape-nest-box","at":{"x":1,"y":2}}`, &engine.On{Page: "p1"}, "k1"),
@@ -137,6 +139,7 @@ func TestABulkRefusedAtTheSecondActionChangesNothing(t *testing.T) {
 
 // 同じ番号（Key）のバルクは二度行わない: 前の結果を返し、書かず、ack だけを送る
 func TestABulkKeyIsPerformedOnce(t *testing.T) {
+	t.Parallel()
 	hub, store, c := bulkHub(t)
 	bulk := Perform{Actions: []engine.BulkAction{
 		step("@matomezu/paper:item-place", `{"item":"@matomezu/box:shape-nest-box","at":{"x":1,"y":2}}`, &engine.On{Page: "p1"}, "k1"),
@@ -158,6 +161,7 @@ func TestABulkKeyIsPerformedOnce(t *testing.T) {
 
 // 前のアクションが足したページを宛先にしたアクションも通る（置き場所に無いページが宛先なら、エンジンに全部のブックを渡す）
 func TestABulkActsOnAPageItAdded(t *testing.T) {
+	t.Parallel()
 	hub, _, c := bulkHub(t)
 	done, err := hub.Perform(Perform{Actions: []engine.BulkAction{
 		step("@matomezu/base:page-add", `{"type":"@matomezu/drawing:drawing","title":"追加"}`, &engine.On{Book: "b1"}, "p2"),
@@ -180,6 +184,7 @@ func TestABulkActsOnAPageItAdded(t *testing.T) {
 
 // AI 編集チケットの変え方は、それを返したアクションの対象の種類の中で Key を見分ける: 種類の違う 2 つの変え方が、それぞれの種類の物に当たる
 func TestAIEditTicketChangesMatchTheirOwnSubject(t *testing.T) {
+	t.Parallel()
 	hub, _, _ := bulkHub(t)
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
@@ -198,11 +203,12 @@ func TestAIEditTicketChangesMatchTheirOwnSubject(t *testing.T) {
 
 // 置き場所が書けなかった Perform は、エラーを返して何も変えない（メモリも窓への知らせも）。同じ番号（Key）で行い直すと、行われる
 func TestPerformChangesNothingWhenTheWriteFails(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	putBook(t, store, drawing)
 	eng, err := engine.New()
 	if err != nil {
@@ -213,7 +219,7 @@ func TestPerformChangesNothingWhenTheWriteFails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(hub.CloseAll)
+	cleanup(t, hub.CloseAll)
 	c := hub.Join()
 	defer hub.Leave(c)
 	<-c.ch // hello
@@ -265,11 +271,12 @@ func TestPerformChangesNothingWhenTheWriteFails(t *testing.T) {
 // 2 冊のブックを置き直す history-revert（画面の戻す・やり直す）は 1 回の書き込み: 片方のブックを認可ステップが止めたら、どちらのブックも変わらない。
 // 止められなければ、2 冊とも変わり、窓への知らせは 1 つ
 func TestRevertOfTwoBooksIsOneWrite(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	putBook(t, store, drawing)
 	putBook(t, store, `{"id":"b2","title":"U","lineup":[{"kind":"page","id":"p2","type":"@matomezu/drawing:drawing","title":"Q","paper":"@matomezu/base:a4","orientation":"landscape"}]}`)
 	eng, err := engine.New()
@@ -280,7 +287,7 @@ func TestRevertOfTwoBooksIsOneWrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(hub.CloseAll)
+	cleanup(t, hub.CloseAll)
 	c := hub.Join()
 	defer hub.Leave(c)
 	<-c.ch // hello
@@ -362,6 +369,7 @@ func titleOf(t *testing.T, hub *Hub, id string) string {
 
 // 前のアクションが作ったレコードを宛先にしたアクションも通り、同じレコードの変更は 1 つにまとまって 1 回で書かれる
 func TestABulkActsOnARecordItAdded(t *testing.T) {
+	t.Parallel()
 	hub, store, c := bulkHub(t)
 	records, _ := hub.Records()
 	project := ""
@@ -383,6 +391,7 @@ func TestABulkActsOnARecordItAdded(t *testing.T) {
 
 // エンジンへ渡すブックは、アクションごとの宛先のブックの和（その後ろに、ブックから書庫ホームまでのフォルダ）。置き場所に無いページが宛先なら全部のブックと、書庫ホーム・ゴミ箱・フォルダの全部。宛先のレコードも和
 func TestBulkInputsAreTheUnionOfTheActions(t *testing.T) {
+	t.Parallel()
 	const other = `{"id":"b2","title":"U","lineup":[{"kind":"page","id":"p2","type":"@matomezu/drawing:drawing","title":"Q","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 	hub, _, _ := bulkHub(t, other)
 	hub.mu.Lock()
@@ -435,6 +444,7 @@ func TestBulkInputsAreTheUnionOfTheActions(t *testing.T) {
 
 // ゴミ箱のブックのページを宛先にしたアクションは、それだけのバルクでも、宛先の無いアクションと混ぜたバルクでも、同じ no-page で断られ、何も書かれない
 func TestABulkOnATrashedPageIsRefusedAlike(t *testing.T) {
+	t.Parallel()
 	hub, store, c := bulkHub(t)
 	if done, err := hub.Perform(Perform{Actions: []engine.BulkAction{step("@matomezu/base:entry-trash", `{"entry":"b1"}`, nil)}}); err != nil || !done.OK {
 		t.Fatalf("entry-trash = %+v, %v", done, err)
@@ -459,6 +469,7 @@ func TestABulkOnATrashedPageIsRefusedAlike(t *testing.T) {
 
 // エンジンの返した物に、同じページ・フォルダ・レコードが 2 つあれば、書く前に、それを名指す error で止める
 func TestPlanWritesStopsOnARepeatedChange(t *testing.T) {
+	t.Parallel()
 	hub, _, _ := bulkHub(t)
 	hub.mu.Lock()
 	defer hub.mu.Unlock()

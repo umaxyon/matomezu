@@ -11,6 +11,7 @@ import (
 // AI の作業机の読み: ワーカーブックがまだ無ければ空、ページを足すとそのブック（応えを待つ付箋の数も）。ワークルームのフォルダはその作業机を出す。
 // 参加していない AI は断る（エラーにしない。ビジターの断りは visitor_test.go）。待つ物の一覧は、話しかけた会話のセッションの AI のワーカーブックの付箋も出す
 func TestTheAIReadsItsWorkdesk(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	noticeOf(t, s.URL, a)
@@ -103,6 +104,7 @@ func TestTheAIReadsItsWorkdesk(t *testing.T) {
 
 // チケットをカレントにすると、作業机はそのチケットのワーカーブックを映す（ワークルーム自身のブックは映らない。まだ無ければ空）
 func TestTheWorkdeskFollowsTheCurrentTicket(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	noticeOf(t, s.URL, a)
@@ -152,6 +154,7 @@ func TestTheWorkdeskFollowsTheCurrentTicket(t *testing.T) {
 // チケットの全文（read_records の id・ids）は、そのチケットのワーカーブック（AI に見せるバックヤードの物）の id とページの数を books に添える。
 // ほかのワークルームの AI も読め、ブックの無いチケットには添えない
 func TestTicketRecordsAnswerTheirWorkerBooks(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	noticeOf(t, s.URL, a)

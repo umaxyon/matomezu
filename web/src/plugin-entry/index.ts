@@ -177,6 +177,7 @@ export {
   scrapScaleFits,
   scrapScaleMin,
   scrapSize,
+  scrapUsersOf,
   settingValue,
   settleChildren,
   shapeDefOf,

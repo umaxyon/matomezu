@@ -1246,6 +1246,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (!options.unreadableHost) fail("E406")
       return await options.unreadableHost.movedIfOff(ids)
     },
+    pageUsers: async ids => {
+      if (!options.pageUsers) fail("E418")
+      return await options.pageUsers(ids)
+    },
     setWindowTitle: title => options.setWindowTitle?.(title),
     windowTitle: () => options.windowTitle?.() ?? "",
     ...(options.startupError ? { startupError: options.startupError } : {}),
@@ -1343,7 +1347,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return await options.updateHost.ask(workroom)
     },
     askRefresh: async participant => {
-      if (!options.askRefreshHost) fail("E418")
+      if (!options.askRefreshHost) fail("E420")
       return await options.askRefreshHost.ask(participant)
     },
     reloadWindow: () => options.reloadWindow?.(),

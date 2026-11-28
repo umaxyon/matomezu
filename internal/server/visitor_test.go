@@ -12,6 +12,7 @@ import (
 // ビジター: as visitor で頼み、窓でビジターとして受け入れると、起こす知らせはビジターと言い、フックの参加の知らせはワークルームの名前を持たずに（利用者の言語の文も、ビジターの文）
 // ビジターの文を添える。参加が確定したビジターは、AI 間メッセージも show も画像を置くのも断られ（理由 visitor）、アクションは core が断る（理由 visitor）
 func TestVisitorIsToldAndOnlyReads(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	line := hub.OpenWakesWith("300", "", WakeLimits{})
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"LV","as":"visitor"}`, map[string]string{aiwire.HostHeader: "300"})
@@ -61,6 +62,7 @@ func TestVisitorIsToldAndOnlyReads(t *testing.T) {
 
 // as visitor と workroom を一緒に頼むと、ワークルームを見回らずに要求のアクションが断る（ワークルームに生きた参加者がいても workroom-in-use にならず、誰も外れない）
 func TestVisitorWithAWorkroomIsRefusedByTheRequest(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	noticeOf(t, s.URL, a)
@@ -75,6 +77,7 @@ func TestVisitorWithAWorkroomIsRefusedByTheRequest(t *testing.T) {
 
 // ビジターは、最後に呼ばれてから（呼ばれていなければ受け入れてから）VisitorIdle の間呼ばれなければ退室させる。ワーカーは時間では外さない
 func TestIdleVisitorsLeave(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	worker := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"LV","sessionId":"SV","as":"visitor"}`, nil)
@@ -108,6 +111,7 @@ func TestIdleVisitorsLeave(t *testing.T) {
 
 // show は、参加が確定してワークルームに入っている AI だけ。参加者の id が無い AI は not-joined で断る
 func TestShowNeedsAJoinedWorker(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	if got, _ := call(t, "POST", s.URL+"/api/ai/show", `{"book":"b1"}`, nil); !strings.Contains(got, `"reason":"not-joined"`) {
 		t.Fatalf("show without joining = %s", got)

@@ -36,7 +36,7 @@ func joinWorld(t *testing.T, store storage.Storage) (*httptest.Server, *Hub) {
 	cookies := NewScreenCookies(nil, nil)
 	s := httptest.NewServer(Handler(Options{Web: web, Token: "secret", Version: "v1", Hub: hub, Cookies: cookies}))
 	cookieTestBrowser(t, s, cookies)
-	t.Cleanup(func() { s.Close(); hub.CloseAll() })
+	cleanup(t, func() { s.Close(); hub.CloseAll() })
 	return s, hub
 }
 
@@ -46,7 +46,7 @@ func joinStore(t *testing.T) storage.Storage {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	return store
 }
 
@@ -75,6 +75,7 @@ func joinBody(link, sessionName string) string {
 
 // 参加の手順を読んでも参加者はできない。ADE のワークスペースの名前は 120 字までで、要求中の参加者が持つ
 func TestJoinRulesAndAdeWorkspace(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	rules, _ := call(t, "GET", s.URL+"/api/ai/join-rules", "", nil)
 	var reply struct {
@@ -120,6 +121,7 @@ func TestJoinRulesAndAdeWorkspace(t *testing.T) {
 // 参加を頼むと要求中の参加者が 1 人できる（郵便は出さない）。答えを待つ間は、同じ link・参加の id・同じセッション名（ai と env も同じ）の頼み直しを断り（already-requested）、
 // 参加者は増えない。受け入れたあとの同じ link と参加の id は、その参加者のまま答え、同じセッション名は already-participating で断る
 func TestJoinMakesOneParticipantAndRefusesAskingAgainWhileWaiting(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", "work"), nil)
 	var first Joined
@@ -170,6 +172,7 @@ func TestJoinMakesOneParticipantAndRefusesAskingAgainWhileWaiting(t *testing.T) 
 
 // 答えを待つ要求のセッションが終わっていれば、同じ AI の頼み直し（同じセッション名か、--resume などで同じ link）は、知らせずに古い要求を消して、新しい要求として受ける
 func TestJoinDropsTheRequestOfAnEndedSession(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct{ name, link, sessionName string }{
 		{"the same session name", "L2", "work"},
 		{"the same link", "L1", ""},
@@ -201,6 +204,7 @@ func TestJoinDropsTheRequestOfAnEndedSession(t *testing.T) {
 
 // 参加の id の付いた呼び出しは常駐だけが持つ参加者の記録の最後に呼ばれた時刻を更新し（残さない）、参加（joined）の知らせは 1 度だけ返す（起動し直しても繰り返さない）
 func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
+	t.Parallel()
 	store := joinStore(t)
 	s, hub := joinWorld(t, store)
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
@@ -253,6 +257,7 @@ func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 
 // 断られた（表から消えた）参加の id の呼び出しには、1 度だけ断られた知らせを返す。要求中の呼び出しは、時刻を残さず、窓にも知らせない
 func TestDeclinedParticipantIsToldOnce(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
 	var joined Joined
@@ -276,6 +281,7 @@ func TestDeclinedParticipantIsToldOnce(t *testing.T) {
 
 // 参加が済んでからの最後に呼ばれた時刻は、短い間に重ねて窓に知らせない
 func TestCallsAreNotAnnouncedEveryTime(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
 	var joined Joined
@@ -349,6 +355,7 @@ const (
 // ターンを始めたセッションが誰にも結ばれていなければ unbound を返し、候補に link が合えば結ぶ。
 // 受け入れ済みで伝えていない参加者は、結ばれたセッションのターンの始まりで 1 度だけ伝え（MCP の返事の知らせとは二重にならない）、ほかのセッションには伝えない
 func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"6F1C2A3E-1111-4222-8333-444455556666"}`, nil)
 	var joined Joined
@@ -439,6 +446,7 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 
 // MCP の返事で先に伝えたときは、UserPromptSubmit のフックは伝えない
 func TestTalkedDoesNotWelcomeWhatMCPToldFirst(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
 	var joined Joined
@@ -456,6 +464,7 @@ func TestTalkedDoesNotWelcomeWhatMCPToldFirst(t *testing.T) {
 
 // 参加の id の持ち主は、生きていなくても（最後に呼ばれてから長くたっていても）つなぎ直さずに続けられる。弾かれも、断られた知らせも出ない
 func TestParticipantIdHolderContinuesWhenNotAlive(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
 	var joined Joined
@@ -531,6 +540,7 @@ func table(t *testing.T, base string) (rows []tableRow) {
 
 // 名前の参加者が生きているあいだ、その名前で引き継ごうとしても断る。参加者は増えない。名前の参加者が居なければ、名前は新しい参加者の初めの値になる
 func TestJoinWithAWorkroomIsRefusedWhileItsParticipantIsAlive(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "", `,"sessionId":"S1"`), nil)
 	var first Joined
@@ -559,6 +569,7 @@ func TestJoinWithAWorkroomIsRefusedWhileItsParticipantIsAlive(t *testing.T) {
 // 生きていない参加者の名前で頼むと、頼まれた名前を添えた普通の参加の要求（要求中の参加者）を出す。同じ AI・環境・セッション名でも断らない。
 // 利用者が引き継ぐを選ぶと（participant-take-over）、要求した参加者が名前・鳥を引き継いで受け入れ済みになり、元の参加者は表から無くなる。新しい参加者には「参加しました」がまだ伝わっていない
 func TestJoinWithAWorkroomOfAQuietParticipantCanBeAcceptedByTakingOver(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "work", ""), nil)
 	var first Joined
@@ -613,6 +624,7 @@ func TestJoinWithAWorkroomOfAQuietParticipantCanBeAcceptedByTakingOver(t *testin
 
 // 参加を伝える文は、利用者の言語の文言の表から作る
 func TestJoinedTextComesFromTheMessageTable(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	if got := hub.userJoinedText(Welcome{Workroom: "ひよこ"}); got != "Joined matomezu. Workroom name: ひよこ" {
 		t.Fatalf("en = %q", got)
@@ -643,6 +655,7 @@ func deadPid(t *testing.T) string {
 // 名乗っていない・範囲の印が違う・プロセスが居る参加者のワークルームには、生きているあいだ workroom-in-use で断る。
 // 名乗るプロセスは AI のプログラム（Host と同じ pid）でも、MCP 自身（Host と別の pid）でもよく、常駐は名乗られた pid だけを見る
 func TestJoinFreesTheRoomOfAParticipantWhoseSessionEnded(t *testing.T) {
+	t.Parallel()
 	me := strconv.Itoa(os.Getpid())
 	cases := []struct {
 		name   string
@@ -704,6 +717,7 @@ func TestJoinFreesTheRoomOfAParticipantWhoseSessionEnded(t *testing.T) {
 // セッションの終わった参加者を退室させた join は、退室した参加者を「参加済み」と答えない（同じセッション名でも、新しい参加者の要求になる）。
 // 同じ link の頼み直しは、同じ会話が続けて頼んだもの（resume で MCP が替わったなど）なので、退室させずに同じ参加者のまま答える
 func TestJoinAfterAnEndedSessionLeftDoesNotAnswerWithIt(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		link string
 		same bool
@@ -741,6 +755,7 @@ func TestJoinAfterAnEndedSessionLeftDoesNotAnswerWithIt(t *testing.T) {
 
 // 見回りは、セッションが終わった要求中の参加者を知らせずに消し、セッションが生きている要求は残す
 func TestSweepDropsRequestsOfEndedSessions(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	ended := map[string]string{aiwire.SessionPidHeader: "999999999", aiwire.SessionPidSpaceHeader: ProcessSpace()}
 	alive := map[string]string{aiwire.SessionPidHeader: strconv.Itoa(os.Getpid()), aiwire.SessionPidSpaceHeader: ProcessSpace()}
@@ -766,6 +781,7 @@ func TestSweepDropsRequestsOfEndedSessions(t *testing.T) {
 // このホストの list_workrooms の行に添えて答える。受け入れ済みの参加者が頼み直すと（同じ会話を別の端末や Desktop で続けたときなど）、
 // 頼み直しを書くアクションで、環境・セッション名・AI の UI が届いた物になる（届かなかったセッション名と AI の UI は前のまま）
 func TestJoinKeepsTheAiUiAndARejoinRenewsIt(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "work", `,"sessionId":"S1","aiUi":"phone","adeWorkspace":"W1"`), nil)
 	var joined Joined

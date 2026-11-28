@@ -271,6 +271,7 @@ test("matomezu が出す名前", () => {
     "scrapScaleFits",
     "scrapScaleMin",
     "scrapSize",
+    "scrapUsersOf",
     "settingOr",
     "settingValue",
     "settleChildren",

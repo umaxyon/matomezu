@@ -14,7 +14,6 @@ import (
 
 	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
-	"github.com/umaxyon/matomezu/internal/storage"
 )
 
 // callsAnnounceGap は、同じ参加者の最後に呼ばれた時刻を窓に知らせ直す、いちばん短い間（毎回の呼び出しで知らせが走らないように）
@@ -103,7 +102,7 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 			return ""
 		}
 		before, _ := time.Parse(time.RFC3339Nano, n.Called)
-		n.Called = storage.Stamp(now)
+		n.Called = calledAt(n.Called, now)
 		moved := says.BranchSent && n.Branch != says.Branch // ブランチかモデルが変わった
 		if moved {
 			n.Branch = says.Branch

@@ -75,6 +75,24 @@ func (h *Hub) StageEntriesNotInBooks() (entries []stageEntry, titles []string) {
 	return entries, titles
 }
 
+// AIPageOf は、AI に見せるページ want と、それを開くステージエントリ（ブックの中ならブック、外ならページかバインダ）。
+// 見せない所（ゴミ箱の中・読めない物・開けないとしたブック）のページと、無いページは nil
+func (h *Hub) AIPageOf(want string) (stageEntry, json.RawMessage) {
+	entry, page := h.PageNotInBook(want)
+	if b := h.Book(h.BookOn(&engine.On{Page: want})); b != nil {
+		entry = stageEntry{Kind: "book", ID: b.ID}
+		for _, p := range pagesOfBook(b.Body) {
+			var head struct {
+				ID string `json:"id"`
+			}
+			if json.Unmarshal(p, &head) == nil && head.ID == want {
+				page = p
+			}
+		}
+	}
+	return entry, page
+}
+
 // PageNotInBook は、ブックの外のページ id（pagesNotInBooks と同じ決まり）のステージエントリ（そのページか、それを持つバインダ）と本文（ブックの外のページでなければ本文は nil）
 func (h *Hub) PageNotInBook(id string) (stageEntry, json.RawMessage) {
 	h.mu.Lock()
@@ -236,18 +254,7 @@ func (o Options) annotationsOf(entry string) ([]json.RawMessage, error) {
 // placed はそのページの形の描いた位置と大きさ。プレゼンテーションが答えなければ null）
 func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 	want := r.PathValue("page")
-	entry, page := o.Hub.PageNotInBook(want)
-	if b := o.Hub.Book(o.Hub.BookOn(&engine.On{Page: want})); b != nil {
-		entry = stageEntry{Kind: "book", ID: b.ID}
-		for _, p := range pagesOfBook(b.Body) {
-			var head struct {
-				ID string `json:"id"`
-			}
-			if json.Unmarshal(p, &head) == nil && head.ID == want {
-				page = p
-			}
-		}
-	}
+	entry, page := o.Hub.AIPageOf(want)
 	if page == nil {
 		http.Error(w, "no such page", http.StatusNotFound)
 		return

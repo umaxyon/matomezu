@@ -1,8 +1,10 @@
 // 書庫の画面のビューが共に使うフック: 書庫の表から出した行を同じ値のまま保つ・行の名前・焦点を中に保つ
+
 import { type RefObject, useEffect, useRef } from "react"
 import { NO_STATE } from "../../../core/def/plugin-state"
 import { type EntryKind, type Naming, namingOf } from "../../../core/entries"
 import { type BROKEN, HOME_ID, type Library, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
+import type { PageUsers } from "../../../core/page-users"
 import { sameData } from "../../../core/same"
 import type { MovedIfOff, Purged, UnreadableNotice } from "../../../core/unreadable"
 import type { MatomezuState } from "../../../store/state"
@@ -192,6 +194,11 @@ export const outsideRow = (target: EventTarget): boolean =>
 // 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物を、ホストに書かずに数えてもらう（ホストが無いか、頼めなければ投げる）
 export function useMovedIfOff(): (ids: readonly string[]) => Promise<readonly MovedIfOff[] | typeof BROKEN> {
   return useInstance().movedIfOff
+}
+
+// ページ ids のそれぞれを使っている見える所のページを、ホストに引いてもらう（ホストが無いか、頼めなければ投げる）
+export function usePageUsers(): (ids: readonly string[]) => Promise<PageUsers> {
+  return useInstance().pageUsers
 }
 
 // 読めない物のフォルダの直下の物 id を完全に消すのをホストに頼む（ホストが無いか、頼めなければ投げる）

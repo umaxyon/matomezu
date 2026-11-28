@@ -63,6 +63,7 @@ type conn struct {
 	sessionID    string            // いま処理している呼び出しの _meta にあったセッション id
 	model        string            // いま処理している呼び出しの _meta にあったモデル（無ければ空）
 	notice       string            // いま処理している呼び出しの返事で届いた知らせ
+	image        *imageBlock       // いま処理している呼び出しで、文のあとに渡す画像（read_image）
 }
 
 func (c *conn) header() http.Header {
@@ -229,8 +230,12 @@ func handle(req request, c *conn) (any, *rpcError) {
 			return nil, &rpcError{-32602, "invalid params"}
 		}
 		c.sessionID, c.model = fromMeta(p.Meta, c.meta)
-		text, fault := callTool(c, p.Name, p.Arguments)
-		return map[string]any{"content": []map[string]any{{"type": "text", "text": text}}, "isError": fault}, nil
+		text, image, fault := callTool(c, p.Name, p.Arguments)
+		content := []map[string]any{{"type": "text", "text": text}}
+		if image != nil {
+			content = append(content, map[string]any{"type": "image", "data": image.data, "mimeType": image.mime})
+		}
+		return map[string]any{"content": content, "isError": fault}, nil
 	default:
 		return nil, &rpcError{-32601, fmt.Sprintf("method not found: %s", req.Method)}
 	}

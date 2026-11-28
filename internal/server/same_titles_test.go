@@ -8,6 +8,7 @@ import (
 
 // AI がブックの名前を、同じフォルダの中の別のブックと同じ名前に変えようとすると、断りの種類 title-taken で断られる
 func TestTheAICannotRenameABookOntoATakenTitle(t *testing.T) {
+	t.Parallel()
 	s, _ := newServerOn(t, Options{}, libraryStore(t, true))
 	header := joinedAI(t, s)
 	perform := func(body string) string {
@@ -33,6 +34,7 @@ func TestTheAICannotRenameABookOntoATakenTitle(t *testing.T) {
 
 // 名前が当たった相手がシステムフォルダなら、AI への断りに、その印（systemFolder）が添わる
 func TestATitleTakenByASystemFolderNamesItsMark(t *testing.T) {
+	t.Parallel()
 	s, _ := newServerOn(t, Options{}, libraryStore(t, true))
 	header := joinedAI(t, s)
 	_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-create","args":{"title":"Documents","into":"library-home"}}`, header)

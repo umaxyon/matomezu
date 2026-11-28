@@ -14,6 +14,7 @@ import (
 
 // 利用者が打つ名前は、画面の index.html の meta（画面 cookie が無くても読める）と、参加の手順・更新を頼む文に入る。渡されなければ matomezu
 func TestTheCommandGoesToTheScreenAndTheAI(t *testing.T) {
+	t.Parallel()
 	eng, err := engine.New()
 	if err != nil {
 		t.Fatal(err)
@@ -22,14 +23,14 @@ func TestTheCommandGoesToTheScreenAndTheAI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(hub.CloseAll)
+	cleanup(t, hub.CloseAll)
 	if hub.Command() != "matomezu" {
 		t.Fatalf("default = %q", hub.Command())
 	}
 	hub.SetCommand("matomezu.cmd")
 	web := fstest.MapFS{"index.html": {Data: []byte("<html><head><title>m</title></head></html>")}, "a.js": {Data: []byte("js")}}
 	s := httptest.NewServer(Handler(Options{Web: web, Token: "secret", Version: "v1", Hub: hub, Cookies: NewScreenCookies(nil, nil)}))
-	t.Cleanup(s.Close)
+	cleanup(t, s.Close)
 	for _, path := range []string{"/", "/index.html"} {
 		res, err := http.Get(s.URL + path)
 		if err != nil {

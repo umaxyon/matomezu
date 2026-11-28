@@ -51,6 +51,7 @@ func noticeOf(t *testing.T, srv, id string) string {
 
 // 送り手は呼び出しの参加の id で決まり、宛て先の通り道がつながっていなければ溜まり、つながると古い順に、送り手のワークルーム名と包んだ本文で流れる
 func TestMessageQueuesUntilTheLineOpens(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -76,6 +77,7 @@ func TestMessageQueuesUntilTheLineOpens(t *testing.T) {
 // 改行を受ける通り道（breaks）には、AI 間メッセージを送り手の行と本文の行に分けて流す。本文は JSON の文字列のまま（本文の改行や偽の頭は 2 行目の中に収まる）。
 // 入りきらないときの「届いた」は 1 行のまま
 func TestBreaksPutTheMessageTextOnItsOwnLine(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -95,6 +97,7 @@ func TestBreaksPutTheMessageTextOnItsOwnLine(t *testing.T) {
 
 // 流したが書き出せなかった（doneWake の前に切れた）知らせは行列に残り、次の通り道に流れる
 func TestUndeliveredWakeStaysInTheQueue(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -111,6 +114,7 @@ func TestUndeliveredWakeStaysInTheQueue(t *testing.T) {
 
 // 1 人の行列は 50 件までで、超えたら古い物から捨てる
 func TestWakeQueueKeepsTheNewest(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -128,6 +132,7 @@ func TestWakeQueueKeepsTheNewest(t *testing.T) {
 
 // 通り道で受け取る前に matomezu を呼んだら、その返事に添って届き、通り道には二度流れない
 func TestMessageComesWithTheNextCall(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -143,6 +148,7 @@ func TestMessageComesWithTheNextCall(t *testing.T) {
 
 // 宛て先の参加者が外されたら、溜まっていた AI 間メッセージは捨てる（引き継いだ参加者にも渡さない）
 func TestMessagesToARemovedParticipantAreDropped(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -157,6 +163,7 @@ func TestMessagesToARemovedParticipantAreDropped(t *testing.T) {
 
 // 参加が確定していない AI は送れず、名前の無い宛て先は送れる名前を添えて断り、自分のワークルームには送れない
 func TestMessageRefusals(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -176,6 +183,7 @@ func TestMessageRefusals(t *testing.T) {
 
 // 同じ id の封筒は二度入れない（マシンをまたいで運ぶときに、送り直された物を見分ける）
 func TestSameEnvelopeIsQueuedOnce(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -191,6 +199,7 @@ func TestSameEnvelopeIsQueuedOnce(t *testing.T) {
 
 // join でセッション id を運んだ AI への受け入れの知らせは「次の呼び出し」で歓迎すると言い、その呼び出しで歓迎を受けたら、行列の受け入れの知らせは流さない
 func TestAcceptedWakeIsDroppedOnceWelcomed(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"codex","model":"gpt","env":"wsl-linux","link":"L1","sessionId":"S1"}`, map[string]string{aiwire.HostHeader: "100"})
 	var joined Joined
@@ -212,6 +221,7 @@ func TestAcceptedWakeIsDroppedOnceWelcomed(t *testing.T) {
 
 // 受け取る側が名乗った 1 行の上限で分け、1 回の知らせに入りきらない本文は「届いた」だけを流して、本文は次の呼び出しの返事で渡す
 func TestLongMessageFollowsTheLineLimits(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -244,6 +254,7 @@ func TestLongMessageFollowsTheLineLimits(t *testing.T) {
 
 // 通り道に貸した知らせは、結果が返るまで、ほかの通り道にも呼び出しの返事にも渡らない。同じ参加者の知らせは一度に 1 つだけ貸す
 func TestLentWakeWaitsForItsResult(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -270,6 +281,7 @@ func TestLentWakeWaitsForItsResult(t *testing.T) {
 
 // absent（その AI のプログラムに会話が無い）なら、通り道には二度と流さず、呼び出しの返事で渡す。failed なら間を置いて流し直す
 func TestAbsentGoesByCallAndFailedRetries(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -298,6 +310,7 @@ func TestAbsentGoesByCallAndFailedRetries(t *testing.T) {
 
 // POST /api/ai/watch/ack は結果の名前だけを受け、渡せた知らせを行列から外す
 func TestWatchAckOverHTTP(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -317,6 +330,7 @@ func TestWatchAckOverHTTP(t *testing.T) {
 // AI がほかのワークルームを担当にしてチケットを足すと、行った参加者から、そのワークルームの AI に AI 間メッセージが届く。
 // 担当の知らせは noRecipient が skip なので、参加の確定した AI のいないワークルームへの分は送らず、アクションは通る
 func TestActionSendsAIMessage(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -339,6 +353,7 @@ func TestActionSendsAIMessage(t *testing.T) {
 
 // 宛先のワークルームに参加の確定した AI がいなければ、noRecipient が refuse（省いたとき）の知らせはバルクごと no-recipient で断り、skip の知らせは送らないだけ
 func TestActionEnvelopesNoRecipient(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	makeRoom(t, s.URL, "からす")
@@ -362,6 +377,7 @@ func TestActionEnvelopesNoRecipient(t *testing.T) {
 
 // ターンの入力が通り道に貸した知らせの文そのものなら、知らせで始まったターン（1 度だけ。渡せたかの結果より先にターンのフックが着いても当たる）。ほかの文は当たらない
 func TestWokenByADeliveredNotice(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -387,6 +403,7 @@ func TestWokenByADeliveredNotice(t *testing.T) {
 // AI のプログラムが、動いている間に届いた知らせを 1 つの入力にまとめたとき（改行でつないだだけ）も、知らせで始まったターン（どれも使い切る）。
 // 利用者の文が混じっていれば当たらず、まとめた文も忘れない
 func TestWokenByJoinedNotices(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -416,6 +433,7 @@ func TestWokenByJoinedNotices(t *testing.T) {
 // ターンの入力が貸した知らせの文そのものなら、利用者の言葉でないと伝える文を返す（フックの woken が付いていても。当てた文は使い切る）。
 // 知らせでない入力には、フックの woken が付いていても（monitor や裏の実行の終わりの task-notification）返さない
 func TestTalkedTellsTheAIAWokenTurnIsNotTheUsers(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")

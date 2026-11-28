@@ -77,6 +77,7 @@ func outsidePageStore(t *testing.T) storage.Storage {
 // AI の応えを待つ物の一覧（フック）はブックの後ろにそのページの分を並べる。ブックの外のバインダの中のページは、そのバインダをステージエントリとして読め、
 // read_folder はバインダの行に中のページの合計を、バインダを読んだ行にページごとの数を添える。ゴミ箱の中のページ（バインダの中も）は無い物として断る
 func TestTheAIReadsAPageOutsideBooks(t *testing.T) {
+	t.Parallel()
 	s, _ := newServerOn(t, Options{}, outsidePageStore(t))
 	const waiting = `{"id":"c-h1","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"x","bubble":true,"addedAt":"2026-11-02T00:00:00.000Z"},"page":"h1","awaits":true}`
 	const head = `{"annotations":[` + waiting + `],"entry":{"kind":"page","id":"h1"},"folder":"library-home",`
@@ -115,6 +116,7 @@ func TestTheAIReadsAPageOutsideBooks(t *testing.T) {
 }
 
 func TestTheAIPerformsOnAPageOutsideBooks(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		name    string
 		lock    string // 窓が知らせる編集ロック（無ければ空）
@@ -188,6 +190,7 @@ func TestTheAIPerformsOnAPageOutsideBooks(t *testing.T) {
 
 // AI は、ブックの外のバインダの中のページ（n1 の n1a・n1b）にも、page を宛先にするアクションとアノテーションのアクションを行える（AI 編集チケットは、変えたページで開く）
 func TestTheAIPerformsOnAPageInABinderOutsideBooks(t *testing.T) {
+	t.Parallel()
 	store := outsidePageStore(t)
 	s, hub := newServerOn(t, Options{}, store)
 	writer := writerAI(t, s.URL)
@@ -214,6 +217,7 @@ func TestTheAIPerformsOnAPageInABinderOutsideBooks(t *testing.T) {
 // AI は、ブックの外のバインダ（書庫ホームに直に在る n1）にも、book を宛先にするアクションを行える（宛先の book にバインダの id）:
 // ページを足す・複製する・並べ替える・消すと、バインダの行と中のページの行が書かれ、AI 編集チケットが開く。ブックにだけ行えるアクションは no-book
 func TestTheAIPerformsOnABinderOutsideBooks(t *testing.T) {
+	t.Parallel()
 	store := outsidePageStore(t)
 	s, hub := newServerOn(t, Options{}, store)
 	writer := writerAI(t, s.URL)
@@ -249,6 +253,7 @@ func TestTheAIPerformsOnABinderOutsideBooks(t *testing.T) {
 
 // ブックの外のバインダの中のページの効かないアノテーションは、そのページの warning（W018）になる。中の読めないページは、AI の読む口に出ない
 func TestPagesInABinderOutsideBooksAreChecked(t *testing.T) {
+	t.Parallel()
 	store := entriesStore(t)
 	v := versionsOf(t, store)
 	if err := store.Apply(storage.Batch{
@@ -273,6 +278,7 @@ func TestPagesInABinderOutsideBooksAreChecked(t *testing.T) {
 
 // AI は、どこかの窓に出ているブックの外のページ・バインダをゴミ箱に入れられない（open-on-screen。隠れているブックスクリーンが開いている物も、それを中に持つフォルダごとも）。出ていなければ入れられる
 func TestAICannotTrashAPageOutsideBooksOnAScreen(t *testing.T) {
+	t.Parallel()
 	s, _ := newServerOn(t, Options{}, entriesStore(t))
 	writer := writerAI(t, s.URL)
 	a := listen(t, s.URL)
@@ -308,6 +314,7 @@ func TestAICannotTrashAPageOutsideBooksOnAScreen(t *testing.T) {
 // ブックの外のバインダの中のページなら、そのバインダをそのページで出す。
 // 言ったブックのページでない・無いページ・ゴミ箱の中のページは no-page、ブックの外のページ・バインダの印刷プレビューは no-print-preview、何も言わなければ no-book
 func TestShowReadsAPageAlone(t *testing.T) {
+	t.Parallel()
 	s, _ := newServerOn(t, Options{}, entriesStore(t))
 	auth := writerAI(t, s.URL)
 	a := listen(t, s.URL)
@@ -351,6 +358,7 @@ func TestShowReadsAPageAlone(t *testing.T) {
 // 利用者がブックの外のバインダの設定を直している間（その窓が、バインダの id をバインダの中の物として知らせている）、AI がそのバインダの紙と向きを変えると being-edited で断られる。
 // 中のページを直している間は、そのページを消すと断られ、ほかのページを足すのは通る
 func TestAICannotChangeABinderOutsideBooksTheUserIsEditing(t *testing.T) {
+	t.Parallel()
 	store := outsidePageStore(t)
 	s, _ := newServerOn(t, Options{}, store)
 	writer := writerAI(t, s.URL)
@@ -381,6 +389,7 @@ func TestAICannotChangeABinderOutsideBooksTheUserIsEditing(t *testing.T) {
 
 // AI は page-create で、書庫ホームにブックの外のページを作れる。バインダにまとまるタイプのページは、そのページだけの新しいバインダに入る。作った物は read_folder と read_page で読める
 func TestTheAICreatesAPageOutsideBooks(t *testing.T) {
+	t.Parallel()
 	store := outsidePageStore(t)
 	s, _ := newServerOn(t, Options{}, store)
 	writer := writerAI(t, s.URL)
