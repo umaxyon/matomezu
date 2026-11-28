@@ -279,11 +279,28 @@ func (h *Hub) performInputs(in *engine.Input) error {
 	return nil
 }
 
-// ack は、アクションバルクを送った窓に行い終えたことを知らせる（h.mu を持って呼ぶ）
+// ack は、アクションバルクを送った窓に行い終えたことを知らせる。行えたなら、アクションごとの結果（results。バルクの順）も添える
+// （窓が先に行わずに送ったアクションの結果を、窓が受け取る。h.mu を持って呼ぶ）
 func (h *Hub) ack(p Perform, done Performed) {
 	if c, ok := h.clients[p.Client]; ok {
-		h.send(c, "ack", map[string]any{"seq": p.Seq, "ok": done.OK, "reason": done.Reason})
+		event := map[string]any{"seq": p.Seq, "ok": done.OK, "reason": done.Reason}
+		if done.OK {
+			event["results"] = resultsOf(done.Results)
+		}
+		h.send(c, "ack", event)
 	}
+}
+
+// resultsOf は、アクションごとの結果の並び（結果の無いアクションは null）
+func resultsOf(results []json.RawMessage) []json.RawMessage {
+	out := make([]json.RawMessage, len(results))
+	for i, r := range results {
+		if len(r) == 0 {
+			r = json.RawMessage("null")
+		}
+		out[i] = r
+	}
+	return out
 }
 
 // remember は、行い終えたアクションの番号と結果を覚える。performedKeys を超えたら古いものから忘れる（h.mu を持って呼ぶ）

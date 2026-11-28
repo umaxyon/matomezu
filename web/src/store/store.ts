@@ -8,7 +8,7 @@ import { restoreAllAnnotations, withAnnotations } from "../core/annotation"
 import { NO_ASSET_URL } from "../core/assets"
 import { findReference, readLibrary } from "../core/book"
 import { bulkActionOf, entersLibraryHistory, laterThan, localDateOf, performBulk } from "../core/bulk"
-import type { CommandId } from "../core/catalog"
+import type { ActionId, CommandId } from "../core/catalog"
 import { type ClipboardUse, type ClipTransfer, clipboardOn, NO_CLIPBOARD } from "../core/clipboard"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionContext, type ActionOn, NO_CONTROL_CENTER } from "../core/def/action"
@@ -105,7 +105,17 @@ import {
   unsplit,
   type Workspace,
 } from "../core/workspace"
-import { type Actions, boundActions, KEY_WAITS, type Performed, SCREEN_REFUSED, windowActionsOf } from "./actions"
+import {
+  type Actions,
+  boundActions,
+  type Finished,
+  type HostRefused,
+  KEY_WAITS,
+  type Performed,
+  SCREEN_REFUSED,
+  SENT_TO_HOST,
+  windowActionsOf,
+} from "./actions"
 import { called, commandOwner, isEnabled } from "./commands"
 import {
   type CommandActions,
@@ -174,6 +184,8 @@ interface OpenStep {
   // このアクションバルク（戻す・やり直す）を行って動かした画面の履歴の段と、動かす前に在った側（ホストが断ったら、その側へ戻す）
   moved?: { step: HistoryStep; from: "undo" | "redo" }
   refused?: true
+  // 画面で先に行わずに常駐へ送った最初のアクションの番号（done の中の位置。それより後ろのアクションも先に行わずに送る）
+  sentFrom?: number
 }
 
 function startLang(catalog: CoreCatalog, lang: Lang | readonly string[] = []): Lang {
@@ -196,7 +208,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 常駐が読めないと決めたブックは判じない。読めないブックは、その warning と、ほかを画面が判じて読めなかった物の和
   const loadRows = (): LibraryLoaded => {
     const host = rows.unreadableBooks ?? []
-    const read = readLibrary(catalog, rows.pages, rows.folders, new Set(host.map(w => w.params.book ?? "")))
+    const read = readLibrary(catalog, rows.pages, rows.folders, {
+      unreadable: new Set(host.map(w => w.params.book ?? "")),
+      metaRows: true,
+    })
     return {
       library: read.library,
       warnings: [...host, ...read.warnings],
@@ -486,11 +501,19 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     on?: ActionOn,
   ):
     | { ok: true; result: unknown; next: Partial<MatomezuState>; answer: Promise<HostAnswer> | undefined }
+    | {
+        ok: true
+        result: typeof SENT_TO_HOST
+        next: Partial<MatomezuState>
+        confirmed: Promise<Finished<ActionId> | HostRefused>
+      }
     | Refused
     | { ok: false; reason: "no-book" | "no-record" } => {
     const { books, pages, folders, window, annotations, staleBuild } = getState()
     if (staleBuild && staleBuild.from.dataVersion !== staleBuild.to.dataVersion)
       return { ok: false, reason: "refused", kind: "stale-build" }
+    // 同じアクションバルクで前に送った物があれば、これも先に行わない（画面の世界に、送った物の変更がまだ無いため）
+    if (open?.sentFrom !== undefined) return sendAhead(id, args, on)
     const ids: string[] = []
     const c = ctx()
     const done = performIn(worldOf(getState()), id, args, on, {
@@ -501,8 +524,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         return made
       },
     })
-    // 画面はブックを全部持つので、行を足して行い直す断り（needs-rows）は起きない。起きたら断る
-    if (!done.ok) return done.reason === "needs-rows" ? { ok: false, reason: "refused" } : done
+    // 画面が中身を持っていない行を読むなら、先に行わずに常駐へ送る
+    if (!done.ok) return done.reason === "needs-rows" ? sendAhead(id, args, on) : done
     const sent: DoneAction = { action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now, today: c.today }
     const answer = catalog.actions.get(id)?.bulk === "alone" ? sendAlone(sent) : joinBulk(sent)
     const next: Partial<MatomezuState> = {}
@@ -544,6 +567,45 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (done.records) next.records = withRecords(getState().records, done.records)
     if (done.counters) next.counters = withCounters(getState().counters, done.counters)
     return { ok: true, result: done.result, next, answer }
+  }
+  // アクションを画面で先に行わずに常駐へ送る（状態は変えず、id は常駐が振る）。答えは、常駐が行った結果か断り。ホストが無ければ断る
+  const sendAhead = (
+    id: string,
+    args: unknown,
+    on: ActionOn | undefined,
+  ):
+    | {
+        ok: true
+        result: typeof SENT_TO_HOST
+        next: Partial<MatomezuState>
+        confirmed: Promise<Finished<ActionId> | HostRefused>
+      }
+    | Refused => {
+    if (!options.observe) return { ok: false, reason: "refused" }
+    const c = ctx()
+    const sent: DoneAction = {
+      action: id,
+      args,
+      ...(on ? { on } : {}),
+      ids: [],
+      lang: c.lang,
+      now: c.now,
+      today: c.today,
+    }
+    const alone = catalog.actions.get(id)?.bulk === "alone"
+    const bulk = alone ? undefined : opened()
+    const at = bulk ? bulk.done.length : 0
+    const answer = alone ? sendAlone(sent) : joinBulk(sent)
+    if (bulk && bulk.sentFrom === undefined) bulk.sentFrom = at
+    // 常駐が行えたと答えても、そのアクションの結果が載らなければ、行った結果を知れないので書けなかったと同じに答える
+    const confirmed = (answer ?? Promise.resolve<HostAnswer>({ ok: false, reason: "not-saved" })).then(
+      (a): Finished<ActionId> | HostRefused => {
+        if (!a.ok) return { ok: false, reason: a.reason, by: "host" }
+        if (a.results === undefined || at >= a.results.length) return { ok: false, reason: "not-saved", by: "host" }
+        return { ok: true, result: a.results[at] as never }
+      },
+    )
+    return { ok: true, result: SENT_TO_HOST, next: {}, confirmed }
   }
   // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じ、そのステージごとのプラグイン状態は消す
   const commit = (next: Partial<MatomezuState>) => {
@@ -747,15 +809,18 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const done = run(id, args, on)
       if (!done.ok) return done
       commit(done.next)
+      if ("confirmed" in done)
+        return { ok: true, result: SENT_TO_HOST, confirmed: done.confirmed } as Performed<typeof id>
       return { ok: true, result: done.result } as Performed<typeof id>
     },
     performConfirmed: async (id, ...[args, on]) => {
       const done = run(id, args, on)
       if (!done.ok) return done
       commit(done.next)
+      if ("confirmed" in done) return (await done.confirmed) as Finished<typeof id> | HostRefused
       const a = await done.answer
       if (a && !a.ok) return { ok: false, reason: a.reason, by: "host" }
-      return { ok: true, result: done.result } as Performed<typeof id>
+      return { ok: true, result: done.result } as Finished<typeof id>
     },
     // 1 回のコマンドの書き込みは、購読に 1 回で知らせる（together）
     command: (stage, id, ...args) => {
@@ -1173,18 +1238,22 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       let records = world.records === undefined ? getState().records : restoreRecords(world.records)
       let counters = world.counters === undefined ? getState().counters : restoreCounters(world.counters)
       for (const bulk of replay) {
-        // 読み直した世界の上で行い直して投げるアクションバルクは、断られたものと同じに落とし、あとの行い直しを続ける
-        const next = (() => {
+        // 読み直した世界の上で行い直して投げるアクションバルクは、断られたものと同じに落とし、あとの行い直しを続ける。
+        // 画面が中身を持っていない行を読むアクション（先に行わずに送った物）で止まったら、その手前までを行い直す（手前は画面で先に行った物）
+        const again = (steps: readonly DoneAction[]) => {
           try {
             return performBulk(
               { ...tables, settings, annotations, records, counters },
-              bulk.map(done => bulkActionOf(done, newId, done.now, done.lang)),
-              { catalog, controlCenter, lang: bulk[0]?.lang ?? getState().lang, actor: USER },
+              steps.map(done => bulkActionOf(done, newId, done.now, done.lang)),
+              { catalog, controlCenter, lang: steps[0]?.lang ?? getState().lang, actor: USER },
             )
           } catch {
             return null
           }
-        })()
+        }
+        const whole = again(bulk)
+        const next =
+          whole && !whole.ok && whole.reason === "needs-rows" && whole.at > 0 ? again(bulk.slice(0, whole.at)) : whole
         if (!next?.ok) continue
         if (next.changes) tables = settledOn(withChanges(tables, next.changes), now)
         if (next.settings) settings = next.settings

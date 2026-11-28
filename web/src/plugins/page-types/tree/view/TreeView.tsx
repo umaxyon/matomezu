@@ -18,6 +18,7 @@ import {
   NO_STAGE,
   paperOf,
   placement,
+  SENT_TO_HOST,
   type Size,
   type StageView,
 } from "../../../../plugin-api"
@@ -213,6 +214,7 @@ const Tree = memo(function Tree({
   // ＋: 空の節を足して選び、その場で編集し始める
   const add = (plus: Plus) => {
     const done = perform(NODE_ADD.id, addArgs(plus), { page: pageId })
+    if (done.ok && done.result === SENT_TO_HOST) return
     const id = done.ok ? done.result.nodes[0]?.id : undefined
     if (!id) return refused(done.ok ? { reason: "refused" } : done)
     select([id])

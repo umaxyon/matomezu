@@ -294,7 +294,7 @@ func (h *Hub) changedEvent(pages, folders, records []map[string]any, annotations
 		window = w.id
 	}
 	event := map[string]any{"pages": pages, "folders": folders, "books": books, "client": p.Client, "seq": p.Seq, "by": by, "act": act, "actions": actions,
-		"annotations": annotations, "records": records, "window": window, "unreadableBooks": h.unreadableBooks()}
+		"annotations": annotations, "records": records, "window": window, "unreadableBooks": h.unreadableBooks(), "results": resultsOf(out.Results)}
 	if len(out.Settings) > 0 {
 		event["settings"] = out.Settings
 	}

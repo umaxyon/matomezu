@@ -27,10 +27,16 @@ export type PerformArgs<Id extends ActionId> =
         : [args: ArgsOf<Id>]
 // 行ったアクションの結果。no-book は宛先のブックが無いとき、denied は認可ステップが止めたとき（permission はそのステップの id）、
 // print-preview は印刷プレビューの間のステージから行おうとしたとき（ui の usePerform。core/stage.ts の stageBlocks）
-export type Performed<Id extends ActionId> =
+// 行えたか断られたかが決まった答え（画面で行ったか、常駐が行った）
+export type Finished<Id extends ActionId> =
   | { ok: true; result: ResultOf<Id> }
   | Refused
   | { ok: false; reason: "no-book" | "no-record" | "print-preview" }
+
+// perform の答え: 決まった答えか、画面で先に行わずに常駐へ送った（result が SENT_TO_HOST。confirmed は常駐が行うか断った答えで、拒まれない）
+export type Performed<Id extends ActionId> =
+  | Finished<Id>
+  | { ok: true; result: typeof SENT_TO_HOST; confirmed: Promise<Finished<Id> | HostRefused> }
 
 // ホストが断った（reason はホストの断りの理由）
 export interface HostRefused {
@@ -42,11 +48,13 @@ export interface HostRefused {
 // 画面の操作のうち、窓に向ける物（呼ぶ場所によらない）
 export interface WindowActions {
   // アクションを行い、結果を状態に入れる（ビルトインプラグインのアクションも追加プラグインのアクションも、画面と AI から同じ入口を通る）。
-  // ブックが変われば、そのブックを開いている全部のステージを合わせ、一覧が変われば、無くなったブックを開いていたステージを閉じる
+  // ブックが変われば、そのブックを開いている全部のステージを合わせ、一覧が変われば、無くなったブックを開いていたステージを閉じる。
+  // 画面が中身を持っていない行を読むアクションは、画面で先に行わずに常駐へ送り、result に SENT_TO_HOST を返す（同じアクションバルクの後ろのアクションも送る。
+  // 状態は常駐の知らせで変わる。結果は confirmed で待つ）。ホストが無ければ、そのアクションは断る
   perform<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Performed<Id>
-  // perform と同じく行い、ホストが確かめた答えを待って返す（ホストが断ったら、その reason。ホストが無ければ行った結果をそのまま返す）。
-  // ほかの窓だけが知る事（ほかの窓の編集ロックなど）で断られたことを、利用者に知らせたいときに使う
-  performConfirmed<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Promise<Performed<Id> | HostRefused>
+  // perform と同じく行い、ホストが確かめた答えを待って返す（ホストが断ったら、その reason。ホストが無ければ行った結果をそのまま返す。
+  // 先に行わずに送ったアクションなら、常駐が行った結果）。ほかの窓だけが知る事（ほかの窓の編集ロックなど）で断られたことを、利用者に知らせたいときに使う
+  performConfirmed<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Promise<Finished<Id> | HostRefused>
   closeDialog(): void
   // 開いているダイアログの下書きを置く（NO_DIALOG_PREVIEW で消す）。ダイアログを閉じると下書きも消える
   previewDialog(preview: DialogPreview | typeof NO_DIALOG_PREVIEW): void
@@ -225,6 +233,9 @@ export function boundActions(actions: PlaceActions, at: string | null): BoundPla
     ]),
   ) as unknown as BoundPlaceActions
 }
+
+// perform が、画面の持っていない行を読むアクションを、画面で先に行わずに常駐へ送ったときの result（結果が要るなら performConfirmed で常駐の答えを待つ）
+export const SENT_TO_HOST: unique symbol = Symbol("sent-to-host")
 
 // pressKey が、クリップボードを使うコマンドを待たせたときの答え
 export const KEY_WAITS = "waits"

@@ -100,7 +100,7 @@ describe("置き場所の行を読む（readLibrary）", () => {
     expect(readLibrary(CORE_CATALOG, rows.pages, rows.folders).warnings.map(n => [n.code, n.params.book])).toEqual([
       ["W006", "b2"],
     ])
-    const read = readLibrary(CORE_CATALOG, rows.pages, rows.folders, new Set(["b1"]))
+    const read = readLibrary(CORE_CATALOG, rows.pages, rows.folders, { unreadable: new Set(["b1"]) })
     expect(read.warnings).toEqual([])
     expect(Object.keys(read.library.folders)).toContain("b2")
     expect(Object.keys(read.library.folders)).not.toContain("b1")

@@ -1,7 +1,7 @@
 // ツリーのコマンド: 上下左右のキーで、選んでいる節を動かす（伸びる向きのキーで最初の子へ、逆向きで親へ、横向きで隣の兄弟へ）と、
 // Home で根を選び、F2 で、選んでいる節のキャプションをその場で書き始める。Tab で子を、Enter ですぐ後ろの兄弟を足して、その場で書き始める（根に兄弟は足せない）。Delete（Backspace）と節の右クリックのメニューで、選んでいる節を子孫ごと消す（根は消せない。
 // 消したら、前の兄弟、無ければ親を選ぶ）。節の右クリックのメニューで、節の色と、子の節の大きさのダイアログを開く。編集の道具の間だけ。キーはツリーのプレゼンテーションの範囲（ステージの範囲より先に探す）
-import type { CommandContext } from "../../../plugin-api"
+import { type CommandContext, SENT_TO_HOST } from "../../../plugin-api"
 import { hasOpenedPage, refusalMessage, settingValue } from "../../base"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
 import {
@@ -90,6 +90,7 @@ function addCommand<const Id extends string>(
       const plus = keyPlus(tree.root, tree.grow, selectedIn(tree.root, ctx.stage.selection), kind)
       if (!plus) return
       const done = a.perform(NODE_ADD.id, addArgs(plus), { page: tree.page.id })
+      if (done.ok && done.result === SENT_TO_HOST) return
       const added = done.ok ? done.result.nodes[0]?.id : undefined
       if (!added) {
         const why = refusalMessage(

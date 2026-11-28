@@ -291,6 +291,15 @@ export function pageMetaRowOf(row: PageRow): PageMetaRow {
   for (const k of META_KEYS) if (row[k] !== undefined) meta[k] = row[k]
   return { ...(meta as PageMeta), unheld: true }
 }
+const PageMetaRowSchema = PageSchema.extend({ unheld: z.literal(true) })
+// 置き場所から読んだままの行 raw が、中身を持っていない行を名乗るか（形は確かめない）
+export const namesPageMetaRow = (raw: unknown): boolean =>
+  typeof raw === "object" && raw !== null && (raw as { unheld?: unknown }).unheld === true
+// 置き場所から読んだままの行 raw を、中身を持っていない行の形で読んだ物（形に合わないか、タイプが types に無ければ undefined）
+export function pageMetaRowRead(types: { has(type: string): boolean }, raw: unknown): PageMetaRow | undefined {
+  const parsed = PageMetaRowSchema.safeParse(raw)
+  return parsed.success && types.has(parsed.data.type) ? (parsed.data as PageMetaRow) : undefined
+}
 export type Pages = Readonly<Record<string, PageRow>>
 export type Folders = Readonly<Record<string, Folder>>
 

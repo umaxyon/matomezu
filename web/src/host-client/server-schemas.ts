@@ -194,9 +194,15 @@ export const ChangedSchema = z.object({
   counters: z.record(z.string(), z.record(z.string(), z.number())).nullish(),
   window: z.string().optional(),
   unreadableBooks: z.array(WarningSchema).optional(),
+  results: z.array(z.unknown()).optional(),
   ...Mark,
 })
-export const AckSchema = z.object({ seq: z.number().int(), ok: z.boolean(), reason: z.string() })
+export const AckSchema = z.object({
+  seq: z.number().int(),
+  ok: z.boolean(),
+  reason: z.string(),
+  results: z.array(z.unknown()).optional(),
+})
 export const ParticipantCallSchema = z.object({ participant: z.string(), at: z.string() })
 export const ParticipantReadySchema = z.object({ participant: z.string() })
 export const ParticipantLiveSchema = z.object({

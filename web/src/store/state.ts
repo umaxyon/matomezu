@@ -245,7 +245,8 @@ export interface DoneAction {
 export type DoneBulk = readonly DoneAction[]
 
 // ホストが、画面で行ったアクションバルクを確かめた答え（断ったなら reason。届けられなかったものは not-saved）
-export type HostAnswer = { ok: true } | { ok: false; reason: string }
+// results は、行えたときのアクションごとの結果（バルクの順。先に行わずに送ったアクションの結果を、ホストから受け取る）
+export type HostAnswer = { ok: true; results?: readonly unknown[] } | { ok: false; reason: string }
 
 export type ReadonlyStore = Pick<StoreApi<MatomezuState>, "getState" | "getInitialState" | "subscribe">
 

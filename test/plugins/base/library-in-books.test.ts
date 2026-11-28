@@ -11,6 +11,7 @@ import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { PAGE_CREATE } from "../../../web/src/plugins/base/library/page-create"
 import { libraryRevertArgs } from "../../../web/src/plugins/base/library/revert"
 import { SLIDE_PLACE } from "../../../web/src/plugins/items/slide/actions"
+import { SENT_TO_HOST } from "../../../web/src/store/actions"
 import { pluginKit } from "../../../web/src/store/kit"
 import { definePlugin } from "../../../web/src/store/plugin"
 import { createMatomezuInstance } from "../../../web/src/store/store"
@@ -537,7 +538,7 @@ test("ページ一覧の複製のコマンドは、ロックしたページで�
   const count = () => store.state.getState().books.b1?.lineup.length
   const made = store.actions.perform(PAGE_CREATE.id, { folder: "b1", type: "notes:kept", title: "残す" } as never)
   await Promise.resolve()
-  const kept = made.ok ? made.result.page : ""
+  const kept = made.ok && made.result !== SENT_TO_HOST ? made.result.page : ""
   expect(kept).not.toBe("")
   const before = count()
   expect(duplicate(kept)).toBe(false)

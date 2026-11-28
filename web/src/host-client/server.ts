@@ -464,7 +464,7 @@ export function serverClient(net: Net = browserNet): HostClient {
       })
       // レコードが変わったときだけ、最後にフォーカスされた窓を受ける（郵便が届いたことを、その窓がマーキーで知らせる）
       if (e.records && e.records.length > 0 && e.window !== undefined) instance?.setLastWindow(e.window === client)
-      settle(e)
+      settle(e, e.results ? { ok: true, results: e.results } : undefined)
       const act = e.act
       const foreign = e.client !== client && e.by !== undefined && act !== undefined
       show(
@@ -539,7 +539,10 @@ export function serverClient(net: Net = browserNet): HostClient {
     })
     on("ack", data => {
       const ack = AckSchema.parse(JSON.parse(data))
-      settle({ client, seq: ack.seq }, ack.ok ? { ok: true } : { ok: false, reason: ack.reason })
+      settle(
+        { client, seq: ack.seq },
+        ack.ok ? { ok: true, ...(ack.results ? { results: ack.results } : {}) } : { ok: false, reason: ack.reason },
+      )
       show()
     })
   }

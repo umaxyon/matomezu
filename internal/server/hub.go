@@ -9,14 +9,14 @@ package server
 //
 //	hello     {"client", "build"} この接続の id と、常駐の版とデータの形と配る画面の印（{"version", "dataVersion", "web"?}。SetBuild の前は無い）。窓はアクションバルクにこの id と、自分で振った順の番号 seq を添えて送る
 //	changed   {"pages": [{"id", "page"（消したなら "removed": true）, "version"}], "folders": [{"id", "folder"（同じ）, "version"}], "books", "library"?, "client", "seq", "by", "act", "actions",
-//	          "settings"?, "annotations", "records": [{"subject", "id", "record"（消したなら "removed"）, "version"（消したなら 0）}], "counters"?, "window", "unreadableBooks"}
-//	          unreadableBooks は、この書き込みを確かめた後の読めないブックの全部（/api/data と同じ。毎回、全部）。1 回の Perform が変えた物の全部（何か変わったときだけ 1 つ）。pages・folders は変えた・足した・消したページとフォルダ（書庫ホームとフォルダも）、
+//	          "settings"?, "annotations", "records": [{"subject", "id", "record"（消したなら "removed"）, "version"（消したなら 0）}], "counters"?, "window", "unreadableBooks", "results"}
+//	          results は行ったアクションごとの結果（バルクの順。送った窓が、先に行わなかったアクションの結果を受け取る）。unreadableBooks は、この書き込みを確かめた後の読めないブックの全部（/api/data と同じ。毎回、全部）。1 回の Perform が変えた物の全部（何か変わったときだけ 1 つ）。pages・folders は変えた・足した・消したページとフォルダ（書庫ホームとフォルダも）、
 //	          books はそれらを持つブックの id（書庫ホームとフォルダは入らない）。library は、書庫の履歴に入るアクションが変えたページとフォルダごとの前と後（{"pages": {id: {"before", "after"}}, "folders": 同じ}。無い側は "none"）。
 //	          client と seq は頼んだ窓とその番号（窓の外からなら空）。by は頼んだ物（"ai"・"window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印、actions は行ったアクションの id の並び。
 //	          settings は変わったときだけ、新しい設定。annotations はアノテーションが変わったページの id → 新しい並び（空の並びなら全部無くなった）。
 //	          records は変えたレコード（郵便も。records.go）、counters は進めた番号の区切り（種類 → 区切り → 次の番号。進めたときだけ）。window は最後にフォーカスされた窓（無ければ空）
 //	annotations {"page", "annotations"} Perform の外でページのアノテーションが変わった（並びが空なら全部無くなった）
-//	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションバルクを行い終えた（断ったなら ok が false）。そのバルクの changed のあとに届く
+//	ack       {"seq", "ok", "reason", "results"?} 送った窓にだけ（results は行えたときの、アクションごとの結果。バルクの順）。そのアクションバルクを行い終えた（断ったなら ok が false）。そのバルクの changed のあとに届く
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた窓にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
 //	participant-calls {"participant", "at"} 参加者の最後に呼ばれた時刻（join_calls.go。30 秒以上あいたときだけ知らせる）
