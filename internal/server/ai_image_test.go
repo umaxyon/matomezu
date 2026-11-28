@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
 )
 
@@ -63,10 +64,10 @@ func TestImageForAI(t *testing.T) {
 	if got := imageForAI("image/svg+xml", 8, 4, []byte(svg)); !got.OK || got.SVG != svg || got.Data != "" {
 		t.Fatalf("svg = %+v", got)
 	}
-	if got := imageForAI("image/webp", 3000, 3000, webpLossless(3000, 3000)); got.Reason != aiImageUnread {
+	if got := imageForAI("image/webp", 3000, 3000, webpLossless(3000, 3000)); got.Reason != aiwire.ImageUnread {
 		t.Fatalf("broken webp = %+v", got)
 	}
-	if got := imageForAI("image/png", 10000, 10000, small); got.Reason != aiImageLarge {
+	if got := imageForAI("image/png", 10000, 10000, small); got.Reason != aiwire.ImageTooLarge {
 		t.Fatalf("huge png = %+v", got)
 	}
 	// 大きさは収まるが、そのまま渡すにはバイトが多すぎる物は、開き直して渡す

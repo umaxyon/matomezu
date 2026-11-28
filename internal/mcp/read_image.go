@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/umaxyon/matomezu/internal/aiwire"
 )
 
 const readImageDescription = "See the image of an image page (page: its id; image pages are in the images folder, the system folder @matomezu/image:images; see read_folder or read_book). " +
@@ -58,13 +60,13 @@ func readImage(c *conn, args map[string]any) (string, bool) {
 	}
 	if !got.OK {
 		switch got.Reason {
-		case "no-image":
+		case aiwire.ImageNone:
 			return "no-image: the page shows no image", false
-		case "unsure", "no-asset", "several":
+		case aiwire.ImageUnsure, aiwire.ImageMissing, aiwire.ImageSeveral:
 			return "no-image: the page's image cannot be found", false
-		case "too-large":
+		case aiwire.ImageTooLarge:
 			return "too-large: the image is too large to open", false
-		case "cannot-read":
+		case aiwire.ImageUnread:
 			return "cannot-read: the image cannot be opened to make it smaller", false
 		}
 		return got.Reason, false

@@ -15,12 +15,13 @@ import (
 	"math"
 	"net/http"
 
+	"github.com/umaxyon/matomezu/internal/aiwire"
 	xdraw "golang.org/x/image/draw"
 	_ "golang.org/x/image/webp"
 )
 
 const (
-	// aiImageEdge・aiImagePixels は、AI に渡す画像の長い辺（px）と画素の数の上限（Claude の画像の読みが縮めずに読む大きさ）
+	// aiImageEdge・aiImagePixels は、AI に渡す画像の長い辺（px）と画素の数の上限（どの AI にも同じ、matomezu の決まった上限。細かな字が読め、1 枚が重くなりすぎない大きさ）
 	aiImageEdge   = 1568
 	aiImagePixels = 1568 * 28 * 28
 	// aiImageBytes は、そのまま渡す画像のバイト数の上限（base64 にして 5MB に収まる）
@@ -29,16 +30,6 @@ const (
 	aiImageDecodePixels = 50_000_000
 	// aiImageQuality は、縮めて JPEG にするときの質
 	aiImageQuality = 85
-)
-
-// 断りの理由（MCP の read_image が文にする）
-const (
-	aiImageNone    = "no-image"    // ページのタイプが指す画像が無い
-	aiImageSeveral = "several"     // ページのタイプが画像をいくつも指す（見せるのは 1 つを指すページだけ）
-	aiImageUnsure  = "unsure"      // ページのタイプが答えられない
-	aiImageMissing = "no-asset"    // 指す画像が置き場に無い
-	aiImageLarge   = "too-large"   // 開くには大きすぎる
-	aiImageUnread  = "cannot-read" // 縮めるために開けない（動く WebP など）
 )
 
 // aiImage は AI に渡す画像（width・height は元の大きさ、sentWidth・sentHeight は渡す大きさ。SVG は svg に文字で）
@@ -67,13 +58,13 @@ func (o Options) aiPageImage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	case !used.Sure:
-		writeJSON(w, aiImage{Reason: aiImageUnsure})
+		writeJSON(w, aiImage{Reason: aiwire.ImageUnsure})
 		return
 	case len(used.IDs) == 0:
-		writeJSON(w, aiImage{Reason: aiImageNone})
+		writeJSON(w, aiImage{Reason: aiwire.ImageNone})
 		return
 	case len(used.IDs) > 1:
-		writeJSON(w, aiImage{Reason: aiImageSeveral})
+		writeJSON(w, aiImage{Reason: aiwire.ImageSeveral})
 		return
 	}
 	a, err := o.Hub.Asset(used.IDs[0])
@@ -82,7 +73,7 @@ func (o Options) aiPageImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if a == nil {
-		writeJSON(w, aiImage{Reason: aiImageMissing})
+		writeJSON(w, aiImage{Reason: aiwire.ImageMissing})
 		return
 	}
 	writeJSON(w, imageForAI(a.Mime, a.Width, a.Height, a.Bytes))
@@ -102,13 +93,13 @@ func imageForAI(mime string, width, height int, b []byte) aiImage {
 		return aiImage{OK: true, Mime: mime, Width: width, Height: height, SentWidth: sw, SentHeight: sh, Data: base64.StdEncoding.EncodeToString(b)}
 	}
 	if width*height > aiImageDecodePixels {
-		return aiImage{Reason: aiImageLarge}
+		return aiImage{Reason: aiwire.ImageTooLarge}
 	}
 	src, _, err := image.Decode(bytes.NewReader(b))
 	if err != nil {
-		return aiImage{Reason: aiImageUnread}
+		return aiImage{Reason: aiwire.ImageUnread}
 	}
-	// 向きを当てた見える大きさで収め、縮めてから向きを当てる（縮めた後の方が画素が少ない）。前から在るアセットの幅と高さは、向きを当てる前の値のことがあるので、画素から引き直す
+	// 幅と高さは画素から引き直す（置き場の幅と高さを当てにしない）。向きを当てた見える大きさで収め、縮めてから向きを当てる（縮めた後の方が画素が少ない）
 	width, height = src.Bounds().Dx(), src.Bounds().Dy()
 	if turned(o) {
 		width, height = height, width
@@ -126,7 +117,7 @@ func imageForAI(mime string, width, height int, b []byte) aiImage {
 	}
 	out, sentMime, err := encodeForAI(dst, mime == "image/jpeg")
 	if err != nil {
-		return aiImage{Reason: aiImageUnread}
+		return aiImage{Reason: aiwire.ImageUnread}
 	}
 	return aiImage{OK: true, Mime: sentMime, Width: width, Height: height, SentWidth: sw, SentHeight: sh, Data: base64.StdEncoding.EncodeToString(out)}
 }
