@@ -17,6 +17,7 @@ import (
 
 // AI に渡す大きさ: 長い辺と画素の数の上限に、比を保って収める。小さな物は大きくしない
 func TestFitForAI(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct{ w, h, sw, sh int }{
 		{800, 600, 800, 600},
 		{3136, 1000, 1568, 500},
@@ -44,6 +45,7 @@ func sentSize(t *testing.T, got aiImage) (int, int, string) {
 
 // 収まる画像はそのまま、大きな画像は縮めて（写真は JPEG、ほかは PNG）、SVG は文字で渡す。開けない物・開くには大きすぎる物は断る
 func TestImageForAI(t *testing.T) {
+	t.Parallel()
 	small := rasterBytes(t, "png", 40, 20)
 	if got := imageForAI("image/png", 40, 20, small); !got.OK || got.Data != base64.StdEncoding.EncodeToString(small) || got.SentWidth != 40 {
 		t.Fatalf("small png = %+v", got)
@@ -98,6 +100,7 @@ func noisePNG(t *testing.T, w, h int) []byte {
 
 // PNG が重すぎれば JPEG にし、透ける所は白を下に敷く
 func TestEncodeForAIFallsBackToJPEGOnWhite(t *testing.T) {
+	t.Parallel()
 	clear := image.NewRGBA(image.Rect(0, 0, 4, 4))
 	out, mime, err := encodeForAI(clear, true)
 	if err != nil || mime != "image/jpeg" {
@@ -117,6 +120,7 @@ func TestEncodeForAIFallsBackToJPEGOnWhite(t *testing.T) {
 
 // AI の口: 画像のページの画像を渡す。画像の無いページは no-image、ゴミ箱の中のページは無い物（404）
 func TestAIReadsThePageImage(t *testing.T) {
+	t.Parallel()
 	s, h := joinWorld(t, joinStore(t))
 	put, err := h.ImportAsset(rasterBytes(t, "png", 6, 3))
 	if err != nil {

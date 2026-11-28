@@ -38,6 +38,7 @@ func orientedJPEG(t *testing.T, w, h, o int, order string) []byte {
 }
 
 func TestExifOrientation(t *testing.T) {
+	t.Parallel()
 	for _, order := range []string{"MM", "II"} {
 		if o := exifOrientation(orientedJPEG(t, 8, 4, 6, order)); o != 6 {
 			t.Errorf("%s orientation = %d", order, o)
@@ -53,6 +54,7 @@ func TestExifOrientation(t *testing.T) {
 
 // 向きの付いた JPEG は、幅と高さを見える大きさ（向きを当てた値）で持つ
 func TestImportedJPEGSizeIsAsSeen(t *testing.T) {
+	t.Parallel()
 	a, ok := readImage(orientedJPEG(t, 400, 200, 6, "MM"))
 	if !ok || a.Width != 200 || a.Height != 400 {
 		t.Fatalf("asset = %d×%d (%v)", a.Width, a.Height, ok)
@@ -61,6 +63,7 @@ func TestImportedJPEGSizeIsAsSeen(t *testing.T) {
 
 // 向きを当てる: 左上の画素が、向きごとに決まった角へ行く
 func TestOriented(t *testing.T) {
+	t.Parallel()
 	src := image.NewRGBA(image.Rect(0, 0, 3, 2))
 	red := color.RGBA{255, 0, 0, 255}
 	src.Set(0, 0, red)
@@ -77,6 +80,7 @@ func TestOriented(t *testing.T) {
 
 // AI には、向きを当てて渡す（小さくても作り直す）。右へ 90 度回して見る写真は、左の赤い帯が上に来る
 func TestImageForAIIsOriented(t *testing.T) {
+	t.Parallel()
 	got := imageForAI("image/jpeg", 200, 400, orientedJPEG(t, 400, 200, 6, "MM"))
 	b, _ := base64.StdEncoding.DecodeString(got.Data)
 	img, _, err := image.Decode(bytes.NewReader(b))
