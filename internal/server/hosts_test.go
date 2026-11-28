@@ -78,7 +78,7 @@ func askPairing(t *testing.T, s HostStatus) map[string]any {
 
 // 「ほかのホストとつなぐ」が入なら入口を開き、ペアリングの頼みに名前とホスト id を答える。切なら閉じる。取ったポートは覚え、開き直しても同じ番号で待つ
 func TestTheHostEntranceFollowsTheSetting(t *testing.T) {
-	// 閉じたポートを誰も取らないことを当てにする（つながらないこと・同じ番号で開き直すこと）ので、ほかのテストと並べない
+	serial(t, "閉じたポートを誰も取らないことを当てにする（つながらないこと・同じ番号で開き直すこと）")
 	h := emptyHub(t)
 	saved := 0
 	id := testHost(t, h, 0, &saved)
@@ -126,7 +126,7 @@ func TestTheHostEntranceFollowsTheSetting(t *testing.T) {
 
 // 覚えたポートがほかに使われていれば、取り直さずに開かず、そのポートと port-in-use を見せる。空けば、入れ直して同じ番号で開く
 func TestTheHostEntranceDoesNotTakeAnotherPortWhenTheKeptOneIsTaken(t *testing.T) {
-	// 空けたポートを誰も取らないことを当てにする（同じ番号で開き直すこと）ので、ほかのテストと並べない
+	serial(t, "空けたポートを誰も取らないことを当てにする（同じ番号で開き直すこと）")
 	taken, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -201,7 +201,7 @@ func TestAICannotTurnOnTheHostEntrance(t *testing.T) {
 
 // 常駐が止まるとき（CloseHostEntrance）のあとは、設定が入のままでも開き直さない
 func TestTheHostEntranceStaysClosedAfterCloseHostEntrance(t *testing.T) {
-	// 閉じたポートを誰も取らないことを当てにする（つながらないこと）ので、ほかのテストと並べない
+	serial(t, "閉じたポートを誰も取らないことを当てにする（つながらないこと）")
 	h := emptyHub(t)
 	saved := 0
 	testHost(t, h, 0, &saved)

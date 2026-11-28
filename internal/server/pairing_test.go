@@ -178,7 +178,7 @@ func TestPairingRequestBeingPutIsNotDecided(t *testing.T) {
 
 // 自分自身には頼めない。届かない所は unreachable
 func TestPairingWithItselfOrNobodyIsRefused(t *testing.T) {
-	// 閉じたポートを誰も取らないことを当てにする（届かないこと）ので、ほかのテストと並べない
+	serial(t, "閉じたポートを誰も取らないことを当てにする（届かないこと）")
 	a, as := openHost(t, "a")
 	_ = a.StartPairing(addrOf(as), false)
 	waitFor(t, "refused", func() bool { return pairingPhase(a) == "refused" })

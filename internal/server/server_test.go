@@ -84,6 +84,9 @@ func cleanup(t *testing.T, f func()) {
 	})
 }
 
+// serial は、ほかのテストと並べないテストの印。何もしない。why に並べない訳を書く（test/rules が、Test 関数の最初の文が t.Parallel() か serial かを見張る）
+func serial(_ *testing.T, why string) {}
+
 func newServer(t *testing.T, stop func()) *httptest.Server {
 	return newServerWith(t, Options{Stop: stop})
 }

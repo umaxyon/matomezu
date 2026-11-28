@@ -26,7 +26,7 @@ func TestLaterThanNeverGoesBack(t *testing.T) {
 
 // 時点の無いアクション（AI やホストが頼んだ物）には、ホストが同じ時点から時点と利用者の暦の日付を入れる。画面が決めた時点と日付はそのまま
 func TestStampedGivesNowAndTodayFromOneInstant(t *testing.T) {
-	// time.Local を書き換えるので、ほかのテストと並べない
+	serial(t, "time.Local を書き換える")
 	was := time.Local
 	time.Local = time.FixedZone("JST", 9*60*60)
 	cleanup(t, func() { time.Local = was })

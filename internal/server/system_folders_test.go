@@ -64,7 +64,7 @@ func withoutDocuments(body string) string {
 // 常駐は起動したとき、書庫を整えて（settleLibrary）書庫ホームの先頭にドキュメントの行を足し（もう在れば足さない）、AI の read_folder には英語の名前と印で見せる。
 // 名前の当たる書庫ホームの直下の物には番号を付け、足した物と番号を付けた物をログに書く。プラグインが変わったときも足りなければ足す
 func TestSystemFoldersAreAddedAtStartAndWhenPluginsChange(t *testing.T) {
-	// os.Stderr を差し替えて常駐の書いた物を読むので、ほかのテストと並べない
+	serial(t, "os.Stderr を差し替えて常駐の書いた物を読む")
 	store := libraryStore(t, false)
 	putBook(t, store, `{"id":"b9","title":"Documents","lineup":[]}`)
 	var hub *Hub

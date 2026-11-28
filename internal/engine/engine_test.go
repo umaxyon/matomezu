@@ -11,6 +11,9 @@ import (
 	"github.com/umaxyon/matomezu/internal/plugin"
 )
 
+// serial は、ほかのテストと並べないテストの印。何もしない。why に並べない訳を書く（test/rules が、Test 関数の最初の文が t.Parallel() か serial かを見張る）
+func serial(_ *testing.T, why string) {}
+
 const book = `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 
 // rows は、ブックの本文（並びにページとバインダの中身ごと持つ形）を、置き場所と同じ形のページとフォルダの本文に分ける
