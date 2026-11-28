@@ -16,7 +16,7 @@ export const WORKROOM = kit.defineSubject({
   id: "workroom",
   title: "workroom",
   aiDescription:
-    "A workroom: a name (up to 20 characters, not repeated), a bird and its palette. A workroom with no participant in it is empty. work is the record of its current work (none when idle); handoffTarget is the work it had before that (its AI writes the handoff page into that work's worker book with refresh-request; it is cleared when another participant enters the workroom).",
+    "A workroom: a name (up to 20 characters, not repeated), a bird and its palette. A workroom with no participant in it is empty. work is the record of its current work (none when idle); handoffTarget is the work it had before that (its AI writes the handoff page into that work's worker book with refresh-request; it is cleared when that page is written and when another participant enters the workroom).",
   role: "workrooms",
   record: z.strictObject({
     id: z.string().min(1),

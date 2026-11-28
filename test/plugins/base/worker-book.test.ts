@@ -276,6 +276,12 @@ describe("引継ぎページを書いて会話をリフレッシュする（refr
     expect(done.refreshRequest?.text).toContain('read_folder with folder "my-workdesk"')
   })
 
+  test("書けたら、同じ書き込みでワークルームの引継ぎ対象チケットを外す（ほかの物は残す）", () => {
+    const done = ask()
+    if (!done.ok) throw new Error("refused")
+    expect(done.records).toEqual([{ subject: WORKROOM, id: "r2", record: room("r2") }])
+  })
+
   test("ほかのアクションでは、引継ぎ対象チケットのワーカーブックに書けない（worker-page-add は自分のワークルームのブックに書く）", () => {
     expect(lineupOf(ask({ action: "@matomezu/base:worker-page-add" }))).toBeUndefined()
     const direct = performIn(

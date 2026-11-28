@@ -25,9 +25,12 @@ func TestRefreshRequestIsKeptOnlyForARefreshableAI(t *testing.T) {
 			t.Fatalf("ticket-add %s = %d %s", name, code, got)
 		}
 	}
-	var y string
+	var x, y string
 	for id, r := range recordsOf(t, s.URL, "@matomezu/taskboard:ticket") {
-		if r["name"] == "y" {
+		switch r["name"] {
+		case "x":
+			x = id
+		case "y":
 			y = id
 		}
 	}
@@ -60,6 +63,15 @@ func TestRefreshRequestIsKeptOnlyForARefreshableAI(t *testing.T) {
 	}
 	if again, _ := call(t, "POST", s.URL+"/api/ai/refresh-due", `{"sessionId":"SA"}`, nil); !strings.Contains(again, `"text":""`) {
 		t.Fatalf("refresh-due again = %s", again)
+	}
+	// 書けたら引継ぎ対象チケットを外す。作業を替えれば、また印が付く
+	for _, r := range recordsOf(t, s.URL, "@matomezu/base:workroom") {
+		if _, has := r["handoffTarget"]; has {
+			t.Fatalf("the handoff target is left after refresh-request: %v", r)
+		}
+	}
+	if got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/taskboard:ticket-start","args":{},"on":{"record":"`+x+`"}}`, as); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("ticket-start x = %s", got)
 	}
 	// 断られたバルクの頼みは覚えない
 	broken := `{"actions":[{"action":"@matomezu/base:refresh-request","args":{"type":"@matomezu/markdown:markdown","title":"handoff 2"}},{"action":"@matomezu/base:page-update","args":{"title":"x"},"on":{"page":"none"}}]}`

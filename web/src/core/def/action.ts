@@ -137,8 +137,13 @@ export type OtherRecord<T extends SubjectId> =
 export interface Done<T extends ActionTarget, R, Sc = "book", Tk = unknown> {
   next: T extends "book" ? RunSubject<T, Sc, Tk> : SubjectNext<T>
   result: R
-  // レコードが対象のアクションが、宛先のほかに変えるレコード（同じ種類か、writes に書いた種類。宛先と合わせて RECORDS_MAX 件まで。全部が通るか、全部を断る）
-  others?: T extends SubjectId ? readonly OtherRecord<T>[] : never
+  // レコードが対象のアクションが、宛先のほかに変えるレコード（同じ種類か、writes に書いた種類。宛先と合わせて RECORDS_MAX 件まで。全部が通るか、全部を断る）。
+  // 書庫が対象のアクションも、writes に書いた種類のレコードを変えられる（種類は省けない。RECORDS_MAX 件まで）
+  others?: T extends SubjectId
+    ? readonly OtherRecord<T>[]
+    : T extends "library"
+      ? readonly Exclude<OtherRecord<never>, { subject?: undefined }>[]
+      : never
   // レコードが対象のアクションだけが書ける、AI 編集チケットの変え方の並び（宛先と others の変えたレコードと同じ 1 回の書き込みで、順に当てる）
   aiEditTickets?: T extends SubjectId ? readonly AIEditTicketChange[] : never
   // レコードが対象のアクションだけが書ける、送る AI 間メッセージの並び（AIMessage）
@@ -457,8 +462,8 @@ export interface ActionDef<
   // レコードが対象のアクションが、宛先のほかに読む物を、引数・行う者・宛先のレコードの id から答える（RecordRead の並び: id で 1 件・索引キーの条件に合う全部・その索引キーだけ。
   // 同じ種類の重なりを確かめるときなど）。答えた物だけが ctx.records と ctx.keys に入る。宛先のレコードが指す先（対象の定義の refers）は、書かなくても ctx.record で読める
   reads?: T extends SubjectId ? ReadsOfArgs<A> : never
-  // レコードが対象のアクションが、宛先のほかに変える別の種類（種類の id の並び。others の subject に書けるのはこの種類だけ。引数によらない宣言なので、関数でなく並び）
-  writes?: T extends SubjectId ? readonly SubjectId[] : never
+  // レコードか書庫が対象のアクションが、宛先のほかに変える別の種類（種類の id の並び。others の subject に書けるのはこの種類だけ。引数によらない宣言なので、関数でなく並び）
+  writes?: T extends SubjectId | "library" ? readonly SubjectId[] : never
   // 書庫が対象のアクションが読むレコードの種類を、機能台帳から答える（読む id が読んだ中身で決まるので、種類ごと宣言する）。その種類だけを ctx.record と ctx.find で読める
   readsSubjects?: T extends "library" ? (catalog: CoreCatalog) => readonly string[] : never
   // レコードが対象のアクションが読むだけのブックの id を、引数から答える（そのブックだけが ctx.books に入る。無ければブックを読まない）

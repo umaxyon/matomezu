@@ -50,6 +50,19 @@ const PEEK = action("card-peek", {
   })) as never,
 })
 
+// 書庫が対象のアクション: 書庫を変えずに、カードの名前を変える（writes に書いた種類だけ others で変えられる）。stray は writes を書かずに変える
+const SHELVE = action("card-shelve", {
+  target: "library",
+  permissionScope: "unknown",
+  writes: [CARD],
+  run: ((library: unknown) => ({
+    next: library,
+    result: {},
+    others: [{ subject: CARD, id: "c1", record: { id: "c1", label: "shelved" } }],
+  })) as never,
+})
+const STRAY = action("card-stray", { ...SHELVE, id: "@ex/card:card-stray", writes: undefined })
+
 // タリー: カードごとに 1 件、カードの今の名前を（読む物から）写す。名前が bad なら形に合わない物を返す
 const FOLLOW_CARD: FollowStepDef = {
   watches: CARD as never,
@@ -93,8 +106,8 @@ const plugins = (tally: Partial<Plugin> = {}, echo: Partial<Plugin> = {}) => [
   defineBuiltin({
     id: "@ex/card",
     subjects: [subject(CARD)],
-    actions: [RENAME, REMOVE, PEEK],
-    controlCenters: [{ id: CENTER, actions: [], subjects: "all" }],
+    actions: [RENAME, REMOVE, PEEK, SHELVE, STRAY],
+    controlCenters: [{ id: CENTER, actions: [SHELVE.id, STRAY.id], subjects: "all" }],
   } as never),
   defineBuiltin({
     id: "@ex/tally",
@@ -135,6 +148,24 @@ test("アクションが変えたレコードに、フォローステップが�
       { subject: ECHO, id: "e-t-c1" },
     ],
   })
+})
+
+test("書庫が対象のアクションが others で変えたレコードにも応じる。writes に無い種類を変えれば断る", () => {
+  const shelve = (id: string) =>
+    performIn({ ...world(), ...libraryWith([]) }, `@ex/card:${id}`, {}, undefined, { ...ctx, ...at })
+  expect(shelve("card-shelve")).toMatchObject({
+    ok: true,
+    records: [
+      { subject: CARD, id: "c1", record: { id: "c1", label: "shelved" } },
+      { subject: TALLY, id: "t-c1", record: { id: "t-c1", label: "shelved" } },
+      { subject: ECHO, id: "e-t-c1", record: { id: "e-t-c1", label: "echo shelved" } },
+    ],
+    followed: [
+      { subject: TALLY, id: "t-c1" },
+      { subject: ECHO, id: "e-t-c1" },
+    ],
+  })
+  expect(shelve("card-stray")).toMatchObject({ ok: false, reason: "refused" })
 })
 
 test("消したレコードにも応じる。前と同じ値に戻った物は変わりに載らない", () => {
