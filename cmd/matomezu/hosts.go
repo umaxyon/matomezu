@@ -21,13 +21,15 @@ func setHost(hub *server.Hub, h *home.Home) error {
 	}
 	name, _ := os.Hostname()
 	wsl := onWSL()
-	hub.SetHostEntrance(server.HostConfig{Identity: id, Port: port, SavePort: h.WriteHostPort, OSHostName: name, WSL: wsl, Discover: true, WSLProxy: wslProxyFor(wsl)})
+	proxy := wslProxyFor(wsl)
+	dropWSLProxyForTest(&proxy)
+	hub.SetHostEntrance(server.HostConfig{Identity: id, Port: port, SavePort: h.WriteHostPort, OSHostName: name, WSL: wsl, Discover: true, WSLProxy: proxy})
 	return nil
 }
 
 // wslProxyFor は、WSLプロキシを立てる物（NAT の WSL のときだけ。ほかは nil）
 func wslProxyFor(wsl bool) peer.WSLProxyLaunch {
-	if !wsl || !startsWSLProxy {
+	if !wsl {
 		return nil
 	}
 	mode, err := wslNetworkingMode()
