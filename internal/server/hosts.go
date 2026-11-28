@@ -56,18 +56,19 @@ type HostStatus struct {
 }
 
 type hostEntrance struct {
-	mu      sync.Mutex // 開け閉めの鍵（h.mu とは別。開け閉めのあいだ h.mu を持たない）
-	config  HostConfig
-	srv     *http.Server
-	handler http.Handler // srv が答える口（hostsHandler）。こちらが張ったリバース接続の上でも同じ物で答える
-	ln      net.Listener // srv が受けている所
-	status  HostStatus
-	kick    chan struct{}
-	done    chan struct{} // CloseHostEntrance が閉じる（開け閉めの goroutine を止める）
-	closed  bool          // CloseHostEntrance のあとは開かない
-	peers   *peerState    // ペアリングとペアリングしたホストの様子（pairing.go）
-	user    string        // mDNS で知らせている利用者名
-	proto   int           // 常駐間通信プロトコルの版（peer.Protocol。版の違う常駐を組むテストだけが、閉じているあいだに替える）
+	mu          sync.Mutex // 開け閉めの鍵（h.mu とは別。開け閉めのあいだ h.mu を持たない）
+	config      HostConfig
+	srv         *http.Server
+	handler     http.Handler // srv が答える口（hostsHandler）。こちらが張ったリバース接続の上でも同じ物で答える
+	ln          net.Listener // srv が受けている所
+	status      HostStatus
+	kick        chan struct{}
+	done        chan struct{} // CloseHostEntrance が閉じる（開け閉めの goroutine を止める）
+	closed      bool          // CloseHostEntrance のあとは開かない
+	peers       *peerState    // ペアリングとペアリングしたホストの様子（pairing.go）
+	user        string        // mDNS で知らせている利用者名
+	wslRestarts int           // 入口を開いてから、WSLプロキシが終わって立て直した回数
+	proto       int           // 常駐間通信プロトコルの版（peer.Protocol。版の違う常駐を組むテストだけが、閉じているあいだに替える）
 }
 
 // SetHostEntrance は、ホストどうしの入口の用意を渡し、設定に合わせて開け閉めし始める（立ったときに 1 度呼ぶ）
@@ -195,18 +196,24 @@ func (h *Hub) applyHostEntrance(e *hostEntrance) {
 	}
 }
 
-// RepickHostPort は、覚えたポートがほかに使われているとき、空いている番号を取り直して開き、その番号を覚える（利用者が［別のポートにする］を確かめたとき）
+// RepickHostPort は、覚えたポートがほかに使われているとき（このホストでも、WSLプロキシの待つ Windows でも）、空いている番号を取り直して開き、
+// その番号を覚える（利用者が［別のポートにする］を確かめたとき）。WSLプロキシも、取り直した番号で立て直す
 func (h *Hub) RepickHostPort() error {
 	e := h.entrance.Load()
 	if e == nil {
 		return errors.New("there is no entrance for other hosts")
 	}
 	e.mu.Lock()
-	if e.closed || e.status.Failed != HostPortInUse {
+	if e.closed || (e.status.Failed != HostPortInUse && e.status.WSLProxy != peer.WSLProxyPortInUse) {
 		e.mu.Unlock()
 		return errors.New("the kept port is not taken")
 	}
 	was := e.status
+	if e.srv != nil {
+		e.srv.Close()
+		e.srv, e.handler = nil, nil
+		h.stopBeacon(e)
+	}
 	e.config.Port = 0
 	e.open(h)
 	now := e.status
@@ -260,6 +267,7 @@ func (e *hostEntrance) open(h *Hub) {
 		h.stoppedHostEntrance(e, srv)
 	}()
 	e.status.Open, e.status.Port, e.status.Addrs, e.status.Failed = true, port, peer.ReachableAddrs(), ""
+	e.wslRestarts = 0
 	h.startBeacon(e, port, srv)
 }
 

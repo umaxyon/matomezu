@@ -106,6 +106,37 @@ export const NETWORK_MESSAGES = defineMessages({
   "Already answered": { en: "Already answered", ja: "返事済み" },
   Copied: { en: "Copied", ja: "コピーしました" },
   "Could not copy": { en: "Could not copy", ja: "コピーできませんでした" },
+  "WSL proxy running": { en: "WSL proxy running", ja: "WSLプロキシ稼働中" },
+  "WSL proxy not running": { en: "WSL proxy not running", ja: "WSLプロキシ非稼働" },
+  "Windows forwards the access to WSL": {
+    en: "Windows forwards the access to WSL. If other machines cannot reach it, allow matomezu in the Windows firewall",
+    ja: "Windows側でWSLへのアクセスを中継しています。届かない場合、Windowsファイヤーウォールにてmatomezu許可してください",
+  },
+  "Install matomezu on Windows for the WSL proxy": {
+    en: "Install the same version of matomezu on Windows too, and the WSL proxy runs and opens matomezu to your LAN",
+    ja: "Windows側にもmatomezuの同じバージョンを入れると、中継プロキシが稼働し、LAN内にmatomezuが公開されます",
+  },
+  "Match the versions of matomezu for the WSL proxy": {
+    en: "Make the versions of matomezu on Windows and WSL the same, and the WSL proxy runs and opens matomezu to your LAN",
+    ja: "Windows側とWSL側のmatomezuのバージョンを合わせると中継プロキシが稼働し、LAN内にmatomezuが公開されます",
+  },
+  "Starting the WSL proxy on Windows": {
+    en: "Starting the WSL proxy on Windows",
+    ja: "Windows 側で中継プロキシを立てています",
+  },
+  "The WSL proxy on Windows stopped": {
+    en: "The WSL proxy on Windows stopped",
+    ja: "Windows 側の中継プロキシが止まりました",
+  },
+  "Port {port} is used on Windows": {
+    en: "Port {port} is used by another program on Windows",
+    ja: "Windows でポート {port} がほかに使われています",
+  },
+  "The WSL proxy could not listen on Windows": {
+    en: "The WSL proxy could not listen on Windows",
+    ja: "Windows 側で待ち受けを開けませんでした",
+  },
+  "Start the WSL proxy again": { en: "Start again", ja: "立て直す" },
   "On WSL, other machines cannot find this host": {
     en: "On WSL, other machines cannot find this host",
     ja: "WSL では、ほかのマシンからこのホストは見つかりません",

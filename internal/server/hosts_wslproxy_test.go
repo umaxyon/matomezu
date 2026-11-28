@@ -7,27 +7,39 @@ import (
 	"net"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/umaxyon/matomezu/internal/peer"
 )
 
-// fakeWSLProxy は、WSLプロキシの代わり: 最初の行を start に渡し、firstLine を返して（JSON でなければそこで終わる）、標準入力が閉じるまで待つ。
-// 流すのはテストが LAN の相手の代わりに行う（forward）
+// fakeWSLProxy は、WSLプロキシの代わり: 最初の行を start に渡し、answer の行を返して（end なら、または最初の行が JSON でなければそこで終わる）、
+// 標準入力が閉じるか f.end が閉じるまで待つ。answer の n は、立てた回数（1 から）。流すのはテストが LAN の相手の代わりに行う（forward）
 type fakeWSLProxy struct {
-	firstLine string
-	more      []string      // 最初の行のあとに返す行
-	end       chan struct{} // 閉じると、標準入力が閉じる前に終わる
-	start     chan peer.WSLProxyStart
-	stopped   chan struct{}
+	answer  func(n int) (lines []string, end bool)
+	end     chan struct{}
+	start   chan peer.WSLProxyStart
+	stopped chan struct{}
+	mu      sync.Mutex
+	n       int
 }
 
 func newFakeWSLProxy(firstLine string, more ...string) *fakeWSLProxy {
-	return &fakeWSLProxy{firstLine: firstLine, more: more, end: make(chan struct{}), start: make(chan peer.WSLProxyStart, 4), stopped: make(chan struct{}, 4)}
+	return scriptedWSLProxy(func(int) ([]string, bool) {
+		return append([]string{firstLine}, more...), !strings.HasPrefix(firstLine, "{") // 立たない matomezu は、何か言って終わる
+	})
+}
+
+func scriptedWSLProxy(answer func(n int) ([]string, bool)) *fakeWSLProxy {
+	return &fakeWSLProxy{answer: answer, end: make(chan struct{}), start: make(chan peer.WSLProxyStart, 8), stopped: make(chan struct{}, 8)}
 }
 
 func (f *fakeWSLProxy) launch() (peer.WSLProxyProcess, error) {
+	f.mu.Lock()
+	f.n++
+	lines, end := f.answer(f.n)
+	f.mu.Unlock()
 	inR, inW := io.Pipe()
 	outR, outW := io.Pipe()
 	go func() {
@@ -36,12 +48,11 @@ func (f *fakeWSLProxy) launch() (peer.WSLProxyProcess, error) {
 			var s peer.WSLProxyStart
 			_ = json.Unmarshal(sc.Bytes(), &s)
 			f.start <- s
-			_, _ = io.WriteString(outW, f.firstLine+"\n")
-			if !strings.HasPrefix(f.firstLine, "{") { // 立たない matomezu は、何か言って終わる
-				_ = outW.Close()
-			}
-			for _, l := range f.more {
+			for _, l := range lines {
 				_, _ = io.WriteString(outW, l+"\n")
+			}
+			if end {
+				_ = outW.Close()
 			}
 			go func() {
 				<-f.end
@@ -54,6 +65,14 @@ func (f *fakeWSLProxy) launch() (peer.WSLProxyProcess, error) {
 		f.stopped <- struct{}{}
 	}()
 	return peer.WSLProxyProcess{Stdin: inW, Stdout: outR}, nil
+}
+
+// quickRestarts は、WSLプロキシの立て直しの間を waits にする（テストのあいだだけ）
+func quickRestarts(t *testing.T, waits ...time.Duration) {
+	t.Helper()
+	old := wslRestartWaits
+	wslRestartWaits = waits
+	t.Cleanup(func() { wslRestartWaits = old })
 }
 
 // openWSLHost は、WSLプロキシを立てる WSL のホストを組む
@@ -156,6 +175,7 @@ func TestARequestThroughTheWSLProxyComesFromTheHeaderAddress(t *testing.T) {
 // running のあとで WSLプロキシが終わると、様子は stopped になり、入口は開いたまま、WSLプロキシの見つけたホストは消えて窓に知らせる
 func TestTheWSLProxyEndingDropsItsSightings(t *testing.T) {
 	seen, _ := json.Marshal(map[string]any{"sighting": map[string]any{"HostID": "mac", "Protocol": peer.Protocol, "Name": "mac", "Addr": "192.0.2.9", "Port": 7300, "life": 120}})
+	quickRestarts(t)
 	f := newFakeWSLProxy(`{"v":1,"ready":true}`, string(seen))
 	h, _, _ := openWSLHost(t, f)
 	waitFor(t, "the sighting through the WSL proxy", func() bool { return len(h.HostPeers().Found) == 1 })
@@ -178,5 +198,47 @@ func TestTheWSLProxyEndingDropsItsSightings(t *testing.T) {
 	}
 	if found := h.HostPeers().Found; len(found) != 0 {
 		t.Fatalf("found = %+v", found)
+	}
+}
+
+// 待ち始めたあとで終わった WSLプロキシは、間を置いて立て直す（そのあいだは starting）。使い切ったら stopped で止まり、［立て直す］でまた立つ
+func TestTheWSLProxyIsStartedAgainAfterItEnds(t *testing.T) {
+	quickRestarts(t, 20*time.Millisecond, 20*time.Millisecond)
+	f := scriptedWSLProxy(func(n int) ([]string, bool) { return []string{`{"v":1,"ready":true}`}, n <= 3 })
+	h, _, _ := openWSLHost(t, f)
+	for range 2 {
+		<-f.start
+	}
+	s := waitHost(t, h, func(s HostStatus) bool { return s.WSLProxy == peer.WSLProxyStopped })
+	if !s.Open || len(f.start) != 0 {
+		t.Fatalf("status %+v, starts left %d", s, len(f.start))
+	}
+	if err := h.RestartWSLProxy(); err != nil {
+		t.Fatal(err)
+	}
+	<-f.start
+	waitHost(t, h, func(s HostStatus) bool { return s.WSLProxy == peer.WSLProxyRunning })
+	if err := h.RestartWSLProxy(); err == nil {
+		t.Fatal("a running WSL proxy was started again")
+	}
+}
+
+// Windows でポートが使われていたら、［別のポートにする］で WSL の入口ごと別の番号で開き直し、WSLプロキシもその番号で立て直す
+func TestRepickingThePortForTheWSLProxy(t *testing.T) {
+	f := scriptedWSLProxy(func(n int) ([]string, bool) {
+		if n == 1 {
+			return []string{`{"v":1,"failed":"port-in-use"}`}, false
+		}
+		return []string{`{"v":1,"ready":true}`}, false
+	})
+	h, s, _ := openWSLHost(t, f)
+	waitHost(t, h, func(s HostStatus) bool { return s.WSLProxy == peer.WSLProxyPortInUse })
+	if err := h.RepickHostPort(); err != nil {
+		t.Fatal(err)
+	}
+	again := <-f.start
+	now := waitHost(t, h, func(s HostStatus) bool { return s.WSLProxy == peer.WSLProxyRunning })
+	if !now.Open || now.Port == s.Port || again.Port != now.Port {
+		t.Fatalf("before %d, now %+v, the WSL proxy asked for %d", s.Port, now, again.Port)
 	}
 }

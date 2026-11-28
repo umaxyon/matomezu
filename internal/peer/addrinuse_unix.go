@@ -2,7 +2,10 @@
 
 package peer
 
-import "syscall"
+import (
+	"errors"
+	"syscall"
+)
 
-// errAddrInUse は、待ち受けるポートをほかが使っているときの OS の誤り
-const errAddrInUse = syscall.EADDRINUSE
+// portTaken は、待ち受けるポートをほかが使っていて取れない OS の誤りか
+func portTaken(err error) bool { return errors.Is(err, syscall.EADDRINUSE) }

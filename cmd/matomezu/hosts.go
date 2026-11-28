@@ -27,7 +27,7 @@ func setHost(hub *server.Hub, h *home.Home) error {
 
 // wslProxyFor は、WSLプロキシを立てる物（NAT の WSL のときだけ。ほかは nil）
 func wslProxyFor(wsl bool) peer.WSLProxyLaunch {
-	if !wsl {
+	if !wsl || !startsWSLProxy {
 		return nil
 	}
 	mode, err := wslNetworkingMode()

@@ -105,7 +105,7 @@ func RunWSLProxy(in io.Reader, out io.Writer) error {
 	ln, err := net.Listen("tcp4", net.JoinHostPort(bind, strconv.Itoa(start.Port)))
 	if err != nil {
 		failed := WSLProxyListen
-		if errors.Is(err, errAddrInUse) {
+		if portTaken(err) {
 			failed = WSLProxyPortInUse
 		}
 		p.write(wslFromProxy{V: WSLProxyVersion, Failed: string(failed)})

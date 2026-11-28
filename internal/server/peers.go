@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/umaxyon/matomezu/internal/peer"
 )
@@ -222,8 +223,12 @@ func (h *Hub) startWSLProxy(e *hostEntrance, ad peer.Advert, srv *http.Server) {
 	e.peers.mu.Unlock()
 }
 
+// wslRestartWaits は、待ち始めたあとで終わった WSLプロキシを立て直すまでの間（回ごと。使い切ったら立て直さず、利用者の［立て直す］を待つ）。
+// 終わる訳が一度きりの事（Windows の側で終わらされた・Windows の matomezu を更新した）なら、間を置けば立つ
+var wslRestartWaits = []time.Duration{2 * time.Second, 10 * time.Second, 30 * time.Second}
+
 // wslProxyState は、WSLプロキシの様子が変わったとき: 今の入口の WSLプロキシなら様子を書き、窓に知らせる。
-// 終わったら、WSLプロキシの見つけたホストも消えているので、ほかのホストの一覧も知らせる
+// 終わったら、WSLプロキシの見つけたホストも消えているので、ほかのホストの一覧も知らせる。待ち始めたあとで終わったら、間を置いて立て直す（そのあいだは starting）
 func (h *Hub) wslProxyState(e *hostEntrance, link *peer.WSLProxyLink, st peer.WSLProxyState, addrs []string) {
 	e.mu.Lock()
 	e.peers.mu.Lock()
@@ -234,6 +239,12 @@ func (h *Hub) wslProxyState(e *hostEntrance, link *peer.WSLProxyLink, st peer.WS
 		return
 	}
 	was := e.status
+	if st == peer.WSLProxyStopped && e.wslRestarts < len(wslRestartWaits) {
+		wait := wslRestartWaits[e.wslRestarts]
+		e.wslRestarts++
+		st = peer.WSLProxyStarting
+		time.AfterFunc(wait, func() { h.restartWSLProxy(e, link) })
+	}
 	e.status.WSLProxy, e.status.WSLProxyAddrs = st, addrs
 	now := e.status
 	e.mu.Unlock()
@@ -241,6 +252,45 @@ func (h *Hub) wslProxyState(e *hostEntrance, link *peer.WSLProxyLink, st peer.WS
 	if st != peer.WSLProxyStarting && st != peer.WSLProxyRunning {
 		h.tellPeers()
 	}
+}
+
+// restartWSLProxy は、終わった WSLプロキシ old を立て直す（入口が開いたままで、old がまだ今の物のときだけ）
+func (h *Hub) restartWSLProxy(e *hostEntrance, old *peer.WSLProxyLink) {
+	e.mu.Lock()
+	e.peers.mu.Lock()
+	current := e.peers.beacon == hostBeacon(old)
+	e.peers.mu.Unlock()
+	if e.closed || e.srv == nil || !current {
+		e.mu.Unlock()
+		return
+	}
+	was := e.status
+	h.stopBeacon(e)
+	h.startBeacon(e, e.status.Port, e.srv)
+	now := e.status
+	e.mu.Unlock()
+	h.tellHostStatus(was, now)
+}
+
+// RestartWSLProxy は、立て直しを使い切って止まった WSLプロキシを立て直す（利用者が［立て直す］を押したとき）
+func (h *Hub) RestartWSLProxy() error {
+	e := h.entrance.Load()
+	if e == nil {
+		return errors.New("there is no entrance for other hosts")
+	}
+	e.mu.Lock()
+	if e.closed || e.srv == nil || e.status.WSLProxy != peer.WSLProxyStopped {
+		e.mu.Unlock()
+		return errors.New("the WSL proxy has not stopped")
+	}
+	was := e.status
+	e.wslRestarts = 0
+	h.stopBeacon(e)
+	h.startBeacon(e, e.status.Port, e.srv)
+	now := e.status
+	e.mu.Unlock()
+	h.tellHostStatus(was, now)
+	return nil
 }
 
 // stopBeacon は、「いなくなる」を知らせて止める（入口を閉じたとき。e.mu を持って呼ぶ）

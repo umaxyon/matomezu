@@ -81,6 +81,44 @@ test("WSL で動いていて、つなぐが入でポートが決まっていれ�
   expect(within(panel()).getByText(/-LocalPorts 41234/)).toBeTruthy()
 })
 
+test("NAT の WSL では WSLプロキシの札を出す。稼働中は Windows の番地を待っている所に出し、WSL の手引きは出さない。非稼働は様子ごとの訳と、止まれば［立て直す］、ポートが使われていれば［別のポートにする］", () => {
+  const { panel, setStatus } = openNetwork()
+  fireEvent.click(within(panel()).getByRole("switch", { name: "ホストとつなぐ" }))
+  const base = { wsl: true, open: true, port: 41234, addrs: ["172.21.69.139"] }
+  setStatus({ ...base, wslProxy: "running", wslProxyAddrs: ["192.168.1.20"] })
+  expect(within(panel()).getByText("WSLプロキシ稼働中")).toBeTruthy()
+  expect(within(panel()).getByText("192.168.1.20:41234")).toBeTruthy()
+  expect(within(panel()).queryByText("172.21.69.139:41234")).toBeNull()
+  expect(within(panel()).queryByText("相手からも見つけられるようにするには")).toBeNull()
+  fireEvent.click(within(panel()).getByRole("button", { name: "WSLプロキシ稼働中" }))
+  expect(screen.getByRole("note").textContent).toContain("Windowsファイヤーウォール")
+  fireEvent.click(within(panel()).getByRole("button", { name: "WSLプロキシ稼働中" }))
+  const why = (state: HostStatus["wslProxy"], text: string) => {
+    setStatus({ ...base, wslProxy: state })
+    expect(within(panel()).getByText("WSLプロキシ非稼働")).toBeTruthy()
+    fireEvent.click(within(panel()).getByRole("button", { name: "WSLプロキシ非稼働" }))
+    expect(screen.getByRole("note").textContent).toBe(text)
+    fireEvent.click(within(panel()).getByRole("button", { name: "WSLプロキシ非稼働" }))
+  }
+  why(
+    "unavailable",
+    "Windows側にもmatomezuの同じバージョンを入れると、中継プロキシが稼働し、LAN内にmatomezuが公開されます",
+  )
+  expect(within(panel()).getByText("172.21.69.139:41234")).toBeTruthy()
+  expect(within(panel()).getByText("相手からも見つけられるようにするには")).toBeTruthy()
+  why(
+    "update-windows",
+    "Windows側とWSL側のmatomezuのバージョンを合わせると中継プロキシが稼働し、LAN内にmatomezuが公開されます",
+  )
+  why("starting", "Windows 側で中継プロキシを立てています")
+  why("listen", "Windows 側で待ち受けを開けませんでした")
+  expect(within(panel()).queryByRole("button", { name: "立て直す" })).toBeNull()
+  why("stopped", "Windows 側の中継プロキシが止まりました")
+  expect(within(panel()).getByRole("button", { name: "立て直す" })).toBeTruthy()
+  why("port-in-use", "Windows でポート 41234 がほかに使われています")
+  expect(within(panel()).getByRole("button", { name: "別のポートにする" })).toBeTruthy()
+})
+
 test("覚えたポートが使われていれば［別のポートにする］を出し、確かめのダイアログで頼む。どちらで閉じても「ネットワーク」に戻る", async () => {
   const asked: unknown[] = []
   const store = createMatomezu({

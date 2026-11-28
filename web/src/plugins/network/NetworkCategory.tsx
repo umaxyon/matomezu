@@ -1,6 +1,8 @@
 // 設定カテゴリ「ネットワーク」: ホスト名とほかのホストとつなぐかの項目。つなぐが入なら、待っている所（番地ごとに［コピー］）とこのホストの鍵の印か、
 // 入口を開けなかった理由の 1 行（覚えたポートが使われていれば［別のポートにする］。確かめのダイアログを開く）。その下に、AI 用ホストリストに載せるこのホストのワークルーム
-// （全部か 5 件。つなぐが切でも出す）。そのうえ WSL で動いているときは、このホストから相手の待っている所を入れてつなぐ案内と、開くと出る、相手からも見つけられるようにする手引き
+// （全部か 5 件。つなぐが切でも出す）。そのうえ NAT の WSL では WSLプロキシの稼働中・非稼働の札（「？」に訳。止まったら［立て直す］、Windows でポートが使われていれば［別のポートにする］）。
+// 稼働中は、待っている所に WSLプロキシの番地（Windows の LAN の番地）を出す。WSL で WSLプロキシが稼働していないときは、
+// このホストから相手の待っている所を入れてつなぐ案内と、開くと出る、相手からも見つけられるようにする手引き
 import { useEffect, useState } from "react"
 import { type LISTED_WORKROOMS, NOT_SET } from "../../plugin-api"
 import { type UserSettingControlProps, useActions, useMessages, useSettings } from "../../plugin-api/ui"
@@ -8,11 +10,15 @@ import {
   ActionButton,
   Choices,
   ChoiceText,
+  HelpButton,
+  type HostEntrance,
   NO_HOST_STATUS,
   NO_PORT,
+  NO_WSL_PROXY,
   SettingRow,
   TextSettingControl,
   UserSettings,
+  useAskHosts,
   useCopyText,
   useHostStatus,
 } from "../base/ui"
@@ -43,6 +49,8 @@ export function NetworkCategory() {
   if (!on || got === NO_HOST_STATUS)
     return <UserSettings settings={[HOST_NAME.id, CONNECT_HOSTS.id, LISTED_WORKROOMS_SETTING.id]} />
   const status = got
+  const proxied = status.wslProxy === "running" && status.wslProxyAddrs.length > 0
+  const addrs = proxied ? status.wslProxyAddrs : status.addrs
   return (
     <>
       <UserSettings settings={[HOST_NAME.id, CONNECT_HOSTS.id]} />
@@ -50,7 +58,7 @@ export function NetworkCategory() {
         <div className={styles.rows}>
           <SettingRow label={t("Listening at")}>
             <span className={styles.addrs}>
-              {status.addrs.map(a => (
+              {addrs.map(a => (
                 <Address key={a} text={`${a}:${status.port}`} />
               ))}
             </span>
@@ -68,7 +76,8 @@ export function NetworkCategory() {
         </p>
       )}
       {status.failed === "listen" && <p className={styles.note}>{t("Could not open the entrance for other hosts")}</p>}
-      {status.wsl && status.port !== NO_PORT && <WslGuide port={status.port} />}
+      {status.wslProxy !== NO_WSL_PROXY && <WslProxyNote status={status} />}
+      {status.wsl && status.port !== NO_PORT && status.wslProxy !== "running" && <WslGuide port={status.port} />}
     </>
   )
 }
@@ -100,6 +109,42 @@ function Address({ text }: { text: string }) {
 }
 
 const COPY_LABELS = { none: "Copy", done: "Copied", failed: "Could not copy" } as const
+
+// WSLプロキシの札: 稼働中か非稼働かと、「？」に今の様子の訳。止まったら［立て直す］、Windows でポートが使われていれば［別のポートにする］
+function WslProxyNote({ status }: { status: HostEntrance }) {
+  const t = useMessages(kit)
+  const ask = useAskHosts()
+  const { openDialog } = useActions()
+  const [failed, setFailed] = useState(false)
+  if (status.wslProxy === NO_WSL_PROXY) return null
+  const label = t(status.wslProxy === "running" ? "WSL proxy running" : "WSL proxy not running")
+  const port = status.port === NO_PORT ? "" : status.port
+  const why = {
+    running: t("Windows forwards the access to WSL"),
+    starting: t("Starting the WSL proxy on Windows"),
+    unavailable: t("Install matomezu on Windows for the WSL proxy"),
+    "update-windows": t("Match the versions of matomezu for the WSL proxy"),
+    "update-this": t("Match the versions of matomezu for the WSL proxy"),
+    "port-in-use": t("Port {port} is used on Windows", { port }),
+    listen: t("The WSL proxy could not listen on Windows"),
+    stopped: t("The WSL proxy on Windows stopped"),
+  }[status.wslProxy]
+  return (
+    <p className={`${styles.note} ${styles.proxy}`}>
+      {label}
+      <HelpButton text={why} label={label} />
+      {status.wslProxy === "port-in-use" && (
+        <ActionButton onClick={() => openDialog(PORT_REPICK_DIALOG.id)}>{t("Use another port")}</ActionButton>
+      )}
+      {status.wslProxy === "stopped" && (
+        <ActionButton onClick={() => void ask({ kind: "restart-wsl-proxy" }).catch(() => setFailed(true))}>
+          {t("Start the WSL proxy again")}
+        </ActionButton>
+      )}
+      {failed && <span>{t("Could not ask the server")}</span>}
+    </p>
+  )
+}
 
 // WSL の案内: NAT の WSL は mDNS で見つからず、相手から届かない。このホストからつなげば、リバース接続で相手の頼みも届く。
 // 相手からも見つけてつなげるようにするには、WSL のネットワークをミラーにし、Hyper-V のファイアウォールにポートを通す（matomezu は自動では設定しない。
