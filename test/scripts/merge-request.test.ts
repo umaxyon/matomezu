@@ -1,8 +1,13 @@
 import { afterEach, expect, test } from "bun:test"
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { execFileSync } from "node:child_process"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
+import { git, HISTORY, queueDir } from "../../scripts/merge-queue"
 import {
+  CASES,
+  casesStep,
+  enterDirect,
   nextStep,
   queuedRequests,
   type Request,
@@ -64,4 +69,70 @@ test("外された物には、重ねた main を添えて次にする事を返�
     "次: main の側の都合なので、main_manager に知らせる",
   )
   expect(nextStep({ name: "x", sha, kind: "merged" })).toBeUndefined()
+})
+
+// main と origin を持つ一時のリポジトリと、main から分けて docs/a.md を直したブランチ
+function directRepo() {
+  const root = mkdtempSync(join(tmpdir(), "merge-request-"))
+  dirs.push(root)
+  const main = join(root, "main")
+  const origin = join(root, "origin.git")
+  execFileSync("git", ["init", "-q", "-b", "main", main])
+  execFileSync("git", ["init", "-q", "--bare", origin])
+  git(main, "config", "user.name", "t")
+  git(main, "config", "user.email", "t@example.com")
+  git(main, "remote", "add", "origin", origin)
+  const commit = (file: string, text: string) => {
+    mkdirSync(dirname(join(main, file)), { recursive: true })
+    writeFileSync(join(main, file), text)
+    git(main, "add", file)
+    git(main, "commit", "-q", "-m", file)
+    return git(main, "rev-parse", "HEAD")
+  }
+  const base = commit("docs/a.md", "a\n")
+  git(main, "checkout", "-q", "-b", "b1")
+  const sha = commit("docs/a.md", "b\n")
+  git(main, "checkout", "-q", "main")
+  return { main, origin, commit, base, c: { name: "b1", sha } }
+}
+
+test("並ばずに入れる物は main を ff して push し、HISTORY に direct の 1 行を足す", async () => {
+  const r = directRepo()
+  expect(await enterDirect(r.main, r.c, r.base)).toEqual({ kind: "direct", pushed: { ok: true } })
+  expect(git(r.main, "rev-parse", "refs/heads/main")).toBe(r.c.sha)
+  expect(git(r.origin, "rev-parse", "refs/heads/main")).toBe(r.c.sha)
+  const history = readFileSync(join(queueDir(join(r.main, ".git")), HISTORY), "utf8")
+  expect(history.split("\t").slice(1, 4)).toEqual(["b1", r.c.sha.slice(0, 8), "direct"])
+})
+
+test("確かめた後に main が進んだか、main の worktree に未コミットがあれば、入れない", async () => {
+  const r = directRepo()
+  writeFileSync(join(r.main, "docs/a.md"), "edited\n")
+  expect(await enterDirect(r.main, r.c, r.base)).toEqual({ kind: "dirty" })
+  git(r.main, "checkout", "-q", "--", "docs/a.md")
+  r.commit("docs/m.md", "m\n")
+  expect(await enterDirect(r.main, r.c, r.base)).toEqual({ kind: "moved" })
+  expect(existsSync(join(queueDir(join(r.main, ".git")), HISTORY))).toBe(false)
+})
+
+test("キューに並んでいる候補と衝突するなら入れずに yield を返し、衝突しなければ入れる", async () => {
+  const r = directRepo()
+  const queuedOn = (name: string, file: string, text: string) => {
+    git(r.main, "checkout", "-q", "-b", name, r.base)
+    const sha = r.commit(file, text)
+    git(r.main, "checkout", "-q", "main")
+    return [{ branch: name, sha, worktree: "/w", pid: 1, at: "" }]
+  }
+  const same = queuedOn("q1", "docs/a.md", "q\n")
+  expect(await enterDirect(r.main, r.c, r.base, () => same)).toEqual({ kind: "yield", to: same[0]! })
+  expect(git(r.main, "rev-parse", "refs/heads/main")).toBe(r.base)
+
+  const other = queuedOn("q2", "src.ts", "x\n")
+  expect((await enterDirect(r.main, r.c, r.base, () => other)).kind).toBe("direct")
+  expect(git(r.main, "rev-parse", "refs/heads/main")).toBe(r.c.sha)
+})
+
+test("入った物が指摘改善事例を変えていたときだけ、main_manager に知らせるよう添える", () => {
+  expect(casesStep(["docs/concept.md", CASES])).toContain("main_manager")
+  expect(casesStep(["docs/concept.md", ".claude/judgment-principles.md"])).toBeUndefined()
 })
