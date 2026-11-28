@@ -122,11 +122,11 @@ export const NETWORK_MESSAGES = defineMessages({
   },
   "Starting the WSL proxy on Windows": {
     en: "Starting the WSL proxy on Windows",
-    ja: "Windows 側で中継プロキシを立てています",
+    ja: "Windows側で中継プロキシを立てています",
   },
   "The WSL proxy on Windows stopped": {
     en: "The WSL proxy on Windows stopped",
-    ja: "Windows 側の中継プロキシが止まりました",
+    ja: "Windows側の中継プロキシが止まりました",
   },
   "Port {port} is used on Windows": {
     en: "Port {port} is used by another program on Windows",
@@ -134,7 +134,7 @@ export const NETWORK_MESSAGES = defineMessages({
   },
   "The WSL proxy could not listen on Windows": {
     en: "The WSL proxy could not listen on Windows",
-    ja: "Windows 側で待ち受けを開けませんでした",
+    ja: "Windows側で待ち受けを開けませんでした",
   },
   "Start the WSL proxy again": { en: "Start again", ja: "立て直す" },
   "On WSL, other machines cannot find this host": {
