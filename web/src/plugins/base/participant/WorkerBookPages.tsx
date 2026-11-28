@@ -1,7 +1,7 @@
 // ワーカーブックのページの一覧（チケットのナレッジの「作業ブック」で出す）: ワーカーブック found のページを並べる（タイプのアイコンと題）。行はクリックで「開く／分割で開く」、ダブルクリックで全画面で開く（そのページ）。
 // keepHere: 分けた並びの中から分割で開くとき、起点（この一覧を出しているスクリーン）を残してもう片方の段を替える
 import { useShallow } from "zustand/react/shallow"
-import { findPage, NO_PAGE } from "../../../core/book"
+import { NO_OUTERMOST, outermostOf } from "../../../core/folders-tree"
 import { useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { PAGE } from "../library/icons"
 import { useBookOpenChoice } from "../window/useBookOpenChoice"
@@ -9,15 +9,15 @@ import styles from "./WorkerBookPages.module.css"
 import type { FoundWorkerBook } from "./worker-book"
 
 export function WorkerBookPages({ found, keepHere }: { found: FoundWorkerBook; keepHere?: boolean }) {
-  // ページの題とタイプ（並びの順に、題・タイプ・題・タイプ…）
+  // ページの題とタイプ（並びの順に、題・タイプ・題・タイプ…。ページメタで読む）
   const facts = useMatomezuState(
-    useShallow(s => {
-      const book = s.books[found.book]
-      return found.pages.flatMap(id => {
-        const at = book ? findPage(book, id) : NO_PAGE
-        return at === NO_PAGE ? ["", ""] : [at.page.title, at.page.type]
-      })
-    }),
+    useShallow(s =>
+      found.pages.flatMap(id => {
+        const row = s.pages[id]
+        const outermost = outermostOf(s, id)
+        return row && outermost !== NO_OUTERMOST && outermost.id === found.book ? [row.title, row.type] : ["", ""]
+      }),
+    ),
   )
   return (
     <ul className={styles.list}>

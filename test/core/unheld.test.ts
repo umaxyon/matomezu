@@ -4,7 +4,7 @@ import { USER } from "../../web/src/core/actor"
 import { type Folder, isHeld, type Library, pageIn, pageMetaRowOf } from "../../web/src/core/folders"
 import { bookOf, libraryOf, unheldIn } from "../../web/src/core/folders-books"
 import { withChanges } from "../../web/src/core/folders-changes"
-import { performIn, type World } from "../../web/src/core/perform-world"
+import { performIn, permittedIn, type World } from "../../web/src/core/perform-world"
 import { deadReferences } from "../../web/src/core/references"
 import type { AnyPage } from "../../web/src/core/schema/book"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
@@ -87,6 +87,14 @@ test("宛先のブックに中身を持っていないページがあれば、�
     reason: "needs-rows",
     books: ["o1"],
   })
+})
+
+test("中身を持っていないブック・ページへの行う前の問いは、問えないので行えると答える（送った先の常駐が確かめる）。無いブックは no-book", () => {
+  const world = start("a1")
+  const ask = (id: string, args: unknown, on: object) => permittedIn(world, base(id), args, on as never, ctxOf())
+  expect(ask("page-remove", { page: "a1" }, { book: "A" })).toEqual({ ok: true })
+  expect(ask("page-update", { title: "新" }, { page: "s1" })).toEqual({ ok: true })
+  expect(ask("page-remove", { page: "a1" }, { book: "none" })).toEqual({ ok: false, reason: "no-book" })
 })
 
 test("中身を持っていないページがどこかにあれば、書庫が対象のアクションは needs-rows で答える", () => {
