@@ -41,7 +41,7 @@ import {
   MAILBOX_SCREEN_VIEW,
   PROPOSAL_ACTIONS,
 } from "./mail/ui"
-import { ALERT_STATUS, MARK_ICON, MARK_LAYER } from "./mark/ui"
+import { MARK_ICON, MARK_LAYER } from "./mark/ui"
 import { FOLDED_NOTE_STATUS, NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE, READ_NOTE_STATUS } from "./note/ui"
 import { OPEN_GUIDE } from "./open-guide/ui"
 import type { AnnotationIconProps } from "./outbox/ui"
@@ -200,6 +200,7 @@ export {
   CrownIcon,
   PendingBalloon,
   useAliveNow,
+  useAskRefresh,
   useContextGauge,
   useOwnBookPages,
   useVisitorRows,
@@ -401,7 +402,6 @@ export const BASE_UI = definePluginUi(BASE, {
     NOTE_READ_NOTICE,
     NOTE_ICON,
     MARK_ICON,
-    ALERT_STATUS,
     FOLDED_NOTE_STATUS,
     READ_NOTE_STATUS,
     TOOL_SWITCH,
@@ -452,6 +452,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-layers": Record<string, never>
     "@matomezu/base:sheet-layers": PrintSheetProps // 印刷区画 1 つの中のレイヤー
     "@matomezu/base:stage-bottom": Record<string, never>
+    "@matomezu/base:stage-bottom-left": Record<string, never>
     "@matomezu/base:book-name-head": Record<string, never> // ブックの名前の枠の中、名前のボタンの前
     "@matomezu/base:stage-corner": Record<string, never>
     "@matomezu/base:footer-menu-map": Record<string, never>
@@ -534,7 +535,6 @@ declare module "../../core/catalog" {
     "@matomezu/base:note-read-notice": typeof NOTE_READ_NOTICE
     "@matomezu/base:note-icon": typeof NOTE_ICON
     "@matomezu/base:mark-icon": typeof MARK_ICON
-    "@matomezu/base:alert-status": typeof ALERT_STATUS
     "@matomezu/base:folded-note-status": typeof FOLDED_NOTE_STATUS
     "@matomezu/base:read-note-status": typeof READ_NOTE_STATUS
     "@matomezu/base:print-preview-panel": typeof PRINT_PREVIEW_PANEL

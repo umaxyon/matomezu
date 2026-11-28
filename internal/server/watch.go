@@ -21,7 +21,7 @@ package server
 // 流す前に、もう役目の終わった知らせは捨てる: 受け入れは参加を伝え済み（Told）なら、断り・キャンセルは伝え済み（記録が無いか、伝えた印がある。departure.go）なら。参加者が受け入れ済みでなくなった AI 間メッセージも捨てる。
 // 参加の知らせの行は英語の短い文で、中身（「参加しました」）は、話しかけのフックか、その参加者の次の呼び出しの返事が添える
 //
-//	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>][&breaks=1]
+//	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&hostSpace=<host が通じる範囲の印>][&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>][&breaks=1]
 //	     SSE。event: wake、data: {"line", "id", "session", "text"}（text は改行を含みうる。session は送り先の参加者に結んだセッション id、分からなければ空）
 //	POST /api/ai/watch/ack {"line", "id", "result"}  result は delivered・absent・failed。{} を返す
 
@@ -39,13 +39,30 @@ import (
 
 // wakeLine は、AI のプログラム 1 つの、起こす知らせの通り道。行列に入った合図を ready で受ける
 type wakeLine struct {
-	id      int64         // 通り道の番号（貸した知らせの結果を見分ける）
-	host    string        // AI のプログラムのプロセス id
-	session string        // AI のプログラムが立てたときのセッション id（分からなければ空）
-	limits  WakeLimits    // 受け取る側が名乗った流し方
-	ready   chan struct{} // 送り先の行列に何か入った合図（1 つだけ持つ）
-	closed  chan struct{} // 通り道を外した（常駐を止めるとき）
+	id            int64           // 通り道の番号（貸した知らせの結果を見分ける）
+	program       aiProgram       // AI のプログラム（プロセス id とその範囲の印。分からなければ空）
+	session       string          // AI のプログラムが立てたときのセッション id（分からなければ空）
+	laterSessions map[string]bool // 同じ AI のプログラムが、立てたあとに動かした会話のセッション id（/clear。NoteLaterSession）。Hub の programSessions の物を、同じプログラムの通り道で分け持つ
+	limits        WakeLimits      // 受け取る側が名乗った流し方
+	ready         chan struct{}   // 送り先の行列に何か入った合図（1 つだけ持つ）
+	closed        chan struct{}   // 通り道を外した（常駐を止めるとき）
 }
+
+// startedProgram は、通り道を開いた AI のプログラム 1 つの見分け（プログラムと、立てたときのセッション id）。
+// 立てたときのセッション id も入るので、使い回されたプロセス id のほかの AI のプログラムとは分かれる
+type startedProgram struct {
+	program aiProgram
+	session string
+}
+
+// programSessions は、AI のプログラム 1 つが、立てたあとに動かした会話のセッション id と、通り道を初めて開いた時
+type programSessions struct {
+	sessions map[string]bool
+	at       time.Time
+}
+
+// programSessionsMax は、後の会話を覚えておく AI のプログラムの数の上限（超えたら、今開いた通り道の無い物を古い順に忘れる）
+const programSessionsMax = 256
 
 // WakeLimits は、受け取る側が名乗る流し方（0 は上限なし・間なし）
 type WakeLimits struct {
@@ -136,13 +153,16 @@ const wakeQueueMax = 50
 // wakeRetry は、失敗した知らせを流し直すまでの間
 const wakeRetry = 10 * time.Second
 
-// OpenWakesWith は、プロセス id host（立てたときのセッション id session）の AI の、起こす知らせの通り道を、受け取る側が名乗った流し方 limits でつなぐ。
+// OpenWakesWith は、プロセス id host（その範囲の印 hostSpace、立てたときのセッション id session）の AI の、起こす知らせの通り道を、受け取る側が名乗った流し方 limits でつなぐ。
 // 溜まっていた知らせがあれば合図する
-func (h *Hub) OpenWakesWith(host, session string, limits WakeLimits) *wakeLine {
+func (h *Hub) OpenWakesWith(host, hostSpace, session string, limits WakeLimits) *wakeLine {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.wakeLineSeq++
-	w := &wakeLine{id: h.wakeLineSeq, host: host, session: session, limits: limits, ready: make(chan struct{}, 1), closed: make(chan struct{})}
+	w := &wakeLine{id: h.wakeLineSeq, program: aiProgram{host, hostSpace}, session: session, limits: limits, ready: make(chan struct{}, 1), closed: make(chan struct{})}
+	if host != "" && session != "" {
+		w.laterSessions = h.programSessionsLocked(startedProgram{aiProgram{host, hostSpace}, session})
+	}
 	if h.wakeLines == nil {
 		h.wakeLines = map[*wakeLine]struct{}{}
 	}
@@ -200,12 +220,13 @@ func (h *Hub) dropStaleAbsentLocked() {
 	}
 }
 
-// reaches は、参加者の記録 n の送り先エッジに、通り道 l が合うか。AI のプログラムのプロセス id かセッション id の少なくとも一方が両方で分かって等しく、
-// もう一方は、両方で分かっていれば等しい（Windows では、AI のプログラムまでたどれない watch がある）
+// reaches は、参加者の記録 n の送り先エッジに、通り道 l が合うか。AI のプログラム（プロセス id と範囲の印。aiProgram.is）かセッション id の少なくとも一方が両方で分かって等しく、
+// もう一方は、両方で分かっていれば等しい（Windows では、AI のプログラムまでたどれない watch がある）。
+// 通り道のセッション id は、立てたときの物か、そのあとに同じ AI のプログラムが動かした会話の物（laterSessions）のどれかが等しければよい
 func (l *wakeLine) reaches(n participantNote) bool {
-	host := l.host != "" && l.host == n.WakeHost
-	session := l.session != "" && l.session == n.WakeSession
-	hostOK := l.host == "" || n.WakeHost == "" || host
+	host := l.program.is(n.wakeTarget())
+	session := l.session != "" && (l.session == n.WakeSession || l.laterSessions[n.WakeSession])
+	hostOK := l.program.Host == "" || n.WakeHost == "" || host
 	sessionOK := l.session == "" || n.WakeSession == "" || session
 	return (host || session) && hostOK && sessionOK
 }
@@ -253,6 +274,68 @@ func (h *Hub) noteWakesLocked() {
 	}
 	if changed {
 		h.kickRooms()
+	}
+}
+
+// programSessionsLocked は、AI のプログラム p の後の会話の集まり（無ければ作る。上限を超えたら、開いた通り道の無いプログラムを古い順に忘れる。h.mu を持って呼ぶ）
+func (h *Hub) programSessionsLocked(p startedProgram) map[string]bool {
+	if got, ok := h.programSessions[p]; ok {
+		return got.sessions
+	}
+	if h.programSessions == nil {
+		h.programSessions = map[startedProgram]programSessions{}
+	}
+	open := map[startedProgram]bool{}
+	for l := range h.wakeLines {
+		open[startedProgram{l.program, l.session}] = true
+	}
+	for len(h.programSessions) >= programSessionsMax {
+		var oldest *startedProgram
+		for q, s := range h.programSessions {
+			if !open[q] && (oldest == nil || s.at.Before(h.programSessions[*oldest].at)) {
+				oldest = &q
+			}
+		}
+		if oldest == nil {
+			break
+		}
+		delete(h.programSessions, *oldest)
+	}
+	got := programSessions{sessions: map[string]bool{}, at: time.Now()}
+	h.programSessions[p] = got
+	return got.sessions
+}
+
+// NoteLaterSession は、AI のプログラム from が今セッション sessionID の会話を動かしているとフックが知らせたとき、
+// 通り道を開いたことのある、from と同じプログラム（aiProgram.is。WSL と Windows の同じプロセス id は別）で、立てたときのセッション id の違う物に、
+// sessionID を後の会話として覚えさせる（programSessions）。通り道が切れてつなぎ直しても、同じプログラムの通り道は同じ物を分け持つ。
+// 使い回されたプロセス id の前のプログラムにも覚えさせるが、その通り道はもう開かないので、届く先は変わらない。
+// Claude Code の monitor は /clear で立て直されず、立てたときのセッション id を名乗り続けるので、/clear のあとの会話の id で join した参加者にも届くようにする。
+// 覚えさせたら、届くかの変わりを窓に知らせ、その会話の参加者に溜まった知らせを流させる。from のプロセス id か sessionID が空なら何もしない。
+// フックの知らせを受けたら、参加者を移すより前に呼ぶ
+func (h *Hub) NoteLaterSession(sessionID string, from aiProgram) {
+	if sessionID == "" || from.Host == "" {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	added := false
+	for p, got := range h.programSessions {
+		if !from.is(p.program) || p.session == sessionID || got.sessions[sessionID] {
+			continue
+		}
+		got.sessions[sessionID] = true
+		logWake("program of host %q, space %q, session %q also reaches session %q (a later conversation)", p.program.Host, p.program.Space, p.session, sessionID)
+		added = true
+	}
+	if !added {
+		return
+	}
+	h.noteWakesLocked()
+	for id, n := range h.participantNotes {
+		if n.WakeSession == sessionID {
+			h.signalWakes(id)
+		}
 	}
 }
 
@@ -615,7 +698,7 @@ func (o Options) aiWatch(w http.ResponseWriter, r *http.Request) {
 		n, _ := strconv.Atoi(q.Get(name))
 		return max(n, 0)
 	}
-	line := o.Hub.OpenWakesWith(host, q.Get("session"), WakeLimits{MaxLine: number("maxLine"), MaxNotice: number("maxNotice"), Gap: time.Duration(number("gap")) * time.Millisecond, Breaks: q.Get("breaks") == "1"})
+	line := o.Hub.OpenWakesWith(host, q.Get("hostSpace"), q.Get("session"), WakeLimits{MaxLine: number("maxLine"), MaxNotice: number("maxNotice"), Gap: time.Duration(number("gap")) * time.Millisecond, Breaks: q.Get("breaks") == "1"})
 	defer o.Hub.CloseWakes(line)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")

@@ -1,5 +1,5 @@
 // マーク: 利用者がブックの物に付ける、文の無い印のアノテーション（core/def/annotation.ts）。付けるのは利用者だけ（userOnly）で、利用者も AI も外せる。
-// 種類（kind）は 5 羽の鳥と、びっくりマークの丸。1 つの物にマークは 1 つで、別のマークを付けると置き換わる。
+// 種類（kind）は 5 羽の鳥。1 つの物にマークは 1 つで、別のマークを付けると置き換わる。
 // AI が読んだかは readAt で持ち、読まれていないマークは AI の応えを待つ物に数える（フックが知らせる）。会話で用が済んだら AI が外す
 // 右クリックのメニューのコマンド mark-new（押した物のそばに種類を選ぶスタンドを出す）もここ
 import { z } from "zod"
@@ -19,8 +19,7 @@ export const MARK_KINDS = [
   { id: "buncho", title: BIRD_TITLES.buncho, ai: "buncho: a charcoal gray bird (Java sparrow) with a white flag" },
   { id: "suzume", title: BIRD_TITLES.suzume, ai: "suzume: a brown bird (sparrow) with a yellow flag" },
   { id: "fukurou", title: BIRD_TITLES.fukurou, ai: "fukurou: an indigo blue bird (barn owl) with a blue flag" },
-  { id: "alert", title: "Alert", ai: "alert: a red dot with an exclamation mark" },
-] as const satisfies readonly { id: Bird | "alert"; title: string; ai: string }[] // 鳥の種類は、マスコットの鳥（birds/）の id
+] as const satisfies readonly { id: Bird; title: string; ai: string }[] // 鳥の種類は、マスコットの鳥（birds/）の id
 export type MarkKind = (typeof MARK_KINDS)[number]["id"]
 
 const KINDS = MARK_KINDS.map(k => k.id) as [MarkKind, ...MarkKind[]]

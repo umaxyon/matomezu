@@ -6,6 +6,7 @@ import { z } from "zod"
 import type { ItemPage } from "./placed"
 import type { REMOVED } from "./records"
 import type { AnyPage, Book, OutermostSettings, ReferenceEntry } from "./schema/book"
+import { type Page, PageSchema } from "./schema/page"
 import type { WarningCode } from "./warnings"
 
 // フォルダが持つエントリ 1 つ: ページかバインダの id
@@ -273,15 +274,40 @@ export const homeOver = (books: readonly { id: string }[]): HomeFolder => ({
   lineup: books.map(b => ({ kind: "book", id: b.id })),
 })
 
-// ページの表の 1 行（今の機能台帳で読めるページ）
-export type PageRow = AnyPage
+// ページの表の 1 行（今の機能台帳で読めるページ）。画面が中身を持っていないページは、ページメタだけの行（PageMetaRow）
+export type PageRow = AnyPage | PageMetaRow
+// ページメタ: ページの行のうち、どのタイプのページも持つ土台のフィールド（PageSchema）だけ
+export type PageMeta = Page
+// 中身を持っていないページの行（ページメタと、持っていない印 unheld）。在ること・名前・タイプ・ロック・紙は読めるが、中身は読めない
+export type PageMetaRow = PageMeta & { readonly unheld: true }
+
+// 行 row の中身を持っているか
+export const isHeld = (row: PageRow): row is AnyPage => !("unheld" in row)
+
+// ページメタのフィールドの名前（常駐も、ページメタだけを窓に送るとき、ホストのエンジンからこれを読んで使う）
+export const META_KEYS = Object.keys(PageSchema.shape) as (keyof PageMeta)[]
+// 行 row のページメタだけの行（中身を持っていない行に替える）
+export function pageMetaRowOf(row: PageRow): PageMetaRow {
+  const meta: Record<string, unknown> = {}
+  for (const k of META_KEYS) if (row[k] !== undefined) meta[k] = row[k]
+  return { ...(meta as PageMeta), unheld: true }
+}
+const PageMetaRowSchema = PageSchema.extend({ unheld: z.literal(true) })
+// 置き場所から読んだままの行 raw が、中身を持っていない行を名乗るか（形は確かめない）
+export const namesPageMetaRow = (raw: unknown): boolean =>
+  typeof raw === "object" && raw !== null && (raw as { unheld?: unknown }).unheld === true
+// 置き場所から読んだままの行 raw を、中身を持っていない行の形で読んだ物（形に合わないか、タイプが types に無ければ undefined）
+export function pageMetaRowRead(types: { has(type: string): boolean }, raw: unknown): PageMetaRow | undefined {
+  const parsed = PageMetaRowSchema.safeParse(raw)
+  return parsed.success && types.has(parsed.data.type) ? (parsed.data as PageMetaRow) : undefined
+}
 export type Pages = Readonly<Record<string, PageRow>>
 export type Folders = Readonly<Record<string, Folder>>
 
-// ページの表 pages の、id のページ（ブックの中でも外でも。読めないページ・表に無い id は undefined）
+// ページの表 pages の、id のページ（ブックの中でも外でも。読めないページ・表に無い id・中身を持っていないページは undefined）
 export function pageIn(pages: Pages, id: string): ItemPage | undefined {
   const row = pages[id]
-  return row?.kind === "page" ? row : undefined
+  return row?.kind === "page" && isHeld(row) ? row : undefined
 }
 
 // ページの表とフォルダの表

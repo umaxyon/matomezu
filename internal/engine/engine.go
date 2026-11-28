@@ -41,6 +41,7 @@ type Engine struct {
 	notes        func(string) string
 	without      func(string, string) string
 	talk         func() string
+	metaRow      func(string) string
 	join         func() string
 	end          func() string
 	hosts        func() string
@@ -150,6 +151,7 @@ func New() (*Engine, error) {
 		{"matomezuAiPagePlaced", &e.pagePlaced},
 		{"matomezuAiItem", &e.item},
 		{"matomezuTalkActions", &e.talk},
+		{"matomezuPageMetaRow", &e.metaRow},
 		{"matomezuJoinActions", &e.join},
 		{"matomezuEndActions", &e.end},
 		{"matomezuHostActions", &e.hosts},

@@ -39,7 +39,8 @@ import {
 import { shownBookScreens, shownScreens } from "../core/window"
 import type { StoreCatalog } from "./plugin"
 import { ownedPluginState, pluginValueOf } from "./plugin-state"
-import type { ForeignChange, ForeignLibraryRows, LostValue, MatomezuState, RowSides, StoreOptions } from "./state"
+import type { ForeignChange, ForeignLibraryRows, LostValue, MatomezuState, StoreOptions } from "./state"
+import { librarySidesOf } from "./state"
 
 // まだ見ていない変更を持つ所。checkSeen は見えた物を画面の履歴に差し込み、dropOverwritten はこの窓の利用者の、画面の履歴に入れない変更が
 // 消した物を捨て、addForeign はよその変更を足し、reset は持っている物を全部捨てる
@@ -123,15 +124,16 @@ export function createUnseenChanges(deps: {
   // 最後に知っている表に、よその変更のうち書庫の履歴に入るアクションの分 rows だけを行った表と、その分が変えたページとフォルダの id
   // （知らせの前と後の違いを、最後に知っている行に当てる。同じ物をほかのアクションも変えていても、その分は入らない）
   const afterLibraryActions = (rows: ForeignLibraryRows) => {
-    const side = (v: unknown) => (v === "none" ? undefined : v)
-    const patchesOf = (changed: Readonly<Record<string, RowSides>>) =>
+    const side = <T>(v: T | "none") => (v === "none" ? undefined : v)
+    const patchesOf = <T>(changed: Readonly<Record<string, RowChange<T>>>) =>
       Object.fromEntries(
         Object.entries(changed).flatMap(([id, r]) => {
           const p = patchOf(side(r.before), side(r.after))
           return p ? [[id, p] as const] : []
         }),
       )
-    const patches = { pages: patchesOf(rows.pages), folders: patchesOf(rows.folders) }
+    const sides = librarySidesOf(rows)
+    const patches = { pages: patchesOf(sides.pages), folders: patchesOf(sides.folders) }
     return {
       tables: withRowsPatched(knownTables, patches),
       rows: { pages: Object.keys(patches.pages), folders: Object.keys(patches.folders) },

@@ -23,6 +23,7 @@ import (
 
 	claudelaunch "github.com/umaxyon/matomezu/clients/claude-code/launch"
 	"github.com/umaxyon/matomezu/internal/mcp"
+	"github.com/umaxyon/matomezu/internal/server"
 )
 
 type talkedCmd struct {
@@ -213,6 +214,14 @@ func talked(out io.Writer, hook hookInput, context, format string, api hookAPI) 
 	_ = json.NewEncoder(out).Encode(answer)
 }
 
+// hostSpace は、フックが添える AI のプログラムのプロセス id host の通じる範囲の印（host が空なら空。常駐は、同じ範囲の watch の通り道にだけ、後の会話を覚えさせる）
+func hostSpace(host string) string {
+	if host == "" {
+		return ""
+	}
+	return server.ProcessSpace()
+}
+
 // askTalked は、ターンの始まりを知らせ、結ばれていない参加者がいるなら会話の記録を後ろから調べて結ばせる。チャットスレッドの id が分かれば、どの呼び出しにも添える
 // （常駐は、結んだ参加者に覚え、この会話が誰にも結ばれていなければ、同じチャットスレッドの参加者を移す）。常駐の答えが読めなければ空を返す
 func askTalked(hook hookInput, api hookAPI) talkReply {
@@ -221,7 +230,7 @@ func askTalked(hook hookInput, api hookAPI) talkReply {
 	if hook.Thread != nil {
 		thread = hook.Thread(hook.Host, hook.SessionID)
 	}
-	first := map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "woken": hook.Woken, "prompt": hook.Prompt}
+	first := map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "hostSpace": hostSpace(hook.Host), "woken": hook.Woken, "prompt": hook.Prompt}
 	if thread != "" {
 		first["chatThread"] = thread
 	}
@@ -269,7 +278,7 @@ func askTalked(hook hookInput, api hookAPI) talkReply {
 		if len(found) == 0 {
 			continue
 		}
-		ask := map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "candidates": found}
+		ask := map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "hostSpace": hostSpace(hook.Host), "candidates": found}
 		if thread != "" {
 			ask["chatThread"] = thread
 		}
@@ -294,7 +303,7 @@ func sendModel(hook hookInput, api hookAPI) {
 	if api == nil || model == "" || hook.SessionID == "" {
 		return
 	}
-	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "model": model, "host": hook.Host})
+	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "model": model, "host": hook.Host, "hostSpace": hostSpace(hook.Host)})
 	_, _ = api(body)
 }
 
@@ -320,7 +329,7 @@ func sendContextUse(hook hookInput, read contextReader, api hookAPI) {
 	if use, ok := read(hook); ok {
 		value = use
 	}
-	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "contextUse": value})
+	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "hostSpace": hostSpace(hook.Host), "contextUse": value})
 	_, _ = api(body)
 }
 

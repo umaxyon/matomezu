@@ -9,14 +9,16 @@ package server
 //
 //	hello     {"client", "build"} この接続の id と、常駐の版とデータの形と配る画面の印（{"version", "dataVersion", "web"?}。SetBuild の前は無い）。窓はアクションバルクにこの id と、自分で振った順の番号 seq を添えて送る
 //	changed   {"pages": [{"id", "page"（消したなら "removed": true）, "version"}], "folders": [{"id", "folder"（同じ）, "version"}], "books", "library"?, "client", "seq", "by", "act", "actions",
-//	          "settings"?, "annotations", "records": [{"subject", "id", "record"（消したなら "removed"）, "version"（消したなら 0）}], "counters"?, "window"}
-//	          1 回の Perform が変えた物の全部（何か変わったときだけ 1 つ）。pages・folders は変えた・足した・消したページとフォルダ（書庫ホームとフォルダも）、
-//	          books はそれらを持つブックの id（書庫ホームとフォルダは入らない）。library は、書庫の履歴に入るアクションが変えたページとフォルダごとの前と後（{"pages": {id: {"before", "after"}}, "folders": 同じ}。無い側は "none"）。
+//	          "settings"?, "annotations", "records": [{"subject", "id", "record"（消したなら "removed"）, "version"（消したなら 0）}], "counters"?, "window", "unreadableBooks", "results"}
+//	          results は行ったアクションごとの結果（バルクの順。送った窓が、先に行わなかったアクションの結果を受け取る）。unreadableBooks は、この書き込みを確かめた後の読めないブックの全部（/api/data と同じ。毎回、全部）。1 回の Perform が変えた物の全部（何か変わったときだけ 1 つ）。pages・folders は変えた・足した・消したページとフォルダ（書庫ホームとフォルダも）、
+//	          中身を持つ物を名乗った窓（POST /api/hold）には、その中に無いページを、ページメタだけの行（"page" がページメタと "unheld": true）にして送る。
+//	          books はそれらを持つブックの id（書庫ホームとフォルダは入らない）。library は、書庫の履歴に入るアクションが変えたページとフォルダごとの前と後（{"pages": {id: {"before", "after"}}, "folders": 同じ}。無い側は "none"）。送った窓は、先に行わなかったアクションを持つバルクの、書庫の履歴の段にする。
 //	          client と seq は頼んだ窓とその番号（窓の外からなら空）。by は頼んだ物（"ai"・"window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印、actions は行ったアクションの id の並び。
 //	          settings は変わったときだけ、新しい設定。annotations はアノテーションが変わったページの id → 新しい並び（空の並びなら全部無くなった）。
 //	          records は変えたレコード（郵便も。records.go）、counters は進めた番号の区切り（種類 → 区切り → 次の番号。進めたときだけ）。window は最後にフォーカスされた窓（無ければ空）
 //	annotations {"page", "annotations"} Perform の外でページのアノテーションが変わった（並びが空なら全部無くなった）
-//	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションバルクを行い終えた（断ったなら ok が false）。そのバルクの changed のあとに届く
+//	ack       {"seq", "ok", "reason", "results"?, "library"?, "kind"?, "permission"?} 送った窓にだけ（results は行えたときの、アクションごとの結果。バルクの順。library は行えたときの、changed と同じ書庫の前と後。
+//	          kind と permission は断ったときの、断りの種類と止めた認可ステップ）。そのアクションバルクを行い終えた（断ったなら ok が false）。そのバルクの changed のあとに届く
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた窓にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
 //	participant-calls {"participant", "at"} 参加者の最後に呼ばれた時刻（join_calls.go。30 秒以上あいたときだけ知らせる）
@@ -115,19 +117,22 @@ type Hub struct {
 	heardModels      map[string]heardModel             // セッション id → 誰にも結ばれていないうちにフックが知らせたモデル（model.go。残さない）
 	heardContexts    map[string]heardContext           // セッション id → フックが知らせた今のコンテキストの量（context_use.go。残さない）
 	clients          map[string]*client
-	wakeLines        map[*wakeLine]struct{}    // AI を起こす知らせの通り道（watch.go）
-	wakeQueue        map[string][]wakeItem     // 参加者の id → 受け取られるまで持つ、起こす知らせの行列（watch.go）
-	wakeSeq          int64                     // 起こす知らせの番号の最後（watch.go）
-	wakeLineSeq      int64                     // 起こす知らせの通り道の番号の最後（watch.go）
-	wakeAbsent       map[string]map[int64]bool // 参加者の id → その会話が無い（absent）と答えた通り道の番号の集まり（watch.go。その通り道で次に渡せたら・切れたら・届かなくなったら消す）
-	wakeShown        map[string]bool           // 窓に知らせた、起こす知らせを渡せる通り道がつながっている参加者の id（watch.go）
-	lentWakes        []string                  // 通り道に貸した知らせの文の、新しい物（watch.go の WokenBy が照らす）
-	seenEnvelopes    map[string]bool           // 行列に入れた AI 間メッセージの封筒の id（message.go。二度入れない）
-	seenOrder        []string                  // seenEnvelopes に入れた順（古い物から忘れる）
-	rallies          map[rallyKey]int          // AI ラリーの向き → 利用者トリガートークの後に起こした数（rally.go）
-	ralliesStopped   map[rallyKey]bool         // 上限で止め、送り先に知らせた AI ラリーの向き（rally.go）
-	ralliesSent      map[rallySentKey]int      // ほかのホストへ送った向き → 送り手の利用者トリガートークの後に送った数（rally.go）
-	pending          []pendingMessage          // 承認待ちの AI 間メッセージ（届いた順。メモリだけ。pending_message.go）
+	wakeLines        map[*wakeLine]struct{}             // AI を起こす知らせの通り道（watch.go）
+	programSessions  map[startedProgram]programSessions // 通り道を開いた AI のプログラム → 立てたあとに動かした会話（watch.go。残さない）
+	wakeQueue        map[string][]wakeItem              // 参加者の id → 受け取られるまで持つ、起こす知らせの行列（watch.go）
+	wakeSeq          int64                              // 起こす知らせの番号の最後（watch.go）
+	wakeLineSeq      int64                              // 起こす知らせの通り道の番号の最後（watch.go）
+	wakeAbsent       map[string]map[int64]bool          // 参加者の id → その会話が無い（absent）と答えた通り道の番号の集まり（watch.go。その通り道で次に渡せたら・切れたら・届かなくなったら消す）
+	wakeShown        map[string]bool                    // 窓に知らせた、起こす知らせを渡せる通り道がつながっている参加者の id（watch.go）
+	lentWakes        []string                           // 通り道に貸した知らせの文の、新しい物（watch.go の WokenBy が照らす）
+	seenEnvelopes    map[string]bool                    // 行列に入れた AI 間メッセージの封筒の id（message.go。二度入れない）
+	seenOrder        []string                           // seenEnvelopes に入れた順（古い物から忘れる）
+	replies          map[string]replyWait               // 返事を待つ AI 宛ての封筒の id → 返事を受けるレシーバーと受けた参加者（receiver.go）
+	replyOrder       []string                           // replies に入れた順（古い物から忘れる）
+	rallies          map[rallyKey]int                   // AI ラリーの向き → 利用者トリガートークの後に起こした数（rally.go）
+	ralliesStopped   map[rallyKey]bool                  // 上限で止め、送り先に知らせた AI ラリーの向き（rally.go）
+	ralliesSent      map[rallySentKey]int               // ほかのホストへ送った向き → 送り手の利用者トリガートークの後に送った数（rally.go）
+	pending          []pendingMessage                   // 承認待ちの AI 間メッセージ（届いた順。メモリだけ。pending_message.go）
 	next             int
 	actionNow        time.Time        // 前に、時点の無いアクションに入れた時点（Perform。時計が後ろへ戻っても、これより後にする）
 	ticks            int64            // フォーカスの順を振る数

@@ -212,7 +212,7 @@ test("開いている間に紙をずらすか倍率を変えたら、閉じて�
   // ホイールで紙をずらす
   const shown = await paperBox(page)
   const stage = (await page.locator("[data-stage]").first().boundingBox())!
-  await page.mouse.move(stage.x + 40, stage.y + stage.height - 40)
+  await page.mouse.move(stage.x + stage.width / 2, stage.y + stage.height - 40)
   await page.mouse.wheel(-120, 0)
   await expect.poll(async () => (await paperBox(page)).x).not.toBe(shown.x)
   await page.keyboard.press("Escape")

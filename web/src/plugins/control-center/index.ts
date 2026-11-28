@@ -8,6 +8,7 @@ import {
   LIBRARY_MAXIMIZED,
   MAILBOX_MAXIMIZED,
   PICKED,
+  REFRESH_ASK_DIALOG,
   VISITOR_LEAVE_DIALOG,
   WORKROOM_LEAVE_DIALOG,
 } from "./control-center"
@@ -21,6 +22,7 @@ export {
   MAILBOX_MAXIMIZED,
   PICKED,
   type Picked,
+  REFRESH_ASK_DIALOG,
   VISITOR_LEAVE_DIALOG,
   WORKROOM_LEAVE_DIALOG,
 } from "./control-center"
@@ -30,7 +32,7 @@ export const CONTROL_CENTER_PLUGIN = defineBuiltin(
     controlCenters: [CONTROL_CENTER],
     screens: [CONTROL_CENTER_SCREEN],
     pluginStates: [CONTENT_AREA, PICKED, LIBRARY_MAXIMIZED, MAILBOX_MAXIMIZED],
-    dialogs: [WORKROOM_LEAVE_DIALOG, VISITOR_LEAVE_DIALOG],
+    dialogs: [WORKROOM_LEAVE_DIALOG, VISITOR_LEAVE_DIALOG, REFRESH_ASK_DIALOG],
   }),
 )
 
@@ -50,6 +52,7 @@ declare module "../../core/catalog" {
   interface DialogTable {
     "@matomezu/control-center:workroom-leave": typeof WORKROOM_LEAVE_DIALOG
     "@matomezu/control-center:visitor-leave": typeof VISITOR_LEAVE_DIALOG
+    "@matomezu/control-center:refresh-ask": typeof REFRESH_ASK_DIALOG
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
 }

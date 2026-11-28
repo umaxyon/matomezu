@@ -1,5 +1,5 @@
 // コントロールセンターの画面: 左の列（利用者パネル・ワークルーム/参加者の一覧）と右の領域（プロジェクト・書庫）。
-// コンテンツエリアに出す画面を替えると履歴に積まれ、戻れる。郵便箱はコンテンツエリアの画面の 1 つで、歯車は設定画面を開く。ワークルームは選ぶと枠に出て、王冠で管理者にし、退室で空室にするか消す
+// コンテンツエリアに出す画面を替えると履歴に積まれ、戻れる。郵便箱はコンテンツエリアの画面の 1 つで、歯車は設定画面を開く。ワークルームは選ぶと枠に出て、王冠で管理者にし、退室で空室にするか消し、丸い矢印でコンテキストをクリアする指示を AI に送る
 import { aiAuth, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 
 const NOW = "2026-11-12T00:00:00.000Z"
@@ -186,4 +186,44 @@ test("退室は、「部屋を出る」を押すと空室が一覧に残り、�
   await page.getByRole("dialog", { name: "退室" }).getByRole("button", { name: "部屋を削除する" }).click()
   await expect(row(page, "sub_b")).toHaveCount(0)
   await expect(rows(page)).toHaveCount(0)
+})
+
+test("枠の右下の、退室の左の丸い矢印はどの参加者にも出て、押すと確かめのダイアログが開く。会話を空にできると名乗った参加者には送れ、AI に指示が届く。名乗っていない参加者では送るを押せない", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(CONTROL_CENTER_URL)
+  const a = await member(page, "sub_a", "inko")
+  await member(page, "sub_b", "buncho")
+  await page.request.post("/api/ai/talked", { headers: aiAuth(), data: { sessionId: "s-sub_a", refreshable: true } })
+  const question = "コンテキストをクリアする指示を送りますか？"
+  // 名乗っていない参加者: ダイアログは開くが、送るは押せない
+  await row(page, "sub_b").getByRole("button", { name: "sub_b", exact: true }).click()
+  await roomPanel(page).getByRole("button", { name: "クリア" }).click()
+  const dialog = page.getByRole("dialog", { name: question })
+  await expect(dialog.getByRole("button", { name: "送る" })).toBeDisabled()
+  await dialog.getByRole("button", { name: "やめる" }).click()
+  await expect(dialog).toHaveCount(0)
+  // 名乗った参加者: (?) に説明があり、説明を開いたまま送るを押せる。送るとダイアログが閉じ、AI の呼び出しの返事に matomezu ペイロードで指示が届く
+  await row(page, "sub_a").getByRole("button", { name: "sub_a", exact: true }).click()
+  await roomPanel(page).getByRole("button", { name: "クリア" }).click()
+  await dialog.getByRole("button", { name: question }).click()
+  await expect(dialog.getByRole("note")).toContainText("今は Claude Code のみ")
+  const note = await dialog.getByRole("note").boundingBox()
+  const send = await dialog.getByRole("button", { name: "送る" }).boundingBox()
+  expect(note && send && note.y + note.height <= send.y).toBe(true)
+  await dialog.getByRole("button", { name: "送る" }).click()
+  await expect(dialog).toHaveCount(0)
+  // AI の呼び出しの返事の知らせ（ヘッダ）を集め、指示が来るまで呼ぶ（先に「参加しました」が来る）
+  let told = ""
+  await expect
+    .poll(async () => {
+      const res = await page.request.get("/api/ai/settings", {
+        headers: { ...aiAuth(), "X-Matomezu-Participant": a.participant },
+      })
+      told += decodeURIComponent((res.headers()["x-matomezu-notice"] ?? "").replaceAll("+", " "))
+      return told
+    })
+    .toContain("@matomezu/base:refresh-request")
+  expect(told).toContain("(as your user's request)")
 })

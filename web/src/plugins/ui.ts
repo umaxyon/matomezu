@@ -76,7 +76,8 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/control-center:picked-detail": ["@matomezu/network:paired-host-detail"],
     "@matomezu/base:one-screen": ["@matomezu/base:screens-view"],
     "@matomezu/base:split-rows": ["@matomezu/base:screens-view"],
-    "@matomezu/base:stage-top": ["@matomezu/base:tool-switch"],
+    "@matomezu/base:stage-top": [],
+    "@matomezu/base:stage-bottom-left": ["@matomezu/base:tool-switch"],
     "@matomezu/base:stage-side": ["@matomezu/base:page-list"],
     "@matomezu/base:stage-body": ["@matomezu/base:book-view", "@matomezu/base:print-preview-scrollbars"],
     "@matomezu/base:book-layers": [
@@ -141,11 +142,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/taskboard:wide-search-open-history",
     ],
     "@matomezu/base:annotation-icon": ["@matomezu/base:note-icon", "@matomezu/base:mark-icon"],
-    "@matomezu/base:corner-statuses": [
-      "@matomezu/base:alert-status",
-      "@matomezu/base:folded-note-status",
-      "@matomezu/base:read-note-status",
-    ],
+    "@matomezu/base:corner-statuses": ["@matomezu/base:folded-note-status", "@matomezu/base:read-note-status"],
   },
   menus: {
     "@matomezu/base:stage-menu": [

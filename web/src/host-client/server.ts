@@ -16,7 +16,7 @@
 
 import type { z } from "zod"
 import { fail, matomezuError, problem } from "../core/errors"
-import { BROKEN } from "../core/folders"
+import { BROKEN, namesPageMetaRow } from "../core/folders"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import { NOT_INSIDE, PURGED, type UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
@@ -150,19 +150,22 @@ const browserNet: Net = {
   now: () => Date.now(),
 }
 
-// 参加者の様子のうち、空でない物（モデルもブランチもコンテキストの量も無く、起こす知らせを渡せる matomezu watch もつながっていなければ undefined）
+// 参加者の様子のうち、空でない物（モデルもブランチもコンテキストの量も無く、起こす知らせを渡せる matomezu watch もつながっておらず、
+// 会話を空にできるとも名乗っていなければ undefined）
 const liveOf = (v: {
   model?: string | undefined
   branch?: string | undefined
   wake?: "reaches" | undefined
   contextUse?: ContextUse | undefined
+  refreshable?: true | undefined
 }): ParticipantLive | undefined =>
-  v.model || v.branch || v.wake || v.contextUse
+  v.model || v.branch || v.wake || v.contextUse || v.refreshable
     ? {
         ...(v.model ? { model: v.model } : {}),
         ...(v.branch ? { branch: v.branch } : {}),
         ...(v.wake ? { wake: v.wake } : {}),
         ...(v.contextUse ? { contextUse: v.contextUse } : {}),
+        ...(v.refreshable ? { refreshable: v.refreshable } : {}),
       }
     : undefined
 
@@ -180,8 +183,15 @@ function noticeOf(carried: string | undefined): UnreadableNotice | undefined {
 export function serverClient(net: Net = browserNet): HostClient {
   // 確かめた世界のページとフォルダ（id → 置き場所から読んだままの中身と版）
   type Rows = Map<string, { row: unknown; version: number }>
+  // 届いた行 row（版 version）で、持っている行 have を置き換えるか: 版が新しいか、同じ版で、持っているのがページメタだけの行で、届いたのが中身を持つ行
+  // （中身を持つ物を名乗ったあとに、名乗る前に出たページメタだけの知らせが遅れて届いても、中身をページメタに戻さない）
+  const replaces = (have: { row: unknown; version: number } | undefined, row: unknown, version: number) =>
+    !have ||
+    have.version < version ||
+    (have.version === version && namesPageMetaRow(have.row) && !namesPageMetaRow(row))
   const confirmed: { pages: Rows; folders: Rows } = { pages: new Map(), folders: new Map() }
   let settings: unknown
+  let unreadableBooks: readonly Warning[] | undefined // 常駐が読めないと決めたブック（読んだか知らされた物。行と組で store に渡す）
   let annotations: Record<string, unknown> = {} // ページの id → アノテーションの並び
   let records: unknown = {} // 対象の定義が足した種類のレコード（種類の id → id → レコード）
   let counters: unknown = {} // 番号を振る種類の、区切りごとの次の番号
@@ -192,7 +202,7 @@ export function serverClient(net: Net = browserNet): HostClient {
   let hostStatus: HostStatus | undefined // ホストどうしの入口の様子（読んだか知らされた物）
   let hostPeers: HostPeers | undefined // ほかのホストの様子（読んだか知らされた物）
   let participantReady: string[] = [] // 準備中でない参加者の id（増えるだけ）
-  let participantLive: Record<string, ParticipantLive> = {} // 参加者の id → 様子（モデル・ブランチ・起こす知らせの通り道・コンテキストの量。どれも無い参加者は持たない）
+  let participantLive: Record<string, ParticipantLive> = {} // 参加者の id → 様子（モデル・ブランチ・起こす知らせの通り道・コンテキストの量・会話を空にできるという名乗り。どれも無い参加者は持たない）
   let plugins: { id: string; ui: string; css?: string; disabled?: boolean }[] = []
   let client = ""
   let warnings: readonly Warning[] = [] // 画面が見つけた warning（つなぎ直すたびに知らせ直す）
@@ -235,6 +245,7 @@ export function serverClient(net: Net = browserNet): HostClient {
       {
         pages: [...confirmed.pages.values()].map(e => e.row),
         folders: [...confirmed.folders.values()].map(e => e.row),
+        ...(unreadableBooks ? { unreadableBooks } : {}),
         settings,
         annotations,
         records,
@@ -293,8 +304,9 @@ export function serverClient(net: Net = browserNet): HostClient {
         if (during.has(r.id) && !now) continue
         if (now && now.version < r.version)
           logLine(`took ${what} ${r.id} v${r.version}; the window had v${now.version}`)
-        if (!now || now.version < r.version) rows.set(r.id, { row: r.row, version: r.version })
-        else if (now.version > r.version) logLine(`kept ${what} ${r.id} v${now.version}; the server has v${r.version}`)
+        if (replaces(now, r.row, r.version)) rows.set(r.id, { row: r.row, version: r.version })
+        else if (now && now.version > r.version)
+          logLine(`kept ${what} ${r.id} v${now.version}; the server has v${r.version}`)
       }
     }
     takeRows(
@@ -308,6 +320,7 @@ export function serverClient(net: Net = browserNet): HostClient {
       data.folders.map(f => ({ id: f.id, row: f.folder, version: f.version })),
     )
     settings = data.settings ?? undefined
+    if (data.unreadableBooks) unreadableBooks = data.unreadableBooks
     annotations = data.annotations ?? {}
     records = data.records ?? {}
     counters = data.counters ?? {}
@@ -447,7 +460,7 @@ export function serverClient(net: Net = browserNet): HostClient {
       ) => {
         const have = rows.get(id)
         if (removed) rows.delete(id)
-        else if (version !== undefined && (!have || have.version < version)) rows.set(id, { row, version })
+        else if (version !== undefined && replaces(have, row, version)) rows.set(id, { row, version })
         else if (have && version !== undefined && have.version > version)
           logLine(`kept ${what} ${id} v${have.version}; the notice had v${version}`)
         changed(id)
@@ -455,6 +468,7 @@ export function serverClient(net: Net = browserNet): HostClient {
       for (const p of e.pages) put("page", confirmed.pages, p.id, p.page, p.version, p.removed === true)
       for (const f of e.folders) put("folder", confirmed.folders, f.id, f.folder, f.version, f.removed === true)
       noticed(() => {
+        if (e.unreadableBooks) unreadableBooks = e.unreadableBooks
         if (e.settings !== undefined) settings = e.settings
         for (const [page, list] of Object.entries(e.annotations ?? {})) annotations = withPageAnnotations(page, list)
         if (e.records && e.records.length > 0) records = withRecords(restoreRecords(records), e.records)
@@ -462,7 +476,13 @@ export function serverClient(net: Net = browserNet): HostClient {
       })
       // レコードが変わったときだけ、最後にフォーカスされた窓を受ける（郵便が届いたことを、その窓がマーキーで知らせる）
       if (e.records && e.records.length > 0 && e.window !== undefined) instance?.setLastWindow(e.window === client)
-      settle(e)
+      // 自分のバルクの答えには、アクションごとの結果と、書庫の履歴に入る分の前と後を添える（先に行わずに送ったアクションの結果と、書庫の履歴の段にする）
+      settle(
+        e,
+        e.results || e.library
+          ? { ok: true, ...(e.results ? { results: e.results } : {}), ...(e.library ? { library: e.library } : {}) }
+          : undefined,
+      )
       const act = e.act
       const foreign = e.client !== client && e.by !== undefined && act !== undefined
       show(
@@ -537,7 +557,21 @@ export function serverClient(net: Net = browserNet): HostClient {
     })
     on("ack", data => {
       const ack = AckSchema.parse(JSON.parse(data))
-      settle({ client, seq: ack.seq }, ack.ok ? { ok: true } : { ok: false, reason: ack.reason })
+      settle(
+        { client, seq: ack.seq },
+        ack.ok
+          ? {
+              ok: true,
+              ...(ack.results ? { results: ack.results } : {}),
+              ...(ack.library ? { library: ack.library } : {}),
+            }
+          : {
+              ok: false,
+              reason: ack.reason,
+              ...(ack.kind ? { kind: ack.kind } : {}),
+              ...(ack.permission ? { permission: ack.permission } : {}),
+            },
+      )
       show()
     })
   }
@@ -588,6 +622,7 @@ export function serverClient(net: Net = browserNet): HostClient {
         saved: {
           pages: [...confirmed.pages.values()].map(e => e.row),
           folders: [...confirmed.folders.values()].map(e => e.row),
+          ...(unreadableBooks ? { unreadableBooks } : {}),
         },
         settings,
         plugins: added,

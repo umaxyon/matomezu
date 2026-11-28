@@ -65,7 +65,7 @@ func TestSessionParticipantMovesItsWakeTarget(t *testing.T) {
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	call(t, "GET", s.URL+"/api/ai/settings", "", map[string]string{aiwire.HostSessionHeader: "SB", aiwire.HostHeader: "201"})
 	sendMessage(t, s.URL, a, "すずめ", "hello")
-	if got := wakes(hub, hub.OpenWakesWith("201", "", WakeLimits{})); len(got) != 1 || !strings.Contains(got[0], `"hello"`) {
+	if got := wakes(hub, hub.OpenWakesWith("201", "", "", WakeLimits{})); len(got) != 1 || !strings.Contains(got[0], `"hello"`) {
 		t.Fatalf("wakes = %q", got)
 	}
 }
@@ -77,7 +77,7 @@ func TestSessionParticipantKeepsAWakeTargetThatALineReaches(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	claudeIn(t, s.URL, "LB", "200", "SB", "すずめ")
-	line := hub.OpenWakesWith("200", "SB", WakeLimits{})
+	line := hub.OpenWakesWith("200", "", "SB", WakeLimits{})
 	wakes(hub, line)
 	talkedAs(t, s.URL, `{"sessionId":"SB2","host":"200"}`)
 	call(t, "GET", s.URL+"/api/ai/settings", "", map[string]string{aiwire.HostSessionHeader: "SB2", aiwire.HostHeader: "200"})

@@ -4,6 +4,7 @@ import type { ArgsOf } from "../../../core/perform"
 import { openedEntry } from "../../../core/stage"
 import { stageIn } from "../../../core/window"
 import type { MatomezuInstance } from "../../../store/state"
+import { whenPerformed } from "../utils/performed"
 import { PAGE_ADD } from "./page-add"
 
 export function addPageIn(
@@ -15,6 +16,6 @@ export function addPageIn(
   if (book === undefined) return false
   const done = instance.actions.perform(PAGE_ADD.id, args, { book })
   if (!done.ok) return false
-  instance.actions.openPage(stage, done.result.page)
+  whenPerformed(done, made => instance.actions.openPage(stage, made.page))
   return true
 }

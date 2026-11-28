@@ -27,7 +27,7 @@ const (
 
 // HeardModel は、セッション sessionID のモデルが model だと、時点 now にフックが知らせたことを受ける。
 // sessionID が空なら何もしない。model が空なら、AI のプログラムのプロセス id での結び直しと、送り先エッジの移し（followHosts）だけを行う
-func (h *Hub) HeardModel(sessionID, model, host string, now time.Time) error {
+func (h *Hub) HeardModel(sessionID, model string, p aiProgram, now time.Time) error {
 	if sessionID == "" {
 		return nil
 	}
@@ -37,8 +37,8 @@ func (h *Hub) HeardModel(sessionID, model, host string, now time.Time) error {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	changed := h.rebindByHost(records, sessionID, host)
-	changed = h.followHosts(records, sessionID, host) || changed
+	changed := h.rebindByHost(records, sessionID, p)
+	changed = h.followHosts(records, sessionID, p) || changed
 	if model != "" {
 		bound := false
 		for id, n := range h.participantNotes {
@@ -85,17 +85,20 @@ func (h *Hub) rememberModel(sessionID, model string, now time.Time) {
 	}
 }
 
-// aiModel は、AI のフックが知らせたセッションのモデルを受ける（{"sessionId", "model", "host"}）
+// aiModel は、AI のフックが知らせたセッションのモデルを受ける（{"sessionId", "model", "host", "hostSpace"}）
 func (o Options) aiModel(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SessionID string `json:"sessionId"`
 		Model     string `json:"model"`
 		Host      string `json:"host"`
+		HostSpace string `json:"hostSpace"` // host が通じるプロセス id の範囲の印
 	}
 	if !readJSON(w, r, &req) {
 		return
 	}
-	if err := o.Hub.HeardModel(req.SessionID, req.Model, req.Host, time.Now()); err != nil {
+	p := aiProgram{req.Host, req.HostSpace}
+	o.Hub.NoteLaterSession(req.SessionID, p)
+	if err := o.Hub.HeardModel(req.SessionID, req.Model, p, time.Now()); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

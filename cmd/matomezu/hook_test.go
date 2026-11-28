@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/umaxyon/matomezu/internal/server"
 )
 
 // fakeTalk は常駐の /api/ai/talked の代わり。link が L1 の参加者が、候補に L1 が来たらセッション S1 に結ばれ、そのときに 1 度だけ伝える
@@ -141,9 +143,10 @@ func TestModelHookSendsTheModel(t *testing.T) {
 		hook.Host = "100"
 		sendModel(hook, api)
 	}
+	space, _ := json.Marshal(server.ProcessSpace())
 	want := []string{
-		`{"host":"100","model":"claude-opus-5-5","sessionId":"S1"}`,
-		`{"host":"100","model":"claude-sonnet-5","sessionId":"S1"}`,
+		`{"host":"100","hostSpace":` + string(space) + `,"model":"claude-opus-5-5","sessionId":"S1"}`,
+		`{"host":"100","hostSpace":` + string(space) + `,"model":"claude-sonnet-5","sessionId":"S1"}`,
 	}
 	if strings.Join(sent, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("sent = %v", sent)
@@ -174,9 +177,10 @@ func TestContextUseHookSendsTheUse(t *testing.T) {
 		sendContextUse(hook, read, api)
 	}
 	sendContextUse(hookInput{SessionID: "S1"}, read, nil)
+	space, _ := json.Marshal(server.ProcessSpace())
 	want := []string{
-		`{"contextUse":{"used":120000,"aiScale":300000},"host":"100","sessionId":"S1"}`,
-		`{"contextUse":"unknown","host":"100","sessionId":"S1"}`,
+		`{"contextUse":{"used":120000,"aiScale":300000},"host":"100","hostSpace":` + string(space) + `,"sessionId":"S1"}`,
+		`{"contextUse":"unknown","host":"100","hostSpace":` + string(space) + `,"sessionId":"S1"}`,
 	}
 	if strings.Join(sent, "\n") != strings.Join(want, "\n") || reads != 2 {
 		t.Fatalf("sent = %v, reads = %d", sent, reads)
@@ -410,5 +414,27 @@ func TestBlockForHandoffKeepsTheTurnGoingOnce(t *testing.T) {
 	blockForHandoff(&out, hookInput{SessionID: "S1"}, nil)
 	if out.Len() != 0 {
 		t.Fatalf("printed %q", out.String())
+	}
+}
+
+// ターンの始まりのフックは、AI のプログラムのプロセス id の範囲の印を、どの問い合わせにも添える（プロセス id が分からなければ添えない）
+func TestTalkedCarriesTheHostSpace(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "t.jsonl")
+	if err := os.WriteFile(path, []byte(`{"type":"tool_use","input":{"link":"6f1c2a3e-1111-4222-8333-444455556666"}}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f := &fakeTalk{}
+	talked(&bytes.Buffer{}, hookInput{SessionID: "S1", TranscriptPath: path, Host: "100"}, "", formatHook, f.api)
+	if len(f.bodies) < 2 {
+		t.Fatalf("bodies = %v", f.bodies)
+	}
+	for _, b := range f.bodies {
+		if b["hostSpace"] != server.ProcessSpace() {
+			t.Errorf("body without the host space: %v", b)
+		}
+	}
+	if got := hostSpace(""); got != "" {
+		t.Errorf("hostSpace without a host = %q", got)
 	}
 }

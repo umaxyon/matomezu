@@ -19,6 +19,32 @@ func ProcessSpace() string {
 	return runtime.GOOS + "|" + host
 }
 
+// aiProgram は、AI のプログラムの見分け: プロセス id Host と、それが通じる範囲の印 Space（ProcessSpace の値。分からなければ空）。
+// WSL と Windows のように範囲が違えば、同じプロセス id でも別のプログラム
+type aiProgram struct {
+	Host, Space string
+}
+
+// is は、p と q が同じ AI のプログラムか: プロセス id が分かって等しく、範囲の印が食い違わない（sameSpace）
+func (p aiProgram) is(q aiProgram) bool {
+	return p.Host != "" && p.Host == q.Host && sameSpace(p.Space, q.Space)
+}
+
+// over は、記録にある AI のプログラム old を、新しく添えられた p で書き直した物: プロセス id が同じで p の範囲の印が分からなければ、old の印を残す
+// （印を添えない MCP・フックの呼び出しで、分かっている印を消さない）。プロセス id が違えば p
+func (p aiProgram) over(old aiProgram) aiProgram {
+	if p.Host == old.Host && p.Space == "" {
+		return old
+	}
+	return p
+}
+
+// sameSpace は、範囲の印 a と b が食い違わないか: どちらかが分からなければ食い違わないとみる
+// （印を添えない MCP・watch と、記録に印の無い参加者は、プロセス id だけで見分ける）
+func sameSpace(a, b string) bool {
+	return a == "" || b == "" || a == b
+}
+
 // ProcessSpaceEnded は、名乗った印 said（ProcessSpace の値）の範囲にあったプロセスが、今の印 now の範囲から見て終わっているか。
 // 同じ印ならプロセスが居るかを見る（居なければ終わっている）。印の起動ごとの識別子（Linux の boot_id）が変わっていれば、機械が起動し直されているので、居たプロセスは全部終わっている。
 // それ以外（名前空間だけが違う・ほかの OS の印が違う）は、プロセス id を確かめられないので、終わったとは言わない

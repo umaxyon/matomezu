@@ -62,6 +62,8 @@ export interface ShapeItemDef<D extends ShapeData = ShapeData, Tt extends string
   // 置く前に中身を決める追加のダイアログ（ShapeAddArgs を受ける）と、中身を変える編集のダイアログ（ShapeEditArgs を受ける）の id。
   // 追加が無ければそのまま置き、編集が無ければ「設定」を出さない。受ける値が合うかは definePlugin が型で確かめる
   dialogs?: { add?: string; edit?: string }
+  // 置いた形 shape が描くのに中身を使う、ほかのページの id（スクラップの元など。画面は、開いている物と一緒に、そのページの中身も持つ）。無ければ使わない
+  drawsFrom?(shape: D): readonly string[]
 }
 
 // 2 つの形をつなぐもの（線）。大きさを持たず、つないだ形の位置から形が決まる。

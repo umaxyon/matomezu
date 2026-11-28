@@ -59,6 +59,10 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   "Start new": { en: "Start new", ja: "新しく始める" },
   "Take over": { en: "Take over", ja: "引き継ぐ" },
   "Remove a participant": { en: "Remove a participant", ja: "参加者を外す" },
+  "Send the instruction to clear the context": {
+    en: "Send the instruction to clear the context",
+    ja: "コンテキストをクリアする指示を送る",
+  },
   "Add a workroom": { en: "Add a workroom", ja: "ワークルームを足す" },
   "Change a workroom": { en: "Change a workroom", ja: "ワークルームを変える" },
   "Remove a workroom": { en: "Remove a workroom", ja: "ワークルームを消す" },

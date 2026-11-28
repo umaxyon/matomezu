@@ -23,7 +23,7 @@ import {
   unreadableItemsIn,
 } from "../../../store/commands/def"
 import { BOOK_CREATE } from "../book-new/book-create"
-import { dropClashing, notRestored } from "../history"
+import { dropClashing, notRestored, whenRestored } from "../history"
 import { isRevertUnchanged } from "../history/restore"
 import { kit } from "../kit"
 import { type Workdesk, workdesksOf, workdesksReadsOf } from "../participant/workdesks"
@@ -88,19 +88,24 @@ const ASKED_TITLE = "-"
 function restore(ctx: ScreenCommandContext, a: CommandActions, from: "undo" | "redo"): void {
   const to = from === "undo" ? "before" : "after"
   const steps = [...ctx.libraryHistory[from]].reverse()
-  for (const [i, step] of steps.entries()) {
-    const result = a.perform(LIBRARY_REVERT.id, libraryRevertArgs(step, to))
-    if (!result.ok && !isRevertUnchanged(result)) {
-      notRestored(ctx, a, LIBRARY_HISTORY, from, result, { clash: kit.message("Clashes with other changes") })
-      if (result.reason === "refused")
-        dropClashing(a, LIBRARY_HISTORY, from, steps.slice(i + 1), s =>
-          tryPerformOf(a)(LIBRARY_REVERT.id, libraryRevertArgs(s, to)),
-        )
-      return
-    }
-    a.moveHistory(LIBRARY_HISTORY, from)
-    if (result.ok) return
+  // 新しい側から i 番目の書庫の履歴の段を置き直す（置き直しても何も変わらなければ動かして、次の書庫の履歴の段へ。常駐へ送ったなら、その答えで分ける）
+  const restoreAt = (i: number): void => {
+    const step = steps[i]
+    if (!step) return
+    whenRestored(a.perform(LIBRARY_REVERT.id, libraryRevertArgs(step, to)), result => {
+      if (result && !result.ok && !isRevertUnchanged(result)) {
+        notRestored(ctx, a, LIBRARY_HISTORY, from, result, { clash: kit.message("Clashes with other changes") })
+        if (result.reason === "refused")
+          dropClashing(a, LIBRARY_HISTORY, from, steps.slice(i + 1), s =>
+            tryPerformOf(a)(LIBRARY_REVERT.id, libraryRevertArgs(s, to)),
+          )
+        return
+      }
+      a.moveHistory(LIBRARY_HISTORY, from)
+      if (!result?.ok) restoreAt(i + 1)
+    })
   }
+  restoreAt(0)
 }
 
 export const LIBRARY_UNDO = kit.defineScreenCommand({
@@ -108,6 +113,7 @@ export const LIBRARY_UNDO = kit.defineScreenCommand({
   readsSubjects: workdesksReadsOf,
   title: "Undo in the library",
   performs: [LIBRARY_REVERT.id],
+  whileSent: "waits",
   run: (ctx, a) => restore(ctx, a, "undo"),
   when: () => true,
   enabled: ctx => ctx.libraryHistory.undo.length > 0,
@@ -118,6 +124,7 @@ export const LIBRARY_REDO = kit.defineScreenCommand({
   readsSubjects: workdesksReadsOf,
   title: "Redo in the library",
   performs: [LIBRARY_REVERT.id],
+  whileSent: "waits",
   run: (ctx, a) => restore(ctx, a, "redo"),
   when: () => true,
   enabled: ctx => ctx.libraryHistory.redo.length > 0,

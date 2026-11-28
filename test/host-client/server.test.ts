@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import type { Annotation } from "../../web/src/core/annotation"
 import { pagesOf } from "../../web/src/core/book"
-import { BROKEN, HOME_ID, TRASH_ID } from "../../web/src/core/folders"
+import { BROKEN, HOME_ID, isHeld, pageMetaRowOf, TRASH_ID } from "../../web/src/core/folders"
 import { recordsOf } from "../../web/src/core/folders-books"
 import { rawBooksOf } from "../../web/src/core/folders-unreadable"
 import type { Book } from "../../web/src/core/schema/book"
@@ -11,6 +11,7 @@ import { screenOf } from "../../web/src/core/window"
 import { OFFLINE_MS, QUIET_MS } from "../../web/src/host-client/link-watch"
 import { openClient } from "../../web/src/host-client/open"
 import { type Events, NoServer, serverClient } from "../../web/src/host-client/server"
+import { NO_DENIED_BY, NO_REFUSAL_KIND } from "../../web/src/store/actions"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore, showCenter, worldRows } from "../support"
@@ -437,6 +438,27 @@ test("古い版の知らせは使わない（版はページごと。ブック�
   expect(itemsOf(store)).toEqual(["x"])
 })
 
+// ページ p1 のページメタだけの行（中身を持たない窓に、常駐が送る形）の知らせ
+const p1MetaChanged = (version: number) => ({
+  pages: [{ id: "p1", page: { ...pageMetaRowOf(p1With()) }, version }],
+  folders: [],
+  books: ["b1"],
+})
+const p1Held = (store: ReturnType<typeof newStore>) => isHeld(store.state.getState().pages.p1!)
+
+test("ページメタだけの知らせは、版が新しいときだけ中身を置き換え、中身を持つ行は、同じ版のページメタだけの行を置き換える", async () => {
+  const { store, emit } = await connected()
+  emit("changed", pageChangedOf(b1With("x"), "p1", 3))
+  // 名乗る前に出た、同じ版のページメタだけの知らせが遅れて届いても、中身を持つ行を残す
+  emit("changed", p1MetaChanged(3))
+  expect(p1Held(store)).toBe(true)
+  emit("changed", p1MetaChanged(4))
+  expect(p1Held(store)).toBe(false)
+  emit("changed", pageChangedOf(b1With("y"), "p1", 4))
+  expect(p1Held(store)).toBe(true)
+  expect(itemsOf(store)).toEqual(["y"])
+})
+
 test("断られた（ack で確かめ終わり、変わったブックが来ない）アクションは画面から消える", async () => {
   const { store, emit } = await connected()
   place(store)
@@ -454,7 +476,13 @@ test("断られたアクションを入れた画面の履歴の段は捨て、pe
   await Promise.resolve()
   expect(store.state.getState().history.b1?.undo).toHaveLength(1)
   emit("ack", { seq: 1, ok: false, reason: "being-edited" })
-  expect(await answer).toEqual({ ok: false, reason: "being-edited", by: "host" })
+  expect(await answer).toEqual({
+    ok: false,
+    reason: "being-edited",
+    kind: NO_REFUSAL_KIND,
+    permission: NO_DENIED_BY,
+    by: "host",
+  })
   expect(itemsOf(store)).toEqual([])
   expect(store.state.getState().history.b1?.undo).toEqual([])
 })
@@ -472,6 +500,30 @@ test("行えたアクションの画面の履歴の段は残し、performConfirm
   emit("ack", { seq: 1, ok: true, reason: "" })
   expect(await answer).toMatchObject({ ok: true })
   expect(store.state.getState().history.b1?.undo).toHaveLength(1)
+})
+
+test("自分のバルクの changed に載った結果と書庫の前と後を、そのバルクの答えに渡す", async () => {
+  const { host, emit } = await connected()
+  const done = { action: "@matomezu/base:entry-trash", args: { entry: "b1" }, ids: [], lang: "ja", now: "", today: "" }
+  const answer = host.observe([done as never])
+  await flush()
+  const library = { pages: { p1: { before: { id: "p1" }, after: "none" } }, folders: {} }
+  emit("changed", { pages: [], folders: [], books: [], client: "c1", seq: 1, results: [{}], library })
+  expect(await answer).toEqual({ ok: true, results: [{}], library })
+})
+
+test("ack に載った書庫の前と後を行えた答えに、断りの種類と止めた認可ステップを断りの答えに渡す", async () => {
+  const { host, emit } = await connected()
+  const done = { action: "@matomezu/base:entry-trash", args: { entry: "b1" }, ids: [], lang: "ja", now: "", today: "" }
+  const library = { pages: {}, folders: { b1: { before: { id: "b1" }, after: "none" } } }
+  const ok = host.observe([done as never])
+  await flush()
+  emit("ack", { seq: 1, ok: true, reason: "", results: [{}], library })
+  expect(await ok).toEqual({ ok: true, results: [{}], library })
+  const ng = host.observe([done as never])
+  await flush()
+  emit("ack", { seq: 2, ok: false, reason: "denied", kind: "k", permission: "p" })
+  expect(await ng).toEqual({ ok: false, reason: "denied", kind: "k", permission: "p" })
 })
 
 test("つなぎ直したら（2 度目の hello）、読み直した世界の上に確かめられていないアクションを出し、新しいつながりで同じ番号で送り直す", async () => {

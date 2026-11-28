@@ -23,6 +23,7 @@ import {
 } from "."
 import { workroomActivityOf } from "./activity"
 import { CONTEXT_SCALE, type ContextGauge, contextGauge, contextScaleOf, type NO_CONTEXT_USE } from "./context-gauge"
+import { REFRESH_ASK } from "./refresh-ask"
 import { adminRoomOf, type VisitorRow, visitorRows, type WorkroomRow, workroomRows } from "./rows"
 import { ownBookPagesOf } from "./workdesks"
 import { type FoundWorkerBook, foundWorkerBookOf, NO_WORKER_BOOK, workerBookOf, workerBookReadsOf } from "./worker-book"
@@ -167,6 +168,16 @@ export function useWorkroomActions(): WorkroomActions {
       makeAdmin: room => settle(doing(ADMIN_SET.id, { workroom: room }, ...(marked ? [{ record: "admin" }] : []))),
     }
   }, [perform, showToast, catalog, marked])
+}
+
+// ワークルーム room に入っている参加者 participant の AI に、切りのよい所で引継ぎページを書いて会話を空にするよう頼む（リフレッシュを頼むアクション）。
+// 常駐の答えを待ち、頼めたかを返す（画面の手元で断られても、常駐が届けられずに断っても false）
+export function useAskRefresh(): (room: string, participant: string) => Promise<boolean> {
+  const { performConfirmed } = useActions()
+  return useCallback(
+    async (room, participant) => (await performConfirmed(REFRESH_ASK.id, { participant }, { record: room })).ok,
+    [performConfirmed],
+  )
 }
 
 // ワークルーム room 自身のワーカーブックのページの数（ワークルームを消す・引き継がずに入り直すと消える。ブックが無ければ 0）

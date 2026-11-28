@@ -37,7 +37,16 @@ import {
   useStage,
   useStageArea,
 } from "../../../../plugin-api/ui"
-import { growOf, NO_DRAFT, NO_GROW, NO_HOLDER, pageContext, refusalMessage, settingValue } from "../../../base"
+import {
+  growOf,
+  NO_DRAFT,
+  NO_GROW,
+  NO_HOLDER,
+  pageContext,
+  refusalMessage,
+  settingValue,
+  whenPerformed,
+} from "../../../base"
 import {
   NO_SWATCHES,
   NO_WRITING,
@@ -213,10 +222,14 @@ const Tree = memo(function Tree({
   // ＋: 空の節を足して選び、その場で編集し始める
   const add = (plus: Plus) => {
     const done = perform(NODE_ADD.id, addArgs(plus), { page: pageId })
-    const id = done.ok ? done.result.nodes[0]?.id : undefined
-    if (!id) return refused(done.ok ? { reason: "refused" } : done)
-    select([id])
-    setEditing(ADDED_EDIT)
+    if (!done.ok) return refused(done)
+    // 常駐へ送ったなら、常駐が足したあとで選ぶ
+    whenPerformed(done, made => {
+      const id = made.nodes[0]?.id
+      if (!id) return refused({ reason: "refused" })
+      select([id])
+      setEditing(ADDED_EDIT)
+    })
   }
   const { nodes, lines } = laid
   // ドラッグで動かしている節（押しただけでまだ動かしていなければ null）と、落とす先

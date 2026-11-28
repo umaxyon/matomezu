@@ -23,7 +23,7 @@ func TestHostMessageWakesTheAssignedAI(t *testing.T) {
 	if code, got := postPerform(t, s.URL, `{"action":"@matomezu/taskboard:ticket-add","args":{"project":"`+project+`","name":"x","assignees":["すずめ"]}}`); code != 200 || !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("ticket-add = %d %s", code, got)
 	}
-	woke := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{}))
+	woke := wakes(hub, hub.OpenWakesWith("200", "", "", WakeLimits{}))
 	if len(woke) != 1 || !strings.HasPrefix(woke[0], `matomezu: "Your current work is now`) {
 		t.Fatalf("wakes of すずめ = %q", woke)
 	}
@@ -31,7 +31,7 @@ func TestHostMessageWakesTheAssignedAI(t *testing.T) {
 	if !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("ticket-add by AI = %s", got)
 	}
-	if woke := wakes(hub, hub.OpenWakesWith("100", "", WakeLimits{})); len(woke) != 0 {
+	if woke := wakes(hub, hub.OpenWakesWith("100", "", "", WakeLimits{})); len(woke) != 0 {
 		t.Fatalf("wakes of ひよこ = %q", woke)
 	}
 }

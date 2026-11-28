@@ -54,6 +54,7 @@ type conn struct {
 	joining      Joining           // join で常駐に添える事柄（環境名・ADE のワークスペース・AI の UI）
 	branch       func() string     // 呼び出しのたびに git のブランチを読む（読めなければ空）
 	host         string            // AI のプログラムのプロセス id
+	hostSpace    string            // host が通じる範囲の印（分からなければ空）
 	hostSession  string            // AI のプログラムが MCP を立てたときのセッション id（分からなければ空）
 	sessionPid   string            // セッションと同じだけ生きるプロセスの id（空は名乗らない）
 	pidSpace     string            // sessionPid が通じる範囲の印（sessionPid を名乗るとき）
@@ -70,6 +71,9 @@ func (c *conn) header() http.Header {
 	h := http.Header{}
 	if c.host != "" {
 		h.Set(aiwire.HostHeader, c.host)
+		if c.hostSpace != "" {
+			h.Set(aiwire.HostSpaceHeader, c.hostSpace)
+		}
 	}
 	if c.sessionPid != "" {
 		h.Set(aiwire.SessionPidHeader, c.sessionPid)
@@ -164,8 +168,8 @@ type Joining struct {
 // hostSession は AI のプログラムが MCP を立てたときのセッション id（どちらもいつも添える。送り先エッジに書く物）。
 // sessionPid が空でなければ、それがセッションと同じだけ生きるプロセスだと名乗り（pidSpace はその印）、居なくなったら、常駐が退室させる。
 // meta は、呼び出しの _meta のどこにセッション id とモデルがあるか。note は、AI に渡す説明（instructions）の後ろに足す文（空なら足さない）
-func Serve(in io.Reader, out io.Writer, api API, version string, joining Joining, branch func() string, host, hostSession, sessionPid, pidSpace string, meta Meta, note string) error {
-	c := &conn{api: api, version: version, ai: "unknown", joining: joining, branch: branch, host: host, hostSession: hostSession, sessionPid: sessionPid, pidSpace: pidSpace, meta: meta, note: note, participants: map[string]string{}}
+func Serve(in io.Reader, out io.Writer, api API, version string, joining Joining, branch func() string, host, hostSpace, hostSession, sessionPid, pidSpace string, meta Meta, note string) error {
+	c := &conn{api: api, version: version, ai: "unknown", joining: joining, branch: branch, host: host, hostSpace: hostSpace, hostSession: hostSession, sessionPid: sessionPid, pidSpace: pidSpace, meta: meta, note: note, participants: map[string]string{}}
 	var mu sync.Mutex
 	enc := json.NewEncoder(out)
 	write := func(r response) {

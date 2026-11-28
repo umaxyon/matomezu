@@ -3,7 +3,7 @@
 //	/                     画面（ビルドした web/dist）。そのほかの API に当たらない道はファイルとして配る
 //	GET  /api/ping        {"version", "pid"} 立っているかの確認                                  … 要合言葉
 //	POST /api/stop        常駐を止める                                                          … 要合言葉
-//	GET  /api/data        {"pages": [{"id", "page", "version"}], "folders": [{"id", "folder", "version"}], "settings", "annotations": {ページの id: [...]}, "records": {種類: {id: レコード}}, "counters": {種類: {区切り: 次の番号}}, "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}, "participantCalls": {参加者の id: 最後に呼ばれた時刻}, "participantReady": [準備中でない参加者の id], "participantLive": {参加者の id: {"model", "branch"}}, "update": 新しい版の確かめの結果（update.go の UpdateStatus。SetUpdateCheck の前は無い）, "host": ホストどうしの入口の様子（hosts.go の HostStatus。SetHostEntrance の前は無い）} 置いてあるブック（ゴミ箱のブックも）と設定、
+//	GET  /api/data        {"pages": [{"id", "page", "version"}], "folders": [{"id", "folder", "version"}], "settings", "annotations": {ページの id: [...]}, "records": {種類: {id: レコード}}, "counters": {種類: {区切り: 次の番号}}, "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}, "participantCalls": {参加者の id: 最後に呼ばれた時刻}, "participantReady": [準備中でない参加者の id], "participantLive": {参加者の id: {"model", "branch"}}, "update": 新しい版の確かめの結果（update.go の UpdateStatus。SetUpdateCheck の前は無い）, "host": ホストどうしの入口の様子（hosts.go の HostStatus。SetHostEntrance の前は無い）, "unreadableBooks": [{"code", "plugin", "params"}]（読めないブックの warning。ゴミ箱の中も入り、読めない物のフォルダの中は入らない。行と同じ時点の物）} 置いてあるブック（ゴミ箱のブックも）と設定、
 //	                      ブックごとのアノテーション、レコード（郵便も）と番号の表、追加プラグイン（ui と css は画面が読む道。css は無ければ空）、ブックに触れた（開いたか書いた）時刻（touched.go）  … 画面から
 //	GET  /api/plugins/{n}/ui.js   追加プラグインの n 番目の、画面で import() する JS（道には ?v= で追加プラグインの版を付けて配る）  … 画面から
 //	GET  /api/plugins/{n}/ui.css  追加プラグインの n 番目の CSS                                               … 画面から
@@ -28,6 +28,8 @@
 //	POST /api/view        {"client", "view", "editLocks", "recordLocks", "focused", "seq"} 窓のカレントのステージが見ているもの（view）と、利用者が直している物（editLocks。
 //	                      ブックの id → 物の id の並び。AI のアクションがそれを変えるか消すなら断る。editlock.go）と、その窓がフォーカスされたか。
 //	                      seq は窓ごとに増やす番号で、受けたものより古い番号の view と editLocks は捨てる（届く順が入れ替わるため）  … 画面から
+//	POST /api/hold        {"client", "entries"} 窓が中身を持つステージエントリ（ブックと、ブックの外のページ・バインダの id。hold.go）。{"pages": [{"id", "page", "version"}]}（その中の全部のページ。中身ごと）か、
+//	                      知らない窓なら 404。名乗った後の changed は、その中のページだけを中身ごと、ほかをページメタだけにする  … 画面から
 //
 // AI の入口（MCP。internal/mcp）は合言葉で通す:
 //
@@ -43,16 +45,16 @@
 //	                         AI の応えを待つアノテーションの全部と、見られる前に利用者が戻した AI の変更の全部と、失敗にした AI 編集チケット（変更提案郵便など）の全部と、
 //	                         郵便が消えたと記した AI 編集チケット（cause は上限で消えた limit か、利用者が消した user）の全部
 //	                         （undone と failed と removed は、渡したら、次の利用者トリガートークのときに消える）
-//	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine&maxNotice&gap&breaks]  SSE。そのプロセス id かセッション id の AI を起こす知らせ（event: wake、data: {"line", "id", "session", "text"}。参加の要求が受け入れられた・断られた、AI 間メッセージ。watch.go）
+//	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&hostSpace&maxLine&maxNotice&gap&breaks]  SSE。そのプロセス id かセッション id の AI を起こす知らせ（event: wake、data: {"line", "id", "session", "text"}。参加の要求が受け入れられた・断られた、AI 間メッセージ。watch.go）
 //	POST /api/ai/refresh-due {"sessionId"} そのセッションが受けたリフレッシュリクエストの、空にしたあとの新しい会話に打つ文 {"text"}（無ければ空。空にしたあとの会話が始まるまで残す。AI のプログラムの部品がターンの終わりに訊く。refresh.go）
 //	POST /api/ai/handoff-due {"sessionId"} そのセッションの AI がターンを終える前にする事 {"text"}（引継ぎページの頼みか、会話を空にできなかった知らせ。無ければ空。会話を空にできると名乗った AI だけ。ターンの終わりのフックが訊いて止める。refresh.go）
 //	POST /api/ai/work-title {"sessionId"} そのセッションの作業名 {"workTitle"}（読むだけ。ターンの終わりのフックが読む。書かないなら空。talk_session.go の WorkTitle）
 //	POST /api/ai/watch/ack   {"line", "id", "result"} 通り道に流した知らせを渡せたか（delivered・absent・failed）。{} を返す（watch.go）
-//	POST /api/ai/talked      {"sessionId", "host", "candidates", "woken", "prompt", "refreshable"} AI のターンが始まった（AI のフックが知らせる）。candidates が無く woken でなければ、利用者トリガートークのときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
+//	POST /api/ai/talked      {"sessionId", "host", "hostSpace", "candidates", "woken", "prompt", "refreshable"} AI のターンが始まった（AI のフックが知らせる）。candidates が無く woken でなければ、利用者トリガートークのときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
 //	                         woken は、利用者トリガートークでなく、裏の知らせ（watch の 1 行など）で始まったターンのフック（結びつけと「参加しました」の知らせだけを行う）。prompt（ターンの入力）が通り道に貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）でも同じ。
 //	                         どちらも {"welcomes", "unbound", "workTitle"} を返す（セッションと参加者の結びつけと「参加しました」の知らせと、作業名。talk_session.go）。prompt が貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）なら、利用者の言葉でないと AI に伝える文の forAi も返す
-//	POST /api/ai/model       {"sessionId", "model", "host"} AI のフックがセッションのモデルを知らせる（model.go）。{} を返す
-//	POST /api/ai/context-use {"sessionId", "host", "contextUse"} AI のフックがセッションの今のコンテキストの量と物差し（{"used", "aiScale"}、読めなければ "unknown"）を知らせる（context_use.go）。{} を返す
+//	POST /api/ai/model       {"sessionId", "model", "host", "hostSpace"} AI のフックがセッションのモデルを知らせる（model.go）。{} を返す
+//	POST /api/ai/context-use {"sessionId", "host", "hostSpace", "contextUse"} AI のフックがセッションの今のコンテキストの量と物差し（{"used", "aiScale"}、読めなければ "unknown"）を知らせる（context_use.go）。{} を返す
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
 //	GET  /api/ai/catalog?ids=a&ids=b  MCP 公開ツールの actions が返す物。ids が無ければ {"version", "index", "warnings"}（一覧の版と目次。warnings は今あるときだけ）、あれば ids の物の全文 {"version", 表の名前: [全文]..., "unknown"}
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
@@ -157,6 +159,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/assets", o.screen(o.importAsset, octetStream))
 	mux.Handle("GET /api/assets/{id}", o.screen(o.serveAsset))
 	mux.Handle("POST /api/view", o.screen(o.view))
+	mux.Handle("POST /api/hold", o.screen(o.hold))
 	mux.Handle("POST /api/warnings", o.screen(o.warnings))
 	mux.Handle("POST /api/log", o.screen(o.windowLog))
 	mux.Handle("POST /api/ai-edit-tickets", o.screen(o.aiEditTicket))
@@ -296,7 +299,7 @@ func sameOriginWith(media string, h http.HandlerFunc) http.Handler {
 
 func (o Options) data(w http.ResponseWriter, _ *http.Request) {
 	settings, annotations := o.Hub.Data()
-	pages, folders := o.Hub.Tables()
+	pages, folders, unreadable := o.Hub.ScreenRows()
 	if settings == nil {
 		settings = json.RawMessage("null")
 	}
@@ -316,7 +319,7 @@ func (o Options) data(w http.ResponseWriter, _ *http.Request) {
 		}
 	}
 	records, counters := o.Hub.Records()
-	data := map[string]any{"pages": pages, "folders": folders, "settings": settings, "annotations": annotations, "records": records, "counters": counters, "plugins": plugins, "touched": o.Hub.Touched(), "participantCalls": o.Hub.ParticipantCalls(), "participantReady": o.Hub.ParticipantReady(), "participantLive": o.Hub.ParticipantLive()}
+	data := map[string]any{"pages": pages, "folders": folders, "settings": settings, "annotations": annotations, "records": records, "counters": counters, "plugins": plugins, "touched": o.Hub.Touched(), "participantCalls": o.Hub.ParticipantCalls(), "participantReady": o.Hub.ParticipantReady(), "participantLive": o.Hub.ParticipantLive(), "unreadableBooks": unreadable}
 	if u := o.Hub.UpdateStatus(); u.State != "" {
 		data["update"] = u
 	}
@@ -583,6 +586,22 @@ func (o Options) view(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{})
+}
+
+func (o Options) hold(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Client  string   `json:"client"`
+		Entries []string `json:"entries"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	pages, ok := o.Hub.Hold(req.Client, req.Entries)
+	if !ok {
+		http.Error(w, "unknown client", http.StatusNotFound)
+		return
+	}
+	writeJSON(w, map[string]any{"pages": pages})
 }
 
 func (o Options) warnings(w http.ResponseWriter, r *http.Request) {

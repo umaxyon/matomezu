@@ -29,6 +29,7 @@ import {
   PLACE_OFFSET,
   refusalMessage,
   shapeDefOf,
+  whenPerformed,
 } from "../../base"
 import { kit } from "../kit"
 import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
@@ -89,7 +90,7 @@ function placeItem(
       const fallback = "kind" in done && done.kind === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"
       return refusalMessage(ctx.catalog, done, kit.message(fallback))
     }
-    a.select([done.result.item])
+    whenPerformed(done, placed => a.select([placed.item]))
     return null
   }
   // 形の定義が名指す追加のダイアログ（無ければそのまま置く。置こうとしている物が項目の値を持っていれば、聞かずにその値で置く）
@@ -154,7 +155,7 @@ export const PAPER_DROP = kit.defineCommand({
         { item: args.item, props: args.props, crowd: "push" },
         { page: ctx.page.id },
       )
-      if (done.ok) a.select([done.result.item])
+      if (done.ok) whenPerformed(done, placed => a.select([placed.item]))
       else a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("No free spot")) })
       return
     }

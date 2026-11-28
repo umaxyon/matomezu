@@ -63,7 +63,7 @@ func makeRoom(t *testing.T, url, name string) string {
 func TestAcceptingWakesOnlyTheJoinedProcess(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
-	mine, other := hub.OpenWakesWith("100", "", WakeLimits{}), hub.OpenWakesWith("200", "", WakeLimits{})
+	mine, other := hub.OpenWakesWith("100", "", "", WakeLimits{}), hub.OpenWakesWith("200", "", "", WakeLimits{})
 	participant := joinFrom(t, s.URL, "L1", "100")
 	room := makeRoom(t, s.URL, "ひよこ")
 	if out := windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant); !strings.Contains(out, `"ok":true`) {
@@ -82,7 +82,7 @@ func TestAcceptingWakesOnlyTheJoinedProcess(t *testing.T) {
 func TestDecliningWakesAndOnlyWindowActionsWake(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
-	w := hub.OpenWakesWith("100", "", WakeLimits{})
+	w := hub.OpenWakesWith("100", "", "", WakeLimits{})
 	first := joinFrom(t, s.URL, "L1", "100") // join の中の、AI と常駐が行うアクション（参加者を作る・郵便を送る）では起こさない
 	room := makeRoom(t, s.URL, "ひよこ")
 	acceptIn(t, s.URL, first, room) // 窓の印の無い（常駐が行う）受け入れでは起こさない
@@ -103,7 +103,7 @@ func TestDecliningWakesAndOnlyWindowActionsWake(t *testing.T) {
 func TestCancellingWakesAsCancelled(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
-	w := hub.OpenWakesWith("100", "", WakeLimits{})
+	w := hub.OpenWakesWith("100", "", "", WakeLimits{})
 	participant := joinFrom(t, s.URL, "L1", "100")
 	if out := windowPerform(t, s.URL, "@matomezu/base:participant-cancel", `{}`, participant); !strings.Contains(out, `"ok":true`) {
 		t.Fatalf("cancel = %s", out)
@@ -172,7 +172,7 @@ func TestWatchStreamsWakes(t *testing.T) {
 func TestWokenTurnBindsByLinkAndWelcomesOnce(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
-	line := hub.OpenWakesWith("100", "", WakeLimits{})
+	line := hub.OpenWakesWith("100", "", "", WakeLimits{})
 	participant := joinFrom(t, s.URL, "6f1c2a3e-1111-4222-8333-444455556666", "100")
 	room := makeRoom(t, s.URL, "ひよこ")
 	windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant)
@@ -197,7 +197,7 @@ func TestWokenTurnBindsByLinkAndWelcomesOnce(t *testing.T) {
 func TestWakeNeedsTheSameHostSessionWhenBothAreKnown(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
-	same, reused, unknown := hub.OpenWakesWith("100", "HS1", WakeLimits{}), hub.OpenWakesWith("100", "HS2", WakeLimits{}), hub.OpenWakesWith("100", "", WakeLimits{})
+	same, reused, unknown := hub.OpenWakesWith("100", "", "HS1", WakeLimits{}), hub.OpenWakesWith("100", "", "HS2", WakeLimits{}), hub.OpenWakesWith("100", "", "", WakeLimits{})
 	participant := joinFromSession(t, s.URL, "L1", "100", "HS1")
 	windowPerform(t, s.URL, "@matomezu/base:participant-decline", `{}`, participant)
 	if len(wakes(hub, reused)) != 0 {
@@ -227,9 +227,84 @@ func TestWakeReachesBySessionWhenTheHostIsUnknown(t *testing.T) {
 		{"host differs", "200", "S1", "100", "S1", false},
 		{"nothing in common", "100", "", "", "S1", false},
 		{"nothing known", "", "", "", "", false},
+		{"a later session of the host", "100", "S0", "100", "S2", true},
+		{"a later session, but the host differs", "200", "S0", "100", "S2", false},
 	} {
-		l := &wakeLine{host: c.lineHost, session: c.lineSession}
+		l := &wakeLine{program: aiProgram{Host: c.lineHost}, session: c.lineSession, laterSessions: map[string]bool{"S2": true}}
 		if got := l.reaches(participantNote{WakeHost: c.wakeHost, WakeSession: c.wakeSession}); got != c.want {
+			t.Errorf("%s: reaches = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// /clear のあとに立て直した MCP が新しい会話の id で join しても、フック（ターンの始まり・モデル・コンテキストの量のどれでも）がその会話を知らせていれば、
+// 立てたときの id のままの通り道に受け入れの知らせが届く
+func TestAcceptingAfterClearWakesTheLineOfTheFirstSession(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ path, body string }{
+		{"/api/ai/talked", `{"sessionId":"S2","host":"100","hostSpace":"WSL"}`},
+		{"/api/ai/model", `{"sessionId":"S2","model":"opus","host":"100","hostSpace":"WSL"}`},
+		{"/api/ai/context-use", `{"sessionId":"S2","host":"100","hostSpace":"WSL","contextUse":"unknown"}`},
+	} {
+		s, hub := joinWorld(t, joinStore(t))
+		line := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
+		call(t, "POST", s.URL+c.path, c.body, nil)
+		participant := joinFromSession(t, s.URL, "L1", "100", "S2")
+		room := makeRoom(t, s.URL, "ひよこ")
+		windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant)
+		if got := wakes(hub, line); len(got) != 1 || !strings.Contains(got[0], "ひよこ") {
+			t.Fatalf("%s: wakes = %q", c.path, got)
+		}
+	}
+}
+
+// 受け入れの知らせが先に溜まっていても、あとからフックがその会話を知らせれば流れる。通り道が切れてつなぎ直しても、覚えた会話は残る
+func TestLaterSessionReachesQueuedWakesAndReconnectedLines(t *testing.T) {
+	t.Parallel()
+	s, hub := joinWorld(t, joinStore(t))
+	hub.CloseWakes(hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{}))
+	participant := joinFromSession(t, s.URL, "L1", "100", "S2")
+	room := makeRoom(t, s.URL, "ひよこ")
+	windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant)
+	line := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
+	if got := wakes(hub, line); len(got) != 0 {
+		t.Fatalf("woke before the hook: %q", got)
+	}
+	hub.NoteLaterSession("S2", aiProgram{"100", "WSL"})
+	hub.CloseWakes(line)
+	again := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
+	if got := wakes(hub, again); len(got) != 1 || !strings.Contains(got[0], "ひよこ") {
+		t.Fatalf("wakes = %q", got)
+	}
+}
+
+// 後の会話を覚えるのは、フックの AI のプログラムと同じプロセス id・同じ範囲の印のプログラムだけ
+// （ほかのプロセス・WSL と Windows のように範囲の違うプロセス・使い回されたプロセス id のほかのプログラムは覚えない。範囲の印を添えない watch の通り道は覚える）
+func TestLaterSessionsStayWithTheProgram(t *testing.T) {
+	t.Parallel()
+	_, hub := joinWorld(t, joinStore(t))
+	note := participantNote{WakeHost: "100", WakeSession: "S2"}
+	other := hub.OpenWakesWith("200", "WSL", "S0", WakeLimits{})
+	unmarked := hub.OpenWakesWith("100", "", "S1", WakeLimits{})
+	windows := hub.OpenWakesWith("100", "Windows", "S0", WakeLimits{})
+	learned := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
+	hub.NoteLaterSession("S2", aiProgram{"100", "WSL"})
+	reused := hub.OpenWakesWith("100", "WSL", "S9", WakeLimits{})
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	for _, c := range []struct {
+		name string
+		line *wakeLine
+		note participantNote
+		want bool
+	}{
+		{"the line of the program", learned, note, true},
+		{"a line of the program that sends no space", unmarked, note, true},
+		{"a line of another process", other, participantNote{WakeHost: "200", WakeSession: "S2"}, false},
+		{"a line of the same process id in another space", windows, note, false},
+		{"a line of another program at a reused process id", reused, note, false},
+	} {
+		if got := c.line.reaches(c.note); got != c.want {
 			t.Errorf("%s: reaches = %v, want %v", c.name, got, c.want)
 		}
 	}
@@ -239,7 +314,7 @@ func TestWakeReachesBySessionWhenTheHostIsUnknown(t *testing.T) {
 func TestWakeWithoutHostReachesTheSession(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
-	line := hub.OpenWakesWith("", "HS1", WakeLimits{})
+	line := hub.OpenWakesWith("", "", "HS1", WakeLimits{})
 	participant := joinFromSession(t, s.URL, "L1", "", "HS1")
 	windowPerform(t, s.URL, "@matomezu/base:participant-decline", `{}`, participant)
 	if len(wakes(hub, line)) != 1 {

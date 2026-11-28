@@ -1,19 +1,20 @@
 // ブック（core/schema/book.ts の Book）は、ブックのフォルダと、その下のバインダ・ページの中身をまとめた、読む用の値。ここの関数が表から組み、変えた結果を表への書き込みに分ける
 // （組むのと分けるのは、ここだけ。同じページが 2 つの値に入らないよう、持つのは表の方）
 
-import type {
-  BinderFolder,
-  BookFolder,
-  BookLineupRef,
-  Folder,
-  Folders,
-  Library,
-  PageRef,
-  PageRow,
-  Pages,
+import {
+  type BinderFolder,
+  type BookFolder,
+  type BookLineupRef,
+  type Folder,
+  type Folders,
+  isHeld,
+  type Library,
+  type PageRef,
+  type PageRow,
+  type Pages,
 } from "./folders"
 import { sameData } from "./same"
-import type { BinderEntry, Book, LineupEntry } from "./schema/book"
+import type { AnyPage, BinderEntry, Book, LineupEntry } from "./schema/book"
 
 const ref = (e: { id: string }): PageRef => ({ kind: "page", id: e.id })
 
@@ -98,9 +99,24 @@ export const sameParts = (a: readonly unknown[], b: readonly unknown[]): boolean
 const binderKept = new WeakMap<BinderFolder, Kept<BinderEntry>>()
 const bookKept = new WeakMap<BookFolder, Kept<Book>>()
 
-// バインダ folder を、中のページごと組んだエントリ（中のページが表に 1 枚でも無ければ undefined）
+// 表の行 id の中身（無い・中身を持っていなければ undefined）
+const heldRow = (pages: Pages, id: string): AnyPage | undefined => {
+  const row = pages[id]
+  return row && isHeld(row) ? row : undefined
+}
+
+// エントリ id（ページ・ブック・バインダ）とその中で、中身を持っていないページの id（ブックの中のバインダの中も。無ければ空）
+export function unheldIn({ pages, folders }: Library, id: string): string[] {
+  const row = pages[id]
+  if (row) return isHeld(row) ? [] : [id]
+  const folder = folders[id]
+  if (folder?.folderRole !== "book" && folder?.folderRole !== "binder") return []
+  return folder.lineup.flatMap(r => (r.kind === "reference" ? [] : unheldIn({ pages, folders }, r.id)))
+}
+
+// バインダ folder を、中のページごと組んだエントリ（中のページが表に 1 枚でも無いか、中身を持っていなければ undefined）
 export function binderEntryOf(pages: Pages, folder: BinderFolder): BinderEntry | undefined {
-  const parts = folder.lineup.map(r => pages[r.id])
+  const parts = folder.lineup.map(r => heldRow(pages, r.id))
   if (parts.some(p => p === undefined)) return undefined
   const kept = binderKept.get(folder)
   if (kept && sameParts(kept.parts, parts)) return kept.made
@@ -109,19 +125,19 @@ export function binderEntryOf(pages: Pages, folder: BinderFolder): BinderEntry |
     id: folder.id,
     title: folder.title,
     pageType: folder.pageType,
-    lineup: parts as PageRow[],
+    lineup: parts as AnyPage[],
     ...(folder.settings ? { settings: folder.settings } : {}),
   }
   binderKept.set(folder, { parts, made })
   return made
 }
 
-// id のブックを、表から組んだ値（ブックのフォルダが無い・バインダ・エントリが表に無ければ undefined）
+// id のブックを、表から組んだ値（ブックのフォルダが無い・バインダ・エントリが表に無いか、中身を持っていなければ undefined。持っていないかは unheldIn で見分ける）
 export function bookOf({ pages, folders }: Library, id: string): Book | undefined {
   const folder = folders[id]
   if (folder?.folderRole !== "book") return undefined
   const parts: (LineupEntry | undefined)[] = folder.lineup.map(r => {
-    if (r.kind === "page") return pages[r.id]
+    if (r.kind === "page") return heldRow(pages, r.id)
     if (r.kind === "reference") return r
     const binder = folders[r.id]
     return binder?.folderRole === "binder" ? binderEntryOf(pages, binder) : undefined
@@ -135,7 +151,7 @@ export function bookOf({ pages, folders }: Library, id: string): Book | undefine
   return made
 }
 
-// 表のブックを全部組んだ一覧（ブックの id → ブック。ゴミ箱のブックも）。前に組んだ一覧と中身が同じなら、同じ値を返す
+// 表のブックを全部組んだ一覧（ブックの id → ブック。ゴミ箱のブックも。中身を持っていないページの在るブックは入らない）。前に組んだ一覧と中身が同じなら、同じ値を返す
 let lastLibrary: Readonly<Record<string, Book>> = {}
 export function libraryOf(tables: Library): Readonly<Record<string, Book>> {
   const next: Record<string, Book> = {}

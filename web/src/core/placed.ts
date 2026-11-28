@@ -173,3 +173,17 @@ export function pageHolds(catalog: CoreCatalog, page: ItemPage): boolean {
   )
   return groups.every(([def, list]) => def.holds?.(list as ConnectorData[], id => connectable.has(id)) ?? true)
 }
+
+// ページ page の形が描くのに中身を使うページの id（紙の上の形と、形だけの並び〈スライド〉の形を、入れ子ごと。ShapeItemDef の drawsFrom）。
+// only を渡せば、その定義の形の分だけ
+export function pagesDrawnOn(
+  catalog: CoreCatalog,
+  page: ItemPage,
+  only: (def: ShapeItemDef) => boolean = () => true,
+): readonly string[] {
+  const shapes = [...walkShapes(page), ...walkShapes({ ...page, items: slideOf(page) })]
+  return shapes.flatMap(({ shape }) => {
+    const def = catalog.items.get(shape.item)
+    return def?.kind === "shape" && only(def) ? (def.drawsFrom?.(shape) ?? []) : []
+  })
+}

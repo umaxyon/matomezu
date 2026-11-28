@@ -2,23 +2,22 @@
 import { defineWidget } from "../../../ui/layout"
 import type { Bird } from "../birds"
 import { useBirdFace } from "../birds/use-bird-sheet"
-import { defineCornerStatus } from "../corner-status/corner"
 import { kit } from "../kit"
 import { defineAnnotationIcon } from "../outbox/ui"
 import { BOOK_LAYERS } from "../workspace/slots"
 import { MARK, type MarkProps } from "."
-import { ALERT_STATUS_ID, AlertLook, MarkLayer } from "./MarkLayer"
+import { MarkLayer } from "./MarkLayer"
 import styles from "./MarkLayer.module.css"
 
 export const MARK_LAYER = defineWidget({ id: kit.name("mark-layer"), slots: [BOOK_LAYERS], view: MarkLayer })
 
-// 送信トレイの行の絵: 鳥のマークは鳥の顔、びっくりマークは !
+// 送信トレイの行の絵: 鳥の顔
 export const MARK_ICON = defineAnnotationIcon({
   id: kit.name("mark-icon"),
   annotation: MARK.id,
   view: ({ annotation }) => {
     const kind = (annotation.props as MarkProps).kind
-    return kind === "alert" ? <span className={styles.listedAlert}>!</span> : <ListedFace bird={kind} />
+    return <ListedFace bird={kind} />
   },
 })
 
@@ -27,6 +26,3 @@ function ListedFace({ bird }: { bird: Bird }) {
   const face = useBirdFace(bird)
   return <span className={styles.listedFace} style={face ? { backgroundImage: `url(${face})` } : {}} />
 }
-
-// コーナーステータス: びっくりマーク
-export const ALERT_STATUS = defineCornerStatus({ id: ALERT_STATUS_ID, title: kit.message("Alert"), view: AlertLook })

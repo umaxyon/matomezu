@@ -13,8 +13,8 @@ package server
 //   - チャットスレッドの id（フックが talked に添える。置き場所に残す。AI のプログラムごと替わった新しい会話へ参加者を移すのに使う。join_session.go の rebindByThread）
 //   - モデル（AI のフックが知らせる〈model.go〉か、MCP が X-Matomezu-Model ヘッダで添える〈Codex など、呼び出しがモデルを運ぶ AI〉。あとに届いた方を使う。置き場所に残し、変わったら窓に知らせる）
 //   - git のブランチ（MCP が呼び出しのたびに X-Matomezu-Branch ヘッダで添える。変わったら置き場所に書いて窓に知らせる）
-//   - AI のプログラム（Claude Code など）のプロセス id（MCP が X-Matomezu-Host ヘッダで、フックが host で添える。置き場所に残す。
-//     セッション id が変わったとき（Claude Code の /clear など）に、同じプロセス id の参加者へ新しいセッション id を結び直すのに使う。
+//   - AI のプログラム（Claude Code など）のプロセス id と、それが通じる範囲の印（MCP が X-Matomezu-Host・X-Matomezu-Host-Space ヘッダで、フックが host・hostSpace で添える。置き場所に残す。
+//     セッション id が変わったとき（Claude Code の /clear など）に、同じプログラム（プロセス id が等しく、範囲の印が食い違わない。aiProgram.is）の参加者へ新しいセッション id を結び直すのに使う。
 //     セッションの AI のプログラムが替わったとき（Claude Desktop の --resume・/clear）は、フックの添えたプロセス id へ送り先エッジを移す（join_session.go の followHost）。
 //     join でセッション id を運んだ参加者は結び直さない。呼び出しがセッション id を運ぶ AI〈Codex〉は、会話が変わると MCP も作り直され、
 //     プロセス id は、ほかの会話〈Codex の app-server では、マシンの全部の会話〉と同じになりうるため）
@@ -26,7 +26,7 @@ package server
 // 呼び出しの参加者は、参加の id か、無ければ AI のプログラムが MCP を立てたときのセッション id（X-Matomezu-Host-Session）に結ばれた参加者で決まる
 // （MCP が起動し直されて参加の id を失ったとき。ai の包みが決め、participantOf で読む）。
 // 参加の id かセッション id を添えるときは、ブランチ（X-Matomezu-Branch。値は URL エンコードで、git が無い・リポジトリでない・ブランチに居ないなら空）も添える。
-// 呼び出しがモデルを運ぶ AI なら、モデル（X-Matomezu-Model。値は URL エンコード）も添える。AI のプログラムのプロセス id（X-Matomezu-Host）は join も含めていつも添える。
+// 呼び出しがモデルを運ぶ AI なら、モデル（X-Matomezu-Model。値は URL エンコード）も添える。AI のプログラムのプロセス id（X-Matomezu-Host）とその範囲の印（X-Matomezu-Host-Space）は join も含めていつも添える。
 //
 //	POST /api/ai/join  {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom", "as", "adeWorkspace", "aiUi"} 参加を頼む。{"ok", "participant"}、または弾いた理由 {"ok": false, "reason", "detail"}
 //
@@ -58,7 +58,9 @@ type participantNote struct {
 	Model           string `json:"model,omitempty"`           // AI のフックが知らせたか、MCP が添えたモデル（あとに届いた方）
 	Branch          string `json:"branch,omitempty"`          // MCP が添えた git のブランチ
 	Host            string `json:"host,omitempty"`            // AI のプログラム（Claude Code など）のプロセス id（MCP とフックが添える）
+	HostSpace       string `json:"hostSpace,omitempty"`       // Host が通じる範囲の印（Host と一緒に書く。分からなければ空）
 	WakeHost        string `json:"wakeHost,omitempty"`        // 送り先エッジの AI のプログラムのプロセス id（join の頼みに MCP が添え、プロセスが替わるとフックが移す。followHost。結び直しには使わない。watch.go）
+	WakeHostSpace   string `json:"wakeHostSpace,omitempty"`   // WakeHost が通じる範囲の印（WakeHost と一緒に書く。分からなければ空）
 	WakeSession     string `json:"wakeSession,omitempty"`     // 送り先エッジのセッション id（join の頼みに MCP が添えた、AI のプログラムが MCP を立てたときの物。プロセスが替わるとフックが移す。followHost。watch.go）
 	SessionPid      string `json:"sessionPid,omitempty"`      // セッションと同じだけ生きるプロセスだと MCP が名乗ったプロセス id（居なくなったら退室。名乗った呼び出しが書き、送り先エッジを移すときに消す）
 	SessionPidSpace string `json:"sessionPidSpace,omitempty"` // そのプロセス id が通じる範囲の印（常駐の印と同じときだけ、居るかを確かめる）
@@ -67,18 +69,20 @@ type participantNote struct {
 	RefreshLent     string `json:"refreshLent,omitempty"`     // 部品に渡した RefreshDue（空にしたあとの会話がその文で始まったら消す。始まらないままターンが終われば、空にならなかったと AI に 1 度伝えて消す。refresh.go）
 }
 
-// live は、窓に知らせる参加者の様子（モデルとブランチ。空は省く）
+// live は、窓に知らせる参加者の様子（モデルとブランチと、会話を空にできると名乗ったか。空は省く）
 func (n participantNote) live() participantLive {
-	return participantLive{Model: n.Model, Branch: n.Branch}
+	return participantLive{Model: n.Model, Branch: n.Branch, Refreshable: n.Refreshable}
 }
 
 // participantLive は、窓に知らせる参加者 1 人の様子（Wake は、起こす知らせを渡せる通り道がつながっていれば engine.WakeReaches。ほかは省く。
-// ContextUse は、結ばれたセッションの今のコンテキストの量。分からなければ noContextUse で、省く）
+// ContextUse は、結ばれたセッションの今のコンテキストの量。分からなければ noContextUse で、省く。
+// Refreshable は、結んだ会話の AI のプログラムが会話を空にできると名乗ったか（名乗っていなければ省く）
 type participantLive struct {
-	Model      string     `json:"model,omitempty"`
-	Branch     string     `json:"branch,omitempty"`
-	Wake       string     `json:"wake,omitempty"`
-	ContextUse contextUse `json:"contextUse,omitzero"`
+	Model       string     `json:"model,omitempty"`
+	Branch      string     `json:"branch,omitempty"`
+	Wake        string     `json:"wake,omitempty"`
+	ContextUse  contextUse `json:"contextUse,omitzero"`
+	Refreshable bool       `json:"refreshable,omitempty"`
 }
 
 // liveLocked は、参加者 id の窓に知らせる様子（コンテキストの量は、結ばれたセッションの物。h.mu を持って呼ぶ）
@@ -157,6 +161,7 @@ type JoinRequest struct {
 	AiUi            string `json:"aiUi"`         // 利用者がその会話と話している AI の UI（MCP が clients の部品で決めて添える。分からなければ空。値は参加の要求のアクションが確かめる）
 	Participant     string `json:"-"`
 	Host            string `json:"-"` // AI のプログラムのプロセス id（MCP が X-Matomezu-Host で添える。送り先エッジに書く物。watch.go）
+	HostSpace       string `json:"-"` // Host が通じる範囲の印（X-Matomezu-Host-Space）
 	HostSession     string `json:"-"` // AI のプログラムが MCP を立てたときのセッション id（MCP が X-Matomezu-Host-Session で添える。送り先エッジに書く物。watch.go）
 	SessionPid      string `json:"-"` // セッションと同じだけ生きるプロセスの id（MCP が X-Matomezu-Session-Pid で名乗る。退室の見張りの宛て）
 	SessionPidSpace string `json:"-"` // そのプロセス id が通じる範囲の印（X-Matomezu-Session-Pid-Space）
@@ -427,6 +432,7 @@ func (o Options) aiJoin(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Participant = participantOf(r)
 	req.Host = r.Header.Get(aiwire.HostHeader)
+	req.HostSpace = r.Header.Get(aiwire.HostSpaceHeader)
 	req.HostSession = r.Header.Get(aiwire.HostSessionHeader)
 	req.SessionPid = r.Header.Get(aiwire.SessionPidHeader)
 	req.SessionPidSpace = r.Header.Get(aiwire.SessionPidSpaceHeader)

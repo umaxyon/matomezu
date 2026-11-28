@@ -140,7 +140,7 @@ func TestRallyBetweenPairedHosts(t *testing.T) {
 	if sent := sendTo(t, as.URL, s1, "b", "s2", "over"); sent.OK || sent.Reason != "rally-limit" {
 		t.Fatalf("over the limit = %+v", sent)
 	}
-	got := wakes(b, b.OpenWakesWith("200", "", WakeLimits{}))
+	got := wakes(b, b.OpenWakesWith("200", "", "", WakeLimits{}))
 	if len(got) != 3 || !strings.Contains(got[2], "stopped the exchange") || !strings.Contains(got[2], `host a`) {
 		t.Fatalf("wakes = %q", got)
 	}
@@ -148,7 +148,7 @@ func TestRallyBetweenPairedHosts(t *testing.T) {
 	if sent := sendTo(t, as.URL, s1, "b", "s2", "again"); !sent.OK {
 		t.Fatalf("after the sender's user talked = %+v", sent)
 	}
-	got = wakes(b, b.OpenWakesWith("200", "", WakeLimits{}))
+	got = wakes(b, b.OpenWakesWith("200", "", "", WakeLimits{}))
 	if len(got) != 2 || !strings.Contains(got[0], "arrive again") || !strings.Contains(got[1], `"again"`) {
 		t.Fatalf("wakes after resuming = %q", got)
 	}
@@ -169,7 +169,7 @@ func TestPayloadsStopAtTheRallyLimit(t *testing.T) {
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
 	to := engine.Payload{To: engine.Destination{Workroom: "すずめ"}, Text: "x"}
-	envelopes, refused := hub.payloadDeliveries([]engine.Payload{to, to}, actor, false, time.Now())
+	envelopes, _, refused := hub.payloadDeliveries([]engine.Payload{to, to}, actor, "", sendChain{byWindow: false}, time.Now())
 	if refused != nil || len(envelopes) != 2 {
 		t.Fatalf("under the limit = %+v %+v", envelopes, refused)
 	}
@@ -178,12 +178,12 @@ func TestPayloadsStopAtTheRallyLimit(t *testing.T) {
 		d.envelope.ID = newEnvelopeID()
 		hub.deliver(d)
 	}
-	if _, refused := hub.payloadDeliveries([]engine.Payload{to, to}, actor, false, time.Now()); refused == nil || refused.Reason != "rally-limit" {
+	if _, _, refused := hub.payloadDeliveries([]engine.Payload{to, to}, actor, "", sendChain{byWindow: false}, time.Now()); refused == nil || refused.Reason != "rally-limit" {
 		t.Fatalf("refuse = %+v", refused)
 	}
 	skip := to
 	skip.NoRecipient = "skip"
-	if envelopes, refused := hub.payloadDeliveries([]engine.Payload{to, skip}, actor, false, time.Now()); refused != nil || len(envelopes) != 1 {
+	if envelopes, _, refused := hub.payloadDeliveries([]engine.Payload{to, skip}, actor, "", sendChain{byWindow: false}, time.Now()); refused != nil || len(envelopes) != 1 {
 		t.Fatalf("skip = %+v %+v", envelopes, refused)
 	}
 }

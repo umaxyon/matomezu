@@ -55,19 +55,20 @@ test("マークを付けると、種類を持ち、id を返す。知らない�
     },
   ])
   expect(add([a], "crow").ok).toBe(false)
+  expect(add([a], "alert").ok).toBe(false)
 })
 
 test("1 つの物にマークは 1 つ: 付けると、その物のほかのマークは外れ、付く物が無くなったマークは消える", () => {
   const { a, b, marks, add } = ready()
   add([a, b], "inko")
-  add([a], "alert")
+  add([a], "buncho")
   expect(marks()).toMatchObject([
     { props: { kind: "inko", addedAt: expect.any(String) }, anchors: [b] },
-    { props: { kind: "alert", addedAt: expect.any(String) }, anchors: [a] },
+    { props: { kind: "buncho", addedAt: expect.any(String) }, anchors: [a] },
   ])
   add([b], "fukurou")
   expect(marks()).toMatchObject([
-    { props: { kind: "alert" }, anchors: [a] },
+    { props: { kind: "buncho" }, anchors: [a] },
     { props: { kind: "fukurou" }, anchors: [b] },
   ])
   expect(marks()).toHaveLength(2)

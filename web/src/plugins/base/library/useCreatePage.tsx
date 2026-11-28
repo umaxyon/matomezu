@@ -10,6 +10,7 @@ import { useActions } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import type { PAGE_ADD } from "../pages/page-add"
 import { refusalMessage } from "../utils"
+import { whenPerformed } from "../utils/performed"
 import { titleTaken } from "../utils/refusal"
 import { openedFolderOf } from "./outline"
 import { PAGE_CREATE, PAGE_CREATE_OVER } from "./page-create"
@@ -39,10 +40,12 @@ export function useCreatePage(): (folder: string, args: CreatePageArgs) => boole
       )
       return false
     }
-    const made = done.result.binder ?? done.result.page
-    const { folders } = read()
-    // 作業机の下には作れないので、作業机は渡さない
-    if (placeOf(folders, made)?.holder.id === openedFolderOf(folders, readOpened(), NO_DESKS)) pick(made)
+    whenPerformed(done, result => {
+      const made = result.binder ?? result.page
+      const { folders } = read()
+      // 作業机の下には作れないので、作業机は渡さない
+      if (placeOf(folders, made)?.holder.id === openedFolderOf(folders, readOpened(), NO_DESKS)) pick(made)
+    })
     return true
   }
 }

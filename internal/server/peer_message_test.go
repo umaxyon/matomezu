@@ -66,7 +66,7 @@ func TestAMessageGoesToAPairedHost(t *testing.T) {
 	if sent := sendTo(t, as.URL, s1, "b", "s2", "やあ"); !sent.OK || !sent.Queued {
 		t.Fatalf("sent = %+v", sent)
 	}
-	if got := wakes(b, b.OpenWakesWith("200", "", WakeLimits{})); len(got) != 1 || got[0] != `matomezu from AI "s1" on host "a": "やあ"` {
+	if got := wakes(b, b.OpenWakesWith("200", "", "", WakeLimits{})); len(got) != 1 || got[0] != `matomezu from AI "s1" on host "a": "やあ"` {
 		t.Fatalf("wakes = %q", got)
 	}
 	// B の利用者が A からの頼みを as-user にすると、そのあとに届く行に印が付く
@@ -78,7 +78,7 @@ func TestAMessageGoesToAPairedHost(t *testing.T) {
 	if sent := sendTo(t, as.URL, s1, "b", "s2", "頼み"); !sent.OK {
 		t.Fatalf("sent = %+v", sent)
 	}
-	if got := wakes(b, b.OpenWakesWith("200", "", WakeLimits{})); len(got) != 1 || got[0] != `matomezu from AI "s1" on host "a" (as your user's request): "頼み"` {
+	if got := wakes(b, b.OpenWakesWith("200", "", "", WakeLimits{})); len(got) != 1 || got[0] != `matomezu from AI "s1" on host "a" (as your user's request): "頼み"` {
 		t.Fatalf("wakes = %q", got)
 	}
 }
@@ -104,7 +104,7 @@ func TestQueuedLinesFollowTheRequestsAndThePairing(t *testing.T) {
 		t.Fatalf("sent = %+v", sent)
 	}
 	set("ask-user")
-	if got := wakes(b, b.OpenWakesWith("200", "", WakeLimits{})); len(got) != 1 || got[0] != `matomezu from AI "s1" on host "a": "頼み"` {
+	if got := wakes(b, b.OpenWakesWith("200", "", "", WakeLimits{})); len(got) != 1 || got[0] != `matomezu from AI "s1" on host "a": "頼み"` {
 		t.Fatalf("wakes = %q", got)
 	}
 	// ペアリングを解いたら、そのホストから届いてまだ渡していない行は捨てる（返事の送り先をもう引けない）
@@ -189,7 +189,7 @@ func TestTheMessageEntranceChecksTheEnvelope(t *testing.T) {
 	if post(good) != http.StatusOK || post(good) != http.StatusOK {
 		t.Fatal("the good one is refused")
 	}
-	if got := wakes(b, b.OpenWakesWith("200", "", WakeLimits{})); len(got) != 1 {
+	if got := wakes(b, b.OpenWakesWith("200", "", "", WakeLimits{})); len(got) != 1 {
 		t.Fatalf("wakes = %q", got)
 	}
 }
@@ -526,7 +526,7 @@ func TestAMessageToAHostWithAnotherProtocolIsRefused(t *testing.T) {
 	if sent := sendTo(t, bs.URL, s2, "a", "s1", "やあ"); sent.OK || sent.Reason != "protocol-mismatch" || !strings.Contains(sent.Detail, "update host a ") {
 		t.Fatalf("sent from the newer = %+v", sent)
 	}
-	if got := wakes(b, b.OpenWakesWith("200", "", WakeLimits{})); len(got) != 0 {
+	if got := wakes(b, b.OpenWakesWith("200", "", "", WakeLimits{})); len(got) != 0 {
 		t.Fatalf("it arrived: %q", got)
 	}
 }

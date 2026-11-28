@@ -7,6 +7,7 @@
 
 import { talkActions } from "../core/annotation"
 import { assetsInUse } from "../core/assets"
+import { type PageRow, pageMetaRowOf } from "../core/folders"
 import { hostActions } from "../core/hosts"
 import { endActions, joinActions } from "../core/participant"
 import { checkRecords, restoreRecords } from "../core/records"
@@ -118,7 +119,7 @@ let lastAdded: readonly Plugin[] = []
   JSON.stringify(aiSettings(assembled.catalog.core, restoreSettings(JSON.parse(settings))))
 
 // 残したブックを今の機能台帳で確かめ、warning のあるブック（ブックごと読めない W005・W006・読めないページを持つ W027〜W029、一部に無い物がある W007）の
-// id・番号・warning の 1 行と、ブックごと読めないか（unreadable）を返す（常駐が一覧に持つ）
+// id・番号・warning の 1 行・文に埋める値（params）と、ブックごと読めないか（unreadable）を返す（常駐が一覧に持ち、読めないブックは画面にも渡す）
 ;(globalThis as { matomezuCheckBooks?: (books: string) => string }).matomezuCheckBooks = books =>
   checkBookLines(assembled, books)
 
@@ -241,6 +242,10 @@ let lastAdded: readonly Plugin[] = []
 // アノテーションの並びから、プラグイン plugin が足した種類（種類の id の持ち主が plugin）の物を除く（利用者がプラグインを外したときに常駐が消す）
 ;(globalThis as { matomezuAnnotationsWithout?: (plugin: string, list: string) => string }).matomezuAnnotationsWithout =
   (plugin, list) => annotationsWithout(plugin, list)
+
+// ページの行 page（JSON）の、ページメタだけの行（常駐が、ページの中身を持たない窓に送る）
+;(globalThis as { matomezuPageMetaRow?: (page: string) => string }).matomezuPageMetaRow = (page: string) =>
+  JSON.stringify(pageMetaRowOf(JSON.parse(page) as PageRow))
 
 // 利用者トリガートークのときに行うアクション（runsWhenUserTalks）の id（常駐が、アノテーションのある読めるページごとに行う）
 ;(globalThis as { matomezuTalkActions?: () => string }).matomezuTalkActions = () =>

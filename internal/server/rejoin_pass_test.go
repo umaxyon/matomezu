@@ -113,7 +113,7 @@ func TestJoinWithARejoinPassWakesTheJoinedProcess(t *testing.T) {
 	var first Joined
 	_ = json.Unmarshal([]byte(got), &first)
 	acceptRoom(t, s.URL, first.Participant, "ひよこ")
-	line := hub.OpenWakesWith("100", "", WakeLimits{})
+	line := hub.OpenWakesWith("100", "", "", WakeLimits{})
 	_ = wakes(hub, line)
 
 	passFor(t, s.URL, "ひよこ", "L2")

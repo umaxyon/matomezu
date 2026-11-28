@@ -24,6 +24,7 @@
   right: var(--edge-gap); /* ボタンの枠の右端を、右の縦の罫線から --edge-gap に置く */
   bottom: 0;
   display: flex;
+  gap: 6px; /* クリアと退室のボタンの間 */
   font-weight: normal;
 }
 .leaveButton {

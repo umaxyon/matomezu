@@ -173,17 +173,17 @@ func TestHeardModelsAreDroppedWhenOldOrTooMany(t *testing.T) {
 	t.Parallel()
 	_, hub := joinWorld(t, joinStore(t))
 	t0 := time.Date(2026, 11, 12, 0, 0, 0, 0, time.UTC)
-	if err := hub.HeardModel("old", "m", "", t0); err != nil {
+	if err := hub.HeardModel("old", "m", aiProgram{}, t0); err != nil {
 		t.Fatal(err)
 	}
-	if err := hub.HeardModel("S0", "m", "", t0.Add(heardModelKeep+time.Minute)); err != nil {
+	if err := hub.HeardModel("S0", "m", aiProgram{}, t0.Add(heardModelKeep+time.Minute)); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := hub.heardModels["old"]; ok {
 		t.Fatal("an old one was kept")
 	}
 	for i := 1; i <= heardModelsMax; i++ {
-		_ = hub.HeardModel("S"+strconv.Itoa(i), "m", "", t0.Add(heardModelKeep+time.Duration(i+1)*time.Minute))
+		_ = hub.HeardModel("S"+strconv.Itoa(i), "m", aiProgram{}, t0.Add(heardModelKeep+time.Duration(i+1)*time.Minute))
 	}
 	if _, ok := hub.heardModels["S0"]; ok || len(hub.heardModels) != heardModelsMax {
 		t.Fatalf("kept %d, S0 kept: %v", len(hub.heardModels), ok)

@@ -14,7 +14,7 @@ import (
 func TestVisitorIsToldAndOnlyReads(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
-	line := hub.OpenWakesWith("300", "", WakeLimits{})
+	line := hub.OpenWakesWith("300", "", "", WakeLimits{})
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"LV","as":"visitor"}`, map[string]string{aiwire.HostHeader: "300"})
 	var joined Joined
 	if json.Unmarshal([]byte(got), &joined) != nil || joined.Participant == "" {

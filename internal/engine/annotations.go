@@ -57,6 +57,18 @@ func (e *Engine) TalkActions() (ids []string, err error) {
 	return ids, err
 }
 
+// PageMetaRow は、ページの行 page の、ページメタだけの行（core/folders.ts の pageMetaRowOf。ページの中身を持たない窓に送る）
+func (e *Engine) PageMetaRow(page json.RawMessage) (row json.RawMessage, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return json.RawMessage(e.metaRow(string(page))), nil
+}
+
 // AnnotationsUnexpired は、アノテーションの並び list から、期限（種類の expiresAt。利用者の設定 settings で決まる）が時点 now より前の物を除いた並びと、
 // 除いたかを返す。kept の id の物は除かない（利用者が直している物）
 func (e *Engine) AnnotationsUnexpired(list, settings json.RawMessage, now string, kept []string) (out json.RawMessage, changed bool, err error) {

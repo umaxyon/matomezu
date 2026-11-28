@@ -10,6 +10,7 @@ import {
   type ActionOn,
   type AIEditTicketChange,
   type Payload,
+  type Received,
   type RefreshRequest,
   stopsOnEditLock,
 } from "../core/def/action"
@@ -51,6 +52,7 @@ export interface Input {
   counters?: unknown // 番号を振る種類の、区切りごとの次の番号（種類の id → 区切り → 次の番号。対象がその種類のアクションのとき）
   records?: unknown // 対象の定義が足した種類のレコード（種類の id → id → レコード。レコードが対象のアクションのとき、宛先と読むだけの種類）
   actor?: WireActor // 頼んだ者（無ければ利用者。AI は入っているワークルームの id を持つ）
+  received?: Received // レシーバーを、届いた 1 通から行うときの、その 1 通（常駐が入れる。バルクはそのレシーバー 1 つ）
   watched?: Readonly<Record<string, readonly string[]>> // 利用者が直している物（ページかブックの id → その中の物の id。編集ロック）
   watchedRecords?: Readonly<Record<string, readonly string[]>> // 利用者が直しているレコード（対象の種類の id → レコードの id。編集ロック）
 }
@@ -172,7 +174,13 @@ export function perform(of: Assembled, input: Input): Output {
   const done = performBulk(
     world,
     steps,
-    { catalog, controlCenter, lang: langFor(input.actions[0]?.lang), actor },
+    {
+      catalog,
+      controlCenter,
+      lang: langFor(input.actions[0]?.lang),
+      actor,
+      ...(input.received ? { received: input.received } : {}),
+    },
     (i, before, after, one) => {
       const edited = (c: { subject: string; id: string }) => (input.watchedRecords?.[c.subject] ?? []).includes(c.id)
       if ((one.followed ?? []).some(edited)) return { ok: false as const, reason: "being-edited" as const }
