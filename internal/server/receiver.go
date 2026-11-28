@@ -5,6 +5,8 @@ package server
 // 行うのは送り手（利用者か AI）で、封筒の id を Perform の番号にするので、同じ 1 通は二度行わず、前の答えを返す。
 // レシーバーが断ったら、その 1 通が届かなかった結果の先（undelivered）を、送り手と同じ者で行う（それも断られたら捨てる）。送ったバルクはもう書き終えているので、送り手には返さない。
 // 段数は、人も AI も挟まずに、レシーバーからレシーバーへ続いた段の数で、上限を超える 1 通は送らない（hopLimit）。AI の返事から行うレシーバーは 0 から数え直す。
+// 1 つの頼みから広がって行うレシーバーの数の合計も receivesMax までで、超える 1 通は送らない（段数と同じ hop-limit）。
+// レシーバーの run が返した AI 宛ては、行った AI 自身へなら AI ラリーに数えず、ほかの AI へなら、行った AI からの向きで数える。
 //
 // 返事: replyReceiver を書いた AI 宛ての 1 通を届けたら、その封筒の id と返事を受けるレシーバーを、受けた参加者の物として覚える（replies。メモリだけで、起動し直すと消える）。
 // 受けた AI は send_message の replyTo と args で 1 回だけ返せ、常駐はその AI を行う者にレシーバーを行う（レシーバーが断ったら、覚えを残して断りを返す）
@@ -22,6 +24,9 @@ import (
 // hopLimit は、人も AI も挟まずにレシーバーからレシーバーへ続けてよい段の数
 const hopLimit = 20
 
+// receivesMax は、1 つの頼みから広がって行ってよいレシーバーの数の合計（段数は深さしか抑えず、1 回の run が何通でも返せるため）
+const receivesMax = 100
+
 // repliesMax は、返事を待つ 1 通を覚えておく数（古い物から忘れる）
 const repliesMax = 1000
 
@@ -30,6 +35,7 @@ type chain struct {
 	received   *engine.Received
 	hops       int  // その 1 通の段数
 	fromWindow bool // 窓から始まり、AI を挟まずに利用者のままの鎖か（レシーバーの run が返す物も、窓から送った物とみなす）
+	spent      *int // 鎖の元の頼みから、ここまでに行うと決めたレシーバーの数（元の頼みでは nil）
 }
 
 // sendChain は、行ったバルクが返した matomezu ペイロードを送るときの、鎖の値
@@ -37,11 +43,16 @@ type sendChain struct {
 	byWindow   bool // 窓から行ったか、窓から始まった利用者のままの鎖か
 	inReceiver bool // レシーバーの run が返したか
 	hops       int  // レシーバーの run なら、受けた 1 通の段数
+	spent      *int // 鎖の元の頼みから、ここまでに行うと決めたレシーバーの数
 }
 
 // next は、バルクを窓から行ったか（byWindow）と鎖 c から、そのバルクが送る物の鎖の値を決める
 func (c chain) next(byWindow bool) sendChain {
-	return sendChain{byWindow: byWindow || c.fromWindow, inReceiver: c.received != nil, hops: c.hops}
+	spent := c.spent
+	if spent == nil {
+		spent = new(int)
+	}
+	return sendChain{byWindow: byWindow || c.fromWindow, inReceiver: c.received != nil, hops: c.hops, spent: spent}
 }
 
 // pendingReceive は、あとで行うレシーバー宛ての 1 通
@@ -54,6 +65,7 @@ type pendingReceive struct {
 	inReplyTo   string
 	hops        int
 	fromWindow  bool
+	spent       *int
 	undelivered *engine.ReceiverDestination
 }
 
@@ -73,7 +85,7 @@ func (h *Hub) receiveAll(rs []pendingReceive) {
 
 // receiveOne は、レシーバー宛ての 1 通 r を行い、結果と、その run が返したレシーバー宛ての 1 通を返す。断られたら、届かなかった結果の先を行う（h.mu を持たずに呼ぶ）
 func (h *Hub) receiveOne(r pendingReceive) (Performed, []pendingReceive) {
-	c := chain{received: &engine.Received{Envelope: r.envelope, From: r.from, InReplyTo: r.inReplyTo}, hops: r.hops, fromWindow: r.fromWindow}
+	c := chain{received: &engine.Received{Envelope: r.envelope, From: r.from, InReplyTo: r.inReplyTo}, hops: r.hops, fromWindow: r.fromWindow, spent: r.spent}
 	done, more, err := h.performOnce(receivePerform(r.to, r.args, r.participant, c, "envelope:"+r.envelope))
 	if err != nil {
 		done = Performed{OK: false, Reason: "refused", Detail: err.Error()}
@@ -86,7 +98,7 @@ func (h *Hub) receiveOne(r pendingReceive) (Performed, []pendingReceive) {
 		result["detail"] = done.Detail
 	}
 	args, _ := json.Marshal(result)
-	uc := chain{received: &engine.Received{Envelope: newEnvelopeID(), From: engine.PayloadSender{Kind: "matomezu"}}, hops: r.hops, fromWindow: r.fromWindow}
+	uc := chain{received: &engine.Received{Envelope: newEnvelopeID(), From: engine.PayloadSender{Kind: "matomezu"}}, hops: r.hops, fromWindow: r.fromWindow, spent: r.spent}
 	told, umore, err := h.performOnce(receivePerform(*r.undelivered, args, r.participant, uc, "undelivered:"+r.envelope))
 	if err != nil || !told.OK {
 		fmt.Fprintf(os.Stderr, "%s the undelivered result of the envelope %s was not received by %s: %s %v\n", stamp(), r.envelope, r.undelivered.Receiver, told.Reason, err)
@@ -201,6 +213,11 @@ func (h *Hub) replyTo(req MessageRequest) (MessageSent, error) {
 		return MessageSent{Reason: done.Reason, Detail: done.Detail}, nil
 	}
 	return MessageSent{OK: true, Result: done.Result}, nil
+}
+
+// receivesMaxDetail は、1 つの頼みから広がるレシーバーの数の上限を超える 1 通を断るときの、AI への説明
+func receivesMaxDetail(receiver string) string {
+	return "the payload to the receiver " + receiver + " would make more than " + strconv.Itoa(receivesMax) + " receivers run from one request; nothing was changed"
 }
 
 // hopLimitDetail は、段数の上限を超えるレシーバー宛ての 1 通を断るときの、AI への説明

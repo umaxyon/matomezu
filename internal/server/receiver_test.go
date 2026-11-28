@@ -12,8 +12,14 @@ import (
 	"github.com/umaxyon/matomezu/internal/engine"
 )
 
-// receiverWorld は、テストの追加プラグイン ex16（かぞえを送り、レシーバーで受ける）を足して有効にし、ワークルーム「すずめ」に AI を入れた世界と、その参加者の id
+// receiverWorld は、テストの追加プラグイン ex16（かぞえを送り、レシーバーで受ける）を足して有効にし、ワークルーム「すずめ」に AI（ホスト 200）を入れた世界と、その参加者の id
 func receiverWorld(t *testing.T) (*Hub, string) {
+	hub, b, _ := receiverWorldOn(t)
+	return hub, b
+}
+
+// receiverWorldOn は receiverWorld と、その常駐の URL
+func receiverWorldOn(t *testing.T) (*Hub, string, string) {
 	t.Helper()
 	s, hub := joinWorld(t, joinStore(t))
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -23,7 +29,7 @@ func receiverWorld(t *testing.T) (*Hub, string) {
 	if out, err := hub.Perform(performOne("@matomezu/base:settings-set", json.RawMessage(`{"values":{"`+enabledPluginsSetting+`":["ex16"]}}`), nil)); err != nil || !out.OK {
 		t.Fatalf("enable ex16 = %+v, %v", out, err)
 	}
-	return hub, b
+	return hub, b, s.URL
 }
 
 // fromWindow は、窓の利用者が ex16 のかぞえ（on が空なら作る）から payloads を送る頼み
@@ -221,6 +227,56 @@ func TestReceiverHopLimit(t *testing.T) {
 	if n, _ := tally(t, hub, id); n != hopLimit+1 {
 		t.Fatalf("count = %d; want %d", n, hopLimit+1)
 	}
+	// 1 つの頼みから広がるレシーバーの数の合計は receivesMax まで（skip でなければバルクを断る）
+	wide := make([]string, receivesMax+1)
+	for i := range wide {
+		wide[i] = fmt.Sprintf(`{"to":{"receiver":"ex16:tally-receive","on":%q},"id":"w%d","args":{"n":1},"noRecipient":"skip"}`, id, i)
+	}
+	if out, err := hub.Perform(fromWindow("["+strings.Join(wide, ",")+"]", id)); err != nil || !out.OK {
+		t.Fatalf("send wide = %+v, %v", out, err)
+	}
+	if n, _ := tally(t, hub, id); n != hopLimit+1+receivesMax {
+		t.Fatalf("count after wide = %d; want %d", n, hopLimit+1+receivesMax)
+	}
+	strict := strings.ReplaceAll("["+strings.Join(wide, ",")+"]", `,"noRecipient":"skip"`, "")
+	strict = strings.ReplaceAll(strict, `"id":"w`, `"id":"s`)
+	if out, _ := hub.Perform(fromWindow(strict, id)); out.OK || out.Reason != "hop-limit" {
+		t.Fatalf("send wide without skip = %+v", out)
+	}
+}
+
+// レシーバーを挟んだ AI どうしの往復は、行った AI からほかの AI への向きで AI ラリーに数える（上限を超えた返事は断り、もう一度返せる）
+func TestReceiverBetweenAIsIsRallied(t *testing.T) {
+	t.Parallel()
+	hub, a, srv := receiverWorldOn(t)
+	b := joinedIn(t, srv, "LC", "300", "SC", "ひばり")
+	ask := func(room string) string {
+		return `[{"to":{"workroom":"` + room + `"},"text":"your move","replyReceiver":{"receiver":"ex16:tally-receive"}}]`
+	}
+	if out, err := hub.Perform(fromWindow(ask("すずめ"), "")); err != nil || !out.OK {
+		t.Fatalf("send = %+v, %v", out, err)
+	}
+	lines := map[string]*wakeLine{a: hub.OpenWakesWith("200", "", WakeLimits{}), b: hub.OpenWakesWith("300", "", WakeLimits{})}
+	who, other := a, b
+	room := map[string]string{a: "すずめ", b: "ひばり"}
+	for round := range 2*rallyLocalLimit + 2 {
+		woke := wakes(hub, lines[who])
+		if len(woke) != 1 || replyToOf(woke[0]) == "" {
+			t.Fatalf("round %d: wakes = %q", round, woke)
+		}
+		sent, err := hub.SendMessage(MessageRequest{ReplyTo: replyToOf(woke[0]), Args: json.RawMessage(`{"n":1,"next":` + ask(room[other]) + `}`), Participant: who}, time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !sent.OK {
+			if sent.Reason != "rally-limit" {
+				t.Fatalf("round %d: reply = %+v", round, sent)
+			}
+			return
+		}
+		who, other = other, who
+	}
+	t.Fatalf("the AIs went on past the rally limit %d", rallyLocalLimit)
 }
 
 // レシーバーは届いた 1 通からだけ行う。送り先・返事・届かなかった結果の先は、その印を持つレシーバーでなければバルクごと断る
