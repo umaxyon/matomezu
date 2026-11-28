@@ -88,7 +88,7 @@ const ASKED_TITLE = "-"
 function restore(ctx: ScreenCommandContext, a: CommandActions, from: "undo" | "redo"): void {
   const to = from === "undo" ? "before" : "after"
   const steps = [...ctx.libraryHistory[from]].reverse()
-  // 新しい側から i 番目の段を置き直す（置き直しても何も変わらなければ動かして、次の段へ。常駐へ送ったなら、その答えで分ける）
+  // 新しい側から i 番目の書庫の履歴の段を置き直す（置き直しても何も変わらなければ動かして、次の書庫の履歴の段へ。常駐へ送ったなら、その答えで分ける）
   const restoreAt = (i: number): void => {
     const step = steps[i]
     if (!step) return

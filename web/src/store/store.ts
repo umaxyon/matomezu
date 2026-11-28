@@ -193,7 +193,7 @@ interface OpenStep {
   sentFrom?: number
 }
 
-// 書庫の履歴の戻せる側に段を置く所: 最後か、始めた順の位置（答えを待つ間に入れたほかの段より前）
+// 書庫の履歴の戻せる側に書庫の履歴の段を置く所: 最後か、始めた順の位置（答えを待つ間に入れたほかの書庫の履歴の段より前）
 const atEnd = (now: History, step: HistoryStep) => [...now.undo, step].slice(-HISTORY_LIMIT)
 const inStartOrder = (now: History, step: HistoryStep) => insertStep(now, step).undo
 
@@ -356,12 +356,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     putLibrary(was, { pages: keptRows(was.library.pages), folders: keptRows(was.library.folders) }, atEnd)
   }
   // 先に行わずに送ったアクションを持つバルクの、書庫の履歴に入る分（常駐が書く前と後。バルクの全部のアクションの分）を、書庫の履歴に、始めた順の位置で入れる
-  // （答えを待つ間に入れたほかの段より前に）
+  // （答えを待つ間に入れたほかの書庫の履歴の段より前に）
   const putSentLibraryStep = (was: OpenStep, rows: ForeignLibraryRows) => {
     const sides = librarySidesOf(rows)
     putLibrary(was, { pages: keptRows(sides.pages), folders: keptRows(sides.folders) }, inStartOrder)
   }
-  // 書庫の履歴に段を入れる（place が戻せる側のどこに置くか決める）。やり直せる段は消す
+  // 書庫の履歴の段を入れる（place が戻せる側のどこに置くか決める）。やり直せる書庫の履歴の段は消す
   const putLibrary = (
     was: OpenStep,
     rows: Pick<HistoryStep, "pages" | "folders">,

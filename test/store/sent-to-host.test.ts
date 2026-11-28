@@ -150,9 +150,9 @@ test("自分だけのアクションバルクのアクションも送り、開�
   expect(sent[1]![0]).toMatchObject({ ids: [], on: { record: "m1" } })
 })
 
-// 段 3b: 先に行わずに送ったバルクの書庫の履歴の段は、常駐が答えた前と後で入れる（画面のページメタを前の値にしない）
+// 先に行わずに送ったバルクの書庫の履歴の段は、常駐が答えた前と後で入れる（画面のページメタを前の値にしない）
 const TRASH = "@matomezu/base:entry-trash"
-// 常駐の答えと、それを待った続き（次の段の置き直しの答えも）が済むまで待つ
+// 常駐の答えと、それを待った続き（次の書庫の履歴の段の置き直しの答えも）が済むまで待つ
 const answered = () => new Promise(done => setTimeout(done, 0))
 const libraryHistory = (store: Store) => store.state.getState().history[LIBRARY_HISTORY] ?? { undo: [], redo: [] }
 const trashed = (bulk: DoneBulk): HostAnswer => ({
@@ -164,7 +164,7 @@ const trashed = (bulk: DoneBulk): HostAnswer => ({
   },
 })
 
-test("送ったバルクの書庫の段は、常駐の答えを待ち、常駐が答えた前と後で書庫の履歴に入れる", async () => {
+test("送ったバルクの書庫の履歴の段は、常駐の答えを待ち、常駐が答えた前と後で書庫の履歴に入れる", async () => {
   const { store, sent } = observed(trashed)
   expect(store.actions.perform(TRASH, { entry: "b2" })).toMatchObject({ ok: true, result: SENT_TO_HOST })
   expect(libraryHistory(store).undo).toEqual([])
@@ -180,7 +180,7 @@ test("送ったバルクの書庫の段は、常駐の答えを待ち、常駐�
   ])
 })
 
-test("画面で先に行ったブックの変更の後ろに書庫の操作を送ったバルクは、ブックの段を閉じたときに、書庫の段を常駐の答えで入れる", async () => {
+test("画面で先に行ったブックの変更の後ろに書庫の操作を送ったバルクは、画面の履歴の段を閉じたときに、書庫の履歴の段を常駐の答えで入れる", async () => {
   const { store } = observed(trashed)
   place(store, 40, "一")
   expect(store.actions.perform(TRASH, { entry: "b2" })).toMatchObject({ result: SENT_TO_HOST })
@@ -192,7 +192,7 @@ test("画面で先に行ったブックの変更の後ろに書庫の操作を�
   expect(step?.pages.q1).toMatchObject({ before: { body: "常駐の中身" } })
 })
 
-test("送ったバルクを常駐が断ったら、書庫の履歴に段を入れない", async () => {
+test("送ったバルクを常駐が断ったら、書庫の履歴の段を入れない", async () => {
   const { store } = observed(() => ({ ok: false, reason: "refused" }))
   store.actions.perform(TRASH, { entry: "b2" })
   await settled()
@@ -200,7 +200,7 @@ test("送ったバルクを常駐が断ったら、書庫の履歴に段を入�
   expect(libraryHistory(store).undo).toEqual([])
 })
 
-test("送ったバルクの書庫の段は、答えを待つ間に入れた段より前に、始めた順の位置で入る", async () => {
+test("送ったバルクの書庫の履歴の段は、答えを待つ間に入れた書庫の履歴の段より前に、始めた順の位置で入る", async () => {
   let release: (a: HostAnswer) => void = () => {}
   const sent: DoneBulk[] = []
   const store = sizedStore({
@@ -230,7 +230,7 @@ test("送ったバルクの書庫の段は、答えを待つ間に入れた段�
 // 書庫の画面の元に戻す（library-undo）を押す。置き直し（library-revert）も、ページメタがあるので先に行わずに送る
 const libraryUndo = (store: Store) => store.actions.command("s1", "@matomezu/base:library-undo")
 const REVERT = "@matomezu/base:library-revert"
-// ゴミ箱に 2 回入れて、書庫の履歴に 2 段を入れた窓（answer は、置き直しへの常駐の答え）
+// ゴミ箱に 2 回入れて、書庫の履歴の段を 2 つ入れた窓（answer は、置き直しへの常駐の答え）
 async function twoTrashed(answer: (bulk: DoneBulk) => HostAnswer) {
   const { store, sent } = observed(bulk => (bulk[0]?.action === REVERT ? answer(bulk) : trashed(bulk)))
   for (const _ of [1, 2]) {
@@ -242,7 +242,7 @@ async function twoTrashed(answer: (bulk: DoneBulk) => HostAnswer) {
   return { store, sent, older: older!, newer: newer! }
 }
 
-test("送った置き直しは、常駐が行えたと答えてから段をやり直せる側へ動かす", async () => {
+test("送った置き直しは、常駐が行えたと答えてから書庫の履歴の段をやり直せる側へ動かす", async () => {
   const { store, sent, older, newer } = await twoTrashed(bulk => ({ ok: true, results: bulk.map(() => ({})) }))
   expect(libraryUndo(store)).toBe(true)
   expect(libraryHistory(store)).toMatchObject({ undo: [older, newer], redo: [] })
@@ -251,7 +251,7 @@ test("送った置き直しは、常駐が行えたと答えてから段をや�
   expect(libraryHistory(store)).toMatchObject({ undo: [older], redo: [newer] })
 })
 
-test("送った置き直しが、置き直しても変わらないと断られたら、その段は動かして飛ばし、次の段を置き直す", async () => {
+test("送った置き直しが、置き直しても変わらないと断られたら、その書庫の履歴の段は動かして飛ばし、次の書庫の履歴の段を置き直す", async () => {
   let reverts = 0
   const { store, sent, older, newer } = await twoTrashed(bulk => {
     reverts++
@@ -265,13 +265,13 @@ test("送った置き直しが、置き直しても変わらないと断られ�
   expect(libraryHistory(store)).toMatchObject({ undo: [], redo: [newer, older] })
 })
 
-test("送った置き直しが、ぶつかって断られたら、トーストで知らせて段を捨てる", async () => {
+test("送った置き直しが、ぶつかって断られたら、トーストで知らせて書庫の履歴の段を捨てる", async () => {
   const { store, older } = await twoTrashed(() => ({ ok: false, reason: "refused" }))
   const toasts = store.state.getState().toasts.length
   libraryUndo(store)
   await answered()
   expect(store.state.getState().toasts).toHaveLength(toasts + 1)
   expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
-  // 続く段の置き直しは、ページメタを読むので行わずに確かめられず、残す（次に押したときに置き直す）
+  // 続く書庫の履歴の段の置き直しは、ページメタを読むので行わずに確かめられず、残す（次に押したときに置き直す）
   expect(libraryHistory(store)).toMatchObject({ undo: [older], redo: [] })
 })

@@ -181,7 +181,7 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
   }
   const changes = (args: RevertArgs) => Object.keys(args.pages).length + Object.keys(args.folders).length > 0
   const steps = [...ctx.history[from]].reverse()
-  // 新しい側から i 番目の段を置き直す（置き直しても何も変わらなければ動かして、次の段へ）
+  // 新しい側から i 番目の画面の履歴の段を置き直す（置き直しても何も変わらなければ動かして、次の画面の履歴の段へ）
   const restoreAt = (i: number): void => {
     const step = steps[i]
     if (!step) return
