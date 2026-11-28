@@ -227,11 +227,54 @@ func TestWakeReachesBySessionWhenTheHostIsUnknown(t *testing.T) {
 		{"host differs", "200", "S1", "100", "S1", false},
 		{"nothing in common", "100", "", "", "S1", false},
 		{"nothing known", "", "", "", "", false},
+		{"a later session of the host", "100", "S0", "100", "S2", true},
+		{"a later session, but the host differs", "200", "S0", "100", "S2", false},
 	} {
-		l := &wakeLine{host: c.lineHost, session: c.lineSession}
+		l := &wakeLine{host: c.lineHost, session: c.lineSession, laterSessions: map[string]bool{"S2": true}}
 		if got := l.reaches(participantNote{WakeHost: c.wakeHost, WakeSession: c.wakeSession}); got != c.want {
 			t.Errorf("%s: reaches = %v, want %v", c.name, got, c.want)
 		}
+	}
+}
+
+// /clear のあとに立て直した MCP が新しい会話の id で join しても、フックがその会話を知らせていれば、立てたときの id のままの通り道に受け入れの知らせが届く
+func TestAcceptingAfterClearWakesTheLineOfTheFirstSession(t *testing.T) {
+	t.Parallel()
+	s, hub := joinWorld(t, joinStore(t))
+	line := hub.OpenWakesWith("100", "S0", WakeLimits{})
+	if err := hub.HeardModel("S2", "", "100", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	participant := joinFromSession(t, s.URL, "L1", "100", "S2")
+	room := makeRoom(t, s.URL, "ひよこ")
+	windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant)
+	if got := wakes(hub, line); len(got) != 1 || !strings.Contains(got[0], "ひよこ") {
+		t.Fatalf("wakes = %q", got)
+	}
+}
+
+// 後の会話を覚えるのは、フックの AI のプログラムと同じプロセス id の、今開いている通り道だけ（開き直した通り道と、ほかのプロセスの通り道は覚えない）
+func TestLaterSessionsStayWithTheOpenLinesOfTheHost(t *testing.T) {
+	t.Parallel()
+	_, hub := joinWorld(t, joinStore(t))
+	note := participantNote{WakeHost: "100", WakeSession: "S2"}
+	early := hub.OpenWakesWith("100", "S0", WakeLimits{})
+	hub.CloseWakes(early)
+	other := hub.OpenWakesWith("200", "S0", WakeLimits{})
+	if err := hub.HeardModel("S2", "", "100", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	reopened := hub.OpenWakesWith("100", "S0", WakeLimits{})
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	if early.reaches(note) {
+		t.Error("the closed line learned the later session")
+	}
+	if other.reaches(participantNote{WakeHost: "200", WakeSession: "S2"}) {
+		t.Error("the line of another process learned the later session")
+	}
+	if reopened.reaches(note) {
+		t.Error("the line opened after the hook learned the later session")
 	}
 }
 

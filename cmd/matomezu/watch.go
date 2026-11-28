@@ -34,7 +34,7 @@ import (
 
 type watchCmd struct {
 	Host      string        `help:"Process id of AI's host program (such as Claude Code). Only the lines for the participant who joined from that process are printed. Leave it out when the program is not known: then --session alone says whose lines are printed (one of the two is needed)."`
-	Session   string        `help:"Session id the host program started with (Claude Code: CLAUDE_CODE_SESSION_ID). When both this and the one MCP sent on join are known, they must match too."`
+	Session   string        `help:"Session id the host program started with (Claude Code: CLAUDE_CODE_SESSION_ID). When both this and the one MCP sent on join are known, they must match too, or the one MCP sent must be a later conversation of the same program that matomezu's hooks told (Claude Code's /clear)."`
 	MaxLine   int           `help:"The longest line the host program takes (characters). Longer lines are split. 0 for no limit."`
 	MaxNotice int           `help:"The longest notice the host program takes at once (characters, counting the line breaks). A message too long for it comes as a short notice, and its text with the next matomezu call. 0 for no limit."`
 	Gap       time.Duration `help:"How long to wait after each notice before the next (so the host program does not join them into one notice)."`

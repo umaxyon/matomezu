@@ -185,6 +185,7 @@ func (h *Hub) CarrySession(sessionID, host, thread string) error {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.noteLaterSession(sessionID, host)
 	changed := h.rebindByHost(records, sessionID, host)
 	changed = h.rebindByThread(records, sessionID, host, thread) || changed
 	changed = h.followHosts(records, sessionID, host) || changed

@@ -116,6 +116,7 @@ func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk
 		heard[strings.ToLower(c)] = true
 	}
 	h.mu.Lock()
+	h.noteLaterSession(sessionID, host)
 	changed := h.rebindByHost(records, sessionID, host)
 	bound := false
 	var told []Welcome

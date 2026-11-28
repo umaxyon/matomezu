@@ -62,6 +62,7 @@ func (h *Hub) HeardContextUse(sessionID, host string, use contextUse, now time.T
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.noteLaterSession(sessionID, host)
 	changed := h.rebindByHost(records, sessionID, host)
 	changed = h.followHosts(records, sessionID, host) || changed
 	if h.contextOfLocked(sessionID) != use {

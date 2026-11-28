@@ -39,12 +39,13 @@ import (
 
 // wakeLine は、AI のプログラム 1 つの、起こす知らせの通り道。行列に入った合図を ready で受ける
 type wakeLine struct {
-	id      int64         // 通り道の番号（貸した知らせの結果を見分ける）
-	host    string        // AI のプログラムのプロセス id
-	session string        // AI のプログラムが立てたときのセッション id（分からなければ空）
-	limits  WakeLimits    // 受け取る側が名乗った流し方
-	ready   chan struct{} // 送り先の行列に何か入った合図（1 つだけ持つ）
-	closed  chan struct{} // 通り道を外した（常駐を止めるとき）
+	id            int64           // 通り道の番号（貸した知らせの結果を見分ける）
+	host          string          // AI のプログラムのプロセス id
+	session       string          // AI のプログラムが立てたときのセッション id（分からなければ空）
+	laterSessions map[string]bool // 同じ AI のプログラムが、立てたあとに動かした会話のセッション id（/clear。noteLaterSession）。通り道と一緒に消える
+	limits        WakeLimits      // 受け取る側が名乗った流し方
+	ready         chan struct{}   // 送り先の行列に何か入った合図（1 つだけ持つ）
+	closed        chan struct{}   // 通り道を外した（常駐を止めるとき）
 }
 
 // WakeLimits は、受け取る側が名乗る流し方（0 は上限なし・間なし）
@@ -201,10 +202,11 @@ func (h *Hub) dropStaleAbsentLocked() {
 }
 
 // reaches は、参加者の記録 n の送り先エッジに、通り道 l が合うか。AI のプログラムのプロセス id かセッション id の少なくとも一方が両方で分かって等しく、
-// もう一方は、両方で分かっていれば等しい（Windows では、AI のプログラムまでたどれない watch がある）
+// もう一方は、両方で分かっていれば等しい（Windows では、AI のプログラムまでたどれない watch がある）。
+// 通り道のセッション id は、立てたときの物か、そのあとに同じ AI のプログラムが動かした会話の物（laterSessions）のどれかが等しければよい
 func (l *wakeLine) reaches(n participantNote) bool {
 	host := l.host != "" && l.host == n.WakeHost
-	session := l.session != "" && l.session == n.WakeSession
+	session := l.session != "" && (l.session == n.WakeSession || l.laterSessions[n.WakeSession])
 	hostOK := l.host == "" || n.WakeHost == "" || host
 	sessionOK := l.session == "" || n.WakeSession == "" || session
 	return (host || session) && hostOK && sessionOK
@@ -253,6 +255,37 @@ func (h *Hub) noteWakesLocked() {
 	}
 	if changed {
 		h.kickRooms()
+	}
+}
+
+// noteLaterSession は、プロセス id host の AI のプログラムが今セッション sessionID の会話を動かしているとフックが知らせたとき、
+// host が同じで、立てたときのセッション id の違う通り道に、sessionID を後の会話として覚えさせる（laterSessions）。
+// Claude Code の monitor は /clear で立て直されず、立てたときのセッション id を名乗り続けるので、/clear のあとの会話の id で join した参加者にも届くようにする。
+// 覚えさせたら、届くかの変わりを窓に知らせ、その会話の参加者に溜まった知らせを流させる。host か sessionID が空なら何もしない（h.mu を持って呼ぶ）
+func (h *Hub) noteLaterSession(sessionID, host string) {
+	if sessionID == "" || host == "" {
+		return
+	}
+	added := false
+	for l := range h.wakeLines {
+		if l.host != host || l.session == "" || l.session == sessionID || l.laterSessions[sessionID] {
+			continue
+		}
+		if l.laterSessions == nil {
+			l.laterSessions = map[string]bool{}
+		}
+		l.laterSessions[sessionID] = true
+		logWake("line %d also reaches session %q (a later conversation of host %q)", l.id, sessionID, host)
+		added = true
+	}
+	if !added {
+		return
+	}
+	h.noteWakesLocked()
+	for id, n := range h.participantNotes {
+		if n.WakeSession == sessionID {
+			h.signalWakes(id)
+		}
 	}
 }
 

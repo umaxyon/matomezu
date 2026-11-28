@@ -37,6 +37,7 @@ func (h *Hub) HeardModel(sessionID, model, host string, now time.Time) error {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.noteLaterSession(sessionID, host)
 	changed := h.rebindByHost(records, sessionID, host)
 	changed = h.followHosts(records, sessionID, host) || changed
 	if model != "" {
