@@ -9,6 +9,7 @@ import (
 // AI が参加を要求すると、参加者のレコードが 1 件だけ足され、知らせ（record）と画面の読む口（/api/data）に出る。
 // 同じ link の要求は断られて何も変えず、利用者がワークルームを作って受け入れるとレコードが変わってまた知らせる。AI は受け入れられない
 func TestParticipantsAreKeptAndTold(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := map[string]string{"Authorization": "Bearer secret"}
 	screen := listen(t, s.URL)

@@ -51,6 +51,18 @@ func (f *fakeAPI) Get(path string, header http.Header) (json.RawMessage, http.He
 		return json.RawMessage(`{"page":"small"}`), f.replied, nil
 	case "api/ai/pages/p1":
 		return json.RawMessage(`{"page":"` + strings.Repeat("あ", maxAnswer) + `"}`), f.replied, nil
+	case "api/ai/pages/img/image":
+		return json.RawMessage(`{"ok":true,"mime":"image/png","width":3000,"height":1500,"sentWidth":1568,"sentHeight":784,"data":"UE5H"}`), f.replied, nil
+	case "api/ai/pages/svg/image":
+		return json.RawMessage(`{"ok":true,"mime":"image/svg+xml","width":8,"height":4,"svg":"<svg/>"}`), f.replied, nil
+	case "api/ai/pages/none/image":
+		return nil, nil, &HostError{Code: http.StatusNotFound, Text: "no such page"}
+	case "api/ai/pages/doc/image":
+		return json.RawMessage(`{"ok":false,"reason":"no-image"}`), f.replied, nil
+	case "api/ai/pages/unsure/image", "api/ai/pages/several/image", "api/ai/pages/too-large/image", "api/ai/pages/cannot-read/image":
+		return json.RawMessage(`{"ok":false,"reason":"` + strings.TrimSuffix(strings.TrimPrefix(path, "api/ai/pages/"), "/image") + `"}`), f.replied, nil
+	case "api/ai/pages/long-svg/image":
+		return json.RawMessage(`{"ok":true,"mime":"image/svg+xml","width":8,"height":4,"svg":"<svg>` + strings.Repeat("あ", maxAnswer) + `</svg>"}`), f.replied, nil
 	case "api/ai/join-rules":
 		return json.RawMessage(`{"rules":"Request to join from this conversation."}`), f.replied, nil
 	case "api/ai/view":
@@ -151,7 +163,7 @@ func TestToolsDoNotDependOnTheCatalog(t *testing.T) {
 	for _, x := range got[0]["result"].(map[string]any)["tools"].([]any) {
 		names = append(names, x.(map[string]any)["name"].(string))
 	}
-	if strings.Join(names, ",") != "view,list_books,read_folder,read_book,read_page,read_records,search,read_settings,actions,show,perform,import_image,join_rules,join,send_message,list_workrooms" {
+	if strings.Join(names, ",") != "view,list_books,read_folder,read_book,read_page,read_records,search,read_settings,actions,show,perform,import_image,read_image,join_rules,join,send_message,list_workrooms" {
 		t.Fatalf("tools = %v", names)
 	}
 }
@@ -208,8 +220,28 @@ func TestPerformingAnAction(t *testing.T) {
 		t.Fatalf("call with a notice = %v", r)
 	}
 	got = talk(t, api, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"perform","arguments":{"args":{}}}}`)
-	if r := got[0]["result"].(map[string]any); r["isError"] != false || !strings.HasPrefix(textOf(got[0]), "bad-args: action is needed\nthe arguments of perform (JSON Schema): ") {
+	if r := got[0]["result"].(map[string]any); r["isError"] != false || textOf(got[0]) != "bad-args: give action (with args), or actions, not both" {
 		t.Fatalf("perform without action = %v", r)
+	}
+}
+
+// actions を並べた perform は、結果を並べた順の JSON の並びで返し、断られたら何番目かを頭に添える。action と actions を両方渡すと、常駐に頼まずに断る
+func TestPerformingActionsInABulk(t *testing.T) {
+	api := &fakeAPI{answer: `{"ok":true,"result":{"page":"p2"},"results":[{"page":"p1"},{"page":"p2"}]}`}
+	bulk := `"actions":[{"action":"x.y","args":{}},{"action":"x.z","args":{}}]`
+	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"perform","arguments":{`+bulk+`}}}`)
+	if text := textOf(got[0]); text != `[{"page":"p1"},{"page":"p2"}]` {
+		t.Fatalf("bulk = %q", text)
+	}
+	api.answer = `{"ok":false,"reason":"no-page","at":1}`
+	got = talk(t, api, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"perform","arguments":{`+bulk+`}}}`)
+	if text := textOf(got[0]); !strings.HasPrefix(text, "action 1: no-page:") {
+		t.Fatalf("refused bulk = %q", text)
+	}
+	posts := len(api.posts)
+	got = talk(t, api, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"perform","arguments":{"action":"x.y",`+bulk+`}}}`)
+	if text := textOf(got[0]); text != "bad-args: give action (with args), or actions, not both" || len(api.posts) != posts {
+		t.Fatalf("action and actions = %q (%d posts)", text, len(api.posts)-posts)
 	}
 }
 

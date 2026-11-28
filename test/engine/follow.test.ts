@@ -79,12 +79,13 @@ test("通れば、応じて変えたレコードが records に載り、notice �
     records: [
       { subject: T("ticket"), id: ticket },
       { subject: CURRENT_WORK.id, id: room, record: { id: room, ticket } },
+      { subject: "@matomezu/base:workroom", id: room, record: { work: { subject: T("ticket"), id: ticket } } },
     ],
   })
   expect(out.notice).toContain(`${CURRENT_WORK.id} ${room}`)
 })
 
 test("行った AI のワークルームに宛てた常駐メッセージ（常駐は送らない）は、notice に書く。利用者が行ったなら書かない", () => {
-  expect(move(false, true).out.notice).toContain("Your current ticket is now")
-  expect(move().out.notice).not.toContain("Your current ticket is now")
+  expect(move(false, true).out.notice).toContain("Your current work is now")
+  expect(move().out.notice).not.toContain("Your current work is now")
 })

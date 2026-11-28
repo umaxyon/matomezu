@@ -59,6 +59,7 @@ func sendTo(t *testing.T, srv, from, host, to, text string) MessageSent {
 
 // ペアリングしたホストの AI へ送ると、受けたホストの参加者に、送り手のホストエイリアスつきの行で届く。requests が as-user なら印が付く
 func TestAMessageGoesToAPairedHost(t *testing.T) {
+	t.Parallel()
 	as, bs, _, b := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
 	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
@@ -84,6 +85,7 @@ func TestAMessageGoesToAPairedHost(t *testing.T) {
 
 // 行列に残っている印つきの行は、利用者が ask-user に戻すと印が外れ、ペアリングを解くと捨てる
 func TestQueuedLinesFollowTheRequestsAndThePairing(t *testing.T) {
+	t.Parallel()
 	as, bs, _, b := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
 	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
@@ -128,6 +130,7 @@ func TestQueuedLinesFollowTheRequestsAndThePairing(t *testing.T) {
 
 // 断り: ホストエイリアスの無いホスト（送れるホストエイリアスを添える）・宛て先のワークルームに AI がいない（受けたホストの送れる名前を添える）・自分の入口が閉じている
 func TestMessagesToOtherHostsAreRefused(t *testing.T) {
+	t.Parallel()
 	as, bs, a, _ := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
 	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
@@ -149,6 +152,7 @@ func TestMessagesToOtherHostsAreRefused(t *testing.T) {
 
 // 受けたホストは、TLS で見た相手と違う送り手のホストや、自分宛てでない封筒を断り、同じ id の封筒は 1 通にする
 func TestTheMessageEntranceChecksTheEnvelope(t *testing.T) {
+	t.Parallel()
 	_, bs, a, b := pairedWorlds(t)
 	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
 	e := a.entrance.Load()
@@ -203,6 +207,7 @@ func roomsSeen(h *Hub) map[string]string {
 
 // つながると相手の一覧を取り直し、そのあとは相手の一覧が変わるたびに差分が届いて写しが変わる。写しが差分と合わなければ取り直す
 func TestPairedHostsKeepCopiesOfEachOthersWorkrooms(t *testing.T) {
+	t.Parallel()
 	as, bs, a, b := pairedWorlds(t)
 	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
 	waitFor(t, "A sees s2", func() bool { _, ok := roomsSeen(a)["s2"]; return ok })
@@ -225,6 +230,7 @@ func TestPairedHostsKeepCopiesOfEachOthersWorkrooms(t *testing.T) {
 
 // 取り直しは、手元の印が今の起動の物で、覚えている変わりで間に合えば差分、ほかは全部
 func TestChangesSince(t *testing.T) {
+	t.Parallel()
 	history := []roomDiff{
 		{From: 3, To: 4, Changes: []roomChange{{Name: "x", Activity: "idle"}}},
 		{From: 4, To: 5, Changes: []roomChange{{Name: "x", Removed: true}, {Name: "y", Activity: "working"}}},
@@ -242,6 +248,7 @@ func TestChangesSince(t *testing.T) {
 
 // AI が読むワークルームの一覧: 引数なしは AI 用ホストリスト（このホストと、ペアリングしたホストの最近の行）、host はそのホストの写しを名前の順に
 func TestAIListsTheWorkroomsOfPairedHosts(t *testing.T) {
+	t.Parallel()
 	as, bs, a, _ := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
 	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
@@ -266,6 +273,7 @@ func TestAIListsTheWorkroomsOfPairedHosts(t *testing.T) {
 // ペアリングしたホストに AI が多くても、AI 用ホストリストは最近の 5 件と残りの数で、外れた相手は名前で引け、send_message の断りがそのホストを言う。
 // 隠したホストはAI 用ホストリストに出ず、名前とそのホストを読む口では見つかる。続きは名前の順に offset から読む
 func TestAIFindsAWorkroomBeyondTheOverview(t *testing.T) {
+	t.Parallel()
 	as, bs, a, _ := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
 	names := []string{"w1", "w2", "w3", "w4", "w5", "w6", "win_note"}
@@ -322,6 +330,7 @@ func TestAIFindsAWorkroomBeyondTheOverview(t *testing.T) {
 
 // AI 用ホストリストのこのホストの分は、設定が recent なら最近の 5 件と残りの数（全部は offset で名前の順に）。既定は全部
 func TestOwnWorkroomsFollowTheListedSetting(t *testing.T) {
+	t.Parallel()
 	as, a := joinWorld(t, joinStore(t))
 	saved := 0
 	testHost(t, a, 0, &saved)
@@ -376,6 +385,7 @@ func TestOwnWorkroomsFollowTheListedSetting(t *testing.T) {
 
 // 名前の順に読む答えは 50 件ずつで、残りがあるときだけ続きの offset を添える
 func TestWorkroomPagesTellTheNextOffset(t *testing.T) {
+	t.Parallel()
 	rows := make([]RoomRow, 120)
 	for i := range rows {
 		rows[i] = RoomRow{Name: fmt.Sprintf("r%03d", i)}
@@ -390,6 +400,7 @@ func TestWorkroomPagesTellTheNextOffset(t *testing.T) {
 
 // 一覧の行の通し番号: 様子の同じ行は番号を保ち、足された・様子の変わった行に名前の順で新しい番号。差分も同じ
 func TestRoomRowsKeepTheOrderOfChanges(t *testing.T) {
+	t.Parallel()
 	ps := &peerState{}
 	idle, working := roomState{"idle", roomUnknown}, roomState{"working", roomUnknown}
 	rows := ps.noteRowsLocked(nil, map[string]roomState{"b": idle, "a": idle})
@@ -412,6 +423,7 @@ func TestRoomRowsKeepTheOrderOfChanges(t *testing.T) {
 
 // ホストエイリアスは今の名前（つながったときに聞いた物。無ければペアリングしたときの名前）で、同じ名前が 2 つ以上あるときだけ鍵の印の頭（4 字から、違うまで）を添える
 func TestPairedHostLabelsAddTheKeyHeadOnlyWhenNamesRepeat(t *testing.T) {
+	t.Parallel()
 	a, b, c := "7f3a"+strings.Repeat("0", 60), "c41e"+strings.Repeat("1", 60), "9b20"+strings.Repeat("2", 60)
 	ps := &peerState{
 		known: map[string]pairedHostRecord{
@@ -446,6 +458,7 @@ func TestPairedHostLabelsAddTheKeyHeadOnlyWhenNamesRepeat(t *testing.T) {
 
 // 確かに届いていないと言えるのは、つなげなかった・鍵が合わなかった・TLS を結べなかった・ペアリングしていないと答えた・相手が受けなかったと答えたときだけ
 func TestNotSentOnlyWhenTheMessageCertainlyDidNotArrive(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		err  error
 		want bool
@@ -473,15 +486,14 @@ func reopenWithProtocol(t *testing.T, h *Hub, proto int) {
 	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":false}`)
 	waitHost(t, h, func(s HostStatus) bool { return !s.Open })
 	e := h.entrance.Load()
-	e.mu.Lock()
-	e.proto = proto
-	e.mu.Unlock()
+	e.proto.Store(int64(proto))
 	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":true}`)
 	waitHost(t, h, func(s HostStatus) bool { return s.Open })
 }
 
 // ペアリングしたあとで片方の常駐間通信プロトコルの版が上がると、確かめたときに両方の様子が、どちらを更新すれば合うかになり、ワークルームの写しを捨てる
 func TestAHostWithAnotherProtocolIsNotConnected(t *testing.T) {
+	t.Parallel()
 	_, _, a, b := pairedWorlds(t)
 	reopenWithProtocol(t, b, peer.Protocol+1)
 	a.CheckPeers()
@@ -503,6 +515,7 @@ func TestAHostWithAnotherProtocolIsNotConnected(t *testing.T) {
 
 // 常駐間通信プロトコルの版の合わないホストへは送らず、protocol-mismatch で、どちらを更新するかを言う
 func TestAMessageToAHostWithAnotherProtocolIsRefused(t *testing.T) {
+	t.Parallel()
 	as, bs, _, b := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
 	s2 := joinedIn(t, bs.URL, "LB", "200", "SB", "s2")

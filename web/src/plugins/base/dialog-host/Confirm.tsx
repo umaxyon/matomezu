@@ -12,6 +12,11 @@ import {
 } from "react"
 import styles from "./Dialog.module.css"
 
+// 確かめに並べる所（ブック・フォルダ・ページなど）の行の数の上限。超えた分は、more（数を受けて「ほか N か所」の文を返す）の 1 行にまとめる
+export const SHOWN_PLACES = 5
+export const shownPlaces = (lines: readonly string[], more: (count: number) => string): string[] =>
+  lines.length > SHOWN_PLACES ? [...lines.slice(0, SHOWN_PLACES), more(lines.length - SHOWN_PLACES)] : [...lines]
+
 // する・やめるのほかの選び方 1 つ（danger は取り消せない操作、disabled は選べない）
 export interface ConfirmChoice {
   label: string

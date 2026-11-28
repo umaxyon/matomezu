@@ -49,6 +49,7 @@ import {
   MESSAGE_ANSWER,
   MOVED_IF_OFF_ANSWER,
   NoticeSchema,
+  PAGE_USERS_ANSWER,
   ParticipantCallSchema,
   ParticipantLiveSchema,
   ParticipantReadySchema,
@@ -665,6 +666,17 @@ export function serverClient(net: Net = browserNet): HostClient {
       if (!res?.ok) fail("E408", { status: res ? `${res.status}` : "no answer" })
       const answer = MOVED_IF_OFF_ANSWER.parse(await res.json())
       return answer.ok ? answer.moved.map(({ type, ...m }) => (type === undefined ? m : { ...m, type })) : BROKEN
+    },
+    pageUsers: async ids => {
+      const res = await net
+        .fetch("api/page-users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        })
+        .catch(() => null)
+      if (!res?.ok) fail("E419", { status: res ? `${res.status}` : "no answer" })
+      return PAGE_USERS_ANSWER.parse(await res.json())
     },
     visible: () => net.visible(),
     putAsset: async bytes => {

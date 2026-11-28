@@ -60,6 +60,12 @@ export interface WorkRecordName {
 // 作業のレコードの名前を一続きにした題名（例「M-0177 名前」）
 export const workRecordTitleOf = (name: WorkRecordName): string => `${name.label} ${name.name}`
 
+// 作業のレコード key を AI に呼ぶ名前（短く呼ぶ名前と名前。引けなければ id）
+export const workTitleOf = (catalog: CoreCatalog, read: RecordReader, key: WorkKey): string => {
+  const name = workRecordNameOf(catalog, read, key)
+  return name ? workRecordTitleOf(name) : key.id
+}
+
 // 機能台帳 catalog で、作業のレコードの名前を引くのに読む種類（workRecordName を持つ種類と、その workRecordNameReads）
 export const workRecordNameReadsOf = (catalog: CoreCatalog): readonly string[] => [
   ...new Set(

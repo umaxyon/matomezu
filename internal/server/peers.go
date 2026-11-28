@@ -173,7 +173,7 @@ func (h *Hub) startBeacon(e *hostEntrance, port int) {
 	if !e.config.Discover {
 		return
 	}
-	ad := peer.Advert{HostID: e.config.Identity.HostID, Protocol: e.proto, Port: port, Name: e.status.Name, UserName: h.userName()}
+	ad := peer.Advert{HostID: e.config.Identity.HostID, Protocol: int(e.proto.Load()), Port: port, Name: e.status.Name, UserName: h.userName()}
 	b, err := peer.StartBeacon(ad, func(s peer.Sighting, gone bool) { h.sighted(e, s, gone) })
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "hosts: mDNS could not start:", err)
@@ -201,6 +201,6 @@ func (h *Hub) updateBeacon(e *hostEntrance) {
 	b := e.peers.beacon
 	e.peers.mu.Unlock()
 	if b != nil {
-		b.Update(peer.Advert{HostID: e.config.Identity.HostID, Protocol: e.proto, Port: e.status.Port, Name: e.status.Name, UserName: h.userName()})
+		b.Update(peer.Advert{HostID: e.config.Identity.HostID, Protocol: int(e.proto.Load()), Port: e.status.Port, Name: e.status.Name, UserName: h.userName()})
 	}
 }

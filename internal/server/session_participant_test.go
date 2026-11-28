@@ -21,6 +21,7 @@ func sendWith(t *testing.T, srv string, header map[string]string, to string) Mes
 
 // 参加の id のヘッダが無い呼び出しは、セッション id のヘッダに結ばれた参加者がちょうど 1 人のときだけ、その参加者になる（MCP が起動し直されて参加の id を失ったとき）
 func TestCallWithoutParticipantIsTheParticipantOfItsSession(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -58,6 +59,7 @@ func TestCallWithoutParticipantIsTheParticipantOfItsSession(t *testing.T) {
 
 // セッション id で参加者になった呼び出しは、起こす知らせの宛て先を、その呼び出しの AI のプログラムのプロセス id に書き直す（起動し直すとプロセス id が変わる）
 func TestSessionParticipantMovesItsWakeTarget(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -68,8 +70,26 @@ func TestSessionParticipantMovesItsWakeTarget(t *testing.T) {
 	}
 }
 
+// 今届く通り道がある参加者は、セッション id で参加者になった呼び出しでも、起こす知らせの宛て先を書き直さない
+// （Claude Code で /clear のあとに MCP を立て直すと、MCP は新しいセッション id を添えるが、monitor は立てたときのセッション id を名乗り続ける）
+func TestSessionParticipantKeepsAWakeTargetThatALineReaches(t *testing.T) {
+	t.Parallel()
+	s, hub := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	claudeIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	line := hub.OpenWakesWith("200", "SB", WakeLimits{})
+	wakes(hub, line)
+	talkedAs(t, s.URL, `{"sessionId":"SB2","host":"200"}`)
+	call(t, "GET", s.URL+"/api/ai/settings", "", map[string]string{aiwire.HostSessionHeader: "SB2", aiwire.HostHeader: "200"})
+	sendMessage(t, s.URL, a, "すずめ", "hello")
+	if got := wakes(hub, line); len(got) != 1 || !strings.Contains(got[0], `"hello"`) {
+		t.Fatalf("wakes = %q", got)
+	}
+}
+
 // MCP が起動し直されたあと（参加の id を持たない）の join は、セッション id に結ばれた参加者のまま答える
 func TestJoinAfterTheMCPRestartedAnswersWithTheSessionParticipant(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"LZ"}`, map[string]string{aiwire.HostSessionHeader: "SA", aiwire.HostHeader: "101"})
@@ -82,6 +102,7 @@ func TestJoinAfterTheMCPRestartedAnswersWithTheSessionParticipant(t *testing.T) 
 // MCP を立てたあとに会話のセッションが変わり、フックが参加者をプロセス id で新しいセッションに移したあとも、古いセッション id の呼び出しは、プロセス id でその参加者になる
 // （再開した Claude Code で /clear したとき。MCP は参加の id を持たず、立てたときのセッション id を添え続ける）。ほかのプロセス id では参加者にならない
 func TestCallFromTheOldSessionIsTheParticipantOfItsHost(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	claudeIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	claudeIn(t, s.URL, "LB", "200", "SB", "すずめ")

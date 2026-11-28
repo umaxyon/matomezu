@@ -6,7 +6,13 @@ import { type Annotations, restoreAnnotations } from "../core/annotation"
 import { findPage, foundPage, pageById, pagesOf, readLibrary } from "../core/book"
 import { bulkActionOf, type LibraryRows, performBulk } from "../core/bulk"
 import type { CoreCatalog } from "../core/core-catalog"
-import { type ActionOn, type AIEditTicketChange, type AIMessage, stopsOnEditLock } from "../core/def/action"
+import {
+  type ActionOn,
+  type AIEditTicketChange,
+  type AIMessage,
+  type RefreshRequest,
+  stopsOnEditLock,
+} from "../core/def/action"
 import type { HostMessage } from "../core/def/follow-step"
 import { binnedBetween } from "../core/entries"
 import { type Library, NO_CHANGES, pageIn } from "../core/folders"
@@ -57,7 +63,8 @@ export interface Input {
 type Output =
   | {
       ok: true
-      result: unknown
+      result: unknown // 最後のアクションの結果
+      results: readonly unknown[] // アクションごとの結果（バルクの順）
       pages: readonly RowChange[]
       folders: readonly RowChange[]
       created: readonly string[]
@@ -71,6 +78,7 @@ type Output =
       notice?: string
       aiEditTickets?: readonly (AIEditTicketChange & { subject: string })[] // subject は、その変え方を返したアクションの対象の種類
       aiMessages?: readonly AIMessage[] // 送る AI 間メッセージ（常駐が、宛先に参加の確定した参加者がいるかを確かめ、書き込みと一緒に送る）
+      refreshRequest?: RefreshRequest // リフレッシュリクエスト（常駐が、書き込みが通ったら行った参加者に覚える）
       hostMessages?: readonly HostMessage[] // 送る常駐メッセージ（常駐が、宛先に参加の確定した参加者がいて、行った参加者のワークルームでなければ送る）
     }
   | {
@@ -159,7 +167,7 @@ export function perform(of: Assembled, input: Input): Output {
   const at = new Date().toISOString()
   const steps = input.actions.map(a => bulkActionOf(a, () => crypto.randomUUID(), at, langFor(a.lang)))
   // AI のアクションと、利用者でも編集ロックで断るアクションは、利用者が直している物を変えも消しもしない（あとでやり直す）。バルクの中のアクションごとに見る。
-  // レコードが対象のアクションは、変えるレコードのどれかを直しているなら、同じように断る（作るレコードは新しい id なので、直してはいない）。
+  // レコードか書庫が対象のアクションは、変えるレコードのどれかを直しているなら、同じように断る（作るレコードは新しい id なので、直してはいない）。
   // フォローステップが応じて変えたレコードは、利用者のアクションでも断る
   const done = performBulk(
     world,
@@ -208,6 +216,7 @@ export function perform(of: Assembled, input: Input): Output {
   return {
     ok: true,
     result: done.results.at(-1),
+    results: done.results,
     pages: rowChanges(changes.pages),
     folders: rowChanges(changes.folders),
     created: createdOn(tables, changes),
@@ -223,6 +232,7 @@ export function perform(of: Assembled, input: Input): Output {
       ? { aiEditTickets: done.aiEditTickets.map(t => ({ ...t.change, subject: t.subject })) }
       : {}),
     ...(done.aiMessages ? { aiMessages: done.aiMessages } : {}),
+    ...(done.refreshRequest ? { refreshRequest: done.refreshRequest } : {}),
     ...(done.hostMessages ? { hostMessages: done.hostMessages } : {}),
   }
 }

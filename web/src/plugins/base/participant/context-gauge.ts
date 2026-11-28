@@ -39,11 +39,7 @@ const NEAR_FULL = 0.9
 
 export interface ContextGauge {
   readonly fill: number // 棒を満たす割合（0 から 1。物差しを超えたら 1）
-  readonly fillByMatomezu: number // 棒のうち、matomezu が使っている分で塗る割合（0 から fill。分からなければ 0）
-  readonly fillRest: number // 棒のうち、matomezu の分の右に塗る、残りの割合（fill から fillByMatomezu を引いた物）
   readonly thousands: number // 今の量を千で割って四捨五入した数（120k の 120）
-  readonly percentByMatomezu: number // 今の量のうち matomezu の分の百分率（四捨五入。分からなければ 0）
-  readonly percentRest: number // 今の量のうち matomezu の分でない百分率（100 から percentByMatomezu を引いた物）
   readonly nearFull: boolean // 今の量が物差しの 9 割以上か
 }
 
@@ -56,16 +52,5 @@ export function contextGauge(
   const size = scale === "auto" ? use.aiScale : scale
   if (!(size > 0)) return NO_CONTEXT_USE
   const ratio = use.used / size
-  const fill = Math.min(Math.max(ratio, 0), 1)
-  const fillByMatomezu = Math.min(Math.max(use.byMatomezu / size, 0), fill)
-  const percentByMatomezu = use.used > 0 ? Math.round(Math.min(Math.max(use.byMatomezu / use.used, 0), 1) * 100) : 0
-  return {
-    fill,
-    fillByMatomezu,
-    fillRest: fill - fillByMatomezu,
-    thousands: Math.round(use.used / 1000),
-    percentByMatomezu,
-    percentRest: 100 - percentByMatomezu,
-    nearFull: ratio >= NEAR_FULL,
-  }
+  return { fill: Math.min(Math.max(ratio, 0), 1), thousands: Math.round(use.used / 1000), nearFull: ratio >= NEAR_FULL }
 }

@@ -52,7 +52,11 @@ type Performed struct {
 	// 名前が重なる断り（title-taken）で、重なった相手がシステムフォルダのときの、その印（定義の id。AI に見せる名前は英語なので、利用者の言語で重なった相手が分かるように）
 	SystemFolder string          `json:"systemFolder,omitempty"`
 	Result       json.RawMessage `json:"result,omitempty"`
-	Notice       string          `json:"notice,omitempty"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
+	// Results は、アクションごとの結果（バルクの順。AI がいくつものアクションを 1 回で頼んだときに、AI の口が返す）
+	Results []json.RawMessage `json:"-"`
+	// At は、断られたアクションがバルクの何番目か（0 から。分からなければ無い）
+	At     *int   `json:"-"`
+	Notice string `json:"notice,omitempty"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 }
 
 // Perform はアクションバルクを行い、変わったものを 1 回で書いて知らせる。行い終えた番号（Key）がまた届いたら、行わずに前の結果を返す（ack も送る）
@@ -87,7 +91,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	if err != nil {
 		return Performed{}, err
 	}
-	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Kind: out.Kind, SystemFolder: out.SystemFolder, Result: out.Result, Notice: out.Notice}
+	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Kind: out.Kind, SystemFolder: out.SystemFolder, Result: out.Result, Results: out.Results, At: out.At, Notice: out.Notice}
 	if !out.OK {
 		if out.At != nil && *out.At >= 0 && *out.At < len(p.Actions) {
 			fmt.Fprintf(os.Stderr, "%s refused at the action %d of %d (%s): %s\n", stamp(), *out.At, len(p.Actions), p.Actions[*out.At].Action, out.Reason)
@@ -124,6 +128,12 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, *envelopesRefused)
 		return *envelopesRefused, nil
 	}
+	// リフレッシュリクエストは、会話を空にできると名乗った参加者のときだけ受ける（でなければ、何も変えずにバルクごと断る。refresh.go）
+	if refused := h.refreshRefused(out.RefreshRequest, p.Participant); refused != nil {
+		h.remember(p.Key, *refused)
+		h.ack(p, *refused)
+		return *refused, nil
+	}
 	hostEnvelopes, err := h.hostEnvelopes(out.HostMessages, in.Actor)
 	if err != nil {
 		return Performed{}, err
@@ -153,7 +163,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	leaving, leavingRooms := h.leavingParticipants(out.Records)
 	h.applyWrites(plan, out, p, by, act)
 	h.noteDepartures(leaving, leavingRooms, p) // 消えた参加者を、その会話に伝えるまで覚える（departure.go。知らせの行列の stale より先）
-	h.dropGonePendingHeld() // 受け手が退室した承認待ちは、知らせずに消す（pending_message.go）
+	h.dropGonePendingHeld()                    // 受け手が退室した承認待ちは、知らせずに消す（pending_message.go）
 	for _, e := range envelopes {
 		h.deliver(e)
 	}
@@ -161,6 +171,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.deliverHost(e)
 	}
 	h.wakeOnParticipants(requested, cancelled)
+	h.keepRefresh(out.RefreshRequest, p.Participant)
 	h.remember(p.Key, done)
 	h.ack(p, done)
 	return done, nil

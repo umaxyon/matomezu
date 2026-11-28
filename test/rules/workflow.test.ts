@@ -189,6 +189,32 @@ describe("テストの用意の手段", () => {
     })
     expect(differ).toEqual([])
   })
+
+  // テストを並べるパッケージ。並べないテストは serial(t, 訳) で印を付ける
+  const PARALLEL = ["internal/server", "internal/engine"]
+  const parallelTests = goAll.filter(f => f.rel.endsWith("_test.go") && PARALLEL.includes(dirname(f.rel)))
+
+  test("テストを並べるパッケージ（internal/server・internal/engine）の Test 関数は、最初の文を t.Parallel() か serial(t, 並べない訳) にする", () => {
+    const first = /^func (Test\w+)\(t \*testing\.T\) \{\n(?:\s*\/\/.*\n|\s*\n)*\s*(.*)$/gm
+    const loose = parallelTests.flatMap(f =>
+      [...f.text.matchAll(first)]
+        .filter(([, , line]) => line !== "t.Parallel()" && !/^serial\(t, "[^"]+"\)$/.test(line!))
+        .map(([, name]) => `${f.rel}: ${name}`),
+    )
+    // 落ちたら: 最初の文に t.Parallel() を足す。並べられない（time.Local・os.Stderr を書き換える、空けたポートを当てにするなど）なら serial(t, "訳") を足す
+    expect(loose).toEqual([])
+  })
+
+  test("テストを並べるパッケージでは t.Cleanup を使わず、cleanup(t, f) を使う（testing が並べるテストの Cleanup の関数を全部済むまで放さず、常駐が残る）", () => {
+    const used = parallelTests.flatMap(f =>
+      f.text
+        .replace(/^func cleanup\([\s\S]*?^}$/m, m => m.replace(/[^\n]/g, ""))
+        .split("\n")
+        .flatMap((line, i) => (/\.Cleanup\(/.test(line) ? [`${f.rel}:${i + 1}`] : [])),
+    )
+    // 落ちたら: t.Cleanup(g) を cleanup(t, g) に直す（パッケージに cleanup が無ければ internal/server/server_test.go から写す）
+    expect(used).toEqual([])
+  })
 })
 
 // 見本の tsconfig は plugins.test.ts が見る。ここではほかの、根の tsconfig が外すフォルダ（型の確かめ test/type-checks など）を見る

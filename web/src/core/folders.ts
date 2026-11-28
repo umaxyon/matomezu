@@ -126,7 +126,9 @@ export interface BackyardEntry {
 // バックヤードの並びのエントリ 1 つ: ブックの id と、そのブックの workKey
 export type BackyardRef = BookRef & { workKey: WorkKey }
 // 2 つの workKey が同じか
-export const sameWorkKey = (a: WorkKey, b: WorkKey): boolean => a.subject === b.subject && a.id === b.id
+// 作業のレコードの印 a と b が同じか（どちらも無いのも同じ）
+export const sameWorkKey = (a: WorkKey | undefined, b: WorkKey | undefined): boolean =>
+  a === undefined || b === undefined ? a === b : a.subject === b.subject && a.id === b.id
 // 印 mark（バックヤードの定義の id）のバックヤードの行の id
 export const backyardIdOf = (mark: string): string => `library-backyard-${mark}`
 

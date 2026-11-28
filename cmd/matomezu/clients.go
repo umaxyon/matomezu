@@ -37,10 +37,21 @@ func selfExecutable() string {
 
 // claudeCodeCmd は、Claude Code のプラグインが呼ぶコマンドの組
 type claudeCodeCmd struct {
-	MCP       claudeMCPCmd       `cmd:"" name:"mcp" help:"Serve the MCP tools for Claude Code (with the development server when the project is the matomezu repository)."`
-	Hook      claudeHookCmd      `cmd:"" help:"Claude Code's hooks."`
-	Watch     claudeWatchCmd     `cmd:"" help:"Claude Code's monitor: print one line for each thing that should wake this session (with --via mod, for the plugin's mod in Claude Desktop, which submits each line as a prompt)."`
-	WorkShift claudeWorkShiftCmd `cmd:"" name:"work-shift" help:"For the plugin's mod at the end of a turn: print the question to ask the user when the current work of the session changed since the last turn ended (JSON), or nothing."`
+	MCP        claudeMCPCmd        `cmd:"" name:"mcp" help:"Serve the MCP tools for Claude Code (with the development server when the project is the matomezu repository)."`
+	Hook       claudeHookCmd       `cmd:"" help:"Claude Code's hooks."`
+	Watch      claudeWatchCmd      `cmd:"" help:"Claude Code's monitor: print one line for each thing that should wake this session (with --via mod, for the plugin's mod in Claude Desktop, which submits each line as a prompt)."`
+	RefreshDue claudeRefreshDueCmd `cmd:"" name:"refresh-due" help:"For the plugin's mod at the end of a turn: print the text to submit after clearing the conversation when the session's AI asked to have its conversation refreshed (refresh-request), or nothing."`
+}
+
+type claudeRefreshDueCmd struct {
+	Session string `required:"" help:"The session id."`
+}
+
+// Run は、ターンの終わりに、セッションの AI が受けたリフレッシュリクエストを常駐に訊き、あれば空にしたあとに打つ文を 1 行出す（無い・常駐が立っていなければ何も出さない）
+func (c claudeRefreshDueCmd) Run() error {
+	claudeDev()
+	refreshDue(os.Stdout, c.Session, runningAPI("api/ai/refresh-due"))
+	return nil
 }
 
 // claudeDev は、Claude Code が開いているプロジェクトが matomezu のリポジトリなら、開発の常駐を使い（起動し直すことがある）、その根を返す。
@@ -108,7 +119,7 @@ func (claudeStopCmd) Run() error {
 	hook := stdinHook()
 	hook.Host = hookHost(claudelaunch.HooksSendHost)
 	hookStop(hook)
-	sendContextUse(hook, claudeContextUse, claudeContextChars, runningAPI("api/ai/context-use"))
+	sendContextUse(hook, claudeContextUse, runningAPI("api/ai/context-use"))
 	return nil
 }
 
@@ -119,7 +130,7 @@ func (claudeContextUseCmd) Run() error {
 	claudeDev()
 	hook := stdinHook()
 	hook.Host = hookHost(claudelaunch.HooksSendHost)
-	sendContextUse(hook, claudeContextUse, claudeContextChars, runningAPI("api/ai/context-use"))
+	sendContextUse(hook, claudeContextUse, runningAPI("api/ai/context-use"))
 	return nil
 }
 
@@ -136,21 +147,15 @@ func claudeContextUse(hook hookInput) (contextUse, bool) {
 	return contextUse{Used: u.Used, AIScale: u.AIScale}, true
 }
 
-// claudeContextChars は、Claude Code の会話の記録を印 from から読み、中身の字数と matomezu の分を数える
-func claudeContextChars(hook hookInput, from string) (charsRead, bool) {
-	r, ok := claudelaunch.ReadContextChars(hook.TranscriptPath, from)
-	if !ok {
-		return charsRead{}, false
-	}
-	return charsRead{restart: r.Restart, chars: contextChars{Total: r.Chars.Total, Matomezu: r.Chars.Matomezu}, mark: r.Mark}, true
+type claudePromptCmd struct {
+	// Refreshable は、フックを呼ぶプラグインが、リフレッシュリクエストを受けて会話を空にする部品（mod）を持つ（プラグインの hooks.json が渡す。同じ版のプラグインが名乗りと空にする事を揃えて持つ）
+	Refreshable bool `help:"The plugin calling this hook clears the conversation on a refresh request (its mod), so tell matomezu the session can be refreshed."`
 }
 
-type claudePromptCmd struct{}
-
 // Run は、ターンの始まりを知らせ、待つアノテーションを添える
-func (claudePromptCmd) Run() error {
+func (c claudePromptCmd) Run() error {
 	claudeDev()
-	hookPrompt(hookHost(claudelaunch.HooksSendHost), claudelaunch.HookSetsTitle, claudelaunch.Woken, claudelaunch.ChatThread)
+	hookPrompt(hookHost(claudelaunch.HooksSendHost), claudelaunch.HookSetsTitle, claudelaunch.Woken, claudelaunch.ChatThread, c.Refreshable)
 	return nil
 }
 
@@ -162,7 +167,7 @@ func (claudeModelCmd) Run() error {
 	hook := stdinHook()
 	hook.Host = hookHost(claudelaunch.HooksSendHost)
 	hookModel(hook)
-	sendContextUse(hook, claudeContextUse, claudeContextChars, runningAPI("api/ai/context-use"))
+	sendContextUse(hook, claudeContextUse, runningAPI("api/ai/context-use"))
 	return nil
 }
 
@@ -193,17 +198,6 @@ func (c claudeWatchCmd) Run() error {
 		return nil
 	}
 	return w.Run()
-}
-
-type claudeWorkShiftCmd struct {
-	Session string `required:"" help:"The session id."`
-}
-
-// Run は、ターンの終わりに、セッションの今の作業が替わったかを常駐に訊き、利用者に聞く問いがあればその JSON を 1 行出す（無い・常駐が立っていなければ何も出さない）
-func (c claudeWorkShiftCmd) Run() error {
-	claudeDev()
-	workShift(os.Stdout, c.Session, runningAPI("api/ai/work-shift"))
-	return nil
 }
 
 // codexCmd は、Codex のプラグインが呼ぶコマンドの組
@@ -256,7 +250,7 @@ func (codexStopCmd) Run() error {
 	hook := stdinHook()
 	hook.Host = hookHost(codexlaunch.HooksSendHost)
 	hookStop(hook)
-	sendContextUse(hook, codexContextUse, nil, runningAPI("api/ai/context-use"))
+	sendContextUse(hook, codexContextUse, runningAPI("api/ai/context-use"))
 	return nil
 }
 
@@ -267,11 +261,11 @@ func (codexContextUseCmd) Run() error {
 	codexDev()
 	hook := stdinHook()
 	hook.Host = hookHost(codexlaunch.HooksSendHost)
-	sendContextUse(hook, codexContextUse, nil, runningAPI("api/ai/context-use"))
+	sendContextUse(hook, codexContextUse, runningAPI("api/ai/context-use"))
 	return nil
 }
 
-// codexContextUse は、Codex の会話の記録（rollout）から、今のコンテキストの量と物差しを読む（matomezu の分の字数は読まない。codexlaunch の context.go）
+// codexContextUse は、Codex の会話の記録（rollout）から、今のコンテキストの量と物差しを読む（codexlaunch の context.go）
 func codexContextUse(hook hookInput) (contextUse, bool) {
 	u := codexlaunch.ReadContextUse(hook.TranscriptPath)
 	if u == codexlaunch.NoContextUse {
@@ -285,19 +279,19 @@ type codexPromptCmd struct{}
 // Run は、ターンの始まりを知らせ、待つアノテーションを添える
 func (codexPromptCmd) Run() error {
 	codexDev()
-	hookPrompt(hookHost(codexlaunch.HooksSendHost), codexlaunch.HookSetsTitle, nil, nil)
+	hookPrompt(hookHost(codexlaunch.HooksSendHost), codexlaunch.HookSetsTitle, nil, nil, false)
 	return nil
 }
 
 type codexModelCmd struct{}
 
-// Run は、セッションのモデルを知らせる
+// Run は、セッションのモデルとコンテキストの量を知らせる
 func (codexModelCmd) Run() error {
 	codexDev()
 	hook := stdinHook()
 	hook.Host = hookHost(codexlaunch.HooksSendHost)
 	hookModel(hook)
-	sendContextUse(hook, codexContextUse, nil, runningAPI("api/ai/context-use"))
+	sendContextUse(hook, codexContextUse, runningAPI("api/ai/context-use"))
 	return nil
 }
 
@@ -320,8 +314,9 @@ func (c opencodeMCPCmd) Run() error {
 
 // hookPrompt は、話しかけのフック: 待つアノテーションの文を添えて、ターンの始まりを常駐に知らせ、フックの答えを出す（host は AI のプログラムのプロセス id、分からなければ空。
 // titled は、答えに会話の題名 sessionTitle を書くか。woken は、フックが --woken を渡せない AI のプログラムが、裏の知らせで始まったターンを入力から見分ける物。渡せるなら nil。
-// thread は、AI のプログラムのプロセス id とセッション id からチャットスレッドの id を読む物。読めない AI のプログラムは nil）
-func hookPrompt(host string, titled bool, woken func(prompt string) bool, thread func(host, session string) string) {
+// thread は、AI のプログラムのプロセス id とセッション id からチャットスレッドの id を読む物。読めない AI のプログラムは nil。
+// refreshable は、フックを呼んだプラグインが、リフレッシュリクエストを受けて会話を空にすると名乗ったか（プラグインがフックの引数で渡す））
+func hookPrompt(host string, titled bool, woken func(prompt string) bool, thread func(host, session string) string, refreshable bool) {
 	hook := stdinHook()
 	var notes bytes.Buffer
 	writeAnnotations(&notes, hook.SessionID)
@@ -330,6 +325,7 @@ func hookPrompt(host string, titled bool, woken func(prompt string) bool, thread
 	hook.Woken = hook.Woken || (woken != nil && woken(hook.Prompt))
 	hook.Rename = renameAdeWorkspace
 	hook.Thread = thread
+	hook.Refreshable = refreshable
 	talked(os.Stdout, hook, notes.String(), formatHook, runningAPI("api/ai/talked"))
 }
 

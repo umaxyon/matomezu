@@ -42,6 +42,7 @@ const store = createMatomezu({
   assetsHost: { put: bytes => client.putAsset(bytes), url: id => client.assetUrl(id) },
   ...(loaded.unreadableNotice ? { unreadableNotice: loaded.unreadableNotice } : {}),
   unreadableHost: { purge: id => client.purgeUnreadable(id), movedIfOff: ids => client.movedIfOff(ids) },
+  pageUsers: ids => client.pageUsers(ids),
   updateHost: { check: () => client.checkUpdate(), ask: workroom => client.askUpdate(workroom) },
   hostsHost: { ask: request => client.askHosts(request) },
   messageHost: { answer: (id, answer) => client.answerMessage(id, answer) },

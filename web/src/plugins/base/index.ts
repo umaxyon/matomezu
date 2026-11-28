@@ -209,6 +209,7 @@ import {
   ADMIN_MARK,
   ADMIN_SET,
   CONTEXT_SCALE,
+  FOLLOW_WORK_CHANGED,
   FOLLOW_WORK_ENDED,
   FOLLOW_WORK_RENAMED,
   FOLLOW_WORKROOM_BOOK,
@@ -224,6 +225,7 @@ import {
   PARTICIPANT_REQUEST,
   PARTICIPANT_WELCOME_DIALOG,
   PENDING_MESSAGE_DIALOG,
+  REFRESH_REQUEST,
   SESSION_RENAME,
   WORK_SUBJECTS_CHECK,
   WORKER_BOOK,
@@ -410,9 +412,7 @@ export {
   visitorName,
   type WorkroomRow,
   type WorkroomState,
-  type WorkShift,
   workroomActivitiesFrom,
-  workShiftIn,
   workTitleIn,
 } from "./participant"
 // 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）
@@ -505,6 +505,7 @@ export {
   scrapScaleFits,
   scrapScaleMin,
   scrapSize,
+  scrapUsersOf,
   wholeScrapOf,
 } from "./scrap"
 export type { SearchableDef } from "./search"
@@ -572,6 +573,7 @@ export const BASE = defineBuiltin(
       BOOK_UNLOCK,
       BOOK_CREATE,
       WORKER_PAGE_ADD,
+      REFRESH_REQUEST,
       FOLDER_CREATE,
       ENTRY_MOVE,
       ENTRY_MOVE_OVER,
@@ -655,7 +657,7 @@ export const BASE = defineBuiltin(
     annotations: [NOTE, MARK],
     systemFolders: [DOCUMENTS, WORKROOMS],
     backyards: [TICKETS_HISTORY],
-    followSteps: [FOLLOW_WORKROOM_BOOK, FOLLOW_WORK_ENDED, FOLLOW_WORK_RENAMED],
+    followSteps: [FOLLOW_WORKROOM_BOOK, FOLLOW_WORK_ENDED, FOLLOW_WORK_RENAMED, FOLLOW_WORK_CHANGED],
     mails: [MAIL_LETTER, MAIL_PROPOSAL],
     subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL, SCRAP],
     screens: [BOOK_SCREEN_DEF, LIBRARY_SCREEN, MAILBOX_SCREEN],
@@ -880,6 +882,7 @@ declare module "../../core/catalog" {
   interface ActionTable {
     "@matomezu/base:book-create": typeof BOOK_CREATE
     "@matomezu/base:worker-page-add": typeof WORKER_PAGE_ADD
+    "@matomezu/base:refresh-request": typeof REFRESH_REQUEST
     "@matomezu/base:page-add": typeof PAGE_ADD
     "@matomezu/base:book-update": typeof BOOK_UPDATE
     "@matomezu/base:page-update": typeof PAGE_UPDATE

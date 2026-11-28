@@ -30,7 +30,7 @@ func hubAt(t *testing.T, path string) (*Hub, *httptest.Server) {
 	o := Options{Token: "secret", Version: "v1", Hub: hub, Cookies: NewScreenCookies(nil, nil)}
 	s := httptest.NewServer(withRoutesForTest(Handler(o), o))
 	cookieTestBrowser(t, s, o.Cookies)
-	t.Cleanup(func() {
+	cleanup(t, func() {
 		s.Close()
 		hub.CloseAll()
 		store.Close()
@@ -57,6 +57,7 @@ func tickets(h *Hub) []AIEditTicket {
 // AI 編集チケット: AI のアクションごとに 1 つ残り（変えたページとフォルダを持つ）、窓が見たら消え、見られる前に消えたら AI のフックに渡り、次の利用者トリガートークで消える。
 // 常駐を起動し直しても残り、起動し直したあとの act は前の物と重ならない
 func TestAIEditTicketsUndoneBeforeSeen(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "data.db")
 	hub, s := hubAt(t, path)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
@@ -120,6 +121,7 @@ func TestAIEditTicketsUndoneBeforeSeen(t *testing.T) {
 // 1 回のアクションが 2 冊を変えた AI 編集チケットは、1 冊が見えても残り、もう 1 冊が見られる前に消えたら AI に渡る。
 // 1 枚のページを変えたアクションは、そのページだけを持つ
 func TestATicketStaysUntilAllItChangedIsSettled(t *testing.T) {
+	t.Parallel()
 	hub, s := hubAt(t, filepath.Join(t.TempDir(), "data.db"))
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b2", `{"book":{"id":"b2","title":"U","lineup":[]},"base":0}`, nil)
@@ -162,6 +164,7 @@ func TestATicketStaysUntilAllItChangedIsSettled(t *testing.T) {
 
 // ブックを消すと、そのブックの AI 編集チケットも消える（ほかのブックの分は残る）。世界を空にしたときも消え、起動し直しても戻らない
 func TestTicketsGoWithTheirBook(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "data.db")
 	hub, s := hubAt(t, path)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
@@ -200,6 +203,7 @@ func TestTicketsGoWithTheirBook(t *testing.T) {
 
 // 上限（aiEditTicketsMax）を超えても、key で見分ける AI 編集チケットは捨てず、key の無い物の古い方から捨てる
 func TestTicketsWithAKeyAreNotDroppedAtTheLimit(t *testing.T) {
+	t.Parallel()
 	list := []AIEditTicket{{Key: "proposal", At: "t"}}
 	for i := range aiEditTicketsMax {
 		list = recordedTickets(list, fmt.Sprintf("a%d", i), "t", []string{"p"})
@@ -219,6 +223,7 @@ func TestTicketsWithAKeyAreNotDroppedAtTheLimit(t *testing.T) {
 
 // 利用者が反映していない変更提案郵便を消すと、その AI 編集チケットは消えたことになり（cause user）、AI のフックに removed で渡り、次の利用者トリガートークで消える
 func TestRemovedProposalIsToldAndForgotten(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
 	if err != nil {
@@ -250,6 +255,7 @@ func TestRemovedProposalIsToldAndForgotten(t *testing.T) {
 
 // ブックの外のページの、見られる前に消えた AI の変更は、そのページの名前で AI に渡る。そのページを完全に消すと、その分（まだ見られていない物と、消えた分）も消える
 func TestLostOfAPageOutsideBooksIsToldByThePage(t *testing.T) {
+	t.Parallel()
 	s, hub := newServerOn(t, Options{Token: "secret"}, entriesStore(t))
 	ai := map[string]string{"Authorization": "Bearer secret"}
 	hub.mu.Lock()
@@ -312,6 +318,7 @@ func TestLostOfAPageOutsideBooksIsToldByThePage(t *testing.T) {
 
 // 見られる前に消えた分を AI に渡したあとも、同じ変更のまだ見られていない物は残り、それがあとで消えたら、また AI に渡る
 func TestUnseenStaysAfterItsLostWasTold(t *testing.T) {
+	t.Parallel()
 	hub, s := hubAt(t, filepath.Join(t.TempDir(), "data.db"))
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b2", `{"book":{"id":"b2","title":"U","lineup":[]},"base":0}`, nil)

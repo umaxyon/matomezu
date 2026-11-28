@@ -289,6 +289,22 @@ test("いる参加者を外して入れる: 渡した参加者がいれば外し
   expect(perform(ACCEPT, { workroom: room, occupant: next }, { record: third }).ok).toBe(true)
 })
 
+test("いる参加者を外して入れると、そのワークルームの引継ぎ対象チケットを外す（今の作業は残す）", () => {
+  const { store, request, perform, holder, room } = roomWith("L1", "A")
+  const key = { subject: "@matomezu/taskboard:ticket", id: "t1" }
+  const records = store.state.getState().records
+  const was = records[WORKROOM]?.[room] as object
+  // 引継ぎ対象チケットは作業の替わりのフォローステップが書く物なので、ここでは置き場所に直に置く
+  ;(store.state as unknown as { setState: (s: object) => void }).setState({
+    records: { ...records, [WORKROOM]: { ...records[WORKROOM], [room]: { ...was, work: key, handoffTarget: key } } },
+  })
+  const next = request({ ...WHO, link: "L2" }).result.participant
+  expect(perform(ACCEPT, { workroom: room, occupant: holder }, { record: next }).ok).toBe(true)
+  const after = store.state.getState().records[WORKROOM]?.[room] as { work?: unknown; handoffTarget?: unknown }
+  expect(after.work).toEqual(key)
+  expect("handoffTarget" in after).toBe(false)
+})
+
 test("新しいワークルームを作って入れる: ワークルームの id を返し、名前が重なれば断る", () => {
   const { people, rooms, request, addRoom, perform } = ready()
   const a = request().result.participant

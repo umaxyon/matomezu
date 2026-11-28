@@ -89,7 +89,6 @@
   margin-top: 2px;
 }
 .bar {
-  display: flex;
   flex: 1;
   height: 4px;
   overflow: hidden;
@@ -98,24 +97,15 @@
 }
 .fill {
   display: block;
-  flex: none;
   height: 100%;
   background: var(--skin-accent);
-}
-/* 棒のうち matomezu が使っている分（左から）。アクセントの明るい色 */
-.byMatomezu {
-  display: block;
-  flex: none;
-  height: 100%;
-  background: color-mix(in srgb, var(--skin-accent) 50%, #fff);
 }
 .amount {
   flex: none;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
-.context[data-near-full="true"] .fill,
-.context[data-near-full="true"] .byMatomezu {
+.context[data-near-full="true"] .fill {
   background: var(--skin-danger);
 }
 .context[data-near-full="true"] .amount {

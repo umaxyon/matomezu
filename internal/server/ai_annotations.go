@@ -75,6 +75,24 @@ func (h *Hub) StageEntriesNotInBooks() (entries []stageEntry, titles []string) {
 	return entries, titles
 }
 
+// AIPageOf は、AI に見せるページ want と、それを開くステージエントリ（ブックの中ならブック、外ならページかバインダ）。
+// 見せない所（ゴミ箱の中・読めない物・開けないとしたブック）のページと、無いページは nil
+func (h *Hub) AIPageOf(want string) (stageEntry, json.RawMessage) {
+	entry, page := h.PageNotInBook(want)
+	if b := h.Book(h.BookOn(&engine.On{Page: want})); b != nil {
+		entry = stageEntry{Kind: "book", ID: b.ID}
+		for _, p := range pagesOfBook(b.Body) {
+			var head struct {
+				ID string `json:"id"`
+			}
+			if json.Unmarshal(p, &head) == nil && head.ID == want {
+				page = p
+			}
+		}
+	}
+	return entry, page
+}
+
 // PageNotInBook は、ブックの外のページ id（pagesNotInBooks と同じ決まり）のステージエントリ（そのページか、それを持つバインダ）と本文（ブックの外のページでなければ本文は nil）
 func (h *Hub) PageNotInBook(id string) (stageEntry, json.RawMessage) {
 	h.mu.Lock()
@@ -236,18 +254,7 @@ func (o Options) annotationsOf(entry string) ([]json.RawMessage, error) {
 // placed はそのページの形の描いた位置と大きさ。プレゼンテーションが答えなければ null）
 func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 	want := r.PathValue("page")
-	entry, page := o.Hub.PageNotInBook(want)
-	if b := o.Hub.Book(o.Hub.BookOn(&engine.On{Page: want})); b != nil {
-		entry = stageEntry{Kind: "book", ID: b.ID}
-		for _, p := range pagesOfBook(b.Body) {
-			var head struct {
-				ID string `json:"id"`
-			}
-			if json.Unmarshal(p, &head) == nil && head.ID == want {
-				page = p
-			}
-		}
-	}
+	entry, page := o.Hub.AIPageOf(want)
 	if page == nil {
 		http.Error(w, "no such page", http.StatusNotFound)
 		return
@@ -377,23 +384,6 @@ func (o Options) aiWorkTitle(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"workTitle": o.Hub.WorkTitle(req.SessionID)})
 }
 
-// aiWorkShift は、ターンの終わりに、セッションの今の作業が替わったかを答える（AI のプログラムの部品が、利用者に聞く問いを読む。{"sessionId"} → {"ask"}。ask が無ければ聞かない。
-// 今の作業の印を覚え直すので、読むだけでない）
-func (o Options) aiWorkShift(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		SessionID string `json:"sessionId"`
-	}
-	if r.ContentLength != 0 && !readJSON(w, r, &req) {
-		return
-	}
-	ask, err := o.Hub.WorkShift(req.SessionID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	writeJSON(w, map[string]any{"ask": ask})
-}
-
 func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SessionID  string   `json:"sessionId"`
@@ -403,6 +393,8 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 		Prompt     string   `json:"prompt"` // ターンの入力
 		// ChatThread は、この会話を動かすチャットスレッドの id（AI の側の部品が読む。分からなければ空）
 		ChatThread string `json:"chatThread"`
+		// Refreshable は、AI のプログラムが会話を空にできると名乗った（その部品がリフレッシュリクエストを受けて空にする。refresh.go）
+		Refreshable bool `json:"refreshable"`
 	}
 	if r.ContentLength != 0 && !readJSON(w, r, &req) {
 		return
@@ -416,6 +408,10 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 		lent = o.Hub.WokenBy(req.Prompt)
 		if !req.Woken && !lent {
 			o.Hub.UserTalkedIn(req.SessionID)
+			if err := o.Hub.DropRefresh(req.SessionID); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			if err := o.Hub.Talked(time.Now()); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -430,6 +426,12 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	if err := o.Hub.NoteChatThread(req.SessionID, req.ChatThread); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	if req.Refreshable && len(req.Candidates) == 0 {
+		if err := o.Hub.NoteRefreshable(req.SessionID); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 	if lent {
 		done.ForAI = strings.TrimSpace(wokenText + "\n" + done.ForAI)

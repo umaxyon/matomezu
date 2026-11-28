@@ -899,3 +899,49 @@ test("書庫で、ブックの中のページを右クリックのメニュー�
   await page.keyboard.press("Control+z")
   await expect(row).toHaveCount(1)
 })
+
+test.describe("スクラップで使っているページを完全に消す", () => {
+  // 「元の図」の「機能の図」を、「使う側」の 6 枚のページがスクラップで指す
+  const scrap = { page: "used-target", area: { x: 0, y: 0, w: 200, h: 100 }, scale: 1 }
+  const users = [1, 2, 3, 4, 5, 6].map(n =>
+    drawingPage(`used-by-${n}`, {
+      title: `図 ${n}`,
+      items: [{ id: `s${n}`, item: "@matomezu/scrap:shape-scrap-box", x: 20, y: 20, props: scrap }],
+    }),
+  )
+  test.use({
+    // 2 冊の並びは、値と設定の組 [値, {}] で渡す（そのままだと 2 冊目を設定と読む）
+    books: [
+      [
+        testBook("used-source", "元の図", [drawingPage("used-target", { title: "機能の図" })]),
+        testBook("used-users", "使う側", users),
+      ],
+      {},
+    ],
+  })
+
+  test("確かめに、消えるページと使っている所を並べる。5 行を超えた分は「ほか N か所」にまとめる", async ({ page }) => {
+    await page.goto("/")
+    await page.bringToFront()
+    expect(
+      await aiPerform(page, { action: "@matomezu/base:entry-trash", args: { entry: "used-source" } }),
+    ).toMatchObject({
+      ok: true,
+    })
+    await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+    await page
+      .getByRole("navigation", { name: "フォルダ" })
+      .getByRole("button", { name: "ゴミ箱", exact: true })
+      .click()
+    const row = page.getByRole("list", { name: "ゴミ箱" }).getByRole("listitem").filter({ hasText: "元の図" })
+    await row.getByRole("button").first().click()
+    await row.getByRole("button", { name: "完全に消す" }).click()
+    const purge = page.getByRole("alertdialog", { name: "「元の図」が完全に消えます" })
+    await expect(purge).toContainText("スクラップで使っている所（6）")
+    await expect(purge).toContainText("消すと「No Data」と描かれます")
+    for (const n of [1, 2, 3, 4, 5]) await expect(purge).toContainText(`機能の図 ← 使う側 › 図 ${n}`)
+    await expect(purge).not.toContainText("図 6")
+    await expect(purge).toContainText("ほか 1 か所")
+    await purge.getByRole("button", { name: "キャンセル" }).click()
+  })
+})

@@ -11,6 +11,7 @@ import (
 // 利用者が AI のワークルームを担当にしてチケットを足すと、その AI に常駐メッセージ（カレントチケットが変わった）が届く。
 // AI が自分を担当にしたときは、自分には届かない
 func TestHostMessageWakesTheAssignedAI(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -23,7 +24,7 @@ func TestHostMessageWakesTheAssignedAI(t *testing.T) {
 		t.Fatalf("ticket-add = %d %s", code, got)
 	}
 	woke := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{}))
-	if len(woke) != 1 || !strings.HasPrefix(woke[0], `matomezu: "Your current ticket is now`) {
+	if len(woke) != 1 || !strings.HasPrefix(woke[0], `matomezu: "Your current work is now`) {
 		t.Fatalf("wakes of すずめ = %q", woke)
 	}
 	got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/taskboard:ticket-add","args":{"project":"`+project+`","name":"y","assignees":["ひよこ"]}}`, map[string]string{aiwire.ParticipantHeader: a})
@@ -37,6 +38,7 @@ func TestHostMessageWakesTheAssignedAI(t *testing.T) {
 
 // ワークルームを消すと、エンジンに渡していなかったワークルーム自身のブックの行を常駐が足して行い直し、そのブックを完全に消す
 func TestRemovingAWorkroomPurgesItsBook(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	noticeOf(t, s.URL, a)

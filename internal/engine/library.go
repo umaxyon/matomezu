@@ -232,6 +232,26 @@ type AssetsInUse struct {
 	Sure bool     `json:"sure"`
 }
 
+// PageUsers は、頼んだページの id → それを使っている見える所のページの id の並び（Users。使われていないページは載せない）と、全部のページで答えられたか（Sure）
+type PageUsers struct {
+	Users map[string][]string `json:"users"`
+	Sure  bool                `json:"sure"`
+}
+
+// PageUsers は、書庫の行の全部 pages・folders から、ページ targets のそれぞれを使っているページ（スクラップで指しているページ。core/page-users.ts）
+func (e *Engine) PageUsers(pages, folders []json.RawMessage, targets []string) (out PageUsers, err error) {
+	f, err := json.Marshal(folders)
+	if err != nil {
+		return out, err
+	}
+	t, err := json.Marshal(targets)
+	if err != nil {
+		return out, err
+	}
+	err = e.checked(pages, func(p string) string { return e.pageUsers(p, string(f), string(t)) }, &out)
+	return out, err
+}
+
 // AssetsInUse は、ページの行の全部 pages が指すアセット（ページのタイプが答える。core/assets.ts）
 func (e *Engine) AssetsInUse(pages []json.RawMessage) (out AssetsInUse, err error) {
 	err = e.checked(pages, func(s string) string { return e.assetsInUse(s) }, &out)

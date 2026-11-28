@@ -8,6 +8,7 @@ require (
 	github.com/dop251/goja v0.0.0-20261021140635-64adc8bb4d51
 	github.com/evanw/esbuild v0.28.2
 	github.com/gofrs/flock v0.13.1
+	golang.org/x/image v0.48.0
 	golang.org/x/net v0.63.0
 	golang.org/x/sys v0.50.0
 	modernc.org/sqlite v1.61.0
@@ -16,7 +17,7 @@ require (
 require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/atombender/go-jsonschema v0.24.1 // indirect
-	github.com/dlclark/regexp2/v2 v2.8.1 // indirect
+	github.com/dlclark/regexp2/v2 v2.13.3 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
@@ -39,3 +40,6 @@ require (
 )
 
 tool github.com/atombender/go-jsonschema
+
+// regexp2 v2.13.3 に、決まった文字クラスを深く写して渡す直しを入れた写し（third_party/regexp2/MATOMEZU.md）
+replace github.com/dlclark/regexp2/v2 => ./third_party/regexp2

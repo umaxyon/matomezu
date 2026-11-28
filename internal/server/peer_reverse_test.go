@@ -68,6 +68,7 @@ func natWorlds(t *testing.T) (as, bs *httptest.Server, a, b *Hub) {
 
 // a へ直に届かない b も、a が張ったリバース接続で、a のワークルームの一覧を取り、a へ送り、ペアリングを解いたと知らせられる
 func TestAHostBehindNATIsReachedOverItsReverseConnection(t *testing.T) {
+	serial(t, "閉じたポートを誰も取らないことを当てにする（natWorlds の直に届かない番地）")
 	as, bs, a, b := natWorlds(t)
 	joinedIn(t, as.URL, "LA", "100", "SA", "s1")
 	s2 := joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
@@ -87,6 +88,7 @@ func TestAHostBehindNATIsReachedOverItsReverseConnection(t *testing.T) {
 
 // 預かったリバース接続が切れたら、張った側が張り直し、つながりが戻る。入口を閉じた側は、張るのをやめ、預かった接続も閉じる
 func TestAReverseConnectionComesBackAndClosesWithTheEntrance(t *testing.T) {
+	serial(t, "閉じたポートを誰も取らないことを当てにする（natWorlds の直に届かない番地）")
 	_, _, a, b := natWorlds(t)
 	ps := b.entrance.Load().peers
 	ps.mu.Lock()

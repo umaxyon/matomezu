@@ -86,7 +86,7 @@ func (h *Hub) peerReverse(w http.ResponseWriter, r *http.Request) {
 	gen := ps.reverseGen
 	ps.mu.Unlock()
 	e.mu.Lock()
-	proto := e.proto
+	proto := int(e.proto.Load())
 	e.mu.Unlock()
 	conn, err := peer.AcceptReverse(w, r)
 	if err != nil {
@@ -178,7 +178,7 @@ func (h *Hub) keepReverse(ctx context.Context, e *hostEntrance, hostID string, d
 		}
 		ps.mu.Unlock()
 		e.mu.Lock()
-		handler, proto := e.handler, e.proto
+		handler, proto := e.handler, int(e.proto.Load())
 		e.mu.Unlock()
 		if !known {
 			return

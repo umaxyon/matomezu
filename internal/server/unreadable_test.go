@@ -41,7 +41,7 @@ func serveStore(t *testing.T, path string) (*httptest.Server, *Hub) {
 	o := Options{Web: fstest.MapFS{"index.html": {Data: []byte("top")}}, Token: "secret", Version: "v1", Hub: hub, Cookies: NewScreenCookies(nil, nil)}
 	s := httptest.NewServer(withRoutesForTest(Handler(o), o))
 	cookieTestBrowser(t, s, o.Cookies)
-	t.Cleanup(func() {
+	cleanup(t, func() {
 		s.Close()
 		hub.CloseAll()
 		store.Close()
@@ -89,6 +89,7 @@ func unreadableRefs(t *testing.T, h *Hub) [][2]string {
 // 起動すると、読めない物は在った所から読めない物のフォルダへ 1 回の書き込みで移り、行の中身は 1 バイトも変わらない。書庫からも AI からも消え（名指すと無い物として断る）、
 // warning は件数の W032 だけ。起動し直しても同じで、ふつうの書き込みのあとには移さない
 func TestUnreadableThingsMoveToTheUnreadableFolderAtStart(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
 	if err != nil {
@@ -160,6 +161,7 @@ func TestUnreadableThingsMoveToTheUnreadableFolderAtStart(t *testing.T) {
 
 // 先のブックと id が重なるブック（W006）は、ブックごと移る。完全に消すと、そのブックと中の物の行は置き場所から無くなり（ほかのブックと分け合うページの行は残る）、起動し直しても戻らない
 func TestAPurgedUnreadableBookDoesNotComeBack(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
 	if err != nil {
@@ -220,6 +222,7 @@ func TestAPurgedUnreadableBookDoesNotComeBack(t *testing.T) {
 
 // 読めない物のフォルダに移ったブックと id を分け合う読めるブックを、利用者がゴミ箱から消しても、分け合うページの行は消えない（移ったブックが持ち続ける）
 func TestPurgingAReadableBookKeepsThePagesAMovedBookShares(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
 	if err != nil {
@@ -266,6 +269,7 @@ func TestPurgingAReadableBookKeepsThePagesAMovedBookShares(t *testing.T) {
 
 // アクションは、読めない物のフォルダの行と、その中の物の行を変えられない（エンジンの後ろの守り）
 func TestAWriteThatTouchesTheUnreadableFolderIsRefused(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
 	if err != nil {
@@ -292,6 +296,7 @@ func TestAWriteThatTouchesTheUnreadableFolderIsRefused(t *testing.T) {
 
 // 追加プラグインを外すと、そのタイプのページは読めない物のフォルダへ移り、行は 1 バイトも変わらない。足し直せば、同じ行のまま元の位置に戻る
 func TestAPageComesBackWhenItsPluginIsAddedAgain(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
 	if err != nil {
@@ -347,11 +352,12 @@ func TestAPageComesBackWhenItsPluginIsAddedAgain(t *testing.T) {
 // 確かめる関数が開けないとしたブック（読めない物のフォルダへ移らずに書庫に残った物。ここでは、どのフォルダにも入っていないので移らない f1）は、AI に見せない:
 // list_books と read_folder に出ず、read_book と read_page は無い物とし、名指したアクションは無い（no-book・no-page）で断る。warning は actions に残る
 func TestAnUnreadableBookLeftInTheLibraryIsHiddenFromAI(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	putBook(t, store, strings.Replace(boxed, `"p1"`, `"p9"`, 1))
 	putBook(t, store, withUnreadable)
 	folders, err := store.Folders()
@@ -395,11 +401,12 @@ func TestAnUnreadableBookLeftInTheLibraryIsHiddenFromAI(t *testing.T) {
 
 // 書庫を整えるのに失敗している間（ここでは、読めない物のフォルダの行が形に合わない）は、warning W033 を 1 つ持ち、actions に出す。整えられたら消える
 func TestAFailedSettleIsAWarningUntilItSucceeds(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	putBook(t, store, boxed)
 	folders, err := store.Folders()
 	if err != nil {
@@ -447,11 +454,12 @@ func TestAFailedSettleIsAWarningUntilItSucceeds(t *testing.T) {
 // 書庫を整えるのに失敗していて、読めないブック（f1）が書庫に残っている間は、書庫が対象のアクションは断られ、そのブックを名指したアクションは無い（no-book）で断る。
 // warning W033 が出ている
 func TestAFailedSettleWithAnUnreadableBookLeftRefusesActionsOnTheLibrary(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	putBook(t, store, withUnreadable)
 	v := versionsOf(t, store)
 	broken := json.RawMessage(`{"folderRole":"unreadable","id":"` + storage.UnreadableID + `","lineup":"bad"}`)
@@ -474,6 +482,7 @@ func TestAFailedSettleWithAnUnreadableBookLeftRefusesActionsOnTheLibrary(t *test
 // 止めた窓の［外して開く］が呼ぶ口: 画面 cookie の無い頼みは断り、ある頼みは追加プラグインを並びの順に外す（POST /api/plugins/remove と同じに、そのタイプのページは読めない物のフォルダへ移る）。
 // もう足していない id は飛ばして成功にする（ほかの窓や AI が先に外していても開ける）
 func TestTheScreenRemovesThePluginsItCouldNotAdd(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
 	if err != nil {
@@ -513,6 +522,7 @@ func TestTheScreenRemovesThePluginsItCouldNotAdd(t *testing.T) {
 
 // 画面の口 if-off: 追加プラグインを無効にしたら移る物を、書かずに答える。答えた物は、そのあと設定で無効にしたときに本当に移る物と同じ
 func TestTheMovesIfAPluginIsOffAreTheMovesWhenItIsTurnedOff(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
 	if err != nil {
@@ -564,6 +574,7 @@ func TestTheMovesIfAPluginIsOffAreTheMovesWhenItIsTurnedOff(t *testing.T) {
 
 // 画面の口 purge: 読めない物のフォルダの直下の物を完全に消す。直下に無い id は ok: false で、何も書かない
 func TestTheScreenPurgesWhatIsRightInsideTheUnreadableFolder(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
 	if err != nil {
@@ -609,6 +620,7 @@ func TestTheScreenPurgesWhatIsRightInsideTheUnreadableFolder(t *testing.T) {
 
 // 機能台帳が変わって読めない物が移る・戻るとき、知らせ plugins に、移した物の訳ごとの数と戻した物の数と、設定の変更でそうした窓 by を添える（窓は読み直したあとに知らせる）
 func TestThePluginsNoticeTellsWhatMovedAndWhatCameBack(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
 	if err != nil {

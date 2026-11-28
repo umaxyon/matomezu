@@ -24,7 +24,7 @@ func libraryStore(t *testing.T, nested bool) storage.Storage {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	putBook(t, store, drawing)
 	putBook(t, store, slides)
 	if nested {
@@ -46,6 +46,7 @@ func libraryStore(t *testing.T, nested bool) storage.Storage {
 // ブックが書庫ホームの直下に在っても、フォルダの下に在っても、AI に見せる答え（list_books・read_book・read_page・view）は同じで、
 // 書庫ホームとフォルダはブックに数えない
 func TestBooksInFoldersLookTheSameToTheAI(t *testing.T) {
+	t.Parallel()
 	answers := func(nested bool) []string {
 		s, hub := newServerOn(t, Options{}, libraryStore(t, nested))
 		screen := listen(t, s.URL)
@@ -76,6 +77,7 @@ func TestBooksInFoldersLookTheSameToTheAI(t *testing.T) {
 
 // 書庫ホームとフォルダの下のブックも、ページの持ち主・触れた時刻・エンジンへ渡す行は、ブックの物として決まる
 func TestBooksInFoldersAreBooksOfTheHub(t *testing.T) {
+	t.Parallel()
 	_, hub := newServerOn(t, Options{}, libraryStore(t, true))
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
@@ -121,6 +123,7 @@ func TestBooksInFoldersAreBooksOfTheHub(t *testing.T) {
 
 // 上へたどるフォルダが輪になっていても、通ったフォルダで止まる
 func TestFoldersAboveStopOnALoop(t *testing.T) {
+	t.Parallel()
 	_, hub := newServerOn(t, Options{}, libraryStore(t, true))
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
@@ -136,6 +139,7 @@ func TestFoldersAboveStopOnALoop(t *testing.T) {
 // テストの用意の入口: 新しいブックは書庫ホームの並びの末尾に入り、置き直したブックは入っているフォルダのまま。
 // 世界を空にすると、書庫ホームだけが空の並びで残る
 func TestWholeBooksGoIntoTheLibraryHome(t *testing.T) {
+	t.Parallel()
 	_, hub := newServerOn(t, Options{}, libraryStore(t, true))
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
@@ -191,6 +195,7 @@ func TestWholeBooksGoIntoTheLibraryHome(t *testing.T) {
 
 // AI のアクションの AI 編集チケットと、変わったブックの知らせには、書庫ホームとフォルダの id を入れない
 func TestAIEditTicketsLeaveOutTheLibrary(t *testing.T) {
+	t.Parallel()
 	s, hub := newServerOn(t, Options{}, libraryStore(t, true))
 	header := joinedAI(t, s)
 	screen := listen(t, s.URL)
@@ -224,6 +229,7 @@ func TestAIEditTicketsLeaveOutTheLibrary(t *testing.T) {
 // 読み込みの時点で書庫の木の決まりが破れている（ブック b2 がどのフォルダにも入っていない）と、warning（W030）が一覧に出て、
 // 書庫が対象のアクションは断られる。ブックは読めるまま。木が直ると、warning は消える
 func TestABrokenLibraryTreeIsAWarning(t *testing.T) {
+	t.Parallel()
 	store := libraryStore(t, false)
 	ref := storage.RefOf
 	alone := storage.Batch{Folders: []storage.RowWrite{{ID: storage.HomeID, Base: 3, Body: storage.HomeBody([]json.RawMessage{ref("book", "b1")})}}}

@@ -14,7 +14,6 @@ import (
 
 	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
-	"github.com/umaxyon/matomezu/internal/storage"
 )
 
 // callsAnnounceGap は、同じ参加者の最後に呼ばれた時刻を窓に知らせ直す、いちばん短い間（毎回の呼び出しで知らせが走らないように）
@@ -103,7 +102,7 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 			return ""
 		}
 		before, _ := time.Parse(time.RFC3339Nano, n.Called)
-		n.Called = storage.Stamp(now)
+		n.Called = calledAt(n.Called, now)
 		moved := says.BranchSent && n.Branch != says.Branch // ブランチかモデルが変わった
 		if moved {
 			n.Branch = says.Branch
@@ -173,8 +172,49 @@ func (o Options) ai(h http.HandlerFunc) http.Handler {
 		if notice != "" {
 			w.Header().Set(aiwire.NoticeHeader, url.QueryEscape(notice))
 		}
+		if id != "" {
+			w = &titledWriter{ResponseWriter: w, title: func() string { return o.Hub.ParticipantWorkTitle(id) }}
+		}
 		h(w, r)
 	})
+}
+
+// titledWriter は、呼び出しの参加者の作業名を、答えを書き始めるとき（呼び出しで行った事のあと）に見出しに添える ResponseWriter
+type titledWriter struct {
+	http.ResponseWriter
+	title func() string
+	done  bool
+}
+
+func (t *titledWriter) put() {
+	if t.done {
+		return
+	}
+	t.done = true
+	if title := t.title(); title != "" {
+		t.Header().Set(aiwire.WorkTitleHeader, url.QueryEscape(title))
+	}
+}
+
+func (t *titledWriter) WriteHeader(code int) {
+	t.put()
+	t.ResponseWriter.WriteHeader(code)
+}
+
+func (t *titledWriter) Write(b []byte) (int, error) {
+	t.put()
+	return t.ResponseWriter.Write(b)
+}
+
+// Unwrap は、包んだ ResponseWriter（http.ResponseController が使う）
+func (t *titledWriter) Unwrap() http.ResponseWriter { return t.ResponseWriter }
+
+// Flush は、包んだ ResponseWriter が Flusher なら流す（長く待つ口のため）
+func (t *titledWriter) Flush() {
+	t.put()
+	if f, ok := t.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 }
 
 // participantKey は、ai の包みが決めた呼び出しの参加者を、request の context に置く鍵

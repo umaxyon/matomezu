@@ -49,6 +49,7 @@ type Engine struct {
 	updateCheck  func(string) bool
 	hostSettings func(string) string
 	assetsInUse  func(string) string
+	pageUsers    func(string, string, string) string
 	needs        func(string, string) string
 	roles        func() string
 	aiRecords    func(string, string, string, string) string
@@ -64,7 +65,6 @@ type Engine struct {
 	visitorMsg   func(string) string
 	workTitle    func(string, string, string) string
 	leftTitle    func(string, string) string
-	workShift    func(string, string, string) string
 	isAdmin      func(string) bool
 	myWorkdesk   func(string, string) string
 	activities   func(string) string
@@ -157,6 +157,7 @@ func New() (*Engine, error) {
 		{"matomezuUpdateCheck", &e.updateCheck},
 		{"matomezuHostSettings", &e.hostSettings},
 		{"matomezuAssetsInUse", &e.assetsInUse},
+		{"matomezuPageUsers", &e.pageUsers},
 		{"matomezuCheckRecords", &e.records},
 		{"matomezuRunOnceActions", &e.once},
 		{"matomezuSystemFolderTitles", &e.sysFolders},
@@ -172,7 +173,6 @@ func New() (*Engine, error) {
 		{"matomezuVisitorJoinedText", &e.visitorMsg},
 		{"matomezuWorkTitle", &e.workTitle},
 		{"matomezuLeftTitle", &e.leftTitle},
-		{"matomezuWorkShift", &e.workShift},
 		{"matomezuIsAdminWorkroom", &e.isAdmin},
 		{"matomezuMyWorkdesk", &e.myWorkdesk},
 		{"matomezuWorkroomActivities", &e.activities},

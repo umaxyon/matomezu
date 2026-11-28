@@ -1,32 +1,37 @@
 // 書庫の画面でゴミ箱を開いている間の右の枠: 上に「ゴミ箱を空にする」、下にゴミ箱の直下の物の一覧（種類のアイコン・名前・元の場所・捨てた日時。新しい順）。
 // 選んだ行に、戻すボタン（entry-restore）と完全に消すボタン（entry-purge）を出す。捨てたフォルダ・ブックの中身は開けない（戻してから見る）。
-// 戻すとき、元いたフォルダへ戻れなければ（無い・ゴミ箱の中）入る先を確かめ、入る先に同じ名前の物が在れば、番号を付けるかを確かめる。消すのは、戻せないので確かめてから
+// 戻すとき、元いたフォルダへ戻れなければ（無い・ゴミ箱の中）入る先を確かめ、入る先に同じ名前の物が在れば、番号を付けるかを確かめる。消すのは、戻せないので確かめてから。
+// 完全に消す・ゴミ箱を空にするときは、消えるページを使っている所（スクラップで指しているページ）を常駐に引いてもらい、答えが来てから確かめに並べる（引いている間は、消すボタンを押せない）
 
 import { useState } from "react"
-import { titleOf } from "../../../core/entries"
+import { titleOf, trashRefsOf } from "../../../core/entries"
 import { useMessages } from "../../../ui/i18n"
 import { useReadState } from "../../../ui/store-context"
 import { useAllowedOn } from "../../../ui/view-hooks"
-import { Confirm } from "../dialog-host/Confirm"
+import { Confirm, shownPlaces } from "../dialog-host/Confirm"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { type RestorePlan, replaceBlockedOf, restorePlanOf, SAME_TITLE } from "./entries"
 import { ENTRY_PURGE, ENTRY_RESTORE, TRASH_EMPTY } from "./entry-trash"
 import { HistoryButtons } from "./HistoryButtons"
-import { useLibraryRows, useNameOf, useReadNaming } from "./hooks"
+import { useLibraryRows, useNameOf, usePageUsers, useReadNaming } from "./hooks"
 import { RowIcon } from "./icons"
 import styles from "./LibraryView.module.css"
 import { NO_TITLE, shownDateTime, type TrashRow, trashRowsOf } from "./outline"
+import { type PageUseLine, pagesPurgedWith, pageUseLinesOf } from "./page-users"
 import { type RowCell, RowTable } from "./RowTable"
 import { TitleClashConfirm } from "./TitleClashConfirm"
 import { useLibraryPerform } from "./useLibraryPerform"
 
 // 確かめている事: ゴミ箱を空にする・行を消す・戻す先（元いたフォルダへ戻れない）・戻す名前（同じ名前の物が在る）
 type Asking =
-  | { about: "empty" }
-  | { about: "purge"; row: TrashRow }
+  | { about: "empty"; uses: Uses }
+  | { about: "purge"; row: TrashRow; uses: Uses }
   | { about: "into"; row: TrashRow; plan: RestorePlan }
   | { about: "taken"; row: TrashRow; plan: RestorePlan }
+
+// 消えるページを使っている所: 行と、全部は確かめられなかったか（some。答えられないページが在った）、確かめられなかったか（none。常駐が答えない）
+type Uses = { lines: readonly PageUseLine[]; checked: "all" | "some" | "none" }
 
 // useLibraryRows の鍵（ゴミ箱の行）
 const TRASH_ROWS = "trash"
@@ -38,8 +43,49 @@ export function TrashView({ picked, onPick }: { picked: string | undefined; onPi
   const run = useLibraryPerform()
   const emptiable = useAllowedOn(TRASH_EMPTY.id, {}).ok
   const [asking, setAsking] = useState<Asking | null>(null)
+  const [checking, setChecking] = useState(false)
   const nameOf = useNameOf()
   const naming = useReadNaming()
+  const pageUsers = usePageUsers()
+  // 消える物 entries の中のページを使っている所を引いてから、確かめ open を開く
+  const askPurge = async (entries: readonly { id: string; kind: TrashRow["kind"] }[], open: (uses: Uses) => void) => {
+    const targets = pagesPurgedWith(read().folders, entries)
+    if (targets.length === 0) return open({ lines: [], checked: "all" })
+    setChecking(true)
+    try {
+      const users = await pageUsers(targets)
+      open({ lines: pageUseLinesOf(read(), targets, users, naming()), checked: users.sure ? "all" : "some" })
+    } catch {
+      open({ lines: [], checked: "none" })
+    } finally {
+      setChecking(false)
+    }
+  }
+  // 確かめの文の下に足す、使っている所の行（each は、消えるページの名前も並べるか。フォルダやゴミ箱を空にするとき）
+  const usesDetail = (uses: Uses, each: boolean): string[] => {
+    if (uses.checked === "none") return [t("Could not check what uses it")]
+    const where = (l: PageUseLine) => {
+      const within = l.within
+        ? l.within.backyard
+          ? t("{book} ({backyard})", { book: l.within.title, backyard: l.within.backyard })
+          : l.within.title
+        : undefined
+      return within === undefined ? l.page : `${within} › ${l.page}`
+    }
+    return [
+      ...(uses.lines.length === 0
+        ? []
+        : [
+            t("Used by scraps in {count} places", { count: uses.lines.length }),
+            t("They will be drawn as No Data"),
+            ...shownPlaces(
+              uses.lines.map(l => (each ? t("{page} ← {place}", { page: l.target, place: where(l) }) : where(l))),
+              count => t("{count} more places", { count }),
+            ),
+          ]),
+      ...(uses.checked === "some" ? [t("Some pages could not be checked, so it may be used in other places too")] : []),
+    ]
+  }
   // 選んでいた行に行えたあと: 選んでいる行を外す
   const settle = () => onPick(undefined)
   // 行 row を戻す。how は、同じ名前の物が在るときの戻し方: 断らせる（refuse）・番号を付ける（number）・確かめた plan のとおりに上書きする
@@ -85,7 +131,11 @@ export function TrashView({ picked, onPick }: { picked: string | undefined; onPi
   return (
     <>
       <div className={styles.tools}>
-        <ActionButton danger disabled={rows.length === 0 || !emptiable} onClick={() => setAsking({ about: "empty" })}>
+        <ActionButton
+          danger
+          disabled={rows.length === 0 || !emptiable || checking}
+          onClick={() => void askPurge(trashRefsOf(read().folders), uses => setAsking({ about: "empty", uses }))}
+        >
           {t("Empty trash")}
         </ActionButton>
         <HistoryButtons />
@@ -100,13 +150,19 @@ export function TrashView({ picked, onPick }: { picked: string | undefined; onPi
           picked={picked}
           onPick={onPick}
           actions={row => (
-            <TrashActions row={row} onRestore={() => ask(row)} onPurge={() => setAsking({ about: "purge", row })} />
+            <TrashActions
+              row={row}
+              checking={checking}
+              onRestore={() => ask(row)}
+              onPurge={() => void askPurge([row], uses => setAsking({ about: "purge", row, uses }))}
+            />
           )}
         />
       )}
       {asking?.about === "empty" && (
         <Confirm
           message={t("Everything in the trash will be deleted for good")}
+          detail={usesDetail(asking.uses, true)}
           ok={t("Delete for good")}
           cancel={t("Cancel")}
           onOk={() => {
@@ -119,7 +175,10 @@ export function TrashView({ picked, onPick }: { picked: string | undefined; onPi
       {asking?.about === "purge" && (
         <Confirm
           message={t('"{name}" will be deleted for good', { name: nameOf(asking.row) })}
-          detail={asking.row.kind === "page" ? undefined : [t("Everything inside will be deleted too")]}
+          detail={[
+            ...(asking.row.kind === "page" ? [] : [t("Everything inside will be deleted too")]),
+            ...usesDetail(asking.uses, asking.row.kind !== "page"),
+          ]}
           ok={t("Delete for good")}
           cancel={t("Cancel")}
           onOk={() => {
@@ -189,7 +248,17 @@ function RestoreClash({
 }
 
 // 選んだ行のボタン: 戻す・完全に消す（その物に行えるときだけ押せる）
-function TrashActions({ row, onRestore, onPurge }: { row: TrashRow; onRestore(): void; onPurge(): void }) {
+function TrashActions({
+  row,
+  checking,
+  onRestore,
+  onPurge,
+}: {
+  row: TrashRow
+  checking: boolean // 使っている所を引いている間（消すボタンを押せない）
+  onRestore(): void
+  onPurge(): void
+}) {
   const t = useMessages(kit)
   const restorable = useAllowedOn(ENTRY_RESTORE.id, { entry: row.id, onConflict: "refuse" }).ok
   const purgeable = useAllowedOn(ENTRY_PURGE.id, { entries: [row.id] }).ok
@@ -198,7 +267,7 @@ function TrashActions({ row, onRestore, onPurge }: { row: TrashRow; onRestore():
       <ActionButton disabled={!restorable} onClick={onRestore}>
         {t("Restore")}
       </ActionButton>
-      <ActionButton danger disabled={!purgeable} onClick={onPurge}>
+      <ActionButton danger disabled={!purgeable || checking} onClick={onPurge}>
         {t("Delete for good")}
       </ActionButton>
     </>

@@ -271,6 +271,7 @@ test("matomezu が出す名前", () => {
     "scrapScaleFits",
     "scrapScaleMin",
     "scrapSize",
+    "scrapUsersOf",
     "settingOr",
     "settingValue",
     "settleChildren",
@@ -1092,7 +1093,6 @@ test("base の入口が出す名前は、どれもプラグイン API からも�
     "VISITOR_JOINED_MESSAGE",
     "workTitleIn",
     "leftTitleIn",
-    "workShiftIn",
     "myWorkdeskIn",
     "workroomActivitiesFrom",
   ]

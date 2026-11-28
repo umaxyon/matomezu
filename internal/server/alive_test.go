@@ -22,6 +22,7 @@ func ownRoomAt(t *testing.T, h *Hub, at time.Time, name string) (roomState, time
 // 一覧の生きているか: 最後に呼ばれてから参加の有効時間（既定 60 分）は生きていて、過ぎる時点を作り直しの予約に返す。起こす知らせを渡せる通り道がつながっていれば、
 // 時間を過ぎても生きている。その会話が無いと答えた通り道は数えず、次に渡せたら戻す。send_message の delivers も同じ通り道で決まる
 func TestRoomsTellWhetherTheAIIsAlive(t *testing.T) {
+	t.Parallel()
 	s, h := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -89,6 +90,7 @@ func TestRoomsTellWhetherTheAIIsAlive(t *testing.T) {
 
 // 古い版の相手は生きているかを送らない: 差分の行・取り直しの行に無ければ unknown と読む。知らない値も unknown
 func TestRoomsFromAnOldPeerAreUnknownAlive(t *testing.T) {
+	t.Parallel()
 	var d roomDiff
 	if err := json.Unmarshal([]byte(`{"epoch":"e","from":0,"to":1,"changes":[{"name":"x","activity":"idle"},{"name":"y","activity":"working","alive":"dozing"}]}`), &d); err != nil || !fitChanges(d.Changes) {
 		t.Fatalf("diff = %+v, %v", d, err)
@@ -108,6 +110,7 @@ func TestRoomsFromAnOldPeerAreUnknownAlive(t *testing.T) {
 
 // 同じ参加者に届く通り道が 2 本あれば、absent はそれぞれの通り道で覚える: 2 本とも absent なら生きていない、どちらかで渡せたら生きている
 func TestAbsentIsKeptForEachLine(t *testing.T) {
+	t.Parallel()
 	s, h := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")

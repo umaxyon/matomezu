@@ -9,6 +9,7 @@ import (
 
 // AI は、見せる種類（aiBrief のある対象）のレコードを、一覧（where で絞る）か 1 件で読める。見せない種類・無いレコードは 404
 func TestAIReadsRecords(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := map[string]string{"Authorization": "Bearer secret"}
 	const project, ticket = "@matomezu/taskboard:project", "@matomezu/taskboard:ticket"
@@ -76,6 +77,7 @@ func TestAIReadsRecords(t *testing.T) {
 // 完了のチケット（プロジェクトの完了のレーンにあるチケット）は、既定の一覧に載せず、載せなかった数を添える。unlisted の include は全部、only は載せない物だけ。
 // 載せない物の仕組みを持たない種類には include・only を渡せない。指す先のプロジェクトは置き場所から引く（1 回の一覧で、ホストのエンジンが）
 func TestAIListLeavesOutCompletedTickets(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := map[string]string{"Authorization": "Bearer secret"}
 	const project, ticket = "@matomezu/taskboard:project", "@matomezu/taskboard:ticket"

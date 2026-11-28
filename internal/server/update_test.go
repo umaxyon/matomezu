@@ -19,6 +19,7 @@ func fakeLatest(latest string, newer bool, err error) (LatestFunc, *int) {
 }
 
 func TestCheckUpdateTellsTheWindows(t *testing.T) {
+	t.Parallel()
 	h := emptyHub(t)
 	latest, _ := fakeLatest("1.1.0", true, nil)
 	h.SetUpdateCheck("1.0.0", latest)
@@ -40,6 +41,7 @@ func TestCheckUpdateTellsTheWindows(t *testing.T) {
 
 // 更新の様子の知らせは、窓の出入りと重なっても窓の並びを h.mu で守る（go test -race で留める）
 func TestUpdateStatusIsToldUnderTheLockWhileWindowsComeAndGo(t *testing.T) {
+	t.Parallel()
 	h := emptyHub(t)
 	latest, _ := fakeLatest("1.1.0", true, nil)
 	h.SetUpdateCheck("1.0.0", latest)
@@ -58,6 +60,7 @@ func TestUpdateStatusIsToldUnderTheLockWhileWindowsComeAndGo(t *testing.T) {
 
 // 聞けなかった確かめは、頼んだかによらず前の結果（新しい版）を残す。利用者が頼んだときだけ誤りを返す
 func TestAFailedCheckKeepsTheLastResult(t *testing.T) {
+	t.Parallel()
 	h := emptyHub(t)
 	ok, _ := fakeLatest("1.1.0", true, nil)
 	h.SetUpdateCheck("1.0.0", ok)
@@ -74,6 +77,7 @@ func TestAFailedCheckKeepsTheLastResult(t *testing.T) {
 }
 
 func TestTheServerChecksOnlyWhenTheSettingAllowsAndNotForDevBuilds(t *testing.T) {
+	t.Parallel()
 	h := emptyHub(t)
 	latest, calls := fakeLatest("1.0.0", false, nil)
 	h.SetUpdateCheck("1.0.0", latest)
@@ -113,6 +117,7 @@ func roomOf(t *testing.T, url, participant string) string {
 
 // 頼んだら、そのワークルームの AI に 1 つだけ流れ（渡せたと返っていない前の頼みがあれば足さない）、呼び出しの返事でも渡り、頼んだ時刻を知らせる。AI のいないワークルームは断る
 func TestAskUpdateWakesTheWorkroomsAI(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	hub.SetUpdateCheck("1.0.0", nil)
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
