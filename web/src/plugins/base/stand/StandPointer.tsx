@@ -1,5 +1,5 @@
 // マークポインタ: edgePinned のスタンドのアンカーの上の辺が見える所の外にある間（useStandAway）、スタンドの中の点 center を真ん中に描いていた
-// 大きさ size の丸を、縁に寄せて出すボタン。押すと付けた物を見せる（onPress を渡せば、その代わりに onPress）。外に出ていなければ何も出さない（マークのびっくりマーク・伝言で使う）
+// 大きさ size の丸を、縁に寄せて出すボタン。押すと付けた物を見せる（onPress を渡せば、その代わりに onPress）。外に出ていなければ何も出さない（伝言で使う）
 import type { MouseEvent, ReactNode } from "react"
 import type { Point } from "../../../core/geom"
 import { NOT_AWAY, useStandAway } from "./anchors"

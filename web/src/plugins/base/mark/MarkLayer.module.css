@@ -1,24 +1,4 @@
-/* びっくりマークの丸（物の右上の角） */
-.alert {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: var(--skin-danger);
-  box-shadow: var(--skin-shadow-2);
-  color: var(--skin-on-accent);
-  font: 700 12px / 1 sans-serif;
-  cursor: pointer;
-  pointer-events: auto;
-}
-/* 付けた物が画面の外にある間のびっくりマーク: 色を薄くする */
-[data-away="true"] .alert {
-  background: color-mix(in srgb, var(--skin-danger) 55%, transparent);
-}
-/* マークの種類を選ぶスタンド（6 つの種類の絵を横に並べる） */
+/* マークの種類を選ぶスタンド（鳥の絵を横に並べる） */
 .picker {
   display: flex;
   gap: 2px;
@@ -54,25 +34,12 @@
   margin-top: 40px;
   pointer-events: none;
 }
-.pick .alert {
-  pointer-events: none;
-}
 
-/* 送信トレイの行の絵: 鳥の顔と、びっくりマーク */
+/* 送信トレイの行の絵: 鳥の顔 */
 .listedFace {
   display: block;
   width: 20px;
   height: 20px;
   border-radius: 50%;
   background-size: cover;
-}
-.listedAlert {
-  display: grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--skin-danger);
-  color: var(--skin-on-accent);
-  font: 700 11px / 1 sans-serif;
 }

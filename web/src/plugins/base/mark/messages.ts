@@ -9,6 +9,5 @@ export const MARK_MESSAGES = defineMessages({
   "Remove mark": { en: "Remove mark", ja: "マークを外す" },
   "Remove?": { en: "Remove?", ja: "外す？" },
   "Show {name}": { en: "Show {name}", ja: "{name}を見せる" },
-  Alert: { en: "Alert", ja: "びっくりマーク" },
   "The mark was refused": { en: "The mark was refused", ja: "マークを変えられませんでした" },
 })

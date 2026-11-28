@@ -536,7 +536,15 @@ test("リストの行に付けた AI が読んだ伝言も、リストが画面�
   expect(Math.abs(p.x - stage.x - 4)).toBeLessThan(2) // 画面の左の縁に付く
 })
 
-test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にまとまり、乗せると広がる吹き出しから 1 つずつ選べる。右サイドパネルがほかの伝言を出している間は、伝言は薄く押せない。びっくりマークは吹き出しの上に「外す？」を出す", async ({
+async function foldNote(page: Page, target: ReturnType<typeof items>, text: string) {
+  await writeNote(page, target, text)
+  await page.getByRole("button", { name: "伝言を開く" }).filter({ hasText: text }).click()
+  await panel(page).getByRole("button", { name: "隠す" }).click()
+  await page.keyboard.press("Escape")
+  await expect(panel(page)).toHaveCount(0)
+}
+
+test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にまとまり、乗せると広がる吹き出しから 1 つずつ選べる。右サイドパネルがほかの伝言を出している間は、伝言は薄く押せない", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -570,29 +578,22 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
   await readAll()
   await expect(page.locator("[data-read]")).toHaveCount(1)
   await expect(page.locator("[data-corner-count]")).toHaveCount(0)
-  // 既読の伝言をもう 1 つ、たたんだ未読の伝言、びっくりマークを足すと 4 つ
+  // 既読の伝言をもう 1 つと、たたんだ未読の伝言を足すと 3 つ
   await writeNote(page, two, "新しい")
   await readAll()
-  await writeNote(page, two, "たたむ")
-  await page.getByRole("button", { name: "伝言を開く" }).and(page.locator(":not([data-read])")).click()
-  await panel(page).getByRole("button", { name: "隠す" }).click()
-  await page.keyboard.press("Escape")
-  await two.click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "AIに示す" }).click()
-  await page.getByRole("group", { name: "マークを付ける" }).getByRole("button", { name: "びっくりマーク" }).click()
-  const stack = page.getByRole("button", { name: "角の 4 件を見る" })
+  await foldNote(page, two, "たたむ")
+  const stack = page.getByRole("button", { name: "角の 3 件を見る" })
   await expect(stack).toBeVisible()
   await expect(page.locator("[data-read]")).toHaveCount(0)
 
-  // 乗せると吹き出しが、右端を角にそろえて左へ広がり、びっくりマーク・たたんだ伝言・既読の伝言（新しい順）と並ぶ
+  // 乗せると吹き出しが、右端を角にそろえて左へ広がり、たたんだ伝言・既読の伝言（新しい順）と並ぶ
   await stack.hover()
   const bubble = page.getByRole("group", { name: "角の物" })
-  await expect(bubble.getByRole("button")).toHaveCount(4)
+  await expect(bubble.getByRole("button")).toHaveCount(3)
   const right = (b: { x: number; width: number }) => b.x + b.width
   expect(Math.abs(right((await bubble.boundingBox())!) - right((await stack.boundingBox())!))).toBeLessThan(1)
 
-  await expect(bubble.getByRole("button").nth(0)).toHaveAccessibleName("びっくりマーク")
-  await expect(bubble.getByRole("button").nth(1)).not.toHaveAttribute("data-read")
+  await expect(bubble.getByRole("button").nth(0)).not.toHaveAttribute("data-read")
   await expect(bubble.locator("[data-read]")).toHaveCount(2)
   // 既読の伝言の並びは、常駐に残った付けた時点の新しい順（時計が戻ると、あとに付けた「新しい」が古い時点になる事がある）
   const read = (await notesOf())
@@ -602,28 +603,18 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
   // 古い既読の伝言を選ぶと、右サイドパネルにその伝言だけが出る
   await bubble.locator("[data-read]").nth(older).click()
   await expect(panel(page).getByLabel("伝言", { exact: true })).toHaveValue("古い")
-  // 開いている間は、ほかの伝言は薄く押せない（開いている伝言とマークは押せる）
+  // 開いている間は、ほかの伝言は薄く押せない（開いている伝言は押せる）
   await stack.hover()
   await expect(bubble.locator("[data-read]").nth(1 - older)).toBeDisabled()
   await expect(bubble.locator("[data-read]").nth(older)).toBeEnabled()
-  await expect(bubble.getByRole("button").nth(1)).toBeDisabled()
-  await expect(bubble.getByRole("button").nth(0)).toBeEnabled()
+  await expect(bubble.getByRole("button").nth(0)).toBeDisabled()
   await page.keyboard.press("Escape")
   await expect(bubble).toHaveCount(0)
   await panel(page).getByRole("button", { name: "右サイドパネルを閉じる" }).click()
   await expect(panel(page)).toHaveCount(0)
-
-  // びっくりマークを押すと、吹き出しの上に「外す？」が出て、はいで外れる（3 つになる）
-  await stack.hover()
-  await bubble.getByRole("button", { name: "びっくりマーク" }).click()
-  const ask = page.getByRole("group", { name: "外す？" })
-  await expect(ask).toBeVisible()
-  expect((await ask.boundingBox())!.y).toBeLessThan((await bubble.boundingBox())!.y)
-  await ask.getByRole("button", { name: "はい" }).click()
-  await expect(page.getByRole("button", { name: "角の 3 件を見る" })).toBeVisible()
 })
 
-test("角のまとめた絵は、押しても Enter でも開き、離れて少し経つか、ほかを押すと閉じる。上に入れば上に、入らなければ下に広がる（「外す？」も下）。物が画面の外の間は縁の印が 1 つだけで、戻ると乗せて開く", async ({
+test("角のまとめた絵は、押しても Enter でも開き、離れて少し経つか、ほかを押すと閉じる。上に入れば上に、入らなければ下に広がる。物が画面の外の間は縁の印が 1 つだけで、戻ると乗せて開く", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -631,19 +622,11 @@ test("角のまとめた絵は、押しても Enter でも開き、離れて少�
   await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 40, "上")
   await addBox(page, 200, 300, "下")
-  const fold = async (name: string) => {
+  for (const name of ["上", "下"]) {
     const box = items(page).filter({ hasText: name })
-    await writeNote(page, box, `${name}の伝言`)
-    await page.getByRole("button", { name: "伝言を開く" }).and(page.locator(":not([data-read])")).last().click()
-    await panel(page).getByRole("button", { name: "隠す" }).click()
-    await page.keyboard.press("Escape")
-    await expect(panel(page)).toHaveCount(0)
-    await box.click({ button: "right" })
-    await page.getByRole("menu").getByRole("menuitem", { name: "AIに示す" }).click()
-    await page.getByRole("group", { name: "マークを付ける" }).getByRole("button", { name: "びっくりマーク" }).click()
+    await foldNote(page, box, `${name}の伝言一`)
+    await foldNote(page, box, `${name}の伝言二`)
   }
-  await fold("上")
-  await fold("下")
   const stacks = page.getByRole("button", { name: "角の 2 件を見る" })
   await expect(stacks).toHaveCount(2)
   const bubble = page.getByRole("group", { name: "角の物" })
@@ -676,16 +659,10 @@ test("角のまとめた絵は、押しても Enter でも開き、離れて少�
   await upper.hover()
   await expect(bubble).toBeVisible()
   expect((await bubble.boundingBox())!.y).toBeGreaterThan((await upper.boundingBox())!.y)
-  // 下に広がったときは、びっくりマークの「外す？」も吹き出しの下に出る
-  await bubble.getByRole("button", { name: "びっくりマーク" }).click()
-  const ask = page.getByRole("group", { name: "外す？" })
-  await expect(ask).toBeVisible()
-  const b = (await bubble.boundingBox())!
-  expect((await ask.boundingBox())!.y).toBeGreaterThan(b.y + b.height / 2)
   await page.mouse.move(paper.x + 600, paper.y + 420)
   await expect(bubble).toHaveCount(0)
 
-  // 上の箱が画面の外に出ると、縁の印は 1 つだけ（たたんだ伝言とびっくりマークの両方が印を持つ）。押して戻すと、乗せて開く
+  // 上の箱が画面の外に出ると、縁の印は 1 つだけ（たたんだ伝言が 2 つとも印を持つ）。押して戻すと、乗せて開く
   await page.mouse.move(stage.x + stage.width / 2, stage.y + stage.height - 20)
   await page.mouse.wheel(0, 60)
   const pointer = page.getByRole("button", { name: "上を見せる" })
@@ -706,17 +683,18 @@ test("設定画面の「コーナーステータスの並び」で、角に出�
   const general = await openGeneral(page)
   const order = general.getByRole("group", { name: "コーナーステータスの並び" })
   const names = order.getByRole("listitem").locator(":scope > span")
-  await expect(names).toHaveText(["びっくりマーク", "たたんだ伝言", "既読の伝言"])
-  await expect(order.getByRole("button", { name: "びっくりマークを前へ" })).toBeDisabled()
+  await expect(names).toHaveText(["たたんだ伝言", "既読の伝言"])
+  await expect(order.getByRole("button", { name: "たたんだ伝言を前へ" })).toBeDisabled()
   await order.getByRole("button", { name: "既読の伝言を前へ" }).click()
-  await order.getByRole("button", { name: "既読の伝言を前へ" }).click()
-  await expect(names).toHaveText(["既読の伝言", "びっくりマーク", "たたんだ伝言"])
-  await order.getByRole("button", { name: "たたんだ伝言を前へ" }).click()
-  await expect(names).toHaveText(["既読の伝言", "たたんだ伝言", "びっくりマーク"])
+  await expect(names).toHaveText(["既読の伝言", "たたんだ伝言"])
+  await order.getByRole("button", { name: "既読の伝言を後ろへ" }).click()
+  await expect(names).toHaveText(["たたんだ伝言", "既読の伝言"])
+  await order.getByRole("button", { name: "たたんだ伝言を後ろへ" }).click()
+  await expect(names).toHaveText(["既読の伝言", "たたんだ伝言"])
   await settingsDialog(page).getByRole("button", { name: "閉じる" }).click()
   await backToBook(page)
 
-  // 既読の伝言とびっくりマークを付けると、既読の伝言が先に並ぶ
+  // 既読の伝言とたたんだ伝言を付けると、既読の伝言が先に並ぶ
   await page.goto(BOOK_SCREEN_URL)
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
@@ -736,14 +714,12 @@ test("設定画面の「コーナーステータスの並び」で、角に出�
   }[]
   for (const n of notes)
     await aiPerform(page, { action: "@matomezu/base:note-read", args: { note: n.id }, on: { page: shown } }, ai)
-  await box.click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "AIに示す" }).click()
-  await page.getByRole("group", { name: "マークを付ける" }).getByRole("button", { name: "びっくりマーク" }).click()
+  await foldNote(page, box, "たたむ")
   const stack = page.getByRole("button", { name: "角の 2 件を見る" })
   await stack.hover()
   const bubble = page.getByRole("group", { name: "角の物" })
   await expect(bubble.getByRole("button").nth(0)).toHaveAttribute("data-read", "true")
-  await expect(bubble.getByRole("button").nth(1)).toHaveAccessibleName("びっくりマーク")
+  await expect(bubble.getByRole("button").nth(1)).not.toHaveAttribute("data-read")
   // 既読の伝言のツールチップは「AI既読: 」と文の始め
   await expect(bubble.getByRole("button").nth(0)).toHaveAttribute("title", "AI既読: 読む")
 })
