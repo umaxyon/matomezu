@@ -31,7 +31,7 @@ export const TALLY_RECEIVE = kit.defineAction({
   id: "tally-receive",
   title: "receive into tally",
   aiDescription:
-    "Receives a number n into the tally and sends then on (a negative n is refused). Returns the tally's id and count.",
+    "Receives a number n into the tally and sends next on (a negative n is refused). Returns the tally's id and count.",
   target: TALLY.id,
   receives: "messages",
   args: z.strictObject({ n: z.number().int(), next: z.array(z.unknown()).optional() }),
