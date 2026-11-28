@@ -260,6 +260,7 @@ export {
   NO_HOST_STATUS,
   NO_PAIRING,
   NO_PORT,
+  NO_WSL_PROXY,
   NOT_FAILED,
   NOT_TOLD,
   type PeerLive,

@@ -88,7 +88,8 @@ export interface UpdateStatus {
 }
 
 // ホストどうしの入口の様子: hostId はこのホストの id（鍵の指紋）、name はホスト名（設定か、無ければ OS のホスト名 osHostName）、
-// open は入口が開いているか（port と、待っている所の番地 addrs）、wsl は WSL で動いているか、failed は開こうとして開けなかったときの理由
+// open は入口が開いているか（port と、待っている所の番地 addrs）、wsl は WSL で動いているか、failed は開こうとして開けなかったときの理由、
+// wslProxy は WSLプロキシの様子と wslProxyAddrs はその待っている所の番地（NAT の WSL で入口が開いているときだけ）
 // （port-in-use は覚えたポート port がほかに使われていた、listen はそのほか。覚えたポートは取り直さない。足してもらったファイアウォールの規則や相手が覚えた番号を壊さないため）
 export interface HostStatus {
   hostId: string
@@ -99,7 +100,22 @@ export interface HostStatus {
   addrs?: readonly string[]
   wsl?: boolean
   failed?: "port-in-use" | "listen"
+  wslProxy?: WslProxyState
+  wslProxyAddrs?: readonly string[]
 }
+
+// WSLプロキシ（NAT の WSL の常駐が Windows で立てる matomezu）の様子: starting は立てている（終わって立て直しを待つ間も）、running は Windows の LAN で待っている、
+// unavailable は立たない（Windows に matomezu が無い・古い）、update-windows・update-this はやり取りの版が合わない（古い方を更新する）、
+// port-in-use は Windows でそのポートがほかに使われている、listen は Windows で待てない（そのほか）、stopped は待ち始めたあとで終わり、立て直しも使い切った
+export type WslProxyState =
+  | "starting"
+  | "running"
+  | "unavailable"
+  | "update-windows"
+  | "update-this"
+  | "port-in-use"
+  | "listen"
+  | "stopped"
 
 // ペアリングしたホストの、常駐だけが持つ様子: state はつながりの様子（確かめた時点で）、lastSeen は最後につながった時刻、addr は待っている所（番地:ポート）、
 // reverseOnly は相手が張ったリバース接続でだけつながっている（相手の待っている所へは届かない）、
@@ -161,13 +177,15 @@ export interface PendingMessage {
 }
 
 // ほかのホストについてホストに頼む事: pair は addr（番地:ポート）のホストにペアリングを頼む（manual は利用者が手で入れたか）、end-pairing は頼んでいるのをやめる（終わった様子も消す）、
-// check はペアリングしたホストとつながっているか確かめる、discover は mDNS で今すぐ問う、repick-port は覚えたポートが使われているとき別の番号で開き直す
+// check はペアリングしたホストとつながっているか確かめる、discover は mDNS で今すぐ問う、repick-port は覚えたポートが使われているとき別の番号で開き直す、
+// restart-wsl-proxy は止まった WSLプロキシを立て直す
 export type HostRequest =
   | { kind: "pair"; addr: string; manual: boolean }
   | { kind: "end-pairing" }
   | { kind: "check" }
   | { kind: "discover" }
   | { kind: "repick-port" }
+  | { kind: "restart-wsl-proxy" }
 
 // 常駐の版とデータの形の番号（移し替えの数）と、配る画面の印（index.html から求めた物。無い常駐もある）
 export interface Build {

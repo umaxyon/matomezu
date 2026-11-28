@@ -428,6 +428,7 @@ test("matomezu/ui が出す名前", () => {
     "NO_THEME",
     "NO_UPDATE_STATUS",
     "NO_WRITING",
+    "NO_WSL_PROXY",
     "Notice",
     "PAN_NOT_WATCHED",
     "PageProblemsView",

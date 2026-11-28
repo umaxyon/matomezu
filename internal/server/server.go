@@ -170,6 +170,13 @@ func Handler(o Options) http.Handler {
 		}
 		writeJSON(w, map[string]bool{"ok": true})
 	}))
+	mux.Handle("POST /api/hosts/wsl-proxy", o.screen(func(w http.ResponseWriter, _ *http.Request) {
+		if err := o.Hub.RestartWSLProxy(); err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
 	mux.Handle("POST /api/hosts/pair", o.screen(o.startPairing))
 	mux.Handle("POST /api/hosts/pair/end", o.screen(func(w http.ResponseWriter, _ *http.Request) {
 		o.Hub.EndPairing()

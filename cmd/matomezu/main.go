@@ -33,6 +33,7 @@ type cli struct {
 	Use          useCmd           `cmd:"" help:"Use the matomezu server of the other OS of this machine (Windows and WSL) instead of starting one here."`
 	Update       updateCmd        `cmd:"" help:"Update matomezu with the tool it was installed with (npm, Volta, pnpm or bun), update the plugins of the AI programs to the same version, and start the server again with the new version."`
 	Version      versionCmd       `cmd:"" help:"Print the version."`
+	WSLProxy     wslProxyCmd      `cmd:"" name:"wsl-proxy" hidden:"" help:"On Windows: forward the entrance for other hosts to the server of WSL that started this, and announce it with mDNS (the server of WSL with NAT networking starts it on stdin and stdout, and it ends when stdin closes)."`
 }
 
 type versionCmd struct{}

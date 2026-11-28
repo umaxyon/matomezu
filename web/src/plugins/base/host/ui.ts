@@ -17,9 +17,11 @@ export const NO_HOST_STATUS = "none"
 export const NO_PORT = "none"
 // 入口を開こうとして、開けなかったことが無いときの値
 export const NOT_FAILED = "none"
+// WSLプロキシを立てないとき（NAT の WSL でない・入口が閉じている）の値
+export const NO_WSL_PROXY = "none"
 
 // プラグインに渡す、ホストどうしの入口の様子（ホストが渡す HostStatus の、無い物を名前の付いた値にした物。
-// 待っている所の番地 addrs は無ければ空、wsl は WSL で動いていなければ false）
+// 待っている所の番地 addrs は無ければ空、wsl は WSL で動いていなければ false、WSLプロキシの番地 wslProxyAddrs は無ければ空）
 export interface HostEntrance {
   hostId: string
   name: string
@@ -29,6 +31,8 @@ export interface HostEntrance {
   addrs: readonly string[]
   wsl: boolean
   failed: NonNullable<HostStatus["failed"]> | typeof NOT_FAILED
+  wslProxy: NonNullable<HostStatus["wslProxy"]> | typeof NO_WSL_PROXY
+  wslProxyAddrs: readonly string[]
 }
 
 // ホストが渡す入口の様子 s の、プラグインに渡す形
@@ -41,6 +45,8 @@ const entranceOf = (s: HostStatus): HostEntrance => ({
   addrs: s.addrs ?? [],
   wsl: s.wsl === true,
   failed: s.failed ?? NOT_FAILED,
+  wslProxy: s.wslProxy ?? NO_WSL_PROXY,
+  wslProxyAddrs: s.wslProxyAddrs ?? [],
 })
 
 // ホストどうしの入口の様子（常駐が持つ物。まだ届いていなければ NO_HOST_STATUS）

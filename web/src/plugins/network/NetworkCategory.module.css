@@ -66,3 +66,9 @@
   align-items: center;
   gap: 8px;
 }
+/* WSLプロキシの札（稼働中・非稼働と「？」、ボタン） */
+.proxy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
