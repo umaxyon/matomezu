@@ -114,17 +114,6 @@ export function unheldIn({ pages, folders }: Library, id: string): string[] {
   return folder.lineup.flatMap(r => (r.kind === "reference" ? [] : unheldIn({ pages, folders }, r.id)))
 }
 
-// ブックかバインダ id が読めるか: 並びのエントリ（バインダの中のページも）が全部表に在る（中身を持っていない、ページメタだけの行でもよい）
-export function readableIn({ pages, folders }: Library, id: string): boolean {
-  const folder = folders[id]
-  if (folder?.folderRole !== "book" && folder?.folderRole !== "binder") return false
-  return folder.lineup.every(r =>
-    r.kind === "reference"
-      ? true
-      : r.id in pages || (folders[r.id]?.folderRole === "binder" && readableIn({ pages, folders }, r.id)),
-  )
-}
-
 // バインダ folder を、中のページごと組んだエントリ（中のページが表に 1 枚でも無いか、中身を持っていなければ undefined）
 export function binderEntryOf(pages: Pages, folder: BinderFolder): BinderEntry | undefined {
   const parts = folder.lineup.map(r => heldRow(pages, r.id))

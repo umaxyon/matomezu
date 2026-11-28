@@ -1,17 +1,9 @@
 // ブックを id ごとに持つ値（書庫から組んだブック）
 
 import { findPage, foundPage } from "./book"
-import type { Library, PageRow } from "./folders"
-import { libraryOf, readableIn } from "./folders-books"
-import {
-  atOutsidePagePlace,
-  inTrash,
-  NO_OUTERMOST,
-  outermostOf,
-  outsideBinderIn,
-  outsidePageIn,
-  type StageEntry,
-} from "./folders-tree"
+import type { Library } from "./folders"
+import { libraryOf } from "./folders-books"
+import { inTrash, NO_OUTERMOST, outermostOf, outsideBinderIn, outsidePageIn, type StageEntry } from "./folders-tree"
 import type { ItemPage } from "./placed"
 import type { Book } from "./schema/book"
 
@@ -35,19 +27,6 @@ export function openablePage(from: LibraryAndBooks, id: string): { outermost: St
         ? outsidePageIn(from, id)
         : outsideBinderIn(from, outermost.id)?.lineup.find(p => p.id === id)
   return page && { outermost, page }
-}
-
-// id のページの表の行を、openablePage と同じ決まりで、ページとフォルダの表だけから引く（中身を持っていない、ページメタだけの行でもよい。
-// 名前とタイプだけを読む所のため）。ゴミ箱の中・読めない物・無いページは undefined
-export function openablePageRow(from: Library, id: string): { outermost: StageEntry; row: PageRow } | undefined {
-  const outermost = outermostOf(from, id)
-  const row = from.pages[id]
-  if (outermost === NO_OUTERMOST || !row) return undefined
-  const opens =
-    outermost.kind === "page"
-      ? atOutsidePagePlace(from.folders, id)
-      : !inTrash(from.folders, outermost.id) && readableIn(from, outermost.id)
-  return opens ? { outermost, row } : undefined
 }
 
 // 書庫 library のブックを、開けるブックと、ゴミ箱かその中のブックに分ける

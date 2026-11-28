@@ -2,7 +2,7 @@
 import { type Naming, titleOf } from "../../../core/entries"
 import type { Library } from "../../../core/folders"
 import type { StageEntry } from "../../../core/folders-tree"
-import { openablePageRow } from "../../../core/library"
+import { openablePageRow } from "../utils/page-row"
 
 // 開けるページ page の名前 title と、それを入れているブックかブックの外のバインダ within（ブックの外のページ 1 枚なら無し）。開けなければ undefined。
 // フォルダの表とページメタで答える（ページの中身を持っていなくても）

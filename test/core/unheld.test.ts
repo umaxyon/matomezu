@@ -1,19 +1,9 @@
 // 中身を持っていないページ（ページメタだけの行）の在る世界: 在ることと名前は読め、中身を読むアクションは needs-rows で答える
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
-import {
-  type Folder,
-  HOME_ID,
-  type HomeFolder,
-  isHeld,
-  type Library,
-  pageIn,
-  pageMetaRowOf,
-  TRASH_ID,
-} from "../../web/src/core/folders"
+import { type Folder, isHeld, type Library, pageIn, pageMetaRowOf } from "../../web/src/core/folders"
 import { bookOf, libraryOf, unheldIn } from "../../web/src/core/folders-books"
 import { withChanges } from "../../web/src/core/folders-changes"
-import { openablePageRow } from "../../web/src/core/library"
 import { performIn, type World } from "../../web/src/core/perform-world"
 import { deadReferences } from "../../web/src/core/references"
 import type { AnyPage } from "../../web/src/core/schema/book"
@@ -97,33 +87,6 @@ test("宛先のブックに中身を持っていないページがあれば、�
     reason: "needs-rows",
     books: ["o1"],
   })
-})
-
-test("openablePageRow は、中身を持っていないページの行も開ける所から引き、ゴミ箱の中・読めないブックのページは引かない", () => {
-  const world = start("a1", "b1", "o1")
-  expect(openablePageRow(world, "a1")?.outermost).toEqual({ kind: "book", id: "A" })
-  expect(openablePageRow(world, "s1")?.row.title).toBe("1")
-  expect(openablePageRow(world, "o1")?.outermost).toEqual({ kind: "page", id: "o1" })
-  const home = world.folders[HOME_ID] as HomeFolder
-  const trashed: Library = {
-    pages: world.pages,
-    folders: {
-      ...world.folders,
-      [HOME_ID]: { ...home, lineup: home.lineup.filter(r => r.id !== "B" && r.id !== "o1") },
-      [TRASH_ID]: {
-        folderRole: "trash",
-        id: TRASH_ID,
-        lineup: [
-          { kind: "book", id: "B" },
-          { kind: "page", id: "o1" },
-        ],
-      } as unknown as Folder,
-    },
-  }
-  expect(openablePageRow(trashed, "b1")).toBeUndefined()
-  expect(openablePageRow(trashed, "o1")).toBeUndefined()
-  const { s1: _, ...lost } = world.pages
-  expect(openablePageRow({ pages: lost, folders: world.folders }, "a1")).toBeUndefined()
 })
 
 test("中身を持っていないページがどこかにあれば、書庫が対象のアクションは needs-rows で答える", () => {

@@ -1,9 +1,9 @@
 // ワーカーブックのページの一覧（チケットのナレッジの「作業ブック」で出す）: ワーカーブック found のページを並べる（タイプのアイコンと題）。行はクリックで「開く／分割で開く」、ダブルクリックで全画面で開く（そのページ）。
 // keepHere: 分けた並びの中から分割で開くとき、起点（この一覧を出しているスクリーン）を残してもう片方の段を替える
 import { useShallow } from "zustand/react/shallow"
-import { openablePageRow } from "../../../core/library"
 import { useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { PAGE } from "../library/icons"
+import { openablePageRow } from "../utils/page-row"
 import { useBookOpenChoice } from "../window/useBookOpenChoice"
 import styles from "./WorkerBookPages.module.css"
 import type { FoundWorkerBook } from "./worker-book"
