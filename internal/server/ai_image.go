@@ -2,7 +2,7 @@ package server
 
 // AI に画像のページの画像を見せる口（MCP 公開ツール read_image）。AI が頼んだときだけ渡す（重いので read_page には付けない）。
 // どのアセットを見せるかはページのタイプが答える（assetsOf。core/assets.ts）。PNG・JPEG・GIF・WebP は、AI の読める大きさ（長い辺と画素の数）に縮めて渡し、
-// 縮めずに済む物はそのまま渡す。SVG は文字のまま渡す
+// 縮めずに済む物はそのまま渡す。SVG は文字のまま渡す（長すぎる物は MCP の側で断る）
 
 import (
 	"bytes"
@@ -34,9 +34,10 @@ const (
 // 断りの理由（MCP の read_image が文にする）
 const (
 	aiImageNone    = "no-image"    // ページのタイプが指す画像が無い
+	aiImageSeveral = "several"     // ページのタイプが画像をいくつも指す（見せるのは 1 つを指すページだけ）
 	aiImageUnsure  = "unsure"      // ページのタイプが答えられない
 	aiImageMissing = "no-asset"    // 指す画像が置き場に無い
-	aiImageLarge   = "too-large"   // 開くには大きすぎる（SVG は文字が長すぎる）
+	aiImageLarge   = "too-large"   // 開くには大きすぎる
 	aiImageUnread  = "cannot-read" // 縮めるために開けない（動く WebP など）
 )
 
@@ -71,6 +72,9 @@ func (o Options) aiPageImage(w http.ResponseWriter, r *http.Request) {
 	case len(used.IDs) == 0:
 		writeJSON(w, aiImage{Reason: aiImageNone})
 		return
+	case len(used.IDs) > 1:
+		writeJSON(w, aiImage{Reason: aiImageSeveral})
+		return
 	}
 	a, err := o.Hub.Asset(used.IDs[0])
 	if err != nil {
@@ -87,9 +91,6 @@ func (o Options) aiPageImage(w http.ResponseWriter, r *http.Request) {
 // imageForAI は、置き場の画像（種類 mime・幅 width・高さ height・中身 b）を AI に渡す形にする
 func imageForAI(mime string, width, height int, b []byte) aiImage {
 	if mime == "image/svg+xml" {
-		if len(b) > aiImageSVGChars {
-			return aiImage{Reason: aiImageLarge}
-		}
 		return aiImage{OK: true, Mime: mime, Width: width, Height: height, SVG: string(b)}
 	}
 	sw, sh := fitForAI(width, height)
@@ -111,9 +112,6 @@ func imageForAI(mime string, width, height int, b []byte) aiImage {
 	}
 	return aiImage{OK: true, Mime: sentMime, Width: width, Height: height, SentWidth: sw, SentHeight: sh, Data: base64.StdEncoding.EncodeToString(out)}
 }
-
-// aiImageSVGChars は、文字で渡す SVG の長さの上限（読む MCP 公開ツールの答えの上限と同じ。internal/mcp の maxAnswer）
-const aiImageSVGChars = 60000
 
 // fitForAI は、幅 w・高さ h の画像を、比を保って AI に渡す大きさの上限に収めた大きさ（収まっていれば同じ。大きくはしない）
 func fitForAI(w, h int) (int, int) {

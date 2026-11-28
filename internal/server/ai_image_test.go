@@ -5,6 +5,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"image"
+	"image/jpeg"
+	"image/png"
+	"math/rand/v2"
 	"strings"
 	"testing"
 
@@ -60,15 +63,54 @@ func TestImageForAI(t *testing.T) {
 	if got := imageForAI("image/svg+xml", 8, 4, []byte(svg)); !got.OK || got.SVG != svg || got.Data != "" {
 		t.Fatalf("svg = %+v", got)
 	}
-	long := "<svg>" + strings.Repeat(" ", aiImageSVGChars) + "</svg>"
-	if got := imageForAI("image/svg+xml", 8, 4, []byte(long)); got.Reason != aiImageLarge {
-		t.Fatalf("long svg = %+v", got)
-	}
 	if got := imageForAI("image/webp", 3000, 3000, webpLossless(3000, 3000)); got.Reason != aiImageUnread {
 		t.Fatalf("broken webp = %+v", got)
 	}
 	if got := imageForAI("image/png", 10000, 10000, small); got.Reason != aiImageLarge {
 		t.Fatalf("huge png = %+v", got)
+	}
+	// 大きさは収まるが、そのまま渡すにはバイトが多すぎる物は、開き直して渡す
+	heavy := noisePNG(t, 1500, 1000)
+	if len(heavy) <= aiImageBytes {
+		t.Fatalf("the noise png is only %d bytes", len(heavy))
+	}
+	got = imageForAI("image/png", 1500, 1000, heavy)
+	if w, _, kind := sentSize(t, got); !got.OK || w != 1357 || kind != "jpeg" {
+		t.Fatalf("heavy png = %d %s %+v", w, kind, got.Reason)
+	}
+}
+
+// noisePNG は、縮めても PNG が重いままの（画素がばらばらの）、半分透ける PNG
+func noisePNG(t *testing.T, w, h int) []byte {
+	t.Helper()
+	img := image.NewNRGBA(image.Rect(0, 0, w, h))
+	r := rand.New(rand.NewPCG(1, 2))
+	for i := range img.Pix {
+		img.Pix[i] = byte(r.Uint32())
+	}
+	var b bytes.Buffer
+	if err := png.Encode(&b, img); err != nil {
+		t.Fatal(err)
+	}
+	return b.Bytes()
+}
+
+// PNG が重すぎれば JPEG にし、透ける所は白を下に敷く
+func TestEncodeForAIFallsBackToJPEGOnWhite(t *testing.T) {
+	clear := image.NewRGBA(image.Rect(0, 0, 4, 4))
+	out, mime, err := encodeForAI(clear, true)
+	if err != nil || mime != "image/jpeg" {
+		t.Fatalf("encode = %s %v", mime, err)
+	}
+	img, err := jpeg.Decode(bytes.NewReader(out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r, g, b, _ := img.At(1, 1).RGBA(); r < 0xf000 || g < 0xf000 || b < 0xf000 {
+		t.Fatalf("a clear pixel = %x %x %x; want white", r, g, b)
+	}
+	if _, mime, _ := encodeForAI(image.NewRGBA(image.Rect(0, 0, 4, 4)), false); mime != "image/png" {
+		t.Fatalf("a light picture = %s", mime)
 	}
 }
 
@@ -95,6 +137,9 @@ func TestAIReadsThePageImage(t *testing.T) {
 	if code != 200 || !strings.Contains(body, `"ok":true`) || !strings.Contains(body, `"mime":"image/png"`) || !strings.Contains(body, `"sentWidth":6`) {
 		t.Fatalf("image = %d %s", code, body)
 	}
+	if code, body := send(t, "GET", s.URL+"/api/ai/pages/"+firstPageOfNewBook(t, h)+"/image", "", auth); code != 200 || !strings.Contains(body, `"reason":"no-image"`) {
+		t.Fatalf("a drawing page = %d %s", code, body)
+	}
 	if code, _ := send(t, "GET", s.URL+"/api/ai/pages/none/image", "", auth); code != 404 {
 		t.Fatalf("no page = %d", code)
 	}
@@ -104,4 +149,33 @@ func TestAIReadsThePageImage(t *testing.T) {
 	if code, body := send(t, "GET", s.URL+"/api/ai/pages/"+made.Page+"/image", "", auth); code != 404 {
 		t.Fatalf("image in the trash = %d %s", code, body)
 	}
+}
+
+// firstPageOfNewBook は、新しいブックを作り、その最初のページ（描くページ）の id
+func firstPageOfNewBook(t *testing.T, h *Hub) string {
+	t.Helper()
+	out, err := h.Perform(performOne("@matomezu/base:book-create", json.RawMessage(`{"title":"N"}`), nil))
+	if err != nil || !out.OK {
+		t.Fatalf("book-create: %v %+v", err, out)
+	}
+	var made struct {
+		Book string `json:"book"`
+	}
+	_ = json.Unmarshal(out.Result, &made)
+	add := json.RawMessage(`{"type":"@matomezu/drawing:drawing","title":"P"}`)
+	if out, err := h.Perform(performOne("@matomezu/base:page-add", add, &engine.On{Book: made.Book})); err != nil || !out.OK {
+		t.Fatalf("page-add: %v %+v", err, out)
+	}
+	b := h.Book(made.Book)
+	if b == nil {
+		t.Fatalf("no book from %s", out.Result)
+	}
+	var head struct {
+		ID string `json:"id"`
+	}
+	pages := pagesOfBook(b.Body)
+	if len(pages) == 0 || json.Unmarshal(pages[0], &head) != nil {
+		t.Fatalf("no page in %s", b.Body)
+	}
+	return head.ID
 }

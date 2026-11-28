@@ -18,7 +18,7 @@ func TestReadImage(t *testing.T) {
 	if failed || len(content) != 2 {
 		t.Fatalf("image = %v (%v)", content, failed)
 	}
-	if text := content[0].(map[string]any)["text"]; text != `{"mime":"image/png","width":3000,"height":1500,"sent":{"width":1568,"height":784}}` {
+	if text := content[0].(map[string]any)["text"]; text != `{"height":1500,"mime":"image/png","sent":{"height":784,"width":1568},"width":3000}` {
 		t.Errorf("text = %v", text)
 	}
 	if img := content[1].(map[string]any); img["type"] != "image" || img["data"] != "UE5H" || img["mimeType"] != "image/png" {
@@ -28,7 +28,15 @@ func TestReadImage(t *testing.T) {
 	if len(content) != 1 || content[0].(map[string]any)["text"] != `{"height":4,"mime":"image/svg+xml","svg":"<svg/>","width":8}` {
 		t.Errorf("svg = %v", content)
 	}
-	for page, want := range map[string]string{"doc": "no-image: the page shows no image", "none": "no-page: there is no page none you can read"} {
+	for page, want := range map[string]string{
+		"doc":         "no-image: the page shows no image",
+		"none":        "no-page: there is no page none you can read",
+		"unsure":      "no-image: the page's image cannot be found",
+		"several":     "no-image: the page's image cannot be found",
+		"too-large":   "too-large: the image is too large to open",
+		"cannot-read": "cannot-read: the image cannot be opened to make it smaller",
+		"long-svg":    "too-large: the SVG is over 60000 characters",
+	} {
 		content, failed := readImageCall(t, page)
 		if failed || len(content) != 1 || content[0].(map[string]any)["text"] != want {
 			t.Errorf("%s = %v (%v)", page, content, failed)

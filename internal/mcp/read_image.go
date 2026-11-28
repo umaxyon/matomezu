@@ -6,10 +6,10 @@ package mcp
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+	"unicode/utf8"
 )
 
 const readImageDescription = "See the image of an image page (page: its id; image pages are in the images folder, the system folder @matomezu/image:images; see read_folder or read_book). " +
@@ -60,22 +60,32 @@ func readImage(c *conn, args map[string]any) (string, bool) {
 		switch got.Reason {
 		case "no-image":
 			return "no-image: the page shows no image", false
-		case "unsure", "no-asset":
+		case "unsure", "no-asset", "several":
 			return "no-image: the page's image cannot be found", false
 		case "too-large":
-			return "too-large: the image is too large to open (or the SVG is over 60000 characters)", false
+			return "too-large: the image is too large to open", false
 		case "cannot-read":
 			return "cannot-read: the image cannot be opened to make it smaller", false
 		}
 		return got.Reason, false
 	}
 	if got.SVG != "" {
-		var b strings.Builder
-		enc := json.NewEncoder(&b)
-		enc.SetEscapeHTML(false)
-		_ = enc.Encode(map[string]any{"mime": got.Mime, "width": got.Width, "height": got.Height, "svg": got.SVG})
-		return strings.TrimSuffix(b.String(), "\n"), false
+		if utf8.RuneCountInString(got.SVG) > maxAnswer {
+			return tooLargeSVG, false
+		}
+		return answerText(map[string]any{"mime": got.Mime, "width": got.Width, "height": got.Height, "svg": got.SVG}), false
 	}
 	c.image = &imageBlock{data: got.Data, mime: got.Mime}
-	return fmt.Sprintf(`{"mime":%q,"width":%d,"height":%d,"sent":{"width":%d,"height":%d}}`, got.Mime, got.Width, got.Height, got.SentWidth, got.SentHeight), false
+	return answerText(map[string]any{"mime": got.Mime, "width": got.Width, "height": got.Height, "sent": map[string]int{"width": got.SentWidth, "height": got.SentHeight}}), false
+}
+
+const tooLargeSVG = "too-large: the SVG is over 60000 characters"
+
+// answerText は、read_image の答えの文（JSON。SVG の < > をそのまま読めるよう、HTML のための書き換えをしない）
+func answerText(v any) string {
+	var b strings.Builder
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(v)
+	return strings.TrimSuffix(b.String(), "\n")
 }

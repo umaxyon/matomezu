@@ -230,12 +230,10 @@ func handle(req request, c *conn) (any, *rpcError) {
 			return nil, &rpcError{-32602, "invalid params"}
 		}
 		c.sessionID, c.model = fromMeta(p.Meta, c.meta)
-		c.image = nil
-		text, fault := callTool(c, p.Name, p.Arguments)
+		text, image, fault := callTool(c, p.Name, p.Arguments)
 		content := []map[string]any{{"type": "text", "text": text}}
-		if c.image != nil {
-			content = append(content, map[string]any{"type": "image", "data": c.image.data, "mimeType": c.image.mime})
-			c.image = nil
+		if image != nil {
+			content = append(content, map[string]any{"type": "image", "data": image.data, "mimeType": image.mime})
 		}
 		return map[string]any{"content": content, "isError": fault}, nil
 	default:

@@ -59,6 +59,10 @@ func (f *fakeAPI) Get(path string, header http.Header) (json.RawMessage, http.He
 		return nil, nil, &HostError{Code: http.StatusNotFound, Text: "no such page"}
 	case "api/ai/pages/doc/image":
 		return json.RawMessage(`{"ok":false,"reason":"no-image"}`), f.replied, nil
+	case "api/ai/pages/unsure/image", "api/ai/pages/several/image", "api/ai/pages/too-large/image", "api/ai/pages/cannot-read/image":
+		return json.RawMessage(`{"ok":false,"reason":"` + strings.TrimSuffix(strings.TrimPrefix(path, "api/ai/pages/"), "/image") + `"}`), f.replied, nil
+	case "api/ai/pages/long-svg/image":
+		return json.RawMessage(`{"ok":true,"mime":"image/svg+xml","width":8,"height":4,"svg":"<svg>` + strings.Repeat("あ", maxAnswer) + `</svg>"}`), f.replied, nil
 	case "api/ai/join-rules":
 		return json.RawMessage(`{"rules":"Request to join from this conversation."}`), f.replied, nil
 	case "api/ai/view":
