@@ -9,6 +9,7 @@ import (
 
 // 画面の口 page-users: 消すページを使っている所（スクラップで指している見える所のページ）を、書かずに答える。場合分けは base の scrapUsersOf の単体テストが見る
 func TestPageUsersTellThePagesWhoseScrapsPointAtThePage(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
 	if err != nil {

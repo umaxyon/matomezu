@@ -43,6 +43,7 @@ func trashedFolderStore(t *testing.T) storage.Storage {
 
 // ゴミ箱の行はブックでない。ゴミ箱の中かは、上へたどってゴミ箱に着くかで決まり、フォルダごと入れたなら、その中のブックとページも中
 func TestTheTrashHoldsWhatIsBelowIt(t *testing.T) {
+	t.Parallel()
 	_, hub := newServerOn(t, Options{}, trashedFolderStore(t))
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
@@ -75,6 +76,7 @@ func TestTheTrashHoldsWhatIsBelowIt(t *testing.T) {
 
 // フォルダごとゴミ箱に入れたブックは、AI の MCP 公開ツールに出ない
 func TestBooksInATrashedFolderAreHiddenFromTheAI(t *testing.T) {
+	t.Parallel()
 	s, hub := newServerOn(t, Options{}, trashedFolderStore(t))
 	if got := hub.AIBooks(); len(got) != 1 || got[0].ID != "b1" {
 		t.Fatalf("AI books = %+v", got)
@@ -92,6 +94,7 @@ func TestBooksInATrashedFolderAreHiddenFromTheAI(t *testing.T) {
 // ゴミ箱の並びのエントリ（trashed と from も持つ）は、エントリの入っているフォルダ（places と表 entries）に入る。
 // ゴミ箱の行の変わりは、AI 編集チケットに入らない
 func TestTrashLineupPlacesItsEntries(t *testing.T) {
+	t.Parallel()
 	store := libraryStore(t, false)
 	_, hub := newServerOn(t, Options{}, store)
 	hub.mu.Lock()
@@ -132,6 +135,7 @@ func TestTrashLineupPlacesItsEntries(t *testing.T) {
 
 // バックヤードの中のブックは、AI の一覧（list_books）に出ない。木の決まりは守り、ブックとしては読める
 func TestBooksInABackyardAreNotListedForTheAI(t *testing.T) {
+	t.Parallel()
 	store := libraryStore(t, false)
 	v := versionsOf(t, store)
 	yard := ticketsHistoryYard

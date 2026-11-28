@@ -8,6 +8,7 @@ import (
 // 同じホストの管理者の頼みに印が付くのは、利用者が王冠で選んだ管理者だけ（受け入れで自動に付いた管理者には付かない）。
 // 選び直すと、印は新しい管理者に移る
 func TestAdminMarkFollowsTheUserChoice(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ") // 最初の受け入れで自動的に管理者
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")

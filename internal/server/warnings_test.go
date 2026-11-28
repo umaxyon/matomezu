@@ -12,11 +12,12 @@ import (
 
 // 知らせが貯まりきって切った窓は、その窓が知らせた warning も一覧から消える
 func TestAWindowCutForAFullBufferTakesItsWarnings(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	eng, err := engine.New()
 	if err != nil {
 		t.Fatal(err)

@@ -64,6 +64,7 @@ func withoutDocuments(body string) string {
 // 常駐は起動したとき、書庫を整えて（settleLibrary）書庫ホームの先頭にドキュメントの行を足し（もう在れば足さない）、AI の read_folder には英語の名前と印で見せる。
 // 名前の当たる書庫ホームの直下の物には番号を付け、足した物と番号を付けた物をログに書く。プラグインが変わったときも足りなければ足す
 func TestSystemFoldersAreAddedAtStartAndWhenPluginsChange(t *testing.T) {
+	serial(t, "os.Stderr を差し替えて常駐の書いた物を読む")
 	store := libraryStore(t, false)
 	putBook(t, store, `{"id":"b9","title":"Documents","lineup":[]}`)
 	var hub *Hub
@@ -152,6 +153,7 @@ func stderrDuring(t *testing.T, do func()) string {
 
 // AI が言語を初めて日本語に選ぶと、同じバルクで、利用者の「ドキュメント」に番号が付く（ロックの掛かったブックにも。そのあとに別のバルクは行わない）
 func TestChoosingTheLanguageFirstNumbersTheTitlesInTheSameBulk(t *testing.T) {
+	t.Parallel()
 	store := libraryStore(t, false)
 	putBook(t, store, `{"id":"b9","title":"ドキュメント","lineup":[]}`)
 	s, hub := newServerOn(t, Options{}, store)
@@ -173,6 +175,7 @@ func TestChoosingTheLanguageFirstNumbersTheTitlesInTheSameBulk(t *testing.T) {
 
 // 読めないブックの名前が、システムフォルダの名前と同じでも、読めない物のフォルダへ移り、番号は付かない（読めない物のフォルダの中は名前が重なってよい）
 func TestAnUnreadableBookWithTheSystemFolderTitleMovesWithoutANumber(t *testing.T) {
+	t.Parallel()
 	store := libraryStore(t, false)
 	folders, err := store.Folders()
 	if err != nil {

@@ -88,6 +88,7 @@ func idsOf(rows []json.RawMessage) []string {
 // ブックに入っていないページとバインダの行も、エンジンへ渡る。宛先がそのページなら、そのページ（バインダの中なら、バインダと中のページの全部）と、
 // そのアノテーションと、書庫ホームまでのフォルダ。ゴミ箱の中のページが宛先なら、何も渡らない。一覧のアクションなら、ゴミ箱の中の物も含めて全部
 func TestRowsNotInBooksGoToTheEngine(t *testing.T) {
+	t.Parallel()
 	_, hub := newServerOn(t, Options{}, entriesStore(t))
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
@@ -154,6 +155,7 @@ func TestRowsNotInBooksGoToTheEngine(t *testing.T) {
 // ブックの外のバインダは、その id で中のページを読める。
 // ゴミ箱・ゴミ箱の中のフォルダとバインダ・フォルダでない物（ブック・ブックの中のバインダ・ページ）・無い id は、どれも同じ 404
 func TestTheAIReadsAFolderOneLevelDeep(t *testing.T) {
+	t.Parallel()
 	store := entriesStore(t)
 	v := versionsOf(t, store)
 	if err := store.Apply(storage.Batch{
@@ -204,6 +206,7 @@ func TestTheAIReadsAFolderOneLevelDeep(t *testing.T) {
 
 // read_page は、ページが入っているフォルダ（ブックの直下ならブック、バインダの中ならバインダ）も答える（全文・目次・物 1 つのどれでも）。ゴミ箱の中のページは無い物として断る
 func TestReadPageTellsTheFolderOfThePage(t *testing.T) {
+	t.Parallel()
 	s, _ := newServerOn(t, Options{}, entriesStore(t))
 	for path, want := range map[string]string{
 		"/api/ai/pages/p1":           `{"annotations":[],"entry":{"kind":"book","id":"b1"},"folder":"b1",`,
@@ -224,6 +227,7 @@ func TestReadPageTellsTheFolderOfThePage(t *testing.T) {
 // 常駐を通して、ページをブックと書庫ホームの間で動かせる（entry-move）: 書庫ホームのページ h1 をブック b1 へ入れると、read_book の b1 に入り、
 // read_folder の書庫ホームの行から消える。ブックのページ p1 を書庫ホームへ出すと、その逆
 func TestAPageMovesBetweenABookAndTheHome(t *testing.T) {
+	t.Parallel()
 	s, _ := newServerOn(t, Options{}, entriesStore(t))
 	writer := writerAI(t, s.URL)
 	move := func(entry, into string) {
@@ -255,6 +259,7 @@ func TestAPageMovesBetweenABookAndTheHome(t *testing.T) {
 // d1 の外のバインダ n1 のスライド n1a を書庫ホームへ動かすと、result のバインダの行が read_folder の書庫ホームに出て、n1 には n1b だけが残る。
 // 続けて n1b をそのバインダへ動かすと、空になった n1 の行が常駐から消え、d1 の並びからも外れる
 func TestASlideMovedOutOfItsBinderMakesABinder(t *testing.T) {
+	t.Parallel()
 	s, hub := newServerOn(t, Options{}, entriesStore(t))
 	writer := writerAI(t, s.URL)
 	move := func(entry, into string) map[string]any {
@@ -310,6 +315,7 @@ func TestASlideMovedOutOfItsBinderMakesABinder(t *testing.T) {
 // 常駐は、バインダ・ブック・ページの行のほかのフィールド（settings）を落とさない: ブックの中のバインダを並びのエントリに組んでも、ブックの行も、
 // ブックの外のバインダとページの行をエンジンへ渡すときも、本文のまま（エンジンが行を読めるかに依らないよう、書庫を整えずに表だけ読む）
 func TestRowsKeepTheirSettings(t *testing.T) {
+	t.Parallel()
 	const settings = `"settings":{"@matomezu/base:print-preview-flow":"row"}`
 	store := entriesStore(t)
 	v := versionsOf(t, store)

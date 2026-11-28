@@ -13,6 +13,7 @@ import (
 // フックが知らせたコンテキストの量は、そのセッション id が結ばれた参加者の様子に載せ、変わったときだけ窓に知らせる。読めないと知らされたら様子から外す。
 // 置き場所には書かない
 func TestHeardContextUseReachesTheSessionsParticipant(t *testing.T) {
+	t.Parallel()
 	store := joinStore(t)
 	s, hub := joinWorld(t, store)
 	p1 := joinedID(t, s.URL, joinBody("L1", ""))
@@ -66,6 +67,7 @@ func TestHeardContextUseReachesTheSessionsParticipant(t *testing.T) {
 
 // セッション id が変わったとき（/clear）、host が同じ参加者を新しいセッションに結び直し、新しいセッションの量（無ければ無いこと）を窓に知らせる
 func TestContextUseRebindsByHost(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	id := joinedID(t, s.URL, `{"ai":"claude","model":"opus","env":"linux","link":"L2"}`)
 	acceptRoom(t, s.URL, id, "すずめ")
@@ -89,6 +91,7 @@ func TestContextUseRebindsByHost(t *testing.T) {
 
 // 参加者に結ばれていないセッションの量は、古くなったものと、上限を超えた分（知らせた時点の古いもの）を捨てる。結ばれたセッションの量は捨てない
 func TestHeardContextsAreDroppedWhenOldOrTooMany(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	t0 := time.Date(2026, 11, 12, 0, 0, 0, 0, time.UTC)
 	use := contextUse{Used: 1, AIScale: 2}

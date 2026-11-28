@@ -17,6 +17,7 @@ const boxed = `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":
 
 // アノテーションのアクションは、変わったアノテーションを書いて知らせ（annotations）、/api/data にも出る。ブックを消すと一緒に消える
 func TestAnnotationsAreKeptApartFromTheBook(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
 	a := listen(t, s.URL)
@@ -47,11 +48,12 @@ func TestAnnotationsAreKeptApartFromTheBook(t *testing.T) {
 
 // 種類の無いアノテーションは warning の一覧に持ち、利用者がプラグインを外すと、そのプラグインが足した種類のアノテーションを消す（ほかの種類は残す）
 func TestDroppingAPluginsAnnotations(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	list := `[{"id":"c1","annotation":"@ex/notes:sticky","anchors":["a"],"props":{}},{"id":"c2","annotation":"@ex/notesx:sticky","anchors":["a"],"props":{}}]`
 	putBook(t, store, boxed)
 	if err := store.Apply(storage.Batch{Annotations: []storage.PageBody{{Page: "p1", Body: json.RawMessage(list)}}}); err != nil {
@@ -90,6 +92,7 @@ func TestDroppingAPluginsAnnotations(t *testing.T) {
 // AI の読む口: read_book・read_page は形の描いた位置と大きさ（placed）と、アノテーションを、立つ物のページと AI の応えを待っているかを添えて返し、
 // list_books は待つ数を、awaiting は待つ物の全部を返す。AI が既読にすると待たなくなる
 func TestAIReadsAnnotations(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
 	ai := map[string]string{"Authorization": "Bearer secret"}
@@ -129,6 +132,7 @@ func TestAIReadsAnnotations(t *testing.T) {
 
 // 利用者が窓で開いて直している伝言は、AI が読んだと知らせても変わらず（being-edited）、付いた物を消しても伝言ごと残る。閉じたら読める
 func TestAICannotReadANoteTheUserIsEditing(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
 	ai := writerAI(t, s.URL)
@@ -152,11 +156,12 @@ func TestAICannotReadANoteTheUserIsEditing(t *testing.T) {
 
 // ブックを消すと、そのブックの効かないアノテーションの warning も一覧から外れる
 func TestTrashingABookTakesItsAnnotationWarnings(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	putBook(t, store, boxed)
 	if err := store.Apply(storage.Batch{Annotations: []storage.PageBody{{Page: "p1", Body: json.RawMessage(`[{"id":"c1","annotation":"@ex/notes:sticky","anchors":["a"],"props":{}}]`)}}}); err != nil {
 		t.Fatal(err)
@@ -187,11 +192,12 @@ func TestTrashingABookTakesItsAnnotationWarnings(t *testing.T) {
 // 利用者トリガートークがあると（Talked）、読まれた伝言に会話の時点が付き、期限が過ぎたら時間で消え（Expire）、保存からも消える。
 // 窓で利用者が直している伝言は、期限が過ぎても消さない（期限の境目は core の unexpired のテストが見る）
 func TestTalkStartsNoteExpiry(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	putBook(t, store, boxed)
 	const list = `[{"id":"c1","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"x","bubble":true,"addedAt":"2026-11-05T00:00:00.000Z","readAt":"2026-11-05T00:01:00.000Z"}},` +
 		`{"id":"c2","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"y","bubble":true,"addedAt":"2026-11-05T00:00:00.000Z"}}]`
@@ -250,6 +256,7 @@ func TestTalkStartsNoteExpiry(t *testing.T) {
 
 // perform の待つ秒数（timeoutSec）は 1 から 60 まで。範囲の外はエンジンで断る
 func TestAIPerformRefusesATimeoutOutOfRange(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
 	ai := writerAI(t, s.URL)
@@ -261,6 +268,7 @@ func TestAIPerformRefusesATimeoutOutOfRange(t *testing.T) {
 
 // ブックの外のページの効かないアノテーションも warning になり（文の主語はページ）、そのページをゴミ箱に入れるとアノテーションごと消えて warning も外れる
 func TestAnnotationWarningsOfAPageOutsideBooks(t *testing.T) {
+	t.Parallel()
 	store := outsidePageStore(t)
 	eng, err := engine.New()
 	if err != nil {
@@ -288,6 +296,7 @@ func TestAnnotationWarningsOfAPageOutsideBooks(t *testing.T) {
 // 読めるが機能台帳に無い物を持つブックの外のページは、ページごとに warning（W007）になり、read_folder のその行に付く（ブックの外のバインダの中のページも、バインダを読んだ行に）。
 // 名前を変えると行が直り、ゴミ箱に入れると外れ、戻すとまた出る
 func TestAPageOutsideBooksWithMissingThingsIsWarned(t *testing.T) {
+	t.Parallel()
 	store := entriesStore(t)
 	strange := strings.Replace(outsideH1, `"items":[`, `"items":[{"id":"z","item":"@foo/stars:star","x":0,"y":0,"w":10,"h":10},`, 1)
 	if strange == outsideH1 {
@@ -336,6 +345,7 @@ func TestAPageOutsideBooksWithMissingThingsIsWarned(t *testing.T) {
 
 // ゴミ箱から戻した物の中のページは、戻した時点で確かめる: フォルダの中のブックの外のページの W007 と、ゴミ箱の中に残っていた効かないアノテーションの W018
 func TestRestoredPagesAreChecked(t *testing.T) {
+	t.Parallel()
 	store := entriesStore(t)
 	strange := `{"kind":"page","id":"dt1","type":"@matomezu/drawing:drawing","title":"DT1","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"z","item":"@foo/stars:star","x":0,"y":0,"w":10,"h":10}]}`
 	if err := store.Apply(storage.Batch{Pages: []storage.RowWrite{{ID: "dt1", Base: storedPage(t, store, "dt1").Version, Body: json.RawMessage(strange)}}}); err != nil {
@@ -363,6 +373,7 @@ func TestRestoredPagesAreChecked(t *testing.T) {
 
 // 効かないアノテーションが消え、ほかのアノテーションが残ったページの warning は、その時点で外れる
 func TestAnnotationWarningGoesWithTheAnnotation(t *testing.T) {
+	t.Parallel()
 	store := entriesStore(t)
 	two := strings.Replace(outsideH1, `"items":[`, `"items":[{"id":"b","x":140,"y":40,"item":"@matomezu/box:shape-nest-box","w":64,"h":64,"props":{"caption":"B","rule":true,"body":"","captionAlign":"center","bodyAlign":"left"}},`, 1)
 	list := `[{"id":"c1","annotation":"@ex/notes:sticky","anchors":["b"],"props":{}},` + outsideH1Note + `]`
@@ -390,11 +401,12 @@ func TestAnnotationWarningGoesWithTheAnnotation(t *testing.T) {
 
 // ゴミ箱の中のブックの warning は出さず、戻すとまた出る
 func TestWarningsOfABookInTheTrashAreNotTold(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	strange := strings.Replace(boxed, `"items":[`, `"items":[{"id":"z","item":"@foo/stars:star","x":0,"y":0,"w":10,"h":10},`, 1)
 	if strange == boxed {
 		t.Fatal("boxed has no items to add to")
@@ -426,6 +438,7 @@ func TestWarningsOfABookInTheTrashAreNotTold(t *testing.T) {
 
 // フォルダの中のブックの warning は read_folder のその行に付き、フォルダごとゴミ箱に入れると出なくなり、戻すとまた出る
 func TestWarningOfABookInAFolder(t *testing.T) {
+	t.Parallel()
 	store := entriesStore(t)
 	strange := `{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"z","item":"@foo/stars:star","x":0,"y":0,"w":10,"h":10}]}`
 	if err := store.Apply(storage.Batch{Pages: []storage.RowWrite{{ID: "p1", Base: storedPage(t, store, "p1").Version, Body: json.RawMessage(strange)}}}); err != nil {

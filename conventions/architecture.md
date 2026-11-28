@@ -35,7 +35,7 @@
 
 ## Go のパッケージ
 
-`internal/` の下を、役割ごとのパッケージに分ける（`internal/` の外の Go は、実行ファイルの入口 `cmd/matomezu`、埋め込む画面の `web`、`clients/` の下（AI のプログラムごとの `clients/<AI の名前>`、ADE ごとの `clients/ade/<ADE の名前>`）だけ）。読み込みの向きは一方向で、輪を作らない。
+`internal/` の下を、役割ごとのパッケージに分ける（`internal/` の外の Go は、実行ファイルの入口 `cmd/matomezu`、埋め込む画面の `web`、`clients/` の下（AI のプログラムごとの `clients/<AI の名前>`、ADE ごとの `clients/ade/<ADE の名前>`）、直して使う外のモジュールの写し `third_party/<モジュールのパスの最後の要素>`（matomezu のパッケージを読まない。写すのはユーザーと決めてから）だけ）。読み込みの向きは一方向で、輪を作らない。
 
 | パッケージ | 役割 | 読んでよいもの |
 |---|---|---|

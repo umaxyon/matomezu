@@ -49,6 +49,7 @@ func joinedID(t *testing.T, url, body string) string {
 // MCP が添えたブランチとモデルは、参加が済んだ参加者にだけ残す。変わったときだけ、すぐに置き場所に書いて窓に知らせ、空のブランチは消す。
 // ブランチのヘッダが無ければブランチを、モデルのヘッダが無ければモデルを変えない。モデルは、フックが知らせたモデルとあとに届いた方を使う
 func TestCalledNotesTheBranchHostAndModel(t *testing.T) {
+	t.Parallel()
 	store := joinStore(t)
 	s, hub := joinWorld(t, store)
 	id := joinedID(t, s.URL, joinBody("L1", ""))
@@ -109,6 +110,7 @@ func TestCalledNotesTheBranchHostAndModel(t *testing.T) {
 
 // フックが知らせたモデルは、そのセッション id を結んだ参加者に書く。結ばれる前なら覚えておき、join で MCP が運んだときと、UserPromptSubmit のフックが結んだときに移す
 func TestHeardModelReachesTheSessionsParticipant(t *testing.T) {
+	t.Parallel()
 	store := joinStore(t)
 	s, hub := joinWorld(t, store)
 	model := func(body string) {
@@ -168,6 +170,7 @@ func TestHeardModelReachesTheSessionsParticipant(t *testing.T) {
 
 // 結ばれていないセッションのモデルは、古くなったものと、上限を超えた分（知らせた時点の古いもの）を捨てる
 func TestHeardModelsAreDroppedWhenOldOrTooMany(t *testing.T) {
+	t.Parallel()
 	_, hub := joinWorld(t, joinStore(t))
 	t0 := time.Date(2026, 11, 12, 0, 0, 0, 0, time.UTC)
 	if err := hub.HeardModel("old", "m", "", t0); err != nil {
@@ -191,6 +194,7 @@ func TestHeardModelsAreDroppedWhenOldOrTooMany(t *testing.T) {
 // 結んだ所と伝えた印は変えず、プロセス id が空なら結び直さない。join でセッション id を運んだ参加者は、プロセス id が同じでも結び直さない
 // （Codex の app-server では、マシンの全部の会話のプロセス id が同じ）
 func TestHostRebindsANewSession(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	carried := joinedID(t, s.URL, joinBody("L1", ""))
 	acceptRoom(t, s.URL, carried, "ひよこ")

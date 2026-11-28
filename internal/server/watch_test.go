@@ -61,6 +61,7 @@ func makeRoom(t *testing.T, url, name string) string {
 
 // 窓で受け入れると、その参加者が join したプロセス id の通り道にだけ、ワークルーム名つきの 1 行が届く
 func TestAcceptingWakesOnlyTheJoinedProcess(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	mine, other := hub.OpenWakesWith("100", "", WakeLimits{}), hub.OpenWakesWith("200", "", WakeLimits{})
 	participant := joinFrom(t, s.URL, "L1", "100")
@@ -79,6 +80,7 @@ func TestAcceptingWakesOnlyTheJoinedProcess(t *testing.T) {
 
 // 窓で断ると「断られた」が届く。AI と常駐（利用者として行う物）が行ったアクションでは起こさない
 func TestDecliningWakesAndOnlyWindowActionsWake(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	w := hub.OpenWakesWith("100", "", WakeLimits{})
 	first := joinFrom(t, s.URL, "L1", "100") // join の中の、AI と常駐が行うアクション（参加者を作る・郵便を送る）では起こさない
@@ -99,6 +101,7 @@ func TestDecliningWakesAndOnlyWindowActionsWake(t *testing.T) {
 
 // 窓でキャンセルすると、断りでなく「キャンセルされた」が届き、次の呼び出しにも同じ文を 1 度だけ返す
 func TestCancellingWakesAsCancelled(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	w := hub.OpenWakesWith("100", "", WakeLimits{})
 	participant := joinFrom(t, s.URL, "L1", "100")
@@ -126,6 +129,7 @@ func TestCancellingWakesAsCancelled(t *testing.T) {
 
 // GET /api/ai/watch は合言葉で通し、host が無ければ断り、届いた知らせを SSE の wake で流す
 func TestWatchStreamsWakes(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	if got, _ := call(t, "GET", s.URL+"/api/ai/watch", "", nil); !strings.Contains(got, "host") {
 		t.Fatalf("without host = %s", got)
@@ -166,6 +170,7 @@ func TestWatchStreamsWakes(t *testing.T) {
 
 // 起こされたターン（woken）のフックは、利用者トリガートークのときのアクションを行わず、プロセス id が合うだけでは結ばない。会話の記録の link で結び、「参加しました」を 1 度だけ返す
 func TestWokenTurnBindsByLinkAndWelcomesOnce(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	line := hub.OpenWakesWith("100", "", WakeLimits{})
 	participant := joinFrom(t, s.URL, "6f1c2a3e-1111-4222-8333-444455556666", "100")
@@ -190,6 +195,7 @@ func TestWokenTurnBindsByLinkAndWelcomesOnce(t *testing.T) {
 
 // MCP と通り道の両方が立てたときのセッション id を添えていれば、それも合う通り道だけに届く（プロセス id が使い回された別の AI のプログラムには届かない）。どちらかが無ければプロセス id だけで決める。届くのは 1 度だけ
 func TestWakeNeedsTheSameHostSessionWhenBothAreKnown(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	same, reused, unknown := hub.OpenWakesWith("100", "HS1", WakeLimits{}), hub.OpenWakesWith("100", "HS2", WakeLimits{}), hub.OpenWakesWith("100", "", WakeLimits{})
 	participant := joinFromSession(t, s.URL, "L1", "100", "HS1")
@@ -206,6 +212,7 @@ func TestWakeNeedsTheSameHostSessionWhenBothAreKnown(t *testing.T) {
 // AI のプログラムまでたどれない通り道（Windows の Claude Code の monitor）と MCP は、立てたときのセッション id だけでも合う。
 // 片方にしか無い id は比べず、両方に無ければ合わない
 func TestWakeReachesBySessionWhenTheHostIsUnknown(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		name                  string
 		lineHost, lineSession string
@@ -230,6 +237,7 @@ func TestWakeReachesBySessionWhenTheHostIsUnknown(t *testing.T) {
 
 // MCP が AI のプログラムを名乗れなくても、セッション id を添えていれば、その通り道に知らせが届く
 func TestWakeWithoutHostReachesTheSession(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	line := hub.OpenWakesWith("", "HS1", WakeLimits{})
 	participant := joinFromSession(t, s.URL, "L1", "", "HS1")

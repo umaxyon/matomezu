@@ -23,6 +23,7 @@ type searchAnswer struct {
 
 // AI は、チケットを横断検索で探せる: 総数・題に当たった物が上・種類の絞り・上限で切れたら残りの数と続きの offset
 func TestAISearchesTickets(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := map[string]string{"Authorization": "Bearer secret"}
 	const project, ticket = "@matomezu/taskboard:project", "@matomezu/taskboard:ticket"
@@ -81,11 +82,12 @@ func TestAISearchesTickets(t *testing.T) {
 
 // 起動のたびに、置いてあるレコードの探す文字を入れ直す（探す文字の無い状態から、横断検索で当たるようになる）。チケット履歴の行は本文で横断検索の当たり、親のチケットを of で指す
 func TestStartingRebuildsTheSearchTexts(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	const ticket, history = "@matomezu/taskboard:ticket", "@matomezu/taskboard:ticket-history"
 	if err := store.Apply(storage.Batch{Records: []storage.RecordWrite{
 		{Subject: ticket, ID: "t1", Body: json.RawMessage(`{"id":"t1","project":"p1","number":3,"name":"Printer","body":"toner is empty","lane":"todo","tags":[],"priority":"medium","volume":"none","assignees":[],"createdAt":"2026-11-12T00:00:00.000Z","createdBy":{"kind":"user"},"updatedAt":"2026-11-12T00:00:00.000Z"}`)},
@@ -101,7 +103,7 @@ func TestStartingRebuildsTheSearchTexts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(hub.CloseAll)
+	cleanup(t, hub.CloseAll)
 	a, refusal, err := hub.Search(SearchQuery{Terms: []string{"cartridge", "toner"}})
 	if err != nil || refusal != "" || a.Total != 2 {
 		t.Fatalf("search = %+v, %q, %v", a, refusal, err)
@@ -143,6 +145,7 @@ func TestStartingRebuildsTheSearchTexts(t *testing.T) {
 // 検索は一覧と同じ考えで、完了のチケットを既定で除き、除いた数を添える（unlisted の include は含め、only は除いた物だけ）。
 // チケット履歴の行は、自分は載せる載せないを決めないので、親のチケットが完了しても除かれない。画面の口は既定で含め、件数の上限が大きい
 func TestSearchLeavesOutCompletedTicketsAndTheirHistory(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := map[string]string{"Authorization": "Bearer secret"}
 	_, got := send(t, "GET", s.URL+"/api/ai/records?kind=@matomezu/taskboard:project", "", ai)

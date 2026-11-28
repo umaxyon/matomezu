@@ -44,6 +44,7 @@ func talkedAs(t *testing.T, srv, body string) SessionTalk {
 // Desktop の /clear（CLI ごと替わる）: 新しい会話のフックが同じチャットスレッドの id を添えると、その参加者が新しい会話に移り、起こす知らせの宛て先も新しい CLI に移る
 // （古い CLI の退室の見張りの印は消える）。溜まっていた知らせは新しい CLI の通り道に流れ、移したことは AI にだけ 1 度伝わる（利用者に見せる文は無い）
 func TestClearCarriesTheParticipantToANewProgram(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := claudeIn(t, s.URL, "LB", "200", "S1", "すずめ")
@@ -72,6 +73,7 @@ func TestClearCarriesTheParticipantToANewProgram(t *testing.T) {
 
 // 端末の /clear（同じプロセスのまま）: プロセス id で移り、AI にだけ伝わる。通り道は AI のプログラムを立てたときのセッション id で開いているので、宛て先は変えずに届き続ける
 func TestClearInTheSameProgramKeepsTheWakeTarget(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	b := claudeIn(t, s.URL, "LB", "200", "S1", "すずめ")
 	line := hub.OpenWakesWith("200", "S1", WakeLimits{})
@@ -95,6 +97,7 @@ func TestClearInTheSameProgramKeepsTheWakeTarget(t *testing.T) {
 // 移さない・移すとき: 新しい会話に誰かが結ばれていれば移さない。チャットスレッドが違う・添えないなら移さない。join でセッション id を運んだ参加者は移さない。
 // 前の参加者に今も届く通り道があれば（前の会話がまだ動いている）移さない。同じチャットスレッドの参加者は、要求中の者も含めて全員移る
 func TestClearCarriesOnlyFromTheSameChatThread(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	codex := joinedIn(t, s.URL, "LC", "100", "SC", "ひよこ")
 	talkedAs(t, s.URL, `{"sessionId":"SC","host":"100","chatThread":"TH-C"}`)
@@ -131,6 +134,7 @@ func TestClearCarriesOnlyFromTheSameChatThread(t *testing.T) {
 
 // Desktop の --resume（同じ会話を別の CLI で起動し直す）: 届く通り道が無ければ宛て先が新しい CLI に移り、退室の見張りの印は消える。届く通り道があれば変えない
 func TestResumeFollowsTheNewProgram(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	b := claudeIn(t, s.URL, "LB", "200", "S1", "すずめ")
 	kept := claudeIn(t, s.URL, "LK", "700", "S7", "つばめ")
@@ -150,6 +154,7 @@ func TestResumeFollowsTheNewProgram(t *testing.T) {
 
 // 同じセッション名の受け入れ済みの参加者がいても、その会話が終わっていれば退室させて新しい要求を受ける（already-participating のまま止めない）
 func TestJoinBySessionNameOfAnEndedSessionAsksAgain(t *testing.T) {
+	t.Parallel()
 	s, _ := joinWorld(t, joinStore(t))
 	ended := map[string]string{aiwire.SessionPidHeader: "999999999", aiwire.SessionPidSpaceHeader: ProcessSpace()}
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", "work"), ended)
@@ -170,6 +175,7 @@ func TestJoinBySessionNameOfAnEndedSessionAsksAgain(t *testing.T) {
 
 // ターンの始まりは、そのセッションに結ばれた参加者が呼ばれたとして数える（道具を呼ばないターンでも生きている印に戻る）。記録から拾った候補を送るだけの呼び出しは数えない
 func TestTurnStartCountsAsACall(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := claudeIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	old := storage.Stamp(time.Now().Add(-3 * time.Hour))
