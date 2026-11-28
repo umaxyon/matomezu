@@ -29,7 +29,7 @@ func TestAdminMarkFollowsTheUserChoice(t *testing.T) {
 	if sent, _ := sendMessage(t, s.URL, a, "すずめ", "自動"); !sent.OK {
 		t.Fatalf("sent = %+v", sent)
 	}
-	if got := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{})); strings.Join(got, "|") != `matomezu from AI "ひよこ": "自動"` {
+	if got := wakes(hub, hub.OpenWakesWith("200", "", "", WakeLimits{})); strings.Join(got, "|") != `matomezu from AI "ひよこ": "自動"` {
 		t.Fatalf("before the choice, wakes = %q", got)
 	}
 
@@ -40,7 +40,7 @@ func TestAdminMarkFollowsTheUserChoice(t *testing.T) {
 	if sent, _ := sendMessage(t, s.URL, b, "ひよこ", "頼み"); !sent.OK {
 		t.Fatalf("sent = %+v", sent)
 	}
-	if got := wakes(hub, hub.OpenWakesWith("100", "", WakeLimits{})); strings.Join(got, "|") != `matomezu from AI "すずめ" (as your user's request): "頼み"` {
+	if got := wakes(hub, hub.OpenWakesWith("100", "", "", WakeLimits{})); strings.Join(got, "|") != `matomezu from AI "すずめ" (as your user's request): "頼み"` {
 		t.Fatalf("after the choice, wakes = %q", got)
 	}
 }

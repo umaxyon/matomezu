@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/umaxyon/matomezu/internal/server"
 )
 
 // fakeTalk は常駐の /api/ai/talked の代わり。link が L1 の参加者が、候補に L1 が来たらセッション S1 に結ばれ、そのときに 1 度だけ伝える
@@ -141,9 +143,10 @@ func TestModelHookSendsTheModel(t *testing.T) {
 		hook.Host = "100"
 		sendModel(hook, api)
 	}
+	space, _ := json.Marshal(server.ProcessSpace())
 	want := []string{
-		`{"host":"100","model":"claude-opus-5-5","sessionId":"S1"}`,
-		`{"host":"100","model":"claude-sonnet-5","sessionId":"S1"}`,
+		`{"host":"100","hostSpace":` + string(space) + `,"model":"claude-opus-5-5","sessionId":"S1"}`,
+		`{"host":"100","hostSpace":` + string(space) + `,"model":"claude-sonnet-5","sessionId":"S1"}`,
 	}
 	if strings.Join(sent, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("sent = %v", sent)
@@ -174,9 +177,10 @@ func TestContextUseHookSendsTheUse(t *testing.T) {
 		sendContextUse(hook, read, api)
 	}
 	sendContextUse(hookInput{SessionID: "S1"}, read, nil)
+	space, _ := json.Marshal(server.ProcessSpace())
 	want := []string{
-		`{"contextUse":{"used":120000,"aiScale":300000},"host":"100","sessionId":"S1"}`,
-		`{"contextUse":"unknown","host":"100","sessionId":"S1"}`,
+		`{"contextUse":{"used":120000,"aiScale":300000},"host":"100","hostSpace":` + string(space) + `,"sessionId":"S1"}`,
+		`{"contextUse":"unknown","host":"100","hostSpace":` + string(space) + `,"sessionId":"S1"}`,
 	}
 	if strings.Join(sent, "\n") != strings.Join(want, "\n") || reads != 2 {
 		t.Fatalf("sent = %v, reads = %d", sent, reads)

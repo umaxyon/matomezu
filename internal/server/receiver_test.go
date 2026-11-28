@@ -90,7 +90,7 @@ func TestReceiverChain(t *testing.T) {
 	if received == "" {
 		t.Fatalf("no tally received the payload: %v", ids)
 	}
-	woke := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{}))
+	woke := wakes(hub, hub.OpenWakesWith("200", "", "", WakeLimits{}))
 	line := regexp.MustCompile(`^matomezu from the user \(as your user's request\): "your move" \(replyTo "([^"]+)"\)$`)
 	if len(woke) != 1 || !line.MatchString(woke[0]) {
 		t.Fatalf("wakes = %q", woke)
@@ -132,7 +132,7 @@ func TestReceiverRoundTrips(t *testing.T) {
 	if out, err := hub.Perform(fromWindow(ask, "")); err != nil || !out.OK {
 		t.Fatalf("send = %+v, %v", out, err)
 	}
-	line := hub.OpenWakesWith("200", "", WakeLimits{})
+	line := hub.OpenWakesWith("200", "", "", WakeLimits{})
 	woke := wakes(hub, line)
 	for round := range rallyLocalLimit + 2 {
 		if len(woke) != 1 || replyToOf(woke[0]) == "" {
@@ -157,7 +157,7 @@ func TestRefusedReplyCanBeSentAgain(t *testing.T) {
 	if out, err := hub.Perform(fromWindow(ask, "")); err != nil || !out.OK {
 		t.Fatalf("send = %+v, %v", out, err)
 	}
-	woke := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{}))
+	woke := wakes(hub, hub.OpenWakesWith("200", "", "", WakeLimits{}))
 	envelope := regexp.MustCompile(`replyTo "([^"]+)"`).FindStringSubmatch(strings.Join(woke, "\n"))
 	if envelope == nil {
 		t.Fatalf("wakes = %q", woke)
@@ -256,7 +256,7 @@ func TestReceiverBetweenAIsIsRallied(t *testing.T) {
 	if out, err := hub.Perform(fromWindow(ask("すずめ"), "")); err != nil || !out.OK {
 		t.Fatalf("send = %+v, %v", out, err)
 	}
-	lines := map[string]*wakeLine{a: hub.OpenWakesWith("200", "", WakeLimits{}), b: hub.OpenWakesWith("300", "", WakeLimits{})}
+	lines := map[string]*wakeLine{a: hub.OpenWakesWith("200", "", "", WakeLimits{}), b: hub.OpenWakesWith("300", "", "", WakeLimits{})}
 	who, other := a, b
 	room := map[string]string{a: "すずめ", b: "ひばり"}
 	for round := range 2*rallyLocalLimit + 2 {

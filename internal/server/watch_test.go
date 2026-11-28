@@ -63,7 +63,7 @@ func makeRoom(t *testing.T, url, name string) string {
 func TestAcceptingWakesOnlyTheJoinedProcess(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
-	mine, other := hub.OpenWakesWith("100", "", WakeLimits{}), hub.OpenWakesWith("200", "", WakeLimits{})
+	mine, other := hub.OpenWakesWith("100", "", "", WakeLimits{}), hub.OpenWakesWith("200", "", "", WakeLimits{})
 	participant := joinFrom(t, s.URL, "L1", "100")
 	room := makeRoom(t, s.URL, "ひよこ")
 	if out := windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant); !strings.Contains(out, `"ok":true`) {
@@ -82,7 +82,7 @@ func TestAcceptingWakesOnlyTheJoinedProcess(t *testing.T) {
 func TestDecliningWakesAndOnlyWindowActionsWake(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
-	w := hub.OpenWakesWith("100", "", WakeLimits{})
+	w := hub.OpenWakesWith("100", "", "", WakeLimits{})
 	first := joinFrom(t, s.URL, "L1", "100") // join の中の、AI と常駐が行うアクション（参加者を作る・郵便を送る）では起こさない
 	room := makeRoom(t, s.URL, "ひよこ")
 	acceptIn(t, s.URL, first, room) // 窓の印の無い（常駐が行う）受け入れでは起こさない
@@ -103,7 +103,7 @@ func TestDecliningWakesAndOnlyWindowActionsWake(t *testing.T) {
 func TestCancellingWakesAsCancelled(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
-	w := hub.OpenWakesWith("100", "", WakeLimits{})
+	w := hub.OpenWakesWith("100", "", "", WakeLimits{})
 	participant := joinFrom(t, s.URL, "L1", "100")
 	if out := windowPerform(t, s.URL, "@matomezu/base:participant-cancel", `{}`, participant); !strings.Contains(out, `"ok":true`) {
 		t.Fatalf("cancel = %s", out)
@@ -172,7 +172,7 @@ func TestWatchStreamsWakes(t *testing.T) {
 func TestWokenTurnBindsByLinkAndWelcomesOnce(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
-	line := hub.OpenWakesWith("100", "", WakeLimits{})
+	line := hub.OpenWakesWith("100", "", "", WakeLimits{})
 	participant := joinFrom(t, s.URL, "6f1c2a3e-1111-4222-8333-444455556666", "100")
 	room := makeRoom(t, s.URL, "ひよこ")
 	windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant)
@@ -197,7 +197,7 @@ func TestWokenTurnBindsByLinkAndWelcomesOnce(t *testing.T) {
 func TestWakeNeedsTheSameHostSessionWhenBothAreKnown(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
-	same, reused, unknown := hub.OpenWakesWith("100", "HS1", WakeLimits{}), hub.OpenWakesWith("100", "HS2", WakeLimits{}), hub.OpenWakesWith("100", "", WakeLimits{})
+	same, reused, unknown := hub.OpenWakesWith("100", "", "HS1", WakeLimits{}), hub.OpenWakesWith("100", "", "HS2", WakeLimits{}), hub.OpenWakesWith("100", "", "", WakeLimits{})
 	participant := joinFromSession(t, s.URL, "L1", "100", "HS1")
 	windowPerform(t, s.URL, "@matomezu/base:participant-decline", `{}`, participant)
 	if len(wakes(hub, reused)) != 0 {
@@ -241,10 +241,8 @@ func TestWakeReachesBySessionWhenTheHostIsUnknown(t *testing.T) {
 func TestAcceptingAfterClearWakesTheLineOfTheFirstSession(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
-	line := hub.OpenWakesWith("100", "S0", WakeLimits{})
-	if err := hub.HeardModel("S2", "", "100", time.Now()); err != nil {
-		t.Fatal(err)
-	}
+	line := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
+	call(t, "POST", s.URL+"/api/ai/model", `{"sessionId":"S2","model":"opus","host":"100","hostSpace":"WSL"}`, nil)
 	participant := joinFromSession(t, s.URL, "L1", "100", "S2")
 	room := makeRoom(t, s.URL, "ひよこ")
 	windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant)
@@ -253,28 +251,36 @@ func TestAcceptingAfterClearWakesTheLineOfTheFirstSession(t *testing.T) {
 	}
 }
 
-// 後の会話を覚えるのは、フックの AI のプログラムと同じプロセス id の、今開いている通り道だけ（開き直した通り道と、ほかのプロセスの通り道は覚えない）
+// 後の会話を覚えるのは、フックの AI のプログラムと同じプロセス id・同じ範囲の印の、今開いている通り道だけ
+// （閉じた通り道・フックのあとに開いた通り道・ほかのプロセスの通り道・WSL と Windows のように範囲の違う通り道は覚えない）
 func TestLaterSessionsStayWithTheOpenLinesOfTheHost(t *testing.T) {
 	t.Parallel()
 	_, hub := joinWorld(t, joinStore(t))
 	note := participantNote{WakeHost: "100", WakeSession: "S2"}
-	early := hub.OpenWakesWith("100", "S0", WakeLimits{})
-	hub.CloseWakes(early)
-	other := hub.OpenWakesWith("200", "S0", WakeLimits{})
-	if err := hub.HeardModel("S2", "", "100", time.Now()); err != nil {
-		t.Fatal(err)
-	}
-	reopened := hub.OpenWakesWith("100", "S0", WakeLimits{})
+	closed := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
+	hub.CloseWakes(closed)
+	other := hub.OpenWakesWith("200", "WSL", "S0", WakeLimits{})
+	windows := hub.OpenWakesWith("100", "Windows", "S0", WakeLimits{})
+	learned := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
+	hub.NoteLaterSession("S2", "100", "WSL")
+	reopened := hub.OpenWakesWith("100", "WSL", "S0", WakeLimits{})
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
-	if early.reaches(note) {
-		t.Error("the closed line learned the later session")
-	}
-	if other.reaches(participantNote{WakeHost: "200", WakeSession: "S2"}) {
-		t.Error("the line of another process learned the later session")
-	}
-	if reopened.reaches(note) {
-		t.Error("the line opened after the hook learned the later session")
+	for _, c := range []struct {
+		name string
+		line *wakeLine
+		note participantNote
+		want bool
+	}{
+		{"the open line of the host", learned, note, true},
+		{"a closed line", closed, note, false},
+		{"a line of another process", other, participantNote{WakeHost: "200", WakeSession: "S2"}, false},
+		{"a line of the same process id in another space", windows, note, false},
+		{"a line opened after the hook", reopened, note, false},
+	} {
+		if got := c.line.reaches(c.note); got != c.want {
+			t.Errorf("%s: reaches = %v, want %v", c.name, got, c.want)
+		}
 	}
 }
 
@@ -282,7 +288,7 @@ func TestLaterSessionsStayWithTheOpenLinesOfTheHost(t *testing.T) {
 func TestWakeWithoutHostReachesTheSession(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
-	line := hub.OpenWakesWith("", "HS1", WakeLimits{})
+	line := hub.OpenWakesWith("", "", "HS1", WakeLimits{})
 	participant := joinFromSession(t, s.URL, "L1", "", "HS1")
 	windowPerform(t, s.URL, "@matomezu/base:participant-decline", `{}`, participant)
 	if len(wakes(hub, line)) != 1 {

@@ -42,7 +42,7 @@ func TestRoomsTellWhetherTheAIIsAlive(t *testing.T) {
 	if sent, _ := sendMessage(t, s.URL, a, "すずめ", "一つ目"); sent.Delivers != aiwire.DeliversNextCall {
 		t.Fatalf("sent without a line = %+v", sent)
 	}
-	line := h.OpenWakesWith("200", "", WakeLimits{})
+	line := h.OpenWakesWith("200", "", "", WakeLimits{})
 	if st, lapses := ownRoomAt(t, h, later, "すずめ"); st.alive != roomAlive || !lapses.IsZero() {
 		t.Fatalf("with a line = %+v, %v", st, lapses)
 	}
@@ -82,7 +82,7 @@ func TestRoomsTellWhetherTheAIIsAlive(t *testing.T) {
 		t.Fatalf("line closed = %+v", st)
 	}
 	// 通り道がつながっている参加者のワークルームは、引き継げない
-	h.OpenWakesWith("200", "", WakeLimits{})
+	h.OpenWakesWith("200", "", "", WakeLimits{})
 	if alive, err := h.alive(b, later); err != nil || !alive {
 		t.Fatalf("alive with a line = %v, %v", alive, err)
 	}
@@ -115,8 +115,8 @@ func TestAbsentIsKeptForEachLine(t *testing.T) {
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	later := time.Now().Add(61 * time.Minute)
-	first := h.OpenWakesWith("200", "", WakeLimits{})
-	second := h.OpenWakesWith("200", "", WakeLimits{})
+	first := h.OpenWakesWith("200", "", "", WakeLimits{})
+	second := h.OpenWakesWith("200", "", "", WakeLimits{})
 	if st, _ := ownRoomAt(t, h, later, "すずめ"); st.alive != roomAlive {
 		t.Fatalf("two lines = %+v", st)
 	}

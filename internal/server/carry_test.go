@@ -63,7 +63,7 @@ func TestClearCarriesTheParticipantToANewProgram(t *testing.T) {
 	if again := talkedAs(t, s.URL, `{"sessionId":"S2","host":"300","chatThread":"TH-LB"}`); again.ForAI != "" {
 		t.Fatalf("told twice: %+v", again)
 	}
-	if got := wakes(hub, hub.OpenWakesWith("300", "S2", WakeLimits{})); len(got) != 1 || !strings.Contains(got[0], "起きて") {
+	if got := wakes(hub, hub.OpenWakesWith("300", "", "S2", WakeLimits{})); len(got) != 1 || !strings.Contains(got[0], "起きて") {
 		t.Fatalf("wakes = %q", got)
 	}
 	if n := noteOf(hub, a); n.SessionID != "SA" {
@@ -76,7 +76,7 @@ func TestClearInTheSameProgramKeepsTheWakeTarget(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	b := claudeIn(t, s.URL, "LB", "200", "S1", "すずめ")
-	line := hub.OpenWakesWith("200", "S1", WakeLimits{})
+	line := hub.OpenWakesWith("200", "", "S1", WakeLimits{})
 	defer hub.CloseWakes(line)
 	out := talkedAs(t, s.URL, `{"sessionId":"S2","host":"200"}`)
 	n := noteOf(hub, b)
@@ -116,7 +116,7 @@ func TestClearCarriesOnlyFromTheSameChatThread(t *testing.T) {
 	if n := noteOf(hub, codex); n.SessionID != "SC" {
 		t.Fatalf("the participant whose join carried the session moved: %+v", n)
 	}
-	line := hub.OpenWakesWith("200", "S1", WakeLimits{})
+	line := hub.OpenWakesWith("200", "", "S1", WakeLimits{})
 	if talkedAs(t, s.URL, `{"sessionId":"S5","host":"503","chatThread":"TH-LB"}`); noteOf(hub, b).SessionID != "S1" {
 		t.Fatalf("moved while the line reaches it: %+v", noteOf(hub, b))
 	}
@@ -138,7 +138,7 @@ func TestResumeFollowsTheNewProgram(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	b := claudeIn(t, s.URL, "LB", "200", "S1", "すずめ")
 	kept := claudeIn(t, s.URL, "LK", "700", "S7", "つばめ")
-	line := hub.OpenWakesWith("700", "S7", WakeLimits{})
+	line := hub.OpenWakesWith("700", "", "S7", WakeLimits{})
 	defer hub.CloseWakes(line)
 	if out := talkedAs(t, s.URL, `{"sessionId":"S1","host":"300"}`); out.ForAI != "" {
 		t.Fatalf("a resumed conversation was told: %+v", out)

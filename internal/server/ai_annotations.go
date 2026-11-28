@@ -388,6 +388,7 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SessionID  string   `json:"sessionId"`
 		Host       string   `json:"host"`
+		HostSpace  string   `json:"hostSpace"` // host が通じるプロセス id の範囲の印
 		Candidates []string `json:"candidates"`
 		Woken      bool     `json:"woken"`  // 裏の知らせで始まったターン（利用者トリガートークでない）
 		Prompt     string   `json:"prompt"` // ターンの入力
@@ -399,6 +400,7 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	if r.ContentLength != 0 && !readJSON(w, r, &req) {
 		return
 	}
+	o.Hub.NoteLaterSession(req.SessionID, req.Host, req.HostSpace)
 	lent := false
 	if len(req.Candidates) == 0 {
 		if err := o.Hub.CarrySession(req.SessionID, req.Host, req.ChatThread); err != nil {

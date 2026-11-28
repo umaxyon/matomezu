@@ -79,7 +79,7 @@ func TestAHostBehindNATIsReachedOverItsReverseConnection(t *testing.T) {
 	if sent := sendTo(t, bs.URL, s2, "a", "s1", "やあ"); !sent.OK {
 		t.Fatalf("sent = %+v", sent)
 	}
-	if got := wakes(a, a.OpenWakesWith("100", "", WakeLimits{})); len(got) != 1 || got[0] != `matomezu from AI "s2" on host "b": "やあ"` {
+	if got := wakes(a, a.OpenWakesWith("100", "", "", WakeLimits{})); len(got) != 1 || got[0] != `matomezu from AI "s2" on host "b": "やあ"` {
 		t.Fatalf("wakes = %q", got)
 	}
 	userDoes(t, b, "@matomezu/network:paired-host-remove", b.pairedHostRecords()[0].ID)

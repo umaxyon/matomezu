@@ -21,7 +21,7 @@ package server
 // 流す前に、もう役目の終わった知らせは捨てる: 受け入れは参加を伝え済み（Told）なら、断り・キャンセルは伝え済み（記録が無いか、伝えた印がある。departure.go）なら。参加者が受け入れ済みでなくなった AI 間メッセージも捨てる。
 // 参加の知らせの行は英語の短い文で、中身（「参加しました」）は、話しかけのフックか、その参加者の次の呼び出しの返事が添える
 //
-//	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>][&breaks=1]
+//	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&hostSpace=<host が通じる範囲の印>][&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>][&breaks=1]
 //	     SSE。event: wake、data: {"line", "id", "session", "text"}（text は改行を含みうる。session は送り先の参加者に結んだセッション id、分からなければ空）
 //	POST /api/ai/watch/ack {"line", "id", "result"}  result は delivered・absent・failed。{} を返す
 
@@ -42,6 +42,7 @@ type wakeLine struct {
 	id            int64           // 通り道の番号（貸した知らせの結果を見分ける）
 	host          string          // AI のプログラムのプロセス id
 	session       string          // AI のプログラムが立てたときのセッション id（分からなければ空）
+	hostSpace     string          // host が通じるプロセス id の範囲の印（ProcessSpace。分からなければ空）
 	laterSessions map[string]bool // 同じ AI のプログラムが、立てたあとに動かした会話のセッション id（/clear。noteLaterSession）。通り道と一緒に消える
 	limits        WakeLimits      // 受け取る側が名乗った流し方
 	ready         chan struct{}   // 送り先の行列に何か入った合図（1 つだけ持つ）
@@ -137,13 +138,13 @@ const wakeQueueMax = 50
 // wakeRetry は、失敗した知らせを流し直すまでの間
 const wakeRetry = 10 * time.Second
 
-// OpenWakesWith は、プロセス id host（立てたときのセッション id session）の AI の、起こす知らせの通り道を、受け取る側が名乗った流し方 limits でつなぐ。
+// OpenWakesWith は、プロセス id host（その範囲の印 hostSpace、立てたときのセッション id session）の AI の、起こす知らせの通り道を、受け取る側が名乗った流し方 limits でつなぐ。
 // 溜まっていた知らせがあれば合図する
-func (h *Hub) OpenWakesWith(host, session string, limits WakeLimits) *wakeLine {
+func (h *Hub) OpenWakesWith(host, hostSpace, session string, limits WakeLimits) *wakeLine {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.wakeLineSeq++
-	w := &wakeLine{id: h.wakeLineSeq, host: host, session: session, limits: limits, ready: make(chan struct{}, 1), closed: make(chan struct{})}
+	w := &wakeLine{id: h.wakeLineSeq, host: host, hostSpace: hostSpace, session: session, limits: limits, ready: make(chan struct{}, 1), closed: make(chan struct{})}
 	if h.wakeLines == nil {
 		h.wakeLines = map[*wakeLine]struct{}{}
 	}
@@ -258,17 +259,21 @@ func (h *Hub) noteWakesLocked() {
 	}
 }
 
-// noteLaterSession は、プロセス id host の AI のプログラムが今セッション sessionID の会話を動かしているとフックが知らせたとき、
-// host が同じで、立てたときのセッション id の違う通り道に、sessionID を後の会話として覚えさせる（laterSessions）。
+// NoteLaterSession は、プロセス id host（その範囲の印 hostSpace）の AI のプログラムが今セッション sessionID の会話を動かしているとフックが知らせたとき、
+// host と範囲の印が同じで、立てたときのセッション id の違う通り道に、sessionID を後の会話として覚えさせる（laterSessions）。
+// 範囲の印も比べるのは、WSL と Windows のように範囲が違えば、同じプロセス id でも別の AI のプログラムだから。
 // Claude Code の monitor は /clear で立て直されず、立てたときのセッション id を名乗り続けるので、/clear のあとの会話の id で join した参加者にも届くようにする。
-// 覚えさせたら、届くかの変わりを窓に知らせ、その会話の参加者に溜まった知らせを流させる。host か sessionID が空なら何もしない（h.mu を持って呼ぶ）
-func (h *Hub) noteLaterSession(sessionID, host string) {
+// 覚えさせたら、届くかの変わりを窓に知らせ、その会話の参加者に溜まった知らせを流させる。host か sessionID が空なら何もしない。
+// フックの知らせを受けたら、参加者を移すより前に呼ぶ
+func (h *Hub) NoteLaterSession(sessionID, host, hostSpace string) {
 	if sessionID == "" || host == "" {
 		return
 	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	added := false
 	for l := range h.wakeLines {
-		if l.host != host || l.session == "" || l.session == sessionID || l.laterSessions[sessionID] {
+		if l.host != host || l.hostSpace != hostSpace || l.session == "" || l.session == sessionID || l.laterSessions[sessionID] {
 			continue
 		}
 		if l.laterSessions == nil {
@@ -648,7 +653,7 @@ func (o Options) aiWatch(w http.ResponseWriter, r *http.Request) {
 		n, _ := strconv.Atoi(q.Get(name))
 		return max(n, 0)
 	}
-	line := o.Hub.OpenWakesWith(host, q.Get("session"), WakeLimits{MaxLine: number("maxLine"), MaxNotice: number("maxNotice"), Gap: time.Duration(number("gap")) * time.Millisecond, Breaks: q.Get("breaks") == "1"})
+	line := o.Hub.OpenWakesWith(host, q.Get("hostSpace"), q.Get("session"), WakeLimits{MaxLine: number("maxLine"), MaxNotice: number("maxNotice"), Gap: time.Duration(number("gap")) * time.Millisecond, Breaks: q.Get("breaks") == "1"})
 	defer o.Hub.CloseWakes(line)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")

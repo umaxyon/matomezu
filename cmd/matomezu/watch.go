@@ -128,6 +128,9 @@ func runningServer() *home.Server {
 // query は、常駐の起こす知らせの口に渡す問い合わせ（送り先エッジと、受け取る側の流し方）
 func (c *watchCmd) query() string {
 	q := url.Values{"host": {c.Host}, "session": {c.Session}}
+	if c.Host != "" {
+		q.Set("hostSpace", server.ProcessSpace())
+	}
 	if c.MaxLine > 0 {
 		q.Set("maxLine", strconv.Itoa(c.MaxLine))
 	}

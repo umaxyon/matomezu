@@ -18,7 +18,7 @@ func pendingNow(hub *Hub) []pendingMessage {
 // wakesWith は、プロセス id host の AI の行列を全部流して、含む行だけ返す
 func wakesWith(hub *Hub, host, sub string) []string {
 	var out []string
-	for _, line := range wakes(hub, hub.OpenWakesWith(host, "", WakeLimits{})) {
+	for _, line := range wakes(hub, hub.OpenWakesWith(host, "", "", WakeLimits{})) {
 		if strings.Contains(line, sub) {
 			out = append(out, line)
 		}

@@ -62,7 +62,6 @@ func (h *Hub) HeardContextUse(sessionID, host string, use contextUse, now time.T
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.noteLaterSession(sessionID, host)
 	changed := h.rebindByHost(records, sessionID, host)
 	changed = h.followHosts(records, sessionID, host) || changed
 	if h.contextOfLocked(sessionID) != use {
@@ -135,16 +134,18 @@ func readContextUse(raw json.RawMessage) (contextUse, bool) {
 	return use, true
 }
 
-// aiContextUse は、AI のフックが知らせたセッションのコンテキストの量を受ける（{"sessionId", "host", "contextUse"}）
+// aiContextUse は、AI のフックが知らせたセッションのコンテキストの量を受ける（{"sessionId", "host", "hostSpace", "contextUse"}）
 func (o Options) aiContextUse(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SessionID  string          `json:"sessionId"`
 		Host       string          `json:"host"`
+		HostSpace  string          `json:"hostSpace"` // host が通じるプロセス id の範囲の印
 		ContextUse json.RawMessage `json:"contextUse"`
 	}
 	if !readJSON(w, r, &req) {
 		return
 	}
+	o.Hub.NoteLaterSession(req.SessionID, req.Host, req.HostSpace)
 	use, ok := readContextUse(req.ContextUse)
 	if !ok {
 		http.Error(w, "contextUse is neither {used, aiScale} nor \"unknown\"", http.StatusBadRequest)

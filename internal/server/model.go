@@ -37,7 +37,6 @@ func (h *Hub) HeardModel(sessionID, model, host string, now time.Time) error {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.noteLaterSession(sessionID, host)
 	changed := h.rebindByHost(records, sessionID, host)
 	changed = h.followHosts(records, sessionID, host) || changed
 	if model != "" {
@@ -86,16 +85,18 @@ func (h *Hub) rememberModel(sessionID, model string, now time.Time) {
 	}
 }
 
-// aiModel は、AI のフックが知らせたセッションのモデルを受ける（{"sessionId", "model", "host"}）
+// aiModel は、AI のフックが知らせたセッションのモデルを受ける（{"sessionId", "model", "host", "hostSpace"}）
 func (o Options) aiModel(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SessionID string `json:"sessionId"`
 		Model     string `json:"model"`
 		Host      string `json:"host"`
+		HostSpace string `json:"hostSpace"` // host が通じるプロセス id の範囲の印
 	}
 	if !readJSON(w, r, &req) {
 		return
 	}
+	o.Hub.NoteLaterSession(req.SessionID, req.Host, req.HostSpace)
 	if err := o.Hub.HeardModel(req.SessionID, req.Model, req.Host, time.Now()); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

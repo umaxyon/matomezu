@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -52,13 +53,14 @@ func TestProcessAliveAndReadWakesStops(t *testing.T) {
 // 受け取る側の流し方は、名乗った物だけを常駐の口に渡す
 func TestWatchQueryCarriesTheLimits(t *testing.T) {
 	c := watchCmd{Host: "42", Session: "S", MaxLine: 480, MaxNotice: 2800, Gap: time.Second}
-	if got := c.query(); got != "gap=1000&host=42&maxLine=480&maxNotice=2800&session=S" {
+	space := url.QueryEscape(server.ProcessSpace())
+	if got := c.query(); got != "gap=1000&host=42&hostSpace="+space+"&maxLine=480&maxNotice=2800&session=S" {
 		t.Fatalf("query = %s", got)
 	}
-	if got := (&watchCmd{Host: "42"}).query(); got != "host=42&session=" {
+	if got := (&watchCmd{Host: "42"}).query(); got != "host=42&hostSpace="+space+"&session=" {
 		t.Fatalf("query = %s", got)
 	}
-	if got := (&watchCmd{Host: "42", Escaped: true}).query(); got != "breaks=1&host=42&session=" {
+	if got := (&watchCmd{Host: "42", Escaped: true}).query(); got != "breaks=1&host=42&hostSpace="+space+"&session=" {
 		t.Fatalf("query = %s", got)
 	}
 }
