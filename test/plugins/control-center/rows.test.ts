@@ -34,6 +34,7 @@ const row = (state: WorkroomRow["state"], admin = false, id = "a"): WorkroomRow 
   requestedAt: NOT_REQUESTED,
   activity: "unknown",
   contextUse: NO_CONTEXT_USE,
+  refreshable: false,
 })
 
 test("一覧の下の 1 行は、空室と準備中だけ文字で出し、参加済みはスロットに任せる", () => {

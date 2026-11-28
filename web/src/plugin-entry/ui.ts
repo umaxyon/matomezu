@@ -147,6 +147,7 @@ export {
   useAliveNow,
   useAnchorRef,
   useAnchorShapeRef,
+  useAskHandOff,
   useAskHosts,
   useAssetUrl,
   useAtCornerBubble,

@@ -5,6 +5,7 @@ import {
   CONTENT_AREA,
   CONTROL_CENTER,
   CONTROL_CENTER_SCREEN,
+  HAND_OFF_DIALOG,
   LIBRARY_MAXIMIZED,
   MAILBOX_MAXIMIZED,
   PICKED,
@@ -17,6 +18,7 @@ export {
   CONTENT_AREA,
   CONTROL_CENTER,
   CONTROL_CENTER_SCREEN,
+  HAND_OFF_DIALOG,
   LIBRARY_MAXIMIZED,
   MAILBOX_MAXIMIZED,
   PICKED,
@@ -30,7 +32,7 @@ export const CONTROL_CENTER_PLUGIN = defineBuiltin(
     controlCenters: [CONTROL_CENTER],
     screens: [CONTROL_CENTER_SCREEN],
     pluginStates: [CONTENT_AREA, PICKED, LIBRARY_MAXIMIZED, MAILBOX_MAXIMIZED],
-    dialogs: [WORKROOM_LEAVE_DIALOG, VISITOR_LEAVE_DIALOG],
+    dialogs: [WORKROOM_LEAVE_DIALOG, VISITOR_LEAVE_DIALOG, HAND_OFF_DIALOG],
   }),
 )
 
@@ -50,6 +52,7 @@ declare module "../../core/catalog" {
   interface DialogTable {
     "@matomezu/control-center:workroom-leave": typeof WORKROOM_LEAVE_DIALOG
     "@matomezu/control-center:visitor-leave": typeof VISITOR_LEAVE_DIALOG
+    "@matomezu/control-center:hand-off": typeof HAND_OFF_DIALOG
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
 }

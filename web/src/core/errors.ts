@@ -155,6 +155,8 @@ export const ERRORS = {
   E415: "the server could not {answer} the message {id} waiting for approval: {status}",
   E416: "this window has no server to keep images",
   E417: "the server could not take the image: {status}",
+  E418: "this window has no server to ask participants to hand off",
+  E419: "the server could not ask the participant {participant} to hand off: {status}",
 } as const
 
 export type ErrorCode = keyof typeof ERRORS

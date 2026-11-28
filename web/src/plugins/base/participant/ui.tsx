@@ -40,6 +40,7 @@ export { AdminCrown, CrownIcon } from "./AdminCrown"
 export { BirdFaceView } from "./BirdFaceView"
 export {
   useAliveNow,
+  useAskHandOff,
   useContextGauge,
   useOwnBookPages,
   useVisitorRows,

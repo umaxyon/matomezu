@@ -36,6 +36,7 @@ const row = (over: Partial<WorkroomRow>): WorkroomRow => ({
   requestedAt: NOT_REQUESTED,
   activity: "unknown",
   contextUse: NO_CONTEXT_USE,
+  refreshable: false,
   ...over,
 })
 

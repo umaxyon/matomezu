@@ -37,6 +37,14 @@ export const LeaveIcon = () => (
   </LineIcon>
 )
 
+// 丸い矢印（コンテキストをクリアする指示を送る）
+export const ClearIcon = () => (
+  <LineIcon size={16} stroke={1.7}>
+    <path d="M5 12a7 7 0 1 0 2.05-4.95" />
+    <path d="M5 4v4h4" />
+  </LineIcon>
+)
+
 // ごみ箱（空室のワークルームを削除する）
 export const TrashIcon = () => (
   <LineIcon size={16} stroke={1.7}>

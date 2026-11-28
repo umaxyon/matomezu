@@ -148,6 +148,7 @@ export const DataSchema = z.object({
         branch: z.string().optional(),
         wake: z.literal("reaches").optional(),
         contextUse: CONTEXT_USE.optional(),
+        refreshable: z.literal(true).optional(),
       }),
     )
     .optional(),
@@ -189,11 +190,14 @@ export const ParticipantLiveSchema = z.object({
   branch: z.string().optional(),
   wake: z.literal("reaches").optional(),
   contextUse: CONTEXT_USE.optional(),
+  refreshable: z.literal(true).optional(),
 })
 export const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 export const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown() })
 // 更新を頼んだ答え（ok が偽なら、そのワークルームに参加の確定した AI がいない）
 export const ASK_UPDATE_ANSWER = z.object({ ok: z.boolean() })
+// 引継ぎを頼んだ答え（ok が偽なら、その参加者はワークルームの AI でないか、会話を空にできると名乗っていない）
+export const HAND_OFF_ANSWER = z.object({ ok: z.boolean() })
 
 // 承認待ちの AI 間メッセージ（常駐だけが持つ。知らせ pending-messages の中身は、その並び）。
 // 承認待ちは、ほかのホストから届いた物だけ（senderHost は送り手のホスト id、senderHostName はそのホストエイリアス）

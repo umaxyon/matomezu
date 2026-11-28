@@ -169,6 +169,10 @@ export function useWorkroomActions(): WorkroomActions {
   }, [perform, showToast, catalog, marked])
 }
 
+// 参加者（ワークルームの AI）に、切りのよい所で引継ぎページを書いて会話を空にするよう頼む（その参加者がワークルームの AI でないか、
+// 会話を空にできると名乗っていなければ false）。頼めなければ投げる
+export const useAskHandOff = (): ((participant: string) => Promise<boolean>) => useInstance().askHandOff
+
 // ワークルーム room 自身のワーカーブックのページの数（ワークルームを消す・引き継がずに入り直すと消える。ブックが無ければ 0）
 export function useOwnBookPages(room: string): number {
   return useMatomezuState(s => ownBookPagesOf(s.folders, room))

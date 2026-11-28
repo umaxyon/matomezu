@@ -43,6 +43,7 @@ import {
   ASSET_PUT,
   ChangedSchema,
   DataSchema,
+  HAND_OFF_ANSWER,
   HelloSchema,
   HostPeersSchema,
   HostStatusSchema,
@@ -147,19 +148,22 @@ const browserNet: Net = {
   now: () => Date.now(),
 }
 
-// 参加者の様子のうち、空でない物（モデルもブランチもコンテキストの量も無く、起こす知らせを渡せる matomezu watch もつながっていなければ undefined）
+// 参加者の様子のうち、空でない物（モデルもブランチもコンテキストの量も無く、起こす知らせを渡せる matomezu watch もつながっておらず、
+// 会話を空にできるとも名乗っていなければ undefined）
 const liveOf = (v: {
   model?: string | undefined
   branch?: string | undefined
   wake?: "reaches" | undefined
   contextUse?: ContextUse | undefined
+  refreshable?: true | undefined
 }): ParticipantLive | undefined =>
-  v.model || v.branch || v.wake || v.contextUse
+  v.model || v.branch || v.wake || v.contextUse || v.refreshable
     ? {
         ...(v.model ? { model: v.model } : {}),
         ...(v.branch ? { branch: v.branch } : {}),
         ...(v.wake ? { wake: v.wake } : {}),
         ...(v.contextUse ? { contextUse: v.contextUse } : {}),
+        ...(v.refreshable ? { refreshable: v.refreshable } : {}),
       }
     : undefined
 
@@ -626,6 +630,17 @@ export function serverClient(net: Net = browserNet): HostClient {
         .catch(() => null)
       if (!res?.ok) fail("E411", { workroom, status: res ? `${res.status}` : "no answer" })
       return ASK_UPDATE_ANSWER.parse(await res.json()).ok
+    },
+    askHandOff: async participant => {
+      const res = await net
+        .fetch("api/participants/hand-off", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ participant }),
+        })
+        .catch(() => null)
+      if (!res?.ok) fail("E419", { participant, status: res ? `${res.status}` : "no answer" })
+      return HAND_OFF_ANSWER.parse(await res.json()).ok
     },
     askHosts: async request => {
       const { kind, ...body } = request

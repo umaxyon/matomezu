@@ -1342,6 +1342,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (!options.updateHost) fail("E409")
       return await options.updateHost.ask(workroom)
     },
+    askHandOff: async participant => {
+      if (!options.handOffHost) fail("E418")
+      return await options.handOffHost.ask(participant)
+    },
     reloadWindow: () => options.reloadWindow?.(),
     setOffline: offline => {
       if (getState().offline !== offline) setState({ offline })

@@ -182,12 +182,14 @@ export interface StaleBuild {
 }
 
 // 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチと、起こす知らせを渡せる matomezu watch がつながっているか（reaches。
-// つながっていなければ持たない）と、AI のフックが知らせた会話の今のコンテキストの量（知らされていない物は持たない）
+// つながっていなければ持たない）と、AI のフックが知らせた会話の今のコンテキストの量（知らされていない物は持たない）と、
+// 結んだ会話の AI のプログラムが会話を空にできると名乗ったか（名乗っていなければ持たない）
 export interface ParticipantLive {
   readonly model?: string
   readonly branch?: string
   readonly wake?: "reaches"
   readonly contextUse?: ContextUse
+  readonly refreshable?: true
 }
 
 // 会話の今のコンテキストの量（used）と、AI の側の物差し（aiScale。自動で縮める所、無ければモデルの上限）。どちらもトークン
@@ -333,6 +335,9 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   checkUpdate(): Promise<void>
   // ワークルーム workroom（id）の AI に、版を上げるよう頼むのをホストに頼む。そこに参加の確定した AI がいなければ false。base のフックを通して使う。ホストが無いか、頼めなければ投げる
   askUpdate(workroom: string): Promise<boolean>
+  // 参加者 participant（ワークルームの AI）に、切りのよい所で引継ぎページを書いて会話を空にするよう頼むのをホストに頼む。その参加者がワークルームの AI でないか、
+  // 会話を空にできると名乗っていなければ false。base のフックを通して使う。ホストが無いか、頼めなければ投げる
+  askHandOff(participant: string): Promise<boolean>
   // 窓を読み込み直す（画面の場所は URL に残る）
   reloadWindow(): void
   // この窓が、最後にフォーカスされた窓か（lastWindow）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
@@ -481,6 +486,8 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   command?: string // 利用者が端末で打つ matomezu の名前。無ければ matomezu
   // 新しい版を確かめる・ワークルームの AI に更新を頼むのをホストに頼む口。無ければ、頼むと投げる（E409）
   updateHost?: { check(): Promise<void>; ask(workroom: string): Promise<boolean> }
+  // ワークルームの AI に、引継ぎページを書いて会話を空にするよう頼むのをホストに頼む口。無ければ、頼むと投げる（E418）
+  handOffHost?: { ask(participant: string): Promise<boolean> }
   // ほかのホストについてホストに頼む口。無ければ、頼むと投げる（E412）
   hostsHost?: { ask(request: HostRequest): Promise<void> }
   // 承認待ちの AI 間メッセージの承認・キャンセルをホストに頼む口。無ければ、頼むと投げる（E414）

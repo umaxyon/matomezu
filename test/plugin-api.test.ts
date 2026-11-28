@@ -504,6 +504,7 @@ test("matomezu/ui が出す名前", () => {
     "useAnchorShapeRef",
     "useArrangedScreens",
     "useArrivalMarquee",
+    "useAskHandOff",
     "useAskHosts",
     "useAssetUrl",
     "useAtCornerBubble",

@@ -68,7 +68,11 @@ func (h *Hub) NoteRefreshable(session string) error {
 	}
 	n.Refreshable = true
 	h.participantNotes[id] = n
-	return h.putParticipantNotes()
+	if err := h.putParticipantNotes(); err != nil {
+		return err
+	}
+	h.announceLive(id)
+	return nil
 }
 
 // TakeRefresh は、会話のセッション session に結んだ参加者が受けたリフレッシュリクエストの文（無ければ空）。渡したら消し、

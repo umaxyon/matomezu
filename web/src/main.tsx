@@ -43,6 +43,7 @@ const store = createMatomezu({
   ...(loaded.unreadableNotice ? { unreadableNotice: loaded.unreadableNotice } : {}),
   unreadableHost: { purge: id => client.purgeUnreadable(id), movedIfOff: ids => client.movedIfOff(ids) },
   updateHost: { check: () => client.checkUpdate(), ask: workroom => client.askUpdate(workroom) },
+  handOffHost: { ask: participant => client.askHandOff(participant) },
   hostsHost: { ask: request => client.askHosts(request) },
   messageHost: { answer: (id, answer) => client.answerMessage(id, answer) },
   ...browserWindowIo(),

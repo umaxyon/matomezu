@@ -78,7 +78,7 @@ func (lim WakeLimits) fits(line string) bool {
 type wakeItem struct {
 	seq         int64     // 行列の中で見分ける番号
 	participant string    // 宛て先の参加者の id
-	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage・wakeUpdate・wakeHost・wakeRally・wakeMessageApproved・wakeMessageCancelled
+	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage・wakeUpdate・wakeHandOff・wakeHost・wakeRally・wakeMessageApproved・wakeMessageCancelled
 	line        string    // 流す 1 行
 	head        string    // AI 間メッセージの、送り手を名乗る頭（messageHead・remoteMessageHead）
 	peer        string    // ほかのホストから届いた AI 間メッセージの、送り手のホスト id
@@ -105,6 +105,7 @@ const (
 	wakeCancelled = "cancelled" // 参加の要求を利用者がキャンセルした
 	wakeMessage   = "message"   // AI 間メッセージ
 	wakeUpdate    = "update"    // 利用者が、matomezu の版を上げるよう頼んだ（update.go）
+	wakeHandOff   = "hand-off"  // 利用者が、引継ぎページを書いて会話を空にするよう頼んだ（hand_off.go）
 	wakeHost      = "host"      // 常駐メッセージ（フォローステップが返した、常駐からの知らせ。message.go）
 	wakeRally     = "rally"     // AI ラリーを上限で止め、宛て先に届けなかったという知らせ（rally.go）
 
