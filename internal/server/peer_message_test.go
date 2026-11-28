@@ -486,9 +486,7 @@ func reopenWithProtocol(t *testing.T, h *Hub, proto int) {
 	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":false}`)
 	waitHost(t, h, func(s HostStatus) bool { return !s.Open })
 	e := h.entrance.Load()
-	e.mu.Lock()
-	e.proto = proto
-	e.mu.Unlock()
+	e.proto.Store(int64(proto))
 	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":true}`)
 	waitHost(t, h, func(s HostStatus) bool { return s.Open })
 }

@@ -525,7 +525,7 @@ func (ps *peerState) roomsOfLocked(hostID string) []RoomRow {
 
 // peerClient は、ペアリングしたホスト hostID に、固定した鍵で頼む口
 func peerClient(e *hostEntrance, hostID string) *http.Client {
-	return peer.Client(e.config.Identity, hostID, e.proto, peerAskTimeout)
+	return peer.Client(e.config.Identity, hostID, int(e.proto.Load()), peerAskTimeout)
 }
 
 // --- AI が読む ---
