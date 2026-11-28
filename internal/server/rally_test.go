@@ -156,7 +156,7 @@ func TestRallyBetweenPairedHosts(t *testing.T) {
 
 // アクションが返す AI 間メッセージも AI ラリーに数え、上限を超える物は、noRecipient が refuse ならバルクごと rally-limit で断り、skip なら送らないだけ。
 // 同じバルクで同じ送り先へ送る物も先の物から数える
-func TestActionEnvelopesStopAtTheRallyLimit(t *testing.T) {
+func TestPayloadsStopAtTheRallyLimit(t *testing.T) {
 	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
