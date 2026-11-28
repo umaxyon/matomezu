@@ -241,23 +241,26 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 	for page, body := range out.Annotations {
 		annotations[page] = h.holdAnnotations(page, body)
 	}
+	// 知らせに添える読めないブックが、この書き込みを確かめた後の物になるよう、完全に消したブックを忘れ、確かめてから知らせる
+	for _, id := range plan.removed {
+		h.dropBook(id)
+	}
+	for _, id := range out.Books {
+		if e, ok := h.books[id]; ok {
+			h.checkBook(id, e.body)
+		}
+	}
 	if !plan.quiet && (len(pages) > 0 || len(folders) > 0 || len(out.Settings) > 0 || len(records) > 0 || len(out.Counters) > 0 || len(annotations) > 0) {
 		h.broadcast("changed", h.changedEvent(pages, folders, records, annotations, out, p, by, act))
 	}
 	for _, id := range out.Books {
-		if e, ok := h.books[id]; ok {
-			if !plan.quiet && !plan.untouched {
-				h.touch(id, stamp())
-			}
-			h.checkBook(id, e.body)
+		if _, ok := h.books[id]; ok && !plan.quiet && !plan.untouched {
+			h.touch(id, stamp())
 		}
 	}
 	h.checkWritten(plan, was)
 	if plan.tickets != nil {
 		h.aiEditTickets = *plan.tickets
-	}
-	for _, id := range plan.removed {
-		h.dropBook(id)
 	}
 	if len(out.Settings) > 0 {
 		h.reusePluginsForSettings(p.Client)
@@ -291,7 +294,7 @@ func (h *Hub) changedEvent(pages, folders, records []map[string]any, annotations
 		window = w.id
 	}
 	event := map[string]any{"pages": pages, "folders": folders, "books": books, "client": p.Client, "seq": p.Seq, "by": by, "act": act, "actions": actions,
-		"annotations": annotations, "records": records, "window": window}
+		"annotations": annotations, "records": records, "window": window, "unreadableBooks": h.unreadableBooks(), "results": resultsOf(out.Results)}
 	if len(out.Settings) > 0 {
 		event["settings"] = out.Settings
 	}

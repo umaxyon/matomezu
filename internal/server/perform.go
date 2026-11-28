@@ -54,6 +54,8 @@ type Performed struct {
 	Result       json.RawMessage `json:"result,omitempty"`
 	// Results は、アクションごとの結果（バルクの順。AI がいくつものアクションを 1 回で頼んだときに、AI の口が返す）
 	Results []json.RawMessage `json:"-"`
+	// Library は、書庫の履歴に入るアクションが変えたページとフォルダごとの前と後（engine.Output の Library。ack で送った窓に返す）
+	Library json.RawMessage `json:"-"`
 	// At は、断られたアクションがバルクの何番目か（0 から。分からなければ無い）
 	At     *int   `json:"-"`
 	Notice string `json:"notice,omitempty"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
@@ -91,7 +93,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	if err != nil {
 		return Performed{}, err
 	}
-	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Kind: out.Kind, SystemFolder: out.SystemFolder, Result: out.Result, Results: out.Results, At: out.At, Notice: out.Notice}
+	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Kind: out.Kind, SystemFolder: out.SystemFolder, Result: out.Result, Results: out.Results, Library: out.Library, At: out.At, Notice: out.Notice}
 	if !out.OK {
 		if out.At != nil && *out.At >= 0 && *out.At < len(p.Actions) {
 			fmt.Fprintf(os.Stderr, "%s refused at the action %d of %d (%s): %s\n", stamp(), *out.At, len(p.Actions), p.Actions[*out.At].Action, out.Reason)
@@ -279,11 +281,39 @@ func (h *Hub) performInputs(in *engine.Input) error {
 	return nil
 }
 
-// ack は、アクションバルクを送った窓に行い終えたことを知らせる（h.mu を持って呼ぶ）
+// ack は、アクションバルクを送った窓に行い終えたことを知らせる。行えたなら、アクションごとの結果（results。バルクの順）と、書庫の履歴に入る分の前と後（library）も添える
+// （窓が先に行わずに送ったアクションの結果と書庫の履歴の段を、窓が受け取る。覚えた番号の送り直しには changed が無いので、ack に載せる）。
+// 断ったなら、断りの種類（kind）と止めた認可ステップ（permission）も添える（窓が、先に行わずに送った戻す・やり直すの断りを、画面で行ったときと同じに分ける）。h.mu を持って呼ぶ
 func (h *Hub) ack(p Perform, done Performed) {
 	if c, ok := h.clients[p.Client]; ok {
-		h.send(c, "ack", map[string]any{"seq": p.Seq, "ok": done.OK, "reason": done.Reason})
+		event := map[string]any{"seq": p.Seq, "ok": done.OK, "reason": done.Reason}
+		if done.OK {
+			event["results"] = resultsOf(done.Results)
+			if len(done.Library) > 0 {
+				event["library"] = done.Library
+			}
+		} else {
+			if done.Kind != "" {
+				event["kind"] = done.Kind
+			}
+			if done.Permission != "" {
+				event["permission"] = done.Permission
+			}
+		}
+		h.send(c, "ack", event)
 	}
+}
+
+// resultsOf は、アクションごとの結果の並び（結果の無いアクションは null）
+func resultsOf(results []json.RawMessage) []json.RawMessage {
+	out := make([]json.RawMessage, len(results))
+	for i, r := range results {
+		if len(r) == 0 {
+			r = json.RawMessage("null")
+		}
+		out[i] = r
+	}
+	return out
 }
 
 // remember は、行い終えたアクションの番号と結果を覚える。performedKeys を超えたら古いものから忘れる（h.mu を持って呼ぶ）

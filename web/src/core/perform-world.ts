@@ -17,8 +17,8 @@ import {
 import type { HostMessage } from "./def/follow-step"
 import { shownToAI } from "./def/subject"
 import { type Naming, namingOf, titleClashes, withFreeTitles } from "./entries"
-import type { Library, PageRow, TableChanges } from "./folders"
-import { bookOf } from "./folders-books"
+import { isHeld, type Library, type PageRow, type TableChanges } from "./folders"
+import { bookOf, unheldIn } from "./folders-books"
 import { changesBetween, createdIn, noChanges, placedChanges, rowChanges, withChanges } from "./folders-changes"
 import { bookIdOf, inTrash, outsideBinderIn, permissionFoldersOf, treeHolds } from "./folders-tree"
 import { followChanges } from "./follow"
@@ -78,8 +78,8 @@ export type PerformedIn =
       hostMessages?: readonly HostMessage[] // フォローステップが返した、送る常駐メッセージの並び（常駐がバルクの書き込みと一緒に送る）
     }
   | Refused
-  // 要る行が世界に無い（常駐が、その行を足して行い直す。画面は全部を持つので起きない）。books は、フォローステップがバックヤードの中に行う事の先のブックか、
-  // ブックが新しく置いた参照エントリの指す先の id
+  // 要る行が世界に無いか、中身を持っていない（常駐は、その行を足して行い直す）。books は、フォローステップがバックヤードの中に行う事の先のブックか、
+  // ブックが新しく置いた参照エントリの指す先か、中身を持っていないページの id
   | { ok: false; reason: "needs-rows"; books: readonly string[] }
   | { ok: false; reason: "no-book" }
   | { ok: false; reason: "no-record"; detail: string }
@@ -96,6 +96,30 @@ function targetPageIn(world: World, on: ActionOn | undefined): PageAt | NoPage {
   return book
     ? { book, page }
     : { book: NOT_IN_BOOK, page, held: row, folders: permissionFoldersOf(world.folders, page) }
+}
+
+// アクション id（対象 target）が読む物のうち、世界 world が中身を持っていないページの id（持っていれば空）。
+// 書庫が対象なら書庫の全部、ブックが対象なら宛先のブックかバインダ、ページとアノテーションが対象なら宛先のページを持っているブック（ブックの外なら、そのページ）、
+// レコードが対象なら引数から答えた読むだけのブック
+function unheldFor(
+  catalog: CoreCatalog,
+  world: World,
+  target: ActionTarget | undefined,
+  id: string,
+  args: unknown,
+  on: ActionOn | undefined,
+): readonly string[] {
+  if (target === "library") return Object.values(world.pages).flatMap(p => (isHeld(p) ? [] : [p.id]))
+  if (target === "book") return unheldIn(world, (on && "book" in on ? on.book : undefined) ?? "")
+  if (target === "page" || target === "annotations") {
+    const page = (on && "page" in on ? on.page : undefined) ?? ""
+    return unheldIn(world, bookIdOf(world.folders, page) ?? page)
+  }
+  if (target === undefined || !isRecordTarget(catalog, target)) return []
+  const action = catalog.actions.get(id)
+  const parsed = action?.readsBooks ? action.args.safeParse(args) : undefined
+  if (!action?.readsBooks || !parsed?.success) return []
+  return (action.readsBooks as (args: unknown) => readonly string[])(parsed.data).flatMap(b => unheldIn(world, b))
 }
 
 // on.record に指した id のレコードが無いときの断り: どの種類のどの id が無いか。AI に見える種類なら、直し方（一覧の引き方）と種類の説明（id が何の id か）も
@@ -136,6 +160,8 @@ export function performIn(
     args: unknown,
     ctx: ActionContext,
   ) => ReturnType<typeof perform>
+  const unheld = unheldFor(ctx.catalog, world, target, id, args, on)
+  if (unheld.length > 0) return { ok: false, reason: "needs-rows", books: unheld }
   if (target !== undefined && isRecordTarget(ctx.catalog, target))
     return performRecord(world, target, id, args, on, ctx)
   if (target === "book") {

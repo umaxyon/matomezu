@@ -101,11 +101,13 @@ export function notRestored(
   a: Pick<CommandActions, "showToast" | "dropHistory">,
   history: string,
   from: "undo" | "redo",
-  refused: { reason: string; permission?: string },
+  refused: { reason: string; permission?: string | symbol },
   { name, clash }: { name?: string; clash?: MessageKey } = {},
 ): void {
   const denied =
-    refused.reason === "denied" && refused.permission ? ctx.catalog.permissions.get(refused.permission) : undefined
+    refused.reason === "denied" && typeof refused.permission === "string"
+      ? ctx.catalog.permissions.get(refused.permission)
+      : undefined
   a.showToast({
     kind: "warn",
     message: from === "undo" ? kit.message("Could not undo") : kit.message("Could not redo"),
@@ -118,6 +120,21 @@ export function notRestored(
         : undefined,
   })
   if (refused.reason === "refused") a.dropHistory(history, from)
+}
+
+// 置き直しの答え（行わなかった・置き直す値が無いなら undefined）。認可ステップが止めたなら、止めたブックかページ（book・page）も
+type RestoreAnswer =
+  | { ok: true }
+  | { ok: false; reason: string; kind?: string | symbol; permission?: string | symbol; book?: string; page?: string }
+
+// 置き直しの答え done が決まったら fn に渡す: 画面で行えた・断られたなら今、常駐へ送った（SENT_TO_HOST）なら常駐が行うか断ったとき
+// （送った物は、行えたと分かってから画面の履歴の段を動かし、断られたら画面で断られたときと同じに分ける）
+export function whenRestored(
+  done: RestoreAnswer | { ok: true; confirmed: Promise<RestoreAnswer> } | undefined,
+  fn: (answer: RestoreAnswer | undefined) => void,
+): void {
+  if (done?.ok && "confirmed" in done) void done.confirmed.then(fn)
+  else fn(done)
 }
 
 // 置き直しの答え（行わずに確かめた物。置き直す値が無い画面の履歴の段は undefined）
@@ -164,7 +181,10 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
   }
   const changes = (args: RevertArgs) => Object.keys(args.pages).length + Object.keys(args.folders).length > 0
   const steps = [...ctx.history[from]].reverse()
-  for (const [i, step] of steps.entries()) {
+  // 新しい側から i 番目の画面の履歴の段を置き直す（置き直しても何も変わらなければ動かして、次の画面の履歴の段へ）
+  const restoreAt = (i: number): void => {
+    const step = steps[i]
+    if (!step) return
     const args = argsOf(step)
     const { kind, id } = opened.outermost
     const page =
@@ -173,27 +193,28 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
         : kind === "binder"
           ? pageToOpenInBinder(ctx.folders, step, to, id)
           : undefined
-    const result = changes(args) ? a.perform(HISTORY_RESTORE.id, args) : undefined
-    if (result && !result.ok && !isRevertUnchanged(result)) {
-      const denied = result.reason === "denied" ? result : undefined
-      const book = denied?.book ? booksOf(ctx)[denied.book]?.title : undefined
-      const page = denied?.page ? ctx.pageTitle(denied.page) : NO_NAME
-      notRestored(ctx, a, opened.outermost.id, from, result, {
-        name: book ?? (page === NO_NAME ? undefined : page),
-        clash: kit.message("Clashes with other changes"),
-      })
-      if (result.reason === "refused")
-        dropClashing(a, opened.outermost.id, from, steps.slice(i + 1), s => {
-          const next = argsOf(s)
-          return changes(next) ? tryPerformOf(a)(HISTORY_RESTORE.id, next) : undefined
+    whenRestored(changes(args) ? a.perform(HISTORY_RESTORE.id, args) : undefined, result => {
+      if (result && !result.ok && !isRevertUnchanged(result)) {
+        const denied = result.reason === "denied" ? result : undefined
+        const book = denied?.book ? booksOf(ctx)[denied.book]?.title : undefined
+        const page = denied?.page ? ctx.pageTitle(denied.page) : NO_NAME
+        notRestored(ctx, a, opened.outermost.id, from, result, {
+          name: book ?? (page === NO_NAME ? undefined : page),
+          clash: kit.message("Clashes with other changes"),
         })
-      return
-    }
-    a.moveHistory(opened.outermost.id, from)
-    if (!result?.ok) continue
-    if (page && page !== shownPageId(opened)) a.openPage(page)
-    return
+        if (result.reason === "refused")
+          dropClashing(a, opened.outermost.id, from, steps.slice(i + 1), s => {
+            const next = argsOf(s)
+            return changes(next) ? tryPerformOf(a)(HISTORY_RESTORE.id, next) : undefined
+          })
+        return
+      }
+      a.moveHistory(opened.outermost.id, from)
+      if (!result?.ok) return restoreAt(i + 1)
+      if (page && page !== shownPageId(opened)) a.openPage(page)
+    })
   }
+  restoreAt(0)
 }
 
 // 開いているステージエントリの画面の履歴に、from の側の段が在るか

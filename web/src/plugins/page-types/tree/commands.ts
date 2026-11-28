@@ -2,7 +2,7 @@
 // Home で根を選び、F2 で、選んでいる節のキャプションをその場で書き始める。Tab で子を、Enter ですぐ後ろの兄弟を足して、その場で書き始める（根に兄弟は足せない）。Delete（Backspace）と節の右クリックのメニューで、選んでいる節を子孫ごと消す（根は消せない。
 // 消したら、前の兄弟、無ければ親を選ぶ）。節の右クリックのメニューで、節の色と、子の節の大きさのダイアログを開く。編集の道具の間だけ。キーはツリーのプレゼンテーションの範囲（ステージの範囲より先に探す）
 import type { CommandContext } from "../../../plugin-api"
-import { hasOpenedPage, refusalMessage, settingValue } from "../../base"
+import { hasOpenedPage, refusalMessage, settingValue, whenPerformed } from "../../base"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
 import {
   ADDED_EDIT,
@@ -90,18 +90,19 @@ function addCommand<const Id extends string>(
       const plus = keyPlus(tree.root, tree.grow, selectedIn(tree.root, ctx.stage.selection), kind)
       if (!plus) return
       const done = a.perform(NODE_ADD.id, addArgs(plus), { page: tree.page.id })
-      const added = done.ok ? done.result.nodes[0]?.id : undefined
-      if (!added) {
-        const why = refusalMessage(
-          ctx.catalog,
-          done.ok ? { reason: "refused" } : done,
-          kit.message("Does not fit on the paper"),
-        )
-        a.showToast({ kind: "warn", message: why })
-        return
-      }
-      a.select([added])
-      a.setEditing(ADDED_EDIT)
+      const cannot = (why: { reason: string; permission?: string }) =>
+        a.showToast({
+          kind: "warn",
+          message: refusalMessage(ctx.catalog, why, kit.message("Does not fit on the paper")),
+        })
+      if (!done.ok) return cannot(done)
+      // 常駐へ送ったなら、常駐が足したあとで選ぶ
+      whenPerformed(done, made => {
+        const added = made.nodes[0]?.id
+        if (!added) return cannot({ reason: "refused" })
+        a.select([added])
+        a.setEditing(ADDED_EDIT)
+      })
     },
     when,
   })

@@ -8,9 +8,9 @@ import type { ControlCenterId, MessageKey, SkinId } from "../core/catalog"
 import type { ClipboardUse, ClipTransfer } from "../core/clipboard"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionOn } from "../core/def/action"
-import type { BROKEN, Folders, Library, Pages } from "../core/folders"
+import type { BROKEN, Folder, Folders, Library, PageRow, Pages } from "../core/folders"
 import type { UnreadableItem } from "../core/folders-unreadable"
-import type { History } from "../core/history"
+import type { History, HistoryStep, RowChange } from "../core/history"
 import type { Lang, Params } from "../core/i18n/i18n"
 import { type Books, splitTrash } from "../core/library"
 import type { PageUsers } from "../core/page-users"
@@ -249,6 +249,17 @@ export interface ForeignLibraryRows {
   pages: Readonly<Record<string, RowSides>>
   folders: Readonly<Record<string, RowSides>>
 }
+// 常駐が知らせた書庫の前と後 rows を、画面の履歴の段の形にする（無い側は none。値は常駐が確かめた行）
+export function librarySidesOf(rows: ForeignLibraryRows): Pick<HistoryStep, "pages" | "folders"> {
+  const sides = <T>(changed: Readonly<Record<string, RowSides>>) =>
+    Object.fromEntries(
+      Object.entries(changed).map(([id, r]): [string, RowChange<T>] => [
+        id,
+        { before: (r.before ?? "none") as T | "none", after: (r.after ?? "none") as T | "none" },
+      ]),
+    )
+  return { pages: sides<PageRow>(rows.pages), folders: sides<Folder>(rows.folders) }
+}
 
 // 画面で行ったアクション 1 つ（ホストが常駐に送り、行い直しに使う）。ids は行ったときに振った id の順、lang はそのときの言語
 export interface DoneAction {
@@ -264,8 +275,12 @@ export interface DoneAction {
 // アクションバルク: 同期の 1 回の流れで行ったアクションの並び（画面の履歴の段と同じ区切り）。ホストは 1 回で書き、全部通すか全部断る
 export type DoneBulk = readonly DoneAction[]
 
-// ホストが、画面で行ったアクションバルクを確かめた答え（断ったなら reason。届けられなかったものは not-saved）
-export type HostAnswer = { ok: true } | { ok: false; reason: string }
+// ホストが、画面で行ったアクションバルクを確かめた答え（断ったなら reason と、あれば断りの種類 kind と止めた認可ステップ permission。届けられなかったものは not-saved）
+// results は、行えたときのアクションごとの結果（バルクの順。先に行わずに送ったアクションの結果を、ホストから受け取る）。
+// library は、そのバルクの書庫の履歴に入るアクションが変えたページとフォルダごとの、常駐が書く前と後（ForeignChange の library と同じ形。先に行わずに送ったバルクの、書庫の履歴の段にする）
+export type HostAnswer =
+  | { ok: true; results?: readonly unknown[]; library?: ForeignLibraryRows }
+  | { ok: false; reason: string; kind?: string; permission?: string }
 
 export type ReadonlyStore = Pick<StoreApi<MatomezuState>, "getState" | "getInitialState" | "subscribe">
 
@@ -394,6 +409,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
 export interface LibraryRows {
   pages: readonly unknown[]
   folders: readonly unknown[]
+  // 常駐が読めないと決めたブックの warning（行と同じ時点の物）。在れば、画面はそれらを判じずに読めないブックにする。ホストの無い窓とテストには無く、画面が全部を判じる
+  unreadableBooks?: readonly Warning[]
 }
 
 // 行を今の機能台帳で読んだ物: 書庫の表 library と、読めないブックの warning・読めるブックの中の問題（core/book.ts の readLibrary）と、読めない物のフォルダの直下の物

@@ -17,7 +17,7 @@ import {
   type ShapeParent,
   walkShapes,
 } from "../../../plugin-api"
-import { hasOpenedPage, NO_SHAPE_DEF, NO_SIZE, placedSize, refusalMessage, shapeDefOf } from "../../base"
+import { hasOpenedPage, NO_SHAPE_DEF, NO_SIZE, placedSize, refusalMessage, shapeDefOf, whenPerformed } from "../../base"
 import { kit } from "../kit"
 import { ITEM_PASTE, ITEM_REMOVE } from "./actions"
 import { type Clip, clipOf, clipOfData, nearestPaste } from "./clip"
@@ -89,7 +89,7 @@ function pasteAt(
       })
     return false
   }
-  a.select(done.result.items)
+  whenPerformed(done, placed => a.select(placed.items))
   return true
 }
 

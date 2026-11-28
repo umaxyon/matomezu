@@ -5,6 +5,7 @@ import type { AssetPut } from "../core/assets"
 import { BROKEN, MOVED_CODES } from "../core/folders"
 import type { PageUsers } from "../core/page-users"
 import { NOT_INSIDE } from "../core/unreadable"
+import { WARNINGS, type WarningCode } from "../core/warnings"
 
 const SHOW_AT = { stage: z.string().optional(), split: z.boolean().optional() }
 export const ShowSchema = z.discriminatedUnion("to", [
@@ -135,6 +136,12 @@ export const HostPeersSchema = z.object({
 })
 // 参加者の会話の今のコンテキストの量と、AI の側の物差し（どちらもトークン。分からなければ常駐が省く）
 const CONTEXT_USE = z.object({ used: z.number(), aiScale: z.number().positive() })
+// 常駐が知らせる warning 1 つ（core/warnings.ts の Warning。番号は表に在る物だけ）
+export const WarningSchema = z.object({
+  code: z.enum(Object.keys(WARNINGS) as [WarningCode, ...WarningCode[]]),
+  plugin: z.string(),
+  params: z.record(z.string(), z.string()),
+})
 export const DataSchema = z.object({
   pages: z.array(z.object({ id: z.string(), page: z.unknown(), version: z.number().int() })),
   folders: z.array(z.object({ id: z.string(), folder: z.unknown(), version: z.number().int() })),
@@ -146,6 +153,7 @@ export const DataSchema = z.object({
     .array(z.object({ id: z.string(), ui: z.string(), css: z.string().optional(), disabled: z.boolean().optional() }))
     .optional(),
   touched: z.record(z.string(), z.string()).optional(),
+  unreadableBooks: z.array(WarningSchema).optional(),
   participantCalls: z.record(z.string(), z.string()).optional(),
   participantReady: z.array(z.string()).optional(),
   update: UpdateStatusSchema.optional(),
@@ -177,11 +185,12 @@ const rowSchema = <K extends "page" | "folder">(field: K) =>
 // レコードと進めた番号（window は最後にフォーカスされた窓）。actions は行ったアクションの id の並び、library は、書庫の履歴に入るアクションが変えたページとフォルダごとの前と後（無い側は none）
 // ページ・フォルダ 1 つの、前と後（置き場所の形のまま。無い側は none）
 const RowSides = z.object({ before: z.unknown(), after: z.unknown() })
+const LibrarySides = z.object({ pages: z.record(z.string(), RowSides), folders: z.record(z.string(), RowSides) })
 export const ChangedSchema = z.object({
   pages: z.array(rowSchema("page")),
   folders: z.array(rowSchema("folder")),
   books: z.array(z.string()),
-  library: z.object({ pages: z.record(z.string(), RowSides), folders: z.record(z.string(), RowSides) }).optional(),
+  library: LibrarySides.optional(),
   by: z.enum(["ai", "window", "host"]).optional(),
   act: z.string().optional(),
   actions: z.array(z.string()).optional(),
@@ -190,9 +199,20 @@ export const ChangedSchema = z.object({
   records: z.array(z.object({ subject: z.string(), id: z.string(), record: z.unknown() })).optional(),
   counters: z.record(z.string(), z.record(z.string(), z.number())).nullish(),
   window: z.string().optional(),
+  unreadableBooks: z.array(WarningSchema).optional(),
+  results: z.array(z.unknown()).optional(),
   ...Mark,
 })
-export const AckSchema = z.object({ seq: z.number().int(), ok: z.boolean(), reason: z.string() })
+// 自分のアクションバルクを常駐が行い終えた: 行えたならアクションごとの結果と書庫の前と後（changed と同じ）、断ったなら断りの種類と止めた認可ステップ
+export const AckSchema = z.object({
+  seq: z.number().int(),
+  ok: z.boolean(),
+  reason: z.string(),
+  results: z.array(z.unknown()).optional(),
+  library: LibrarySides.optional(),
+  kind: z.string().optional(),
+  permission: z.string().optional(),
+})
 export const ParticipantCallSchema = z.object({ participant: z.string(), at: z.string() })
 export const ParticipantReadySchema = z.object({ participant: z.string() })
 export const ParticipantLiveSchema = z.object({

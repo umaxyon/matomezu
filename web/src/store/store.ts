@@ -8,7 +8,7 @@ import { restoreAllAnnotations, withAnnotations } from "../core/annotation"
 import { NO_ASSET_URL } from "../core/assets"
 import { findReference, readLibrary } from "../core/book"
 import { bulkActionOf, entersLibraryHistory, laterThan, localDateOf, performBulk } from "../core/bulk"
-import type { CommandId } from "../core/catalog"
+import type { ActionId, CommandId } from "../core/catalog"
 import { type ClipboardUse, type ClipTransfer, clipboardOn, NO_CLIPBOARD } from "../core/clipboard"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionContext, type ActionOn, NO_CONTROL_CENTER } from "../core/def/action"
@@ -25,6 +25,7 @@ import {
   HISTORY_LIMIT,
   type History,
   type HistoryStep,
+  insertStep,
   LIBRARY_HISTORY,
   NO_HISTORY,
   putBackStep,
@@ -105,7 +106,19 @@ import {
   unsplit,
   type Workspace,
 } from "../core/workspace"
-import { type Actions, boundActions, KEY_WAITS, type Performed, SCREEN_REFUSED, windowActionsOf } from "./actions"
+import {
+  type Actions,
+  boundActions,
+  type Finished,
+  type HostRefused,
+  KEY_WAITS,
+  NO_DENIED_BY,
+  NO_REFUSAL_KIND,
+  type Performed,
+  SCREEN_REFUSED,
+  SENT_TO_HOST,
+  windowActionsOf,
+} from "./actions"
 import { called, commandOwner, isEnabled } from "./commands"
 import {
   type CommandActions,
@@ -136,10 +149,12 @@ import {
 import {
   booksAndTrashMaker,
   type DoneAction,
+  type ForeignLibraryRows,
   type HostAnswer,
   initialState,
   type LibraryLoaded,
   type LibraryRows,
+  librarySidesOf,
   type MatomezuInstance,
   type MatomezuState,
   type ReadonlyStore,
@@ -174,7 +189,22 @@ interface OpenStep {
   // このアクションバルク（戻す・やり直す）を行って動かした画面の履歴の段と、動かす前に在った側（ホストが断ったら、その側へ戻す）
   moved?: { step: HistoryStep; from: "undo" | "redo" }
   refused?: true
+  // 画面で先に行わずに常駐へ送った最初のアクションの番号（done の中の位置。それより後ろのアクションも先に行わずに送る）
+  sentFrom?: number
 }
+
+// 書庫の履歴の戻せる側に書庫の履歴の段を置く所: 最後か、始めた順の位置（答えを待つ間に入れたほかの書庫の履歴の段より前）
+const atEnd = (now: History, step: HistoryStep) => [...now.undo, step].slice(-HISTORY_LIMIT)
+const inStartOrder = (now: History, step: HistoryStep) => insertStep(now, step).undo
+
+// ホストの断り a を、呼び手に返す形にする
+const hostRefused = (a: { reason: string; kind?: string; permission?: string }): HostRefused => ({
+  ok: false,
+  reason: a.reason,
+  kind: a.kind ?? NO_REFUSAL_KIND,
+  permission: a.permission ?? NO_DENIED_BY,
+  by: "host",
+})
 
 function startLang(catalog: CoreCatalog, lang: Lang | readonly string[] = []): Lang {
   return detectLang(typeof lang === "string" ? [lang] : lang, [...catalog.languages.keys()])
@@ -193,11 +223,16 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 最後に読んだ行（作ったときは残した行と books の行。知らせを受けたら、その行）。機能台帳を組み直したら読み直す
   let rows = startRows(options)
   // 行 rows を今の機能台帳で読んだ書庫（窓の書庫の表は、起動・知らせ・組み直しのどれも、常駐のエンジンと同じ readLibrary で読む）と、読めない物のフォルダの直下の物
+  // 常駐が読めないと決めたブックは判じない。読めないブックは、その warning と、ほかを画面が判じて読めなかった物の和
   const loadRows = (): LibraryLoaded => {
-    const read = readLibrary(catalog, rows.pages, rows.folders)
+    const host = rows.unreadableBooks ?? []
+    const read = readLibrary(catalog, rows.pages, rows.folders, {
+      unreadable: new Set(host.map(w => w.params.book ?? "")),
+      metaRows: true,
+    })
     return {
       library: read.library,
-      warnings: read.warnings,
+      warnings: [...host, ...read.warnings],
       partial: read.partial,
       unreadableFolder: outsideUnreadable(rows.pages, rows.folders).unreadable,
     }
@@ -306,6 +341,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return
     }
     void answer.then(a => {
+      if (a.ok && was.sentFrom !== undefined && a.library) putSentLibraryStep(was, a.library)
       was.settle?.(a)
       if (!a.ok) dropRefused(was)
     })
@@ -313,24 +349,29 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 同じ段の中で足して無くした物は、前も後も無いので持たない
   const keptRows = <T>(rows: Record<string, RowChange<T>>) =>
     Object.fromEntries(Object.entries(rows).filter(([, r]) => r.before !== "none" || r.after !== "none"))
-  // 閉じた段のうち、書庫が対象のアクションが変えた分を、書庫の履歴に入れる（入れる前にホストが断ったなら入れない）
+  // 閉じた段のうち、書庫が対象のアクションが変えた分を、書庫の履歴に入れる（入れる前にホストが断ったなら入れない）。
+  // 先に行わずに送ったアクションを持つバルクは、常駐の答えを待って入れる（putSentLibraryStep。画面が持っていない行の前の値を、常駐からもらう）
   const putLibraryStep = (was: OpenStep) => {
-    if (!was.library || was.refused) return
-    const step: HistoryStep = {
-      seq: was.seq,
-      by: "user",
-      outermosts: [LIBRARY_HISTORY],
-      also: [],
-      pages: keptRows(was.library.pages),
-      folders: keptRows(was.library.folders),
-    }
+    if (!was.library || was.refused || was.sentFrom !== undefined) return
+    putLibrary(was, { pages: keptRows(was.library.pages), folders: keptRows(was.library.folders) }, atEnd)
+  }
+  // 先に行わずに送ったアクションを持つバルクの、書庫の履歴に入る分（常駐が書く前と後。バルクの全部のアクションの分）を、書庫の履歴に、始めた順の位置で入れる
+  // （答えを待つ間に入れたほかの書庫の履歴の段より前に）
+  const putSentLibraryStep = (was: OpenStep, rows: ForeignLibraryRows) => {
+    const sides = librarySidesOf(rows)
+    putLibrary(was, { pages: keptRows(sides.pages), folders: keptRows(sides.folders) }, inStartOrder)
+  }
+  // 書庫の履歴の段を入れる（place が戻せる側のどこに置くか決める）。やり直せる書庫の履歴の段は消す
+  const putLibrary = (
+    was: OpenStep,
+    rows: Pick<HistoryStep, "pages" | "folders">,
+    place: (now: History, step: HistoryStep) => readonly HistoryStep[],
+  ) => {
+    const step: HistoryStep = { seq: was.seq, by: "user", outermosts: [LIBRARY_HISTORY], also: [], ...rows }
     if ([...Object.values(step.pages), ...Object.values(step.folders)].every(r => sameData(r.before, r.after))) return
     was.libraryStep = step
     const history = { ...getState().history }
-    history[LIBRARY_HISTORY] = {
-      undo: [...(history[LIBRARY_HISTORY] ?? NO_HISTORY).undo, step].slice(-HISTORY_LIMIT),
-      redo: [],
-    }
+    history[LIBRARY_HISTORY] = { undo: place(history[LIBRARY_HISTORY] ?? NO_HISTORY, step), redo: [] }
     setState({ history })
   }
   // 閉じた段を画面の履歴に入れる
@@ -484,11 +525,19 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     on?: ActionOn,
   ):
     | { ok: true; result: unknown; next: Partial<MatomezuState>; answer: Promise<HostAnswer> | undefined }
+    | {
+        ok: true
+        result: typeof SENT_TO_HOST
+        next: Partial<MatomezuState>
+        confirmed: Promise<Finished<ActionId> | HostRefused>
+      }
     | Refused
     | { ok: false; reason: "no-book" | "no-record" } => {
     const { books, pages, folders, window, annotations, staleBuild } = getState()
     if (staleBuild && staleBuild.from.dataVersion !== staleBuild.to.dataVersion)
       return { ok: false, reason: "refused", kind: "stale-build" }
+    // 同じアクションバルクで前に送った物があれば、これも先に行わない（画面の世界に、送った物の変更がまだ無いため）
+    if (open?.sentFrom !== undefined) return sendAhead(id, args, on)
     const ids: string[] = []
     const c = ctx()
     const done = performIn(worldOf(getState()), id, args, on, {
@@ -499,8 +548,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         return made
       },
     })
-    // 画面はブックを全部持つので、行を足して行い直す断り（needs-rows）は起きない。起きたら断る
-    if (!done.ok) return done.reason === "needs-rows" ? { ok: false, reason: "refused" } : done
+    // 画面が中身を持っていない行を読むなら、先に行わずに常駐へ送る
+    if (!done.ok) return done.reason === "needs-rows" ? sendAhead(id, args, on) : done
     const sent: DoneAction = { action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now, today: c.today }
     const answer = catalog.actions.get(id)?.bulk === "alone" ? sendAlone(sent) : joinBulk(sent)
     const next: Partial<MatomezuState> = {}
@@ -542,6 +591,45 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (done.records) next.records = withRecords(getState().records, done.records)
     if (done.counters) next.counters = withCounters(getState().counters, done.counters)
     return { ok: true, result: done.result, next, answer }
+  }
+  // アクションを画面で先に行わずに常駐へ送る（状態は変えず、id は常駐が振る）。答えは、常駐が行った結果か断り。ホストが無ければ断る
+  const sendAhead = (
+    id: string,
+    args: unknown,
+    on: ActionOn | undefined,
+  ):
+    | {
+        ok: true
+        result: typeof SENT_TO_HOST
+        next: Partial<MatomezuState>
+        confirmed: Promise<Finished<ActionId> | HostRefused>
+      }
+    | Refused => {
+    if (!options.observe) return { ok: false, reason: "refused" }
+    const c = ctx()
+    const sent: DoneAction = {
+      action: id,
+      args,
+      ...(on ? { on } : {}),
+      ids: [],
+      lang: c.lang,
+      now: c.now,
+      today: c.today,
+    }
+    const alone = catalog.actions.get(id)?.bulk === "alone"
+    const bulk = alone ? undefined : opened()
+    const at = bulk ? bulk.done.length : 0
+    const answer = alone ? sendAlone(sent) : joinBulk(sent)
+    if (bulk && bulk.sentFrom === undefined) bulk.sentFrom = at
+    // 常駐が行えたと答えても、そのアクションの結果が載らなければ、行った結果を知れないので書けなかったと同じに答える
+    const confirmed = (answer ?? Promise.resolve<HostAnswer>({ ok: false, reason: "not-saved" })).then(
+      (a): Finished<ActionId> | HostRefused => {
+        if (!a.ok) return hostRefused(a)
+        if (a.results === undefined || at >= a.results.length) return hostRefused({ reason: "not-saved" })
+        return { ok: true, result: a.results[at] as never }
+      },
+    )
+    return { ok: true, result: SENT_TO_HOST, next: {}, confirmed }
   }
   // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じ、そのステージごとのプラグイン状態は消す
   const commit = (next: Partial<MatomezuState>) => {
@@ -745,15 +833,18 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const done = run(id, args, on)
       if (!done.ok) return done
       commit(done.next)
+      if ("confirmed" in done)
+        return { ok: true, result: SENT_TO_HOST, confirmed: done.confirmed } as Performed<typeof id>
       return { ok: true, result: done.result } as Performed<typeof id>
     },
     performConfirmed: async (id, ...[args, on]) => {
       const done = run(id, args, on)
       if (!done.ok) return done
       commit(done.next)
+      if ("confirmed" in done) return (await done.confirmed) as Finished<typeof id> | HostRefused
       const a = await done.answer
-      if (a && !a.ok) return { ok: false, reason: a.reason, by: "host" }
-      return { ok: true, result: done.result } as Performed<typeof id>
+      if (a && !a.ok) return hostRefused(a)
+      return { ok: true, result: done.result } as Finished<typeof id>
     },
     // 1 回のコマンドの書き込みは、購読に 1 回で知らせる（together）
     command: (stage, id, ...args) => {
@@ -857,7 +948,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     tryPerform: (id, ...[args, on]) => {
       const done = performIn(worldOf(getState()), id, args, on, ctx())
-      return (done.ok ? { ok: true, result: done.result } : done) as Performed<typeof id>
+      if (!done.ok && done.reason === "needs-rows") return { ok: false, reason: "needs-rows" }
+      return (done.ok ? { ok: true, result: done.result } : done) as Finished<typeof id>
     },
     openScreenId: (def, props) => {
       const fits = catalog.screens.get(def)?.props.safeParse(props)
@@ -1155,7 +1247,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     state,
     actions,
     receive: (world, replay, change) => {
-      rows = { pages: world.pages, folders: world.folders }
+      rows = {
+        pages: world.pages,
+        folders: world.folders,
+        ...(world.unreadableBooks ? { unreadableBooks: world.unreadableBooks } : {}),
+      }
       const found = loadRows()
       const now = getState()
       // 確かめた世界の表（中身の同じページ・フォルダは、今の値に寄せる。組んだブックも同じ値のままになる）
@@ -1167,18 +1263,22 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       let records = world.records === undefined ? getState().records : restoreRecords(world.records)
       let counters = world.counters === undefined ? getState().counters : restoreCounters(world.counters)
       for (const bulk of replay) {
-        // 読み直した世界の上で行い直して投げるアクションバルクは、断られたものと同じに落とし、あとの行い直しを続ける
-        const next = (() => {
+        // 読み直した世界の上で行い直して投げるアクションバルクは、断られたものと同じに落とし、あとの行い直しを続ける。
+        // 画面が中身を持っていない行を読むアクション（先に行わずに送った物）で止まったら、その手前までを行い直す（手前は画面で先に行った物）
+        const again = (steps: readonly DoneAction[]) => {
           try {
             return performBulk(
               { ...tables, settings, annotations, records, counters },
-              bulk.map(done => bulkActionOf(done, newId, done.now, done.lang)),
-              { catalog, controlCenter, lang: bulk[0]?.lang ?? getState().lang, actor: USER },
+              steps.map(done => bulkActionOf(done, newId, done.now, done.lang)),
+              { catalog, controlCenter, lang: steps[0]?.lang ?? getState().lang, actor: USER },
             )
           } catch {
             return null
           }
-        })()
+        }
+        const whole = again(bulk)
+        const next =
+          whole && !whole.ok && whole.reason === "needs-rows" && whole.at > 0 ? again(bulk.slice(0, whole.at)) : whole
         if (!next?.ok) continue
         if (next.changes) tables = settledOn(withChanges(tables, next.changes), now)
         if (next.settings) settings = next.settings
@@ -1407,8 +1507,10 @@ function startRows(options: Pick<StoreOptions, "saved" | "books">): LibraryRows 
   const made = (options.books ?? []).map(recordsOf)
   const pages = [...(options.saved?.pages ?? []), ...made.flatMap(r => r.pages)]
   const folders = [...(options.saved?.folders ?? []), ...made.flatMap(r => r.folders)]
+  const told = options.saved?.unreadableBooks
+  const unreadableBooks = told ? { unreadableBooks: told } : {}
   const roleOf = (f: unknown) => (f as { folderRole?: unknown } | null)?.folderRole
-  if (folders.some(f => roleOf(f) === "home")) return { pages, folders }
+  if (folders.some(f => roleOf(f) === "home")) return { pages, folders, ...unreadableBooks }
   const held = new Set(
     folders.flatMap(f => {
       const lineup = (f as { lineup?: unknown } | null)?.lineup
@@ -1419,5 +1521,5 @@ function startRows(options: Pick<StoreOptions, "saved" | "books">): LibraryRows 
     const id = (b as { id?: unknown } | null)?.id
     return typeof id === "string" && !held.has(id) ? [{ id }] : []
   })
-  return { pages, folders: [...folders, homeOver(books)] }
+  return { pages, folders: [...folders, homeOver(books)], ...unreadableBooks }
 }

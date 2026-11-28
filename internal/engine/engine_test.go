@@ -3,6 +3,7 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -576,9 +577,16 @@ func TestCheckBooksSaysWhetherABookIsUnreadable(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := map[string]BookWarning{}
+	params := map[string]map[string]string{}
 	for _, n := range found {
 		n.Warning = ""
+		params[n.Code] = n.Params
+		n.Params = nil
 		got[n.Code] = n
+	}
+	// 文に埋める値も返す（画面に warning の形で渡す）
+	if p := params["W027"]; p["book"] != "x1" || p["title"] != "S" || p["type"] != "@foo/stamps:board" {
+		t.Fatalf("CheckBooks params = %+v", params)
 	}
 	want := map[string]BookWarning{
 		"W027": {Book: "x1", Code: "W027", Unreadable: true},
@@ -589,7 +597,7 @@ func TestCheckBooksSaysWhetherABookIsUnreadable(t *testing.T) {
 		t.Fatalf("CheckBooks = %+v", found)
 	}
 	for code, w := range want {
-		if got[code] != w {
+		if !reflect.DeepEqual(got[code], w) {
 			t.Fatalf("CheckBooks = %+v; want %+v", found, w)
 		}
 	}

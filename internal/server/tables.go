@@ -472,6 +472,19 @@ func (h *Hub) entryPuts(changed map[string]json.RawMessage, gone []string) []sto
 func (h *Hub) Tables() ([]storage.Page, []storage.Folder) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	return h.tables()
+}
+
+// ScreenRows は、窓が読む全部のページとフォルダ（Tables と同じ）と、そのときの読めないブック（unreadableBooks）を、ずれない組で返す
+func (h *Hub) ScreenRows() ([]storage.Page, []storage.Folder, []map[string]any) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	pages, folders := h.tables()
+	return pages, folders, h.unreadableBooks()
+}
+
+// tables は Tables の中身（h.mu を持って呼ぶ）
+func (h *Hub) tables() ([]storage.Page, []storage.Folder) {
 	pages := make([]storage.Page, 0, len(h.pages))
 	for _, id := range slices.Sorted(maps.Keys(h.pages)) {
 		pages = append(pages, storage.Page{ID: id, Body: h.pages[id].body, Version: h.pages[id].version})
