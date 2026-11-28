@@ -485,7 +485,9 @@ test("表のファイルを、テストが流すコードが読まない", () =>
       /\.(ts|tsx|js|mjs|go)$/.test(f) &&
       !f.startsWith("_old_docs/") &&
       f !== GENERATED.path &&
-      f !== "test/scripts/merge-queue.test.ts",
+      // 表と口そのもののテストは、表のファイルの名前で差分を組む
+      f !== "test/scripts/merge-queue.test.ts" &&
+      f !== "test/scripts/merge-request.test.ts",
   )
   // docs はフォルダの id の "docs" とぶつかるので、名前の照合だけで見る
   const folderPath = /["'`](\.claude|conventions)["'`/]/
@@ -514,6 +516,10 @@ test("表のファイルを、テストが流すコードが読まない", () =>
       "scripts/ask-log.ts folder",
       "scripts/merge-queue.ts folder",
       "scripts/restart-subs.ts folder",
+      // 入れた物の差分のパスを、事例のファイルの名前と比べるだけ（頭のコメントは AGENT.md の節を指す）
+      "scripts/merge-request.ts AGENT.md",
+      "scripts/merge-request.ts folder",
+      "scripts/merge-request.ts shiteki-kaizen.md",
     ].sort(),
   )
 })
