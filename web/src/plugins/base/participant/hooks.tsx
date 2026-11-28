@@ -22,8 +22,8 @@ import {
   type Workroom,
 } from "."
 import { workroomActivityOf } from "./activity"
-import { ASK_REFRESH } from "./ask-refresh"
 import { CONTEXT_SCALE, type ContextGauge, contextGauge, contextScaleOf, type NO_CONTEXT_USE } from "./context-gauge"
+import { REFRESH_ASK } from "./refresh-ask"
 import { adminRoomOf, type VisitorRow, visitorRows, type WorkroomRow, workroomRows } from "./rows"
 import { ownBookPagesOf } from "./workdesks"
 import { type FoundWorkerBook, foundWorkerBookOf, NO_WORKER_BOOK, workerBookOf, workerBookReadsOf } from "./worker-book"
@@ -175,7 +175,7 @@ export function useWorkroomActions(): WorkroomActions {
 export function useAskRefresh(): (room: string, participant: string) => Promise<boolean> {
   const { performConfirmed } = useActions()
   return useCallback(
-    async (room, participant) => (await performConfirmed(ASK_REFRESH.id, { participant }, { record: room })).ok,
+    async (room, participant) => (await performConfirmed(REFRESH_ASK.id, { participant }, { record: room })).ok,
     [performConfirmed],
   )
 }

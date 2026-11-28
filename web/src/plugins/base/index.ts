@@ -208,7 +208,6 @@ import {
 import {
   ADMIN_MARK,
   ADMIN_SET,
-  ASK_REFRESH,
   CONTEXT_SCALE,
   FOLLOW_WORK_CHANGED,
   FOLLOW_WORK_ENDED,
@@ -226,6 +225,7 @@ import {
   PARTICIPANT_REQUEST,
   PARTICIPANT_WELCOME_DIALOG,
   PENDING_MESSAGE_DIALOG,
+  REFRESH_ASK,
   REFRESH_REQUEST,
   SESSION_RENAME,
   WORK_SUBJECTS_CHECK,
@@ -617,7 +617,7 @@ export const BASE = defineBuiltin(
       PARTICIPANT_DECLINE,
       PARTICIPANT_CANCEL,
       PARTICIPANT_REMOVE,
-      ASK_REFRESH,
+      REFRESH_ASK,
       WORKROOM_ADD,
       WORKROOM_UPDATE,
       WORKROOM_REMOVE,
@@ -945,7 +945,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:participant-decline": typeof PARTICIPANT_DECLINE
     "@matomezu/base:participant-cancel": typeof PARTICIPANT_CANCEL
     "@matomezu/base:participant-remove": typeof PARTICIPANT_REMOVE
-    "@matomezu/base:ask-refresh": typeof ASK_REFRESH
+    "@matomezu/base:refresh-ask": typeof REFRESH_ASK
     "@matomezu/base:workroom-add": typeof WORKROOM_ADD
     "@matomezu/base:workroom-update": typeof WORKROOM_UPDATE
     "@matomezu/base:workroom-remove": typeof WORKROOM_REMOVE

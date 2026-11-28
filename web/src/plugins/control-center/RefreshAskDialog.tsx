@@ -8,7 +8,7 @@ import { ActionButton, Dialog, HelpButton, useAskRefresh, useWorkroomRows } from
 import { kit } from "./kit"
 import styles from "./WorkroomLeaveDialog.module.css"
 
-export function AskRefreshDialog({ args, onClose }: DialogProps<{ workroom: string; participant: string }>) {
+export function RefreshAskDialog({ args, onClose }: DialogProps<{ workroom: string; participant: string }>) {
   const t = useMessages(kit)
   const { showToast } = useActions()
   const ask = useAskRefresh()

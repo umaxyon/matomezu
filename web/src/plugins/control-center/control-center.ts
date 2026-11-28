@@ -95,8 +95,8 @@ export const MAILBOX_MAXIMIZED = kit.definePluginStateOf<boolean>()({
 export const WORKROOM_LEAVE_DIALOG = kit.defineDialogWith<{ workroom: string }>()({ id: "workroom-leave" })
 
 // 引継ぎページを書いて会話を空にするよう AI に頼む確認のダイアログ。送る先のワークルームの id と、そこに入っている参加者の id を受け取る
-export const ASK_REFRESH_DIALOG = kit.defineDialogWith<{ workroom: string; participant: string }>()({
-  id: "ask-refresh",
+export const REFRESH_ASK_DIALOG = kit.defineDialogWith<{ workroom: string; participant: string }>()({
+  id: "refresh-ask",
 })
 
 // ビジターを外す確認のダイアログ。外すビジターの参加者の id を受け取る

@@ -4,15 +4,15 @@ import type { NO_STATE } from "../../plugin-api"
 import { definePluginUi, defineWidget } from "../../plugin-api/ui"
 import { LIBRARY_CONTEXT_MENUS, MAIL_ACTIONS, WIDE_SEARCH_OPENS } from "../base/ui"
 import { CONTROL_CENTER_PLUGIN } from "."
-import { AskRefreshDialog } from "./AskRefreshDialog"
 import {
-  ASK_REFRESH_DIALOG,
   CONTROL_CENTER_SCREEN,
   type Picked,
+  REFRESH_ASK_DIALOG,
   VISITOR_LEAVE_DIALOG,
   WORKROOM_LEAVE_DIALOG,
 } from "./control-center"
 import { kit } from "./kit"
+import { RefreshAskDialog } from "./RefreshAskDialog"
 import { ControlCenterScreen } from "./Screen"
 import { BELOW_PARTICIPANTS, PICKED_DETAIL, PROJECTS, SIDE, WORKROOM_COLUMNS, WORKROOM_ROW_LINE } from "./slots"
 import { VisitorLeaveDialog } from "./VisitorLeaveDialog"
@@ -40,7 +40,7 @@ export const CONTROL_CENTER_UI = definePluginUi(CONTROL_CENTER_PLUGIN, {
   dialogViews: {
     [WORKROOM_LEAVE_DIALOG.id]: WorkroomLeaveDialog,
     [VISITOR_LEAVE_DIALOG.id]: VisitorLeaveDialog,
-    [ASK_REFRESH_DIALOG.id]: AskRefreshDialog,
+    [REFRESH_ASK_DIALOG.id]: RefreshAskDialog,
   },
 })
 
