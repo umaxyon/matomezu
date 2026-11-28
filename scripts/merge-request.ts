@@ -1,4 +1,4 @@
-// 平行作業の worktree のブランチを、main への取り込みのキューに並べ、結果を待って返す。サブは Claude Code のバックグラウンドで流す
+// 平行作業の worktree のブランチを main へ入れ（テストの読まない md の直しだけなら並ばずに、ほかは取り込みのキューに並べて）、結果を返す。サブは Claude Code のバックグラウンドで流す
 //   bun scripts/merge-request.ts
 // 進め方
 //   1. この worktree のブランチの先（頼んだ時の sha）を決め、並べられるかを確かめる（refusal）
