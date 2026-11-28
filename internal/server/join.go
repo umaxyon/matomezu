@@ -15,12 +15,12 @@ package server
 //   - git のブランチ（MCP が呼び出しのたびに X-Matomezu-Branch ヘッダで添える。変わったら置き場所に書いて窓に知らせる）
 //   - AI のプログラム（Claude Code など）のプロセス id（MCP が X-Matomezu-Host ヘッダで、フックが host で添える。置き場所に残す。
 //     セッション id が変わったとき（Claude Code の /clear など）に、同じプロセス id の参加者へ新しいセッション id を結び直すのに使う。
-//     セッションの AI のプログラムが替わったとき（Claude Desktop の --resume・/clear）は、フックの添えたプロセス id へ起こす知らせの宛て先を移す（join_session.go の followHost）。
+//     セッションの AI のプログラムが替わったとき（Claude Desktop の --resume・/clear）は、フックの添えたプロセス id へ送り先エッジを移す（join_session.go の followHost）。
 //     join でセッション id を運んだ参加者は結び直さない。呼び出しがセッション id を運ぶ AI〈Codex〉は、会話が変わると MCP も作り直され、
 //     プロセス id は、ほかの会話〈Codex の app-server では、マシンの全部の会話〉と同じになりうるため）
 //
 // 受け入れた参加者は、AI のフックが参加を伝えるまで準備中（セッション id を join で運ぶ AI は受け入れた時点で準備中でない）。
-// 準備中と要求中の参加の id は、MCP が名乗っても、最後に呼ばれた時刻・ブランチ・AI のプログラムのプロセス id・「参加しました」の知らせ・伝えた印を残さない（join の頼みに添えたプロセス id は、起こす知らせの宛て先として別に残す）。準備中の間は生きていない
+// 準備中と要求中の参加の id は、MCP が名乗っても、最後に呼ばれた時刻・ブランチ・AI のプログラムのプロセス id・「参加しました」の知らせ・伝えた印を残さない（join の頼みに添えたプロセス id は、送り先エッジとして別に残す）。準備中の間は生きていない
 //
 // 参加の id は MCP が X-Matomezu-Participant ヘッダで毎回添え、「参加しました」の知らせは X-Matomezu-Notice ヘッダで 1 度だけ返す（値は URL エンコード）。
 // 呼び出しの参加者は、参加の id か、無ければ AI のプログラムが MCP を立てたときのセッション id（X-Matomezu-Host-Session）に結ばれた参加者で決まる
@@ -58,9 +58,9 @@ type participantNote struct {
 	Model           string `json:"model,omitempty"`           // AI のフックが知らせたか、MCP が添えたモデル（あとに届いた方）
 	Branch          string `json:"branch,omitempty"`          // MCP が添えた git のブランチ
 	Host            string `json:"host,omitempty"`            // AI のプログラム（Claude Code など）のプロセス id（MCP とフックが添える）
-	WakeHost        string `json:"wakeHost,omitempty"`        // 起こす知らせの宛て先の AI のプログラムのプロセス id（join の頼みに MCP が添え、プロセスが替わるとフックが移す。followHost。結び直しには使わない。watch.go）
-	WakeSession     string `json:"wakeSession,omitempty"`     // 起こす知らせの宛て先のセッション id（join の頼みに MCP が添えた、AI のプログラムが MCP を立てたときの物。プロセスが替わるとフックが移す。followHost。watch.go）
-	SessionPid      string `json:"sessionPid,omitempty"`      // セッションと同じだけ生きるプロセスだと MCP が名乗ったプロセス id（居なくなったら退室。名乗った呼び出しが書き、起こす知らせの宛て先を移すときに消す）
+	WakeHost        string `json:"wakeHost,omitempty"`        // 送り先エッジの AI のプログラムのプロセス id（join の頼みに MCP が添え、プロセスが替わるとフックが移す。followHost。結び直しには使わない。watch.go）
+	WakeSession     string `json:"wakeSession,omitempty"`     // 送り先エッジのセッション id（join の頼みに MCP が添えた、AI のプログラムが MCP を立てたときの物。プロセスが替わるとフックが移す。followHost。watch.go）
+	SessionPid      string `json:"sessionPid,omitempty"`      // セッションと同じだけ生きるプロセスだと MCP が名乗ったプロセス id（居なくなったら退室。名乗った呼び出しが書き、送り先エッジを移すときに消す）
 	SessionPidSpace string `json:"sessionPidSpace,omitempty"` // そのプロセス id が通じる範囲の印（常駐の印と同じときだけ、居るかを確かめる）
 	Refreshable     bool   `json:"refreshable,omitempty"`     // 結んだ会話の AI のプログラムが、会話を空にできると名乗った（話しかけのフックが添える。refresh.go）
 	RefreshDue      string `json:"refreshDue,omitempty"`      // 受けたリフレッシュリクエストの、空にしたあとの新しい会話に打つ文（AI のプログラムの部品が訊いたら渡して RefreshLent へ移す。refresh.go）
@@ -156,8 +156,8 @@ type JoinRequest struct {
 	AdeWorkspace    string `json:"adeWorkspace"` // AI が動いている ADE のワークスペースの名前（MCP が clients/ade の部品に訊いて添える。分からなければ空）
 	AiUi            string `json:"aiUi"`         // 利用者がその会話と話している AI の UI（MCP が clients の部品で決めて添える。分からなければ空。値は参加の要求のアクションが確かめる）
 	Participant     string `json:"-"`
-	Host            string `json:"-"` // AI のプログラムのプロセス id（MCP が X-Matomezu-Host で添える。起こす知らせの宛て先。watch.go）
-	HostSession     string `json:"-"` // AI のプログラムが MCP を立てたときのセッション id（MCP が X-Matomezu-Host-Session で添える。起こす知らせの宛て先。watch.go）
+	Host            string `json:"-"` // AI のプログラムのプロセス id（MCP が X-Matomezu-Host で添える。送り先エッジに書く物。watch.go）
+	HostSession     string `json:"-"` // AI のプログラムが MCP を立てたときのセッション id（MCP が X-Matomezu-Host-Session で添える。送り先エッジに書く物。watch.go）
 	SessionPid      string `json:"-"` // セッションと同じだけ生きるプロセスの id（MCP が X-Matomezu-Session-Pid で名乗る。退室の見張りの宛て）
 	SessionPidSpace string `json:"-"` // そのプロセス id が通じる範囲の印（X-Matomezu-Session-Pid-Space）
 }

@@ -108,7 +108,7 @@ func hostProgram() (string, string) {
 	return strconv.Itoa(pid), name
 }
 
-// hostProcess は、AI のプログラムのプロセス id（分からなければ空）。起こす知らせの宛て先を、フックや monitor が名指す AI のプログラムと合わせるのに使う
+// hostProcess は、AI のプログラムのプロセス id（分からなければ空）。送り先エッジを、フックや monitor が名指す AI のプログラムと合わせるのに使う
 func hostProcess() string {
 	pid, _ := hostProgram()
 	return pid

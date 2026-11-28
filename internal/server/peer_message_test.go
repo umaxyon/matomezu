@@ -107,7 +107,7 @@ func TestQueuedLinesFollowTheRequestsAndThePairing(t *testing.T) {
 	if got := wakes(b, b.OpenWakesWith("200", "", WakeLimits{})); len(got) != 1 || got[0] != `matomezu from AI "s1" on host "a": "頼み"` {
 		t.Fatalf("wakes = %q", got)
 	}
-	// ペアリングを解いたら、そのホストから届いてまだ渡していない行は捨てる（返事の宛先をもう引けない）
+	// ペアリングを解いたら、そのホストから届いてまだ渡していない行は捨てる（返事の送り先をもう引けない）
 	if sent := sendTo(t, as.URL, s1, "b", "s2", "もう 1 つ"); !sent.OK {
 		t.Fatalf("sent = %+v", sent)
 	}

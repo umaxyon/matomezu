@@ -207,7 +207,7 @@ type claudeWatchCmd struct {
 	Via string `enum:"monitor,mod" default:"monitor" help:"Who reads the lines: monitor (the plugin's monitor) or mod (the plugin's mod, which runs this only where the monitor is not started; it prints nothing outside Claude Desktop)."`
 }
 
-// Run は、このセッションへの起こす知らせを 1 行ずつ出す。宛て先は、たどった AI のプログラムと、Claude Code が立てたときのセッション id
+// Run は、このセッションへの起こす知らせを 1 行ずつ出す。送り先エッジは、たどった AI のプログラムと、Claude Code が立てたときのセッション id
 // （Windows では、monitor から AI のプログラムまでたどれないことがある。そのときはセッション id だけで合わせる）
 func (c claudeWatchCmd) Run() error {
 	claudeDev()

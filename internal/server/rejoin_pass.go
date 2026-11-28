@@ -81,7 +81,7 @@ func (h *Hub) joinByPass(req JoinRequest, ids *engine.JoinActions, roomID, occup
 	}
 	// 参加者の id は先に決めて、要求のアクションに振らせる（受け入れのアクションの宛先にする）
 	id := newEnvelopeID()
-	// 準備中にならないよう、受け入れる前にセッション id と起こす知らせの宛て先を結ぶ
+	// 準備中にならないよう、受け入れる前にセッション id と送り先エッジを結ぶ
 	h.noteSession(id, req.SessionID)
 	h.noteJoinHost(id, req)
 	done, err := h.Perform(Perform{Actions: []engine.BulkAction{

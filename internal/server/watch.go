@@ -10,7 +10,7 @@ package server
 //     delivered（渡せた）なら行列から外し、absent（その AI のプログラムにその会話が無い）なら通り道には流さず呼び出しの返事だけで渡し、
 //     failed（失敗）なら間を置いて流し直す。通り道が切れたら、貸していた知らせを戻す（渡せたのに結果が届かなかった物は、もう一度渡る）。
 //     同じ参加者の知らせは一度に 1 つだけ貸す（順を守る）。
-//     通り道は AI のプログラムのプロセス id（host）ごと。参加者の宛て先は、join のときに MCP が添えたプロセス id。
+//     通り道は AI のプログラムのプロセス id（host）ごと。参加者の送り先エッジのプロセス id は、join のときに MCP が添えた物。
 //     MCP と通り道の両方が、AI のプログラムが立てたときのセッション id を添えていれば、それも合う通り道だけ（プロセス id が別の AI のプログラムに使い回されたときに届けない）。
 //     流す知らせには、送り先の参加者に結んだセッション id を添える（渡すコマンドが、どの会話に渡すかを決める）
 //   - 参加者が決まった /api/ai の呼び出しの返事（aiwire.NoticeHeader。join_calls.go の Called）: AI 間メッセージだけを渡す（参加の知らせは、その呼び出しが返す「参加しました」が兼ねる）
@@ -123,7 +123,7 @@ func logWake(format string, args ...any) {
 // 貸した知らせの結果（POST /api/ai/watch/ack の result）
 const (
 	WakeDelivered = "delivered" // 渡せた
-	WakeAbsent    = "absent"    // その AI のプログラムに宛て先の会話が無い
+	WakeAbsent    = "absent"    // その AI のプログラムに送り先エッジのセッションが無い
 	WakeFailed    = "failed"    // 渡せなかった（間を置いて流し直す）
 )
 
@@ -200,7 +200,7 @@ func (h *Hub) dropStaleAbsentLocked() {
 	}
 }
 
-// reaches は、参加者の記録 n の宛て先に、通り道 l が合うか。AI のプログラムのプロセス id かセッション id の少なくとも一方が両方で分かって等しく、
+// reaches は、参加者の記録 n の送り先エッジに、通り道 l が合うか。AI のプログラムのプロセス id かセッション id の少なくとも一方が両方で分かって等しく、
 // もう一方は、両方で分かっていれば等しい（Windows では、AI のプログラムまでたどれない watch がある）
 func (l *wakeLine) reaches(n participantNote) bool {
 	host := l.host != "" && l.host == n.WakeHost
