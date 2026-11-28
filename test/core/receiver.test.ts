@@ -1,4 +1,4 @@
-// レシーバー（アクションの receives）: レコードが対象のアクションだけが名乗れ（でなければ E135）、届いた 1 通からはレシーバーだけを行う
+// レシーバー（アクションの receives）: レコードが対象のアクションだけが名乗れ（でなければ E083）、届いた 1 通からはレシーバーだけを行う
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { AI } from "../../web/src/core/actor"
@@ -28,9 +28,9 @@ const codesOf = (parts: typeof BUILTIN_PARTS): string[] => {
   return []
 }
 
-test("書庫が対象のアクションが receives を名乗れば E135", () => {
+test("書庫が対象のアクションが receives を名乗れば E083", () => {
   const receiving = { ...PLAIN, receives: "messages" } as never
-  expect(codesOf({ ...BUILTIN_PARTS, actions: [...BUILTIN_PARTS.actions, receiving] })).toContain("E135")
+  expect(codesOf({ ...BUILTIN_PARTS, actions: [...BUILTIN_PARTS.actions, receiving] })).toContain("E083")
 })
 
 test("届いた 1 通から、レシーバーでないアクションを行えば断る", () => {

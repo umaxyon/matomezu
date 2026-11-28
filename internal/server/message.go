@@ -166,7 +166,7 @@ func (h *Hub) payloadDeliveries(payloads []engine.Payload, actor *engine.Actor, 
 			}
 			return nil, nil, &Performed{OK: false, Reason: "no-recipient", Detail: "no other AI has joined the workroom " + m.To.Workroom + " now, so the payload to it cannot be sent; nothing was changed"}
 		}
-		d := delivery{to: to, from: from, asUser: asUser, fromUser: fromUser, unrallied: to == from, reply: m.ReplyReceiver, envelope: Envelope{
+		d := delivery{to: to, from: from, asUser: asUser && to != from, fromUser: fromUser, unrallied: to == from, reply: m.ReplyReceiver, envelope: Envelope{
 			ID:     newEnvelopeID(),
 			From:   Address{Host: self, Workroom: roomName(rooms, fromRoom)},
 			To:     Address{Host: self, Workroom: m.To.Workroom},
@@ -279,7 +279,7 @@ type delivery struct {
 	from     string // 送り手の参加者の id（ほかのホストから届いた物は空）
 	host     string // 送り手のホストエイリアス（同じホストの中なら空）
 	peer     string // 送り手のホスト id（同じホストの中なら空）
-	asUser   bool   // 利用者の頼みの印を付けるか（送り手のホストの requests が as-user か、送り手がこのホストの管理者か利用者）
+	asUser   bool   // 利用者の頼みの印を付けるか（送り手のホストの requests が as-user か、送り手がこのホストの管理者か利用者。管理者のレシーバーが行った AI 自身へ送る物には付けない）
 	fromUser bool   // 送り手が画面の利用者か（AI ラリーに数えず、送り先の AI ラリーの数を 0 に戻す）
 	// unrallied は、レシーバーの run が、行った AI 自身に返した物か（AI とレシーバーの往復は、AI ラリーに数えない）
 	unrallied bool

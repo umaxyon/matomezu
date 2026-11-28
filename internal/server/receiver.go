@@ -43,16 +43,12 @@ type sendChain struct {
 	byWindow   bool // 窓から行ったか、窓から始まった利用者のままの鎖か
 	inReceiver bool // レシーバーの run が返したか
 	hops       int  // レシーバーの run なら、受けた 1 通の段数
-	spent      *int // 鎖の元の頼みから、ここまでに行うと決めたレシーバーの数
+	spent      *int // 鎖の元の頼みから、ここまでに行うと決めたレシーバーの数（元の頼みでは nil で、payloadDeliveries が作る）
 }
 
 // next は、バルクを窓から行ったか（byWindow）と鎖 c から、そのバルクが送る物の鎖の値を決める
 func (c chain) next(byWindow bool) sendChain {
-	spent := c.spent
-	if spent == nil {
-		spent = new(int)
-	}
-	return sendChain{byWindow: byWindow || c.fromWindow, inReceiver: c.received != nil, hops: c.hops, spent: spent}
+	return sendChain{byWindow: byWindow || c.fromWindow, inReceiver: c.received != nil, hops: c.hops, spent: c.spent}
 }
 
 // pendingReceive は、あとで行うレシーバー宛ての 1 通
