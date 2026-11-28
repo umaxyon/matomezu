@@ -14,6 +14,7 @@ import {
   libraryTopIdsIn,
   type MovedCode,
   namesHomeOrFolder,
+  type PageMeta,
   type PageRow,
   type TrashRef,
 } from "./folders"
@@ -699,8 +700,11 @@ function binderHolds(catalog: CoreCatalog, binder: BinderEntry): boolean {
   return distinctTitles(ownTitlesOf(binder.lineup)) && typesAndPaperHold(catalog, binder)
 }
 
+// バインダの入れるタイプと、中のページのページメタ（名前に依らない決まりは、これだけで決まる）
+type MetaBinder = { pageType: string; lineup: readonly PageMeta[] }
+
 // バインダの決まりのうち、名前に依らない物を守っているか: 入れるタイプは、まとまるタイプ／中のページは、入れるタイプのページ／中のページは、紙と向きが同じ
-function typesAndPaperHold(catalog: CoreCatalog, binder: Pick<BinderEntry, "pageType" | "lineup">): boolean {
+function typesAndPaperHold(catalog: CoreCatalog, binder: MetaBinder): boolean {
   if (binder.lineup.some(p => p.type !== binder.pageType)) return false
   if (catalog.pageTypes.get(binder.pageType)?.grouping !== "binder") return false
   return sharesPaper(binder)
@@ -708,7 +712,12 @@ function typesAndPaperHold(catalog: CoreCatalog, binder: Pick<BinderEntry, "page
 
 // 書庫 library のバインダ binder が、ページ page を入れられるか（バインダの決まりのうち名前に依らない物 typesAndPaperHold を、
 // page を入れた並びが守るか。中に page が在れば、それを除いて比べる。名前の重なりは見ない）。binder がバインダでなければ false
-export function binderTakes(catalog: CoreCatalog, { pages, folders }: Library, binder: string, page: AnyPage): boolean {
+export function binderTakes(
+  catalog: CoreCatalog,
+  { pages, folders }: Library,
+  binder: string,
+  page: PageMeta,
+): boolean {
   const to = folders[binder]
   if (to?.folderRole !== "binder") return false
   const lineup = [...to.lineup.flatMap(r => (r.id === page.id ? [] : (pages[r.id] ?? []))), page]
@@ -720,7 +729,7 @@ export const binderIsEmpty = (folders: Library["folders"], binder: string): bool
   folders[binder]?.folderRole === "binder" && folders[binder].lineup.length === 0
 
 // ブックの外（書庫ホーム・ゴミ箱・フォルダの直下）に、バインダに入らずに置けるページか: まとまるタイプ（grouping が binder）でない
-export const pageHoldsOutside = (catalog: CoreCatalog, page: Pick<AnyPage, "type">): boolean =>
+export const pageHoldsOutside = (catalog: CoreCatalog, page: Pick<PageMeta, "type">): boolean =>
   catalog.pageTypes.get(page.type)?.grouping !== "binder"
 
 // ブックの外のバインダの決まりを守っているか: バインダの決まり（binderHolds）を守り、空でない
@@ -770,7 +779,7 @@ export function outsideHolds(catalog: CoreCatalog, was: Library, next: Library):
 }
 
 // バインダの中のページが、紙と向きをそろえているか
-function sharesPaper(binder: Pick<BinderEntry, "lineup">): boolean {
+function sharesPaper(binder: Pick<MetaBinder, "lineup">): boolean {
   const pages = binder.lineup
   const lead = pages[0]
   return pages.every(p => p.paper === lead?.paper && p.orientation === lead.orientation)
