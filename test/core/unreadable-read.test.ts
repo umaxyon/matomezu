@@ -6,10 +6,11 @@ import { describe, expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import { checkBooks, readLibrary } from "../../web/src/core/book"
 import { performIn, type World } from "../../web/src/core/perform-world"
-import { warningText } from "../../web/src/core/warnings"
-import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
+import { warning, warningText } from "../../web/src/core/warnings"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
+import { createMatomezu } from "../../web/src/store/create"
 import { DRAWING, drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
-import { CORE_CATALOG, sequence, worldRows } from "../support"
+import { CORE_CATALOG, savedRows, sequence, worldRows } from "../support"
 
 const UNKNOWN = "@foo/stamps:board"
 // タイプが機能台帳に無いページ（残したデータの形）
@@ -91,5 +92,42 @@ describe("置き場所の行を読む（readLibrary）", () => {
     const read = readLibrary(CORE_CATALOG, rows.pages, rows.folders)
     expect(Object.keys(read.library.pages).sort()).toEqual(["x2"])
     expect(Object.keys(read.library.folders)).not.toContain("f1")
+  })
+
+  test("常駐が読めないと決めたブックは判じずに外し、warnings に入れない。id の重なりは外してから比べ、常駐の決めに揃う", () => {
+    // b1 と b2 は同じページの id を持つ。判じるだけなら先の b1 が読め、b2 が W006 になる
+    const rows = worldRows([testBook("b1", "B", [drawingPage("p1")]), testBook("b2", "C", [drawingPage("p1")])])
+    expect(readLibrary(CORE_CATALOG, rows.pages, rows.folders).warnings.map(n => [n.code, n.params.book])).toEqual([
+      ["W006", "b2"],
+    ])
+    const read = readLibrary(CORE_CATALOG, rows.pages, rows.folders, new Set(["b1"]))
+    expect(read.warnings).toEqual([])
+    expect(Object.keys(read.library.folders)).toContain("b2")
+    expect(Object.keys(read.library.folders)).not.toContain("b1")
+  })
+})
+
+describe("常駐が読めないと決めたブックを受けた窓（createMatomezu の saved の unreadableBooks）", () => {
+  test("読めないブックは、常駐の warning と、ほかを窓が判じて読めなかった物の和", () => {
+    const told = warning("W027", "", { book: "b1", title: "B", pages: "1", type: UNKNOWN })
+    const store = createMatomezu({
+      plugins: BUILTIN,
+      controlCenter: BUILTIN_CONTROL_CENTER,
+      saved: {
+        ...savedRows([
+          testBook("b1", "B", [drawingPage("p1")]),
+          testBook("b2", "C", [stranger("u1")]),
+          testBook("b3", "D", [drawingPage("p3")]),
+        ]),
+        unreadableBooks: [told],
+      },
+    })
+    const state = store.state.getState()
+    expect(state.unreadable.map(n => [n.code, n.params.book])).toEqual([
+      ["W027", "b1"],
+      ["W027", "b2"],
+    ])
+    expect(Object.keys(state.folders)).toContain("b3")
+    expect(Object.keys(state.folders)).not.toContain("b1")
   })
 })

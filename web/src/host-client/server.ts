@@ -180,6 +180,7 @@ export function serverClient(net: Net = browserNet): HostClient {
   type Rows = Map<string, { row: unknown; version: number }>
   const confirmed: { pages: Rows; folders: Rows } = { pages: new Map(), folders: new Map() }
   let settings: unknown
+  let unreadableBooks: readonly Warning[] | undefined // 常駐が読めないと決めたブック（読んだか知らされた物。行と組で store に渡す）
   let annotations: Record<string, unknown> = {} // ページの id → アノテーションの並び
   let records: unknown = {} // 対象の定義が足した種類のレコード（種類の id → id → レコード）
   let counters: unknown = {} // 番号を振る種類の、区切りごとの次の番号
@@ -233,6 +234,7 @@ export function serverClient(net: Net = browserNet): HostClient {
       {
         pages: [...confirmed.pages.values()].map(e => e.row),
         folders: [...confirmed.folders.values()].map(e => e.row),
+        ...(unreadableBooks ? { unreadableBooks } : {}),
         settings,
         annotations,
         records,
@@ -306,6 +308,7 @@ export function serverClient(net: Net = browserNet): HostClient {
       data.folders.map(f => ({ id: f.id, row: f.folder, version: f.version })),
     )
     settings = data.settings ?? undefined
+    if (data.unreadableBooks) unreadableBooks = data.unreadableBooks
     annotations = data.annotations ?? {}
     records = data.records ?? {}
     counters = data.counters ?? {}
@@ -453,6 +456,7 @@ export function serverClient(net: Net = browserNet): HostClient {
       for (const p of e.pages) put("page", confirmed.pages, p.id, p.page, p.version, p.removed === true)
       for (const f of e.folders) put("folder", confirmed.folders, f.id, f.folder, f.version, f.removed === true)
       noticed(() => {
+        if (e.unreadableBooks) unreadableBooks = e.unreadableBooks
         if (e.settings !== undefined) settings = e.settings
         for (const [page, list] of Object.entries(e.annotations ?? {})) annotations = withPageAnnotations(page, list)
         if (e.records && e.records.length > 0) records = withRecords(restoreRecords(records), e.records)
@@ -586,6 +590,7 @@ export function serverClient(net: Net = browserNet): HostClient {
         saved: {
           pages: [...confirmed.pages.values()].map(e => e.row),
           folders: [...confirmed.folders.values()].map(e => e.row),
+          ...(unreadableBooks ? { unreadableBooks } : {}),
         },
         settings,
         plugins: added,

@@ -193,11 +193,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 最後に読んだ行（作ったときは残した行と books の行。知らせを受けたら、その行）。機能台帳を組み直したら読み直す
   let rows = startRows(options)
   // 行 rows を今の機能台帳で読んだ書庫（窓の書庫の表は、起動・知らせ・組み直しのどれも、常駐のエンジンと同じ readLibrary で読む）と、読めない物のフォルダの直下の物
+  // 常駐が読めないと決めたブックは判じない。読めないブックは、その warning と、ほかを画面が判じて読めなかった物の和
   const loadRows = (): LibraryLoaded => {
-    const read = readLibrary(catalog, rows.pages, rows.folders)
+    const host = rows.unreadableBooks ?? []
+    const read = readLibrary(catalog, rows.pages, rows.folders, new Set(host.map(w => w.params.book ?? "")))
     return {
       library: read.library,
-      warnings: read.warnings,
+      warnings: [...host, ...read.warnings],
       partial: read.partial,
       unreadableFolder: outsideUnreadable(rows.pages, rows.folders).unreadable,
     }
@@ -1155,7 +1157,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     state,
     actions,
     receive: (world, replay, change) => {
-      rows = { pages: world.pages, folders: world.folders }
+      rows = {
+        pages: world.pages,
+        folders: world.folders,
+        ...(world.unreadableBooks ? { unreadableBooks: world.unreadableBooks } : {}),
+      }
       const found = loadRows()
       const now = getState()
       // 確かめた世界の表（中身の同じページ・フォルダは、今の値に寄せる。組んだブックも同じ値のままになる）
@@ -1407,8 +1413,10 @@ function startRows(options: Pick<StoreOptions, "saved" | "books">): LibraryRows 
   const made = (options.books ?? []).map(recordsOf)
   const pages = [...(options.saved?.pages ?? []), ...made.flatMap(r => r.pages)]
   const folders = [...(options.saved?.folders ?? []), ...made.flatMap(r => r.folders)]
+  const told = options.saved?.unreadableBooks
+  const unreadableBooks = told ? { unreadableBooks: told } : {}
   const roleOf = (f: unknown) => (f as { folderRole?: unknown } | null)?.folderRole
-  if (folders.some(f => roleOf(f) === "home")) return { pages, folders }
+  if (folders.some(f => roleOf(f) === "home")) return { pages, folders, ...unreadableBooks }
   const held = new Set(
     folders.flatMap(f => {
       const lineup = (f as { lineup?: unknown } | null)?.lineup
@@ -1419,5 +1427,5 @@ function startRows(options: Pick<StoreOptions, "saved" | "books">): LibraryRows 
     const id = (b as { id?: unknown } | null)?.id
     return typeof id === "string" && !held.has(id) ? [{ id }] : []
   })
-  return { pages, folders: [...folders, homeOver(books)] }
+  return { pages, folders: [...folders, homeOver(books)], ...unreadableBooks }
 }

@@ -117,7 +117,7 @@ let lastAdded: readonly Plugin[] = []
   JSON.stringify(aiSettings(assembled.catalog.core, restoreSettings(JSON.parse(settings))))
 
 // 残したブックを今の機能台帳で確かめ、warning のあるブック（ブックごと読めない W005・W006・読めないページを持つ W027〜W029、一部に無い物がある W007）の
-// id・番号・warning の 1 行と、ブックごと読めないか（unreadable）を返す（常駐が一覧に持つ）
+// id・番号・warning の 1 行・文に埋める値（params）と、ブックごと読めないか（unreadable）を返す（常駐が一覧に持ち、読めないブックは画面にも渡す）
 ;(globalThis as { matomezuCheckBooks?: (books: string) => string }).matomezuCheckBooks = books =>
   checkBookLines(assembled, books)
 

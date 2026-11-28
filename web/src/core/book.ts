@@ -375,14 +375,17 @@ export interface LibraryRead {
 // ブックの外のページは、そのタイプのページの形で読め、まとまるタイプでないときだけ入れる（読めなければ入れず、残したデータには手を付けない）。
 // ブックの外のバインダは、形に合い、中のページの行が全部在って読め、バインダの決まりを守り、空でないときだけ、中のページごと入れる。
 // 入らなかった物を指す並びは、表に無い物を指すので、木の決まりが破れて見える（書庫が対象のアクションは断られる）。
-// どのフォルダにも持たれていないページの行と、読めないブックの行と、読めない物のフォルダの行とその中の物の行は、表に入れない
+// どのフォルダにも持たれていないページの行と、読めないブックの行と、読めない物のフォルダの行とその中の物の行は、表に入れない。
+// unreadable は、ほかで読めないと決まったブックの id（常駐が決めた物）。それらは判じずに外す（id の重なりを比べる前に外し、どちらを読めないとするかを常駐の決めに揃える）。warnings には入らない
 export function readLibrary(
   catalog: CoreCatalog,
   allPages: readonly unknown[],
   allFolders: readonly unknown[],
+  unreadable: ReadonlySet<string> = new Set(),
 ): LibraryRead {
   const { pageRows, folderRows } = outsideUnreadable(allPages, allFolders)
-  const checked = checkBooks(catalog, rawBooksOf(pageRows, folderRows))
+  const raw = rawBooksOf(pageRows, folderRows).filter(b => !unreadable.has(String((b as { id?: unknown } | null)?.id)))
+  const checked = checkBooks(catalog, raw)
   const tables = tablesOf(checked.books)
   const open = homeAndFoldersOf(folderRows)
   if (open.length === 0) return { library: tables, ...checked }

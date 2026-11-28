@@ -470,7 +470,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 	// 起動したときに足したドキュメントは除いて比べる
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 ||
 		!strings.HasPrefix(withoutDocuments(body), `{"annotations":{},"counters":{},"folders":[{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[]},"version":2},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":1},{"id":"library-unreadable","folder":{"folderRole":"unreadable","id":"library-unreadable","lineup":[]},"version":1}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":{"`) ||
-		!strings.Contains(body, `},"settings":{"`+enabledPluginsSetting+`":[`) || !strings.HasSuffix(body, `]},"touched":{}}`) {
+		!strings.Contains(body, `},"settings":{"`+enabledPluginsSetting+`":[`) || !strings.HasSuffix(body, `]},"touched":{},"unreadableBooks":[]}`) {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
 	book := func(title string) string {
@@ -641,7 +641,7 @@ func TestPerformTellsEveryScreen(t *testing.T) {
 		got := next(t, lines)
 		// 変わったのはページ p1 だけ: pages にその 1 枚が新しい版で並び、folders は空
 		if !strings.HasPrefix(got, `changed {"act":"`) || !strings.Contains(got, `-2","actions":["@matomezu/paper:item-place"],"annotations":{},"books":["b1"],"by":"window","client":"c1","folders":[],"pages":[{"id":"p1","page":{`) ||
-			!strings.Contains(got, `"id":"k1"`) || !strings.HasSuffix(got, `},"version":2}],"records":[],"seq":7,"window":""}`) {
+			!strings.Contains(got, `"id":"k1"`) || !strings.HasSuffix(got, `},"version":2}],"records":[],"seq":7,"unreadableBooks":[],"window":""}`) {
 			t.Fatalf("%s changed = %s", name, got)
 		}
 	}

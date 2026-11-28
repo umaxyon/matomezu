@@ -5,6 +5,7 @@ import type { AssetPut } from "../core/assets"
 import { BROKEN, MOVED_CODES } from "../core/folders"
 import type { PageUsers } from "../core/page-users"
 import { NOT_INSIDE } from "../core/unreadable"
+import { WARNINGS, type WarningCode } from "../core/warnings"
 
 const SHOW_AT = { stage: z.string().optional(), split: z.boolean().optional() }
 export const ShowSchema = z.discriminatedUnion("to", [
@@ -131,6 +132,12 @@ export const HostPeersSchema = z.object({
 })
 // 参加者の会話の今のコンテキストの量と、AI の側の物差し（どちらもトークン。分からなければ常駐が省く）
 const CONTEXT_USE = z.object({ used: z.number(), aiScale: z.number().positive() })
+// 常駐が知らせる warning 1 つ（core/warnings.ts の Warning。番号は表に在る物だけ）
+export const WarningSchema = z.object({
+  code: z.enum(Object.keys(WARNINGS) as [WarningCode, ...WarningCode[]]),
+  plugin: z.string(),
+  params: z.record(z.string(), z.string()),
+})
 export const DataSchema = z.object({
   pages: z.array(z.object({ id: z.string(), page: z.unknown(), version: z.number().int() })),
   folders: z.array(z.object({ id: z.string(), folder: z.unknown(), version: z.number().int() })),
@@ -142,6 +149,7 @@ export const DataSchema = z.object({
     .array(z.object({ id: z.string(), ui: z.string(), css: z.string().optional(), disabled: z.boolean().optional() }))
     .optional(),
   touched: z.record(z.string(), z.string()).optional(),
+  unreadableBooks: z.array(WarningSchema).optional(),
   participantCalls: z.record(z.string(), z.string()).optional(),
   participantReady: z.array(z.string()).optional(),
   update: UpdateStatusSchema.optional(),
@@ -185,6 +193,7 @@ export const ChangedSchema = z.object({
   records: z.array(z.object({ subject: z.string(), id: z.string(), record: z.unknown() })).optional(),
   counters: z.record(z.string(), z.record(z.string(), z.number())).nullish(),
   window: z.string().optional(),
+  unreadableBooks: z.array(WarningSchema).optional(),
   ...Mark,
 })
 export const AckSchema = z.object({ seq: z.number().int(), ok: z.boolean(), reason: z.string() })

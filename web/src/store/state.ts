@@ -374,6 +374,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
 export interface LibraryRows {
   pages: readonly unknown[]
   folders: readonly unknown[]
+  // 常駐が読めないと決めたブックの warning（行と同じ時点の物）。在れば、画面はそれらを判じずに読めないブックにする。ホストの無い窓とテストには無く、画面が全部を判じる
+  unreadableBooks?: readonly Warning[]
 }
 
 // 行を今の機能台帳で読んだ物: 書庫の表 library と、読めないブックの warning・読めるブックの中の問題（core/book.ts の readLibrary）と、読めない物のフォルダの直下の物
