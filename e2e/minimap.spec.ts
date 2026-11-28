@@ -19,6 +19,30 @@ const WHEEL_100 = 1.16
 // 拡大縮小の移りの途中で測った紙の位置と幅を、窓に置く所
 type MidOfZoom = { midOfZoom: Promise<{ x: number; width: number }> }
 
+test("左下の道具の切り替えはミニマップを出すフッタメニューの裏に隠れる", async ({ page }) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const wheel = page.getByRole("button", { name: "選択ツール" })
+  const close = page.getByRole("button", { name: "スクリーンを閉じる" })
+  const at = (await wheel.boundingBox())!
+  const footerStart = (await close.boundingBox())!
+  expect(at.x).toBeGreaterThanOrEqual(footerStart.x)
+  expect(at.x + at.width / 2).toBeLessThan(footerStart.x + footerStart.width)
+  expect(footerStart.y - (at.y + at.height)).toBeGreaterThanOrEqual(0)
+  expect(footerStart.y - (at.y + at.height)).toBeLessThan(20)
+  const hit = () =>
+    wheel.evaluate(
+      (button, point) => {
+        const target = document.elementFromPoint(point.x, point.y)
+        const menu = target?.closest('[data-open="true"][aria-hidden="false"]')
+        return { wheel: button.contains(target), footer: !!menu?.querySelector("[data-minimap=footer-menu]") }
+      },
+      { x: at.x + at.width / 2, y: at.y + at.height / 2 },
+    )
+  await expect.poll(hit).toEqual({ wheel: true, footer: false })
+  await footerMenu(page)
+  await expect.poll(hit).toEqual({ wheel: false, footer: true })
+})
+
 test("フッタメニューの行の左端に拡大縮小、その真上にミニマップが出る。四角をドラッグすると紙が動き、フッタメニューから出ても下がらない", async ({
   page,
 }) => {
