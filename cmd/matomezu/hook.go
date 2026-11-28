@@ -295,88 +295,27 @@ func sendModel(hook hookInput, api hookAPI) {
 // contextUnknown は、POST /api/ai/context-use の contextUse の、量か物差しが読めないときの値
 const contextUnknown = "unknown"
 
-// contextUse は、POST /api/ai/context-use の contextUse の、読めたときの値（server の contextUse と同じ形）。
-// ByMatomezu は、今の量のうち matomezu が使っている分の目安（字数の割合から出す。分からなければ 0）
+// contextUse は、POST /api/ai/context-use の contextUse の、読めたときの値（server の contextUse と同じ形）
 type contextUse struct {
-	Used       int64 `json:"used"`
-	AIScale    int64 `json:"aiScale"`
-	ByMatomezu int64 `json:"byMatomezu,omitempty"`
+	Used    int64 `json:"used"`
+	AIScale int64 `json:"aiScale"`
 }
 
 // contextReader は、フックの入力から、そのセッションの今のコンテキストの量と AI の側の物差しを読む物（その AI の事情。読めなければ ok が偽）
 type contextReader func(hook hookInput) (use contextUse, ok bool)
 
-// contextChars は、会話の記録の中身の字数（total）と、そのうち matomezu が足した分（matomezu。server の contextChars と同じ形）
-type contextChars struct {
-	Total    int64 `json:"total"`
-	Matomezu int64 `json:"matomezu"`
-}
-
-// heldContextMark は、常駐が持つ、そのセッションの会話の記録を読み始める印と、そこまでに積んだ字数（POST /api/ai/context-use に askMark を送った答え）
-type heldContextMark struct {
-	Mark  string       `json:"mark"`
-	Chars contextChars `json:"chars"`
-}
-
-// charsRead は、会話の記録を印から読んだ結果（restart なら、積んだ字数を捨てて chars から数え直す）
-type charsRead struct {
-	restart bool
-	chars   contextChars
-	mark    string
-}
-
-// charsReader は、フックの入力の会話の記録を印 from から読む物（その AI の事情。印の中身もその AI の部品が決め、常駐は中を見ない。読めなければ ok が偽）
-type charsReader func(hook hookInput, from string) (read charsRead, ok bool)
-
 // sendContextUse は、セッションの今のコンテキストの量と物差しを常駐に送る（読めなければ読めないと送る）。何も書かない（AI のコンテキストを使わない）。
-// chars があれば、先に常駐から読み始める印と積んだ字数を受け取り、続きを読んで積み、matomezu の分の目安（今の量 × matomezu の字数 ÷ 全体の字数）を添え、
-// 読み始めた印（from）・次の印（mark）・積んだ字数（chars）も送る（常駐は from が自分の持つ印と合うときだけ入れる）。印を受け取れなければ字数を読まない。
 // 常駐が立っていない・セッション id が無い・サブエージェントの中のフックなら、読まずに何もしない（答えは読まない）
-func sendContextUse(hook hookInput, read contextReader, chars charsReader, api hookAPI) {
+func sendContextUse(hook hookInput, read contextReader, api hookAPI) {
 	if api == nil || hook.SessionID == "" || hook.AgentID != "" {
 		return
 	}
-	body := map[string]any{"sessionId": hook.SessionID, "host": hook.Host}
-	use, known := read(hook)
-	if chars != nil {
-		if held, ok := askContextMark(hook.SessionID, api); ok {
-			if r, ok := chars(hook, held.Mark); ok {
-				total := r.chars
-				if !r.restart {
-					total = contextChars{Total: held.Chars.Total + r.chars.Total, Matomezu: held.Chars.Matomezu + r.chars.Matomezu}
-				}
-				body["from"], body["mark"], body["chars"] = held.Mark, r.mark, total
-				use.ByMatomezu = byMatomezu(use.Used, total)
-			}
-		}
+	var value any = contextUnknown
+	if use, ok := read(hook); ok {
+		value = use
 	}
-	if known {
-		body["contextUse"] = use
-	} else {
-		body["contextUse"] = contextUnknown
-	}
-	out, _ := json.Marshal(body)
-	_, _ = api(out)
-}
-
-// askContextMark は、常駐が持つセッション sessionID の読み始める印と積んだ字数を受け取る（受け取れなければ ok が偽）
-func askContextMark(sessionID string, api hookAPI) (heldContextMark, bool) {
-	body, _ := json.Marshal(map[string]any{"sessionId": sessionID, "askMark": true})
-	out, err := api(body)
-	var held heldContextMark
-	if err != nil || json.Unmarshal(out, &held) != nil {
-		return heldContextMark{}, false
-	}
-	return held, true
-}
-
-// byMatomezu は、今の量 used のうち、matomezu の字数の割合の分（字数が無ければ 0）
-func byMatomezu(used int64, chars contextChars) int64 {
-	if chars.Total <= 0 || chars.Matomezu <= 0 || used <= 0 {
-		return 0
-	}
-	share := min(float64(chars.Matomezu)/float64(chars.Total), 1)
-	return int64(float64(used) * share)
+	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "contextUse": value})
+	_, _ = api(body)
 }
 
 // permission は、ツールを使う前のフックの出力。読むだけの matomezu の MCP 公開ツール（MCP 公開ツールの表の印）なら、聞かずに使ってよいと答える。ほかのツールには何も言わず、利用者に聞く。
