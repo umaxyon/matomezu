@@ -21,6 +21,7 @@ type fakeWSLProxy struct {
 	end     chan struct{}
 	start   chan peer.WSLProxyStart
 	stopped chan struct{}
+	endEach chan struct{} // 受けるたびに、そのとき動いている物が 1 つ終わる
 	mu      sync.Mutex
 	n       int
 }
@@ -55,7 +56,10 @@ func (f *fakeWSLProxy) launch() (peer.WSLProxyProcess, error) {
 				_ = outW.Close()
 			}
 			go func() {
-				<-f.end
+				select {
+				case <-f.end:
+				case <-f.endEach:
+				}
 				_ = outW.Close()
 			}()
 		}
@@ -159,6 +163,10 @@ func TestTheWSLProxyTellsWhenItCannotStart(t *testing.T) {
 	if !s.Open {
 		t.Fatalf("the entrance closed: %+v", s)
 	}
+	if err := h.RestartWSLProxy(); err != nil { // Windows の側を直したあとの［立て直す］
+		t.Fatal(err)
+	}
+	f.started(t)
 }
 
 // ほかのホストが WSLプロキシごしに頼むと、WSL は頭の行の番地を頼みの来た番地にする（ペアリングの頼みに載る番地）。ペアリングしたあとの hello もそのまま通る
@@ -263,5 +271,23 @@ func TestRepickingThePortForTheWSLProxy(t *testing.T) {
 	now := waitHost(t, h, func(s HostStatus) bool { return s.WSLProxy == peer.WSLProxyRunning })
 	if !now.Open || now.Port == s.Port || again.Port != now.Port {
 		t.Fatalf("before %d, now %+v, the WSL proxy asked for %d", s.Port, now, again.Port)
+	}
+}
+
+// しばらく動いてから終わった WSLプロキシは、立て直しの数を数え直す（まれに終わる物は、いつまでも立て直す）
+func TestASteadyWSLProxyIsAlwaysStartedAgain(t *testing.T) {
+	quickRestarts(t, 20*time.Millisecond)
+	old := wslSteady
+	wslSteady = 100 * time.Millisecond
+	t.Cleanup(func() { wslSteady = old })
+	end := make(chan struct{}, 4)
+	f := scriptedWSLProxy(func(int) ([]string, bool) { return []string{`{"v":1,"ready":true}`}, false })
+	f.endEach = end
+	h, _, _ := openWSLHost(t, f)
+	for range 3 { // 動いてしばらくして終わる。1 回しか立て直せない数でも、毎回立て直す
+		waitHost(t, h, func(s HostStatus) bool { return s.WSLProxy == peer.WSLProxyRunning })
+		time.Sleep(150 * time.Millisecond)
+		end <- struct{}{}
+		f.started(t)
 	}
 }

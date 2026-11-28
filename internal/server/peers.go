@@ -227,6 +227,9 @@ func (h *Hub) startWSLProxy(e *hostEntrance, ad peer.Advert, srv *http.Server) {
 // 終わる訳が一度きりの事（Windows の側で終わらされた・Windows の matomezu を更新した）なら、間を置けば立つ
 var wslRestartWaits = []time.Duration{2 * time.Second, 10 * time.Second, 30 * time.Second}
 
+// wslSteady は、WSLプロキシがこれだけ続けて動いてから終わったら、立て直しの数を数え直す間（すぐ終わる物は使い切って止まり、まれに終わる物はいつまでも立て直す）
+var wslSteady = time.Minute
+
 // wslProxyState は、WSLプロキシの様子が変わったとき: 今の入口の WSLプロキシなら様子を書き、窓に知らせる。
 // 終わったら、WSLプロキシの見つけたホストも消えているので、ほかのホストの一覧も知らせる。待ち始めたあとで終わったら、間を置いて立て直す（そのあいだは starting）
 func (h *Hub) wslProxyState(e *hostEntrance, link *peer.WSLProxyLink, st peer.WSLProxyState, addrs []string) {
@@ -239,6 +242,12 @@ func (h *Hub) wslProxyState(e *hostEntrance, link *peer.WSLProxyLink, st peer.WS
 		return
 	}
 	was := e.status
+	if st == peer.WSLProxyRunning {
+		e.wslRunning = time.Now()
+	}
+	if st == peer.WSLProxyStopped && !e.wslRunning.IsZero() && time.Since(e.wslRunning) >= wslSteady {
+		e.wslRestarts = 0
+	}
 	if st == peer.WSLProxyStopped && e.wslRestarts < len(wslRestartWaits) {
 		wait := wslRestartWaits[e.wslRestarts]
 		e.wslRestarts++
@@ -272,16 +281,26 @@ func (h *Hub) restartWSLProxy(e *hostEntrance, old *peer.WSLProxyLink) {
 	h.tellHostStatus(was, now)
 }
 
-// RestartWSLProxy は、立て直しを使い切って止まった WSLプロキシを立て直す（利用者が［立て直す］を押したとき）
+// wslRestartable は、利用者の［立て直す］で立て直せる WSLプロキシの様子か（立たなかった・止まった。Windows の側を直したあとで試せるように）。
+// Windows でポートが使われているときは［別のポートにする］で、立てている最中と動いているときは立て直さない
+func wslRestartable(st peer.WSLProxyState) bool {
+	switch st {
+	case peer.WSLProxyStopped, peer.WSLProxyUnavailable, peer.WSLProxyUpdateWindows, peer.WSLProxyUpdateThis, peer.WSLProxyListen:
+		return true
+	}
+	return false
+}
+
+// RestartWSLProxy は、立たなかったか、立て直しを使い切って止まった WSLプロキシを立て直す（利用者が［立て直す］を押したとき）
 func (h *Hub) RestartWSLProxy() error {
 	e := h.entrance.Load()
 	if e == nil {
 		return errors.New("there is no entrance for other hosts")
 	}
 	e.mu.Lock()
-	if e.closed || e.srv == nil || e.status.WSLProxy != peer.WSLProxyStopped {
+	if e.closed || e.srv == nil || !wslRestartable(e.status.WSLProxy) {
 		e.mu.Unlock()
-		return errors.New("the WSL proxy has not stopped")
+		return errors.New("the WSL proxy is starting or running")
 	}
 	was := e.status
 	e.wslRestarts = 0

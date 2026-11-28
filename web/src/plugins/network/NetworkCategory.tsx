@@ -1,6 +1,6 @@
 // 設定カテゴリ「ネットワーク」: ホスト名とほかのホストとつなぐかの項目。つなぐが入なら、待っている所（番地ごとに［コピー］）とこのホストの鍵の印か、
 // 入口を開けなかった理由の 1 行（覚えたポートが使われていれば［別のポートにする］。確かめのダイアログを開く）。その下に、AI 用ホストリストに載せるこのホストのワークルーム
-// （全部か 5 件。つなぐが切でも出す）。そのうえ NAT の WSL では WSLプロキシの稼働中・非稼働の札（「？」に訳。止まったら［立て直す］、Windows でポートが使われていれば［別のポートにする］）。
+// （全部か 5 件。つなぐが切でも出す）。そのうえ NAT の WSL では WSLプロキシの稼働中・非稼働の札（「？」に訳。立たなかった・止まったら［立て直す］、Windows でポートが使われていれば［別のポートにする］）。
 // 稼働中は、待っている所に WSLプロキシの番地（Windows の LAN の番地）を出す。WSL で WSLプロキシが稼働していないときは、
 // このホストから相手の待っている所を入れてつなぐ案内と、開くと出る、相手からも見つけられるようにする手引き
 import { useEffect, useState } from "react"
@@ -110,7 +110,10 @@ function Address({ text }: { text: string }) {
 
 const COPY_LABELS = { none: "Copy", done: "Copied", failed: "Could not copy" } as const
 
-// WSLプロキシの札: 稼働中か非稼働かと、「？」に今の様子の訳。止まったら［立て直す］、Windows でポートが使われていれば［別のポートにする］
+// ［立て直す］を出す WSLプロキシの様子（立たなかった・止まった。Windows の側を直したあとで試せるように）
+const RESTARTABLE: ReadonlySet<string> = new Set(["stopped", "unavailable", "update-windows", "update-this", "listen"])
+
+// WSLプロキシの札: 稼働中か非稼働かと、「？」に今の様子の訳。立たなかった・止まったら［立て直す］、Windows でポートが使われていれば［別のポートにする］
 function WslProxyNote({ status }: { status: HostEntrance }) {
   const t = useMessages(kit)
   const ask = useAskHosts()
@@ -136,7 +139,7 @@ function WslProxyNote({ status }: { status: HostEntrance }) {
       {status.wslProxy === "port-in-use" && (
         <ActionButton onClick={() => openDialog(PORT_REPICK_DIALOG.id)}>{t("Use another port")}</ActionButton>
       )}
-      {status.wslProxy === "stopped" && (
+      {RESTARTABLE.has(status.wslProxy) && (
         <ActionButton onClick={() => void ask({ kind: "restart-wsl-proxy" }).catch(() => setFailed(true))}>
           {t("Start the WSL proxy again")}
         </ActionButton>

@@ -67,7 +67,8 @@ type hostEntrance struct {
 	closed      bool          // CloseHostEntrance のあとは開かない
 	peers       *peerState    // ペアリングとペアリングしたホストの様子（pairing.go）
 	user        string        // mDNS で知らせている利用者名
-	wslRestarts int           // 入口を開いてから、WSLプロキシが終わって立て直した回数
+	wslRestarts int           // WSLプロキシが終わって続けて立て直した回数（入口を開いたとき・［立て直す］・しばらく動いたあとで数え直す）
+	wslRunning  time.Time     // WSLプロキシが最後に待ち始めた時刻
 	proto       int           // 常駐間通信プロトコルの版（peer.Protocol。版の違う常駐を組むテストだけが、閉じているあいだに替える）
 }
 
@@ -267,7 +268,7 @@ func (e *hostEntrance) open(h *Hub) {
 		h.stoppedHostEntrance(e, srv)
 	}()
 	e.status.Open, e.status.Port, e.status.Addrs, e.status.Failed = true, port, peer.ReachableAddrs(), ""
-	e.wslRestarts = 0
+	e.wslRestarts, e.wslRunning = 0, time.Time{}
 	h.startBeacon(e, port, srv)
 }
 
