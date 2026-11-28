@@ -1094,6 +1094,7 @@ test("base の入口が出す名前は、どれもプラグイン API からも�
     "workTitleIn",
     "leftTitleIn",
     "myWorkdeskIn",
+    "handoffDueIn",
     "workroomActivitiesFrom",
   ]
   expect([...names(plugin), ...names(pluginUi)].filter(n => !own.includes(n) && !shown.has(n))).toEqual([])

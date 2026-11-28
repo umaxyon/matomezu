@@ -30,6 +30,15 @@ func laterThan(last, now time.Time) time.Time {
 	return last.Add(time.Millisecond)
 }
 
+// calledAt は、参加者が前に呼ばれた時刻 before（記録の書き方。無ければ空）のあとに、時計で now と読んだときの、最後に呼ばれた時刻（記録の書き方）。
+// マシンの時計は合わせ直しで後ろへ戻ることがあるので、before より前には戻さない
+func calledAt(before string, now time.Time) string {
+	if last, err := time.Parse(time.RFC3339Nano, before); err == nil && now.Before(last) {
+		return before
+	}
+	return storage.Stamp(now)
+}
+
 // stamped は、時点の無いアクションに、時点 now とその日付を同じ時点から入れた写し（時点のあるアクションは、そのまま）
 func stamped(actions []engine.BulkAction, now time.Time) []engine.BulkAction {
 	out := slices.Clone(actions)

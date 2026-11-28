@@ -11,6 +11,7 @@ import (
 // 利用者が AI のワークルームを担当にしてチケットを足すと、その AI に常駐メッセージ（カレントチケットが変わった）が届く。
 // AI が自分を担当にしたときは、自分には届かない
 func TestHostMessageWakesTheAssignedAI(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
@@ -37,6 +38,7 @@ func TestHostMessageWakesTheAssignedAI(t *testing.T) {
 
 // ワークルームを消すと、エンジンに渡していなかったワークルーム自身のブックの行を常駐が足して行い直し、そのブックを完全に消す
 func TestRemovingAWorkroomPurgesItsBook(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	noticeOf(t, s.URL, a)

@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -74,6 +75,18 @@ func putBook(t *testing.T, store storage.Storage, body string) {
 	}
 }
 
+// cleanup は t.Cleanup と同じく、テストの終わりに f を行う。行ったら f を放す
+// （testing は並べるテストの *testing.T を全部の並べるテストが済むまで持ち、t.Cleanup に渡した関数も放さないので、f の掴む常駐や置き場所がそのあいだ残る）
+func cleanup(t *testing.T, f func()) {
+	t.Cleanup(func() {
+		f()
+		f = nil
+	})
+}
+
+// serial は、ほかのテストと並べないテストの印。何もしない。why に並べない訳を書く（test/rules が、Test 関数の最初の文が t.Parallel() か serial かを見張る）
+func serial(_ *testing.T, why string) {}
+
 func newServer(t *testing.T, stop func()) *httptest.Server {
 	return newServerWith(t, Options{Stop: stop})
 }
@@ -84,7 +97,7 @@ func newServerWith(t *testing.T, o Options) *httptest.Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	s, _ := newServerOn(t, o, store)
 	return s
 }
@@ -115,8 +128,8 @@ func newServerOn(t *testing.T, o Options, store storage.Storage) (*httptest.Serv
 	s.Config.RegisterOnShutdown(hub.CloseAll)
 	s.Start()
 	cookieTestBrowser(t, s, o.Cookies)
-	t.Cleanup(hub.CloseAll)
-	t.Cleanup(s.Close)
+	cleanup(t, hub.CloseAll)
+	cleanup(t, s.Close)
 	return s, hub
 }
 
@@ -136,6 +149,7 @@ func get(t *testing.T, url, token string) (int, string) {
 }
 
 func TestServesScreen(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	if code, body := get(t, s.URL+"/", ""); code != 200 || body != "<!doctype html>top" {
 		t.Fatalf("/ = %d %q", code, body)
@@ -152,6 +166,7 @@ func TestServesScreen(t *testing.T) {
 }
 
 func TestPingNeedsToken(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	for _, token := range []string{"", "wrong"} {
 		if code, _ := get(t, s.URL+"/api/ping", token); code != 401 {
@@ -164,6 +179,7 @@ func TestPingNeedsToken(t *testing.T) {
 }
 
 func TestStopNeedsTokenAndPost(t *testing.T) {
+	t.Parallel()
 	stopped := make(chan struct{}, 1)
 	s := newServer(t, func() { stopped <- struct{}{} })
 	post := func(token string) int {
@@ -194,21 +210,21 @@ func cookieTestBrowser(t *testing.T, s *httptest.Server, p *ScreenCookies) {
 	secret, _ := p.Redeem(p.NewCode())
 	_, port, _ := net.SplitHostPort(strings.TrimPrefix(s.URL, "http://"))
 	testCookies.Store(s.URL, "matomezu-"+port+"="+secret)
-	t.Cleanup(func() { testCookies.Delete(s.URL) })
+	cleanup(t, func() { testCookies.Delete(s.URL) })
 }
 
 // testCookies は、テストの常駐の URL ごとの、画面 cookie を持つブラウザの cookie
 var testCookies sync.Map
 
-// testCookie は、url の常駐の画面 cookie を持つブラウザの cookie
-func testCookie(url string) (cookie string) {
-	testCookies.Range(func(k, v any) bool {
-		if strings.HasPrefix(url, k.(string)) {
-			cookie = v.(string)
-		}
-		return true
-	})
-	return cookie
+// testCookie は、to の常駐（scheme と host が同じ物）の画面 cookie を持つブラウザの cookie
+func testCookie(to string) string {
+	u, err := url.Parse(to)
+	if err != nil {
+		return ""
+	}
+	cookie, _ := testCookies.Load(u.Scheme + "://" + u.Host)
+	s, _ := cookie.(string)
+	return s
 }
 
 // send は画面からの頼みを送る（headers の Origin などはそのまま付ける）
@@ -313,6 +329,7 @@ func link(t *testing.T, s *httptest.Server, dir string) string {
 }
 
 func TestServesTheAddedPluginsToTheScreen(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	a := pluginDir(t, "a", map[string]string{"index.ts": `export default { id: "a" }`, "ui.tsx": `import "./a.css"` + "\nexport default 1", "a.css": ".a{color:red}"})
 	b := pluginDir(t, "b", map[string]string{"index.ts": `export default { id: "b" }`, "ui.tsx": "export default 2"})
@@ -344,6 +361,7 @@ func TestServesTheAddedPluginsToTheScreen(t *testing.T) {
 }
 
 func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := joinedAI(t, s)
 	screen := listen(t, s.URL)
@@ -446,6 +464,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 }
 
 func TestBooksAreKeptWithVersions(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	// 常駐が初めて起動したときに、最初のプロジェクトを 1 つ作る（runsOnceAtStart）
 	// 起動したときに足したドキュメントは除いて比べる
@@ -474,6 +493,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 }
 
 func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	// 名前の重ならないブック（重なっていると、置いたあとにドキュメントを足せない）
 	book := func(id string) string {
@@ -502,6 +522,7 @@ func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
 }
 
 func TestScreenAPIOnlyFromItsOwnPage(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	host := strings.TrimPrefix(s.URL, "http://")
 	cases := []struct {
@@ -553,7 +574,7 @@ func listen(t *testing.T, url string) <-chan string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { res.Body.Close() })
+	cleanup(t, func() { res.Body.Close() })
 	lines := make(chan string, 16)
 	go func() {
 		defer close(lines)
@@ -571,12 +592,12 @@ func listen(t *testing.T, url string) <-chan string {
 	return lines
 }
 
-// next は次の知らせ（ブックに触れた時刻の知らせ touched は飛ばす。touched は nextTouched で読む）
+// next は次の知らせ（ブックに触れた時刻の知らせ touched と、keepAlive ごとの keep は飛ばす。touched は nextTouched で、keep は nextAny で読む）
 func next(t *testing.T, lines <-chan string) string {
 	t.Helper()
 	for {
 		l := nextAny(t, lines)
-		if !strings.HasPrefix(l, "touched ") {
+		if !strings.HasPrefix(l, "touched ") && l != "keep {}" {
 			return l
 		}
 	}
@@ -604,6 +625,7 @@ func nextTouched(t *testing.T, lines <-chan string) string {
 }
 
 func TestPerformTellsEveryScreen(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	a, b := listen(t, s.URL), listen(t, s.URL)
@@ -637,6 +659,7 @@ func TestPerformTellsEveryScreen(t *testing.T) {
 }
 
 func TestSameKeyIsPerformedOnce(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	a := listen(t, s.URL)
@@ -664,6 +687,7 @@ func TestSameKeyIsPerformedOnce(t *testing.T) {
 }
 
 func TestRefusedActionChangesNothing(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	a := listen(t, s.URL)
@@ -678,6 +702,7 @@ func TestRefusedActionChangesNothing(t *testing.T) {
 }
 
 func TestSettingsActions(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := joinedAI(t, s)
 	a := listen(t, s.URL)
@@ -701,6 +726,7 @@ func TestSettingsActions(t *testing.T) {
 
 // ページが宛先のアクションは、そのページを持っているブックで行い、そのページを書く。ゴミ箱のブックのページは no-page
 func TestPerformOnAPage(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	a := listen(t, s.URL)
@@ -726,6 +752,7 @@ func TestPerformOnAPage(t *testing.T) {
 
 // ほかのブックにもう在る id のページを足すアクションは refused で断られ、何も変わらない（ページの id は世界の中で重ならない）
 func TestAddingAPageWithAnIdAnotherBookHasIsRefused(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b2", `{"book":{"id":"b2","title":"U","lineup":[]},"base":0}`, nil)
@@ -757,11 +784,12 @@ func TestAddingAPageWithAnIdAnotherBookHasIsRefused(t *testing.T) {
 
 // ブックを作るアクションが最初のページに振る id は、ほかのブックにもう在るページの id を飛ばす（在るページを書き換えない）
 func TestCreatingABookSkipsAPageIdAnotherBookHas(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	s, hub := newServerOn(t, Options{}, store)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
 	before := hub.PageVersion("p1")
@@ -776,6 +804,7 @@ func TestCreatingABookSkipsAPageIdAnotherBookHas(t *testing.T) {
 
 // ページを足すと、新しいページとブックのフォルダが changed に並び、置き場所のエントリの表にそのページ → ブックが入る。ページを消すと、表から消える
 func TestAddingAndRemovingAPageKeepsTheEntries(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
 	if err != nil {
@@ -833,6 +862,7 @@ func TestAddingAndRemovingAPageKeepsTheEntries(t *testing.T) {
 
 // 常駐を起動し直しても（同じ置き場所から世界を作り直す）、バインダのあるブックは同じ中身に組み直され、ページとフォルダの版も同じ
 func TestABookWithBindersIsAssembledTheSameAfterARestart(t *testing.T) {
+	t.Parallel()
 	const book = `{"id":"b1","title":"T","lineup":[` +
 		`{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"図","paper":"@matomezu/base:a4","orientation":"landscape"},` +
 		`{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-page:slide","lineup":[]},` +
@@ -886,6 +916,7 @@ func TestABookWithBindersIsAssembledTheSameAfterARestart(t *testing.T) {
 
 // entry-trash はブックに trashed の時刻を付けて知らせ（AI の読む口からは外れる）、/api/data にはゴミ箱に入ったまま出る。entry-restore で戻し、trash-empty で消す（ブックのフォルダとページが removed で並ぶ）
 func TestTrashABook(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	a := listen(t, s.URL)
@@ -946,6 +977,7 @@ func TestTrashABook(t *testing.T) {
 
 // AI はゴミ箱から戻せず、消せない（利用者だけのアクション）
 func TestAICannotRestoreOrPurge(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:entry-trash","args":{"entry":"b1"}}`, writerAI(t, s.URL))
@@ -962,6 +994,7 @@ func TestAICannotRestoreOrPurge(t *testing.T) {
 
 // AI は、どこかの窓に出ているブックをゴミ箱に入れられない（open-on-screen）。出ていなければ入れられる
 func TestAICannotTrashABookOnAScreen(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := joinedAI(t, s)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
@@ -984,6 +1017,7 @@ func TestAICannotTrashABookOnAScreen(t *testing.T) {
 // AI は書庫にフォルダを作り、ブックを入れ、名前を変えられる。窓に出ているブックを中に持つフォルダは、ゴミ箱に入れられない（open-on-screen）。
 // 出ていなければ中身ごと入り、AI の読む口から外れる。同じ名前は断り（title-taken）、number なら番号を付ける
 func TestAIWorksOnLibraryEntries(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := joinedAI(t, s)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
@@ -1032,6 +1066,7 @@ func TestAIWorksOnLibraryEntries(t *testing.T) {
 
 // コントロールセンターがカレントスクリーンの窓の後ろに、ブックスクリーンが開いているブックも、AI はゴミ箱に入れられない（open-on-screen）
 func TestAICannotTrashABookBehindTheControlCenter(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := joinedAI(t, s)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
@@ -1046,6 +1081,7 @@ func TestAICannotTrashABookBehindTheControlCenter(t *testing.T) {
 
 // コントロールセンターがカレントスクリーンの間、後ろのブックスクリーンのブックは開いたことにならない。ブックスクリーンがカレントスクリーンに戻ったら開いたことになる
 func TestTouchedIgnoresTheBookScreenBehindTheControlCenter(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	screen := listen(t, s.URL)
 	next(t, screen)
@@ -1073,6 +1109,7 @@ func TestTouchedIgnoresTheBookScreenBehindTheControlCenter(t *testing.T) {
 // AI の view は、コントロールセンターがカレントスクリーンの間、カレントスクリーンの種類（current）と、隠れているブックスクリーンの entry・page（hidden）を分けて返す。
 // show は隠れているブックスクリーンのステージを指せる
 func TestViewSeparatesTheHiddenBookScreen(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	a := listen(t, s.URL)
@@ -1092,6 +1129,7 @@ func TestViewSeparatesTheHiddenBookScreen(t *testing.T) {
 
 // AI はロックを掛けられるが外せない（外すアクションは画面からだけ）。ロック中のブックは AI も変えられない
 func TestAICanLockButNotUnlock(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	on := `,"args":{},"on":{"book":"b1"}}`
@@ -1114,6 +1152,7 @@ func TestAICanLockButNotUnlock(t *testing.T) {
 }
 
 func TestViewIsTheLastFocusedScreens(t *testing.T) {
+	t.Parallel()
 	s := newServerWith(t, Options{Latest: 50 * time.Millisecond})
 	a, b := listen(t, s.URL), listen(t, s.URL)
 	next(t, a)
@@ -1142,6 +1181,7 @@ func TestViewIsTheLastFocusedScreens(t *testing.T) {
 
 // 最後にフォーカスされた窓（つないだばかりの窓）がまだ知らせていなければ、AI の view は知らせが来るまで待ち、その窓の答えを返す（前の窓を選ばない）
 func TestViewWaitsForTheLatestWindow(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	a := listen(t, s.URL)
 	next(t, a)
@@ -1166,6 +1206,7 @@ func TestViewWaitsForTheLatestWindow(t *testing.T) {
 
 // 窓の知らせは届く順が入れ替わることがあるので、受けたものより古い番号の見ているものは捨てる（フォーカスは数える）
 func TestViewKeepsTheNewestReport(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	a := listen(t, s.URL)
 	next(t, a)
@@ -1177,6 +1218,7 @@ func TestViewKeepsTheNewestReport(t *testing.T) {
 }
 
 func TestAIEntrancesNeedTheToken(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	auth := map[string]string{"Authorization": "Bearer secret"}
@@ -1201,6 +1243,7 @@ func TestAIEntrancesNeedTheToken(t *testing.T) {
 const window = `{"entry":{"kind":"book","id":"b1"},"page":"p1","selection":[],"stage":"s1","stages":[{"id":"s1","entry":{"kind":"book","id":"b1"},"page":"p1"}],"canSplit":true}`
 
 func TestShowGoesToTheLastFocusedWindow(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	auth := writerAI(t, s.URL)
@@ -1243,6 +1286,7 @@ func TestShowGoesToTheLastFocusedWindow(t *testing.T) {
 }
 
 func TestShowOpensABrowserWhenNoWindowIsThere(t *testing.T) {
+	t.Parallel()
 	var s *httptest.Server
 	opened := make(chan (<-chan string), 1)
 	s = newServerWith(t, Options{URL: "http://screen/", Open: func(url string) error {
@@ -1268,6 +1312,7 @@ func TestShowOpensABrowserWhenNoWindowIsThere(t *testing.T) {
 }
 
 func TestShowWithoutAWindowNorABrowser(t *testing.T) {
+	t.Parallel()
 	s := newServerWith(t, Options{URL: "http://screen/", Wait: 50 * time.Millisecond, Open: func(string) error { return nil }})
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	auth := writerAI(t, s.URL)
@@ -1279,6 +1324,7 @@ func TestShowWithoutAWindowNorABrowser(t *testing.T) {
 // タイプの無いページは、読めるブックの中の読めないページになる: AI のブックの一覧では warning、そのページへのアクションは番号だけで断り、ほかのページへのアクションは効く。
 // プラグインを足せば読めるようになり、外せばまた読めなくなる（データはそのまま）。ブックの形が壊れていれば、ブックごと読めず、一覧に理由が付き、アクションはその理由で断る
 func TestListsWhyABookCannotBeRead(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	// ex2 を結んでいる間に書いたフローのページは、ex2 を外すと読めなくなり、読めない物のフォルダへ移る
 	flow := `{"id":"f1","title":"Flow","lineup":[{"kind":"page","id":"p1","type":"ex2:flow","title":"P","paper":"@matomezu/base:a4","orientation":"portrait"}]}`
@@ -1351,6 +1397,7 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 
 // 一部のプラグインが無いだけのブックは読め、AI のブックの一覧には warning が付く（problem は付かない）
 func TestListsAWarningForAPartlyKnownBook(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	book := `{"id":"u1","title":"Stars","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"s","item":"@foo/stars:star","x":0,"y":0,"props":{}}]}]}`
 	if code, body := send(t, "PUT", s.URL+"/api/books-for-test/u1", `{"book":`+book+`,"base":0}`, nil); code != 200 {
@@ -1364,6 +1411,7 @@ func TestListsAWarningForAPartlyKnownBook(t *testing.T) {
 
 // AI のブックの一覧の 1 行は、ブックの本文からブックの名前（title）だけを読む: 名前に problem・warning・awaiting の名前のフィールドに見える字があっても、名前のまま
 func TestListsOnlyTheTitleFromABooksBody(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	tricky := `{"id":"z2","title":"Z\",\"problem\":\"fake","lineup":[]}`
 	if code, body := send(t, "PUT", s.URL+"/api/books-for-test/z2", `{"book":`+tricky+`,"base":0}`, nil); code != 200 {
@@ -1376,6 +1424,7 @@ func TestListsOnlyTheTitleFromABooksBody(t *testing.T) {
 }
 
 func TestWindowWarningsAreGatheredForAI(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	a, b := listen(t, s.URL), listen(t, s.URL)
 	next(t, a)
@@ -1414,6 +1463,7 @@ func TestWindowWarningsAreGatheredForAI(t *testing.T) {
 }
 
 func TestTouchedIsWhenABookWasOpenedOrWritten(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	screen := listen(t, s.URL)
 	next(t, screen)
@@ -1469,6 +1519,7 @@ func TestTouchedIsWhenABookWasOpenedOrWritten(t *testing.T) {
 // AI は、どこかの窓で利用者が直している物（locks）を変えも消しもできない（being-edited。中の物が変わっても断る）。
 // ほかの物は変えられ、利用者は変えられる。窓が離れたら解ける
 func TestAICannotChangeWhatTheUserIsEditing(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	k1 := placeBox(t, s.URL, 10, "一")
@@ -1512,6 +1563,7 @@ func TestAICannotChangeWhatTheUserIsEditing(t *testing.T) {
 
 // 窓が離れたら、その窓の編集ロックは解ける
 func TestEditLocksGoWithTheWindow(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	k1 := placeBox(t, s.URL, 10, "一")
@@ -1551,6 +1603,7 @@ func placeBox(t *testing.T, url string, x int, caption string) string {
 
 // 編集ロックはその物だけを見る: リストの行に編集ロックを掛けると、AI はその行を変えられないが、兄弟の行とリストのキャプションは変えられる
 func TestEditLocksSeeOnlyTheLockedThing(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	place := `{"action":"@matomezu/paper:item-place","args":{"item":"@matomezu/list:shape-list","at":{"x":10,"y":10},"props":{"caption":"L"}},"on":{"page":"p1"}}`
@@ -1580,6 +1633,7 @@ func TestEditLocksSeeOnlyTheLockedThing(t *testing.T) {
 
 // 置いたときのままの書き方（読み直すと既定が足される）のブックでも、編集ロックを掛けていない物を AI が変えれば通る
 func TestEditLocksIgnoreDefaultsFilledOnRead(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	book := `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
 		`{"id":"k1","item":"@matomezu/box:shape-nest-box","x":10,"y":10,"props":{"caption":"一"}},` +
@@ -1612,6 +1666,7 @@ func resultField(t *testing.T, url, req, name string) string {
 }
 
 func TestWriteLog(t *testing.T) {
+	t.Parallel()
 	var out strings.Builder
 	lines := []logLine{{At: "t0", Text: "dropped"}}
 	for i := 0; i < maxLogLines-1; i++ {
@@ -1631,6 +1686,7 @@ func TestWriteLog(t *testing.T) {
 }
 
 func TestWindowLog(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	if code, _ := send(t, "POST", s.URL+"/api/log", `{"client":"c1","lines":[{"at":"t","text":"hi"}]}`, nil); code != 200 {
 		t.Fatalf("code = %d", code)
@@ -1639,12 +1695,13 @@ func TestWindowLog(t *testing.T) {
 
 // 知らせが無いあいだも、窓に見える keep の知らせを送る（窓はこれが届かなければ、つながりが黙って切れたとみてつなぎ直す）
 func TestEventsKeep(t *testing.T) {
+	t.Parallel()
 	s := newServerWith(t, Options{Keep: 10 * time.Millisecond})
 	lines := listen(t, s.URL)
 	if l := next(t, lines); !strings.HasPrefix(l, "hello ") {
 		t.Fatalf("first = %q", l)
 	}
-	if l := next(t, lines); l != "keep {}" {
+	if l := nextAny(t, lines); l != "keep {}" {
 		t.Fatalf("second = %q", l)
 	}
 }
@@ -1652,6 +1709,7 @@ func TestEventsKeep(t *testing.T) {
 // 変更提案郵便: AI が送ると AI 編集チケットができる。利用者の反映（proposal-apply）も、どこかの窓が直している物を変えるなら断る（being-edited）。
 // 反映が失敗したと残すと、AI のフックが聞いたときに failed で渡る
 func TestChangeProposal(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := joinedAI(t, s)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
@@ -1702,6 +1760,7 @@ func TestChangeProposal(t *testing.T) {
 }
 
 func TestAIReadsABookAsAnOutlineAndAPageByItem(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	box := func(id, caption string, children string) string {
 		return `{"id":"` + id + `","x":10,"y":10,"item":"@matomezu/box:shape-nest-box","w":200,"h":100,"props":{"caption":"` + caption + `","rule":true,"body":"","captionAlign":"left","bodyAlign":"left"}` + children + `}`
@@ -1751,6 +1810,7 @@ func TestAIReadsABookAsAnOutlineAndAPageByItem(t *testing.T) {
 
 // 追加プラグインが足した対象の種類（ex9 のカード）のレコードを、AI が作る・直す・消す。窓には changed の知らせが届き、/api/data にレコードと番号の表が載る
 func TestRecordsOfAnAddedSubject(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := joinedAI(t, s)
 	screen := listen(t, s.URL)
@@ -1799,6 +1859,7 @@ func TestRecordsOfAnAddedSubject(t *testing.T) {
 
 // 窓が直しているレコード（recordLocks）を、AI のアクションは変えも消しもせず（being-edited）、窓を離れれば行える。新しく作るアクションは断らない
 func TestRecordBeingEditedStopsAIActions(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := joinedAI(t, s)
 	screen := listen(t, s.URL)
@@ -1863,6 +1924,7 @@ func joinedAI(t *testing.T, s *httptest.Server) map[string]string {
 
 // AI がアクション（郵便を送る・ブックを変えるなど）を使えるのは、参加が確定してから: 参加の id が無い・要求中・準備中（受け入れ済みでも、フックが参加を伝えるまで）は断り、確定すれば行える
 func TestAIActionsOfTheControlCenterNeedAConfirmedParticipation(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	mail := `{"action":"@matomezu/base:mail-send","args":{"from":"x","title":"t"}}`
 	refused := func(header map[string]string) bool {
@@ -1899,11 +1961,12 @@ func TestAIActionsOfTheControlCenterNeedAConfirmedParticipation(t *testing.T) {
 
 // 最初のプロジェクトは 1 度だけ作る: 印が付いていれば、起動しても作らない
 func TestFirstProjectIsMadeOnce(t *testing.T) {
+	t.Parallel()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	if err := store.MarkRanOnce("@matomezu/taskboard:project-add"); err != nil {
 		t.Fatal(err)
 	}
@@ -1915,7 +1978,7 @@ func TestFirstProjectIsMadeOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(hub.CloseAll)
+	cleanup(t, hub.CloseAll)
 	recs, err := store.Records()
 	if err != nil {
 		t.Fatal(err)
@@ -1930,12 +1993,13 @@ func TestFirstProjectIsMadeOnce(t *testing.T) {
 // 追加プラグインは、足したときは無効で（画面は名乗りと文言だけで組み、エンジンはアクション・種類を AI にも出さない）、利用者が設定で有効にすると有効になる。
 // 設定を変えると、ホストはエンジンを組み直し、窓に plugins を知らせる（窓は読み直す）
 func TestAddedPluginsAreOffUntilEnabled(t *testing.T) {
+	t.Parallel()
 	web := fstest.MapFS{"index.html": {Data: []byte("<!doctype html>top")}}
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	cleanup(t, func() { store.Close() })
 	eng, err := engine.New()
 	if err != nil {
 		t.Fatal(err)
@@ -1949,8 +2013,8 @@ func TestAddedPluginsAreOffUntilEnabled(t *testing.T) {
 	s.Config.RegisterOnShutdown(hub.CloseAll)
 	s.Start()
 	cookieTestBrowser(t, s, o.Cookies)
-	t.Cleanup(hub.CloseAll)
-	t.Cleanup(s.Close)
+	cleanup(t, hub.CloseAll)
+	cleanup(t, s.Close)
 	screen := listen(t, s.URL)
 	next(t, screen) // hello
 	catalog := func() string { _, c := get(t, s.URL+"/api/ai/catalog", "secret"); return c }
@@ -1996,6 +2060,7 @@ func TestAddedPluginsAreOffUntilEnabled(t *testing.T) {
 
 // AI がワーカーブックにページを足すと、まだブックが無ければ作ってバックヤードに置く（書庫の全部を渡す頼みは、バックヤードの行も渡す）。2 つ目は同じブックに足す
 func TestTheAIAddsAPageToANewWorkerBookInTheBackyard(t *testing.T) {
+	t.Parallel()
 	s := newServer(t, nil)
 	ai := writerAI(t, s.URL)
 	add := `{"action":"@matomezu/base:worker-page-add","args":{"type":"@matomezu/drawing:drawing","title":"memo"}}`

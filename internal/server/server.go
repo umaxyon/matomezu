@@ -44,7 +44,8 @@
 //	                         郵便が消えたと記した AI 編集チケット（cause は上限で消えた limit か、利用者が消した user）の全部
 //	                         （undone と failed と removed は、渡したら、次の利用者トリガートークのときに消える）
 //	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine&maxNotice&gap&breaks]  SSE。そのプロセス id かセッション id の AI を起こす知らせ（event: wake、data: {"line", "id", "session", "text"}。参加の要求が受け入れられた・断られた、AI 間メッセージ。watch.go）
-//	POST /api/ai/refresh-due {"sessionId"} そのセッションが受けたリフレッシュリクエストの、空にしたあとの新しい会話に打つ文 {"text"}（無ければ空。渡したら消す。AI のプログラムの部品がターンの終わりに訊く。refresh.go）
+//	POST /api/ai/refresh-due {"sessionId"} そのセッションが受けたリフレッシュリクエストの、空にしたあとの新しい会話に打つ文 {"text"}（無ければ空。空にしたあとの会話が始まるまで残す。AI のプログラムの部品がターンの終わりに訊く。refresh.go）
+//	POST /api/ai/handoff-due {"sessionId"} そのセッションの AI がターンを終える前にする事 {"text"}（引継ぎページの頼みか、会話を空にできなかった知らせ。無ければ空。会話を空にできると名乗った AI だけ。ターンの終わりのフックが訊いて止める。refresh.go）
 //	POST /api/ai/work-title {"sessionId"} そのセッションの作業名 {"workTitle"}（読むだけ。ターンの終わりのフックが読む。書かないなら空。talk_session.go の WorkTitle）
 //	POST /api/ai/watch/ack   {"line", "id", "result"} 通り道に流した知らせを渡せたか（delivered・absent・failed）。{} を返す（watch.go）
 //	POST /api/ai/talked      {"sessionId", "host", "candidates", "woken", "prompt", "refreshable"} AI のターンが始まった（AI のフックが知らせる）。candidates が無く woken でなければ、利用者トリガートークのときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
@@ -191,6 +192,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/ai/books", o.ai(o.aiBooks))
 	mux.Handle("GET /api/ai/books/{id}", o.ai(o.aiBook))
 	mux.Handle("GET /api/ai/pages/{page}", o.ai(o.aiPage))
+	mux.Handle("GET /api/ai/pages/{page}/image", o.ai(o.aiPageImage))
 	mux.Handle("GET /api/ai/folder", o.ai(o.aiFolder))
 	mux.Handle("GET /api/ai/awaiting", o.ai(o.aiAwaiting))
 	mux.Handle("GET /api/ai/watch", o.ai(o.aiWatch))
@@ -200,6 +202,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/ai/talked", o.ai(o.aiTalked))
 	mux.Handle("POST /api/ai/work-title", o.ai(o.aiWorkTitle))
 	mux.Handle("POST /api/ai/refresh-due", o.ai(o.aiRefreshDue))
+	mux.Handle("POST /api/ai/handoff-due", o.ai(o.aiHandoffDue))
 	mux.Handle("POST /api/ai/model", o.ai(o.aiModel))
 	mux.Handle("POST /api/ai/context-use", o.ai(o.aiContextUse))
 	mux.Handle("POST /api/ai/assets", o.ai(o.importAIAsset))

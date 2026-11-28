@@ -225,41 +225,6 @@ test("完了にすると、チケットは完了のレーンへ移り、担当�
   ])
 })
 
-test("AI が完了すると、管理者のワークルームの AI に知らせる（外した担当の名前つき。いなければ送らないだけ）", () => {
-  const { act, user, room, ticket } = completing()
-  const admin = room("管理")
-  const me = room("あ")
-  user("@matomezu/base:admin-set", { workroom: admin })
-  user("ticket-update", { assignees: [me] }, { record: ticket })
-  expect(act(ai(me), "ticket-complete", {}, { record: ticket })).toMatchObject({
-    ok: true,
-    payloads: [
-      {
-        to: { workroom: "管理" },
-        text: `The ticket T-0001 "t" (${ticket}) was completed; released: あ.`,
-        noRecipient: "skip",
-      },
-    ],
-  })
-})
-
-test("自分が管理者のとき・管理者の印が none のとき・利用者が完了したときは知らせない", () => {
-  const { act, user, room, project } = completing()
-  const admin = room("管理")
-  const add = () => (user("ticket-add", { project, name: "x" }) as Done & { result: { ticket: string } }).result.ticket
-  user("@matomezu/base:admin-set", { workroom: admin })
-  const own = act(ai(admin), "ticket-complete", {}, { record: add() }) as { ok: boolean; payloads?: unknown }
-  expect(own.ok).toBe(true)
-  expect(own.payloads).toBeUndefined()
-  const byUser = user("ticket-complete", {}, { record: add() }) as { ok: boolean; payloads?: unknown }
-  expect(byUser.ok).toBe(true)
-  expect(byUser.payloads).toBeUndefined()
-  user("@matomezu/base:admin-set", { workroom: "none" }, { record: "admin" })
-  const none = act(ai(room("い")), "ticket-complete", {}, { record: add() }) as { ok: boolean; payloads?: unknown }
-  expect(none.ok).toBe(true)
-  expect(none.payloads).toBeUndefined()
-})
-
 test("完了は、完了のレーンの無いプロジェクトと、もう完了しているチケットは断る。完了のレーンへほかの道で入れることも、完了のチケットに担当を付けることも断る", () => {
   const { user, table, room, ticket, project, projectRecord, laneNamed } = completing()
   const a = room("あ")

@@ -382,3 +382,33 @@ func TestStopRenamesTheAdeWorkspace(t *testing.T) {
 		t.Fatalf("renamed %v", renamed)
 	}
 }
+
+// Claude Code のターンの終わりのフックは、AI がターンを終える前にする事があれば、止めて続けさせる答えを出す。
+// 止めて続けさせたターンの終わり・サブエージェント・する事が無い・常駐に届かないときは何も出さない
+func TestBlockForHandoffKeepsTheTurnGoingOnce(t *testing.T) {
+	t.Parallel()
+	var asked map[string]any
+	api := func(body []byte) ([]byte, error) {
+		_ = json.Unmarshal(body, &asked)
+		return []byte(`{"text":"write the handoff page"}`), nil
+	}
+	var out bytes.Buffer
+	blockForHandoff(&out, hookInput{SessionID: "S1"}, api)
+	var got struct{ Decision, Reason string }
+	if asked["sessionId"] != "S1" || json.Unmarshal(out.Bytes(), &got) != nil || got.Decision != "block" || got.Reason != "write the handoff page" {
+		t.Fatalf("asked %v, printed %q", asked, out.String())
+	}
+	for _, in := range []hookInput{{SessionID: "S1", StopHookActive: true}, {SessionID: "S1", AgentID: "sub"}, {}} {
+		out.Reset()
+		blockForHandoff(&out, in, api)
+		if out.Len() != 0 {
+			t.Fatalf("%+v printed %q", in, out.String())
+		}
+	}
+	out.Reset()
+	blockForHandoff(&out, hookInput{SessionID: "S1"}, func([]byte) ([]byte, error) { return []byte(`{"text":""}`), nil })
+	blockForHandoff(&out, hookInput{SessionID: "S1"}, nil)
+	if out.Len() != 0 {
+		t.Fatalf("printed %q", out.String())
+	}
+}

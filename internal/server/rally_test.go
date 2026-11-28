@@ -12,6 +12,7 @@ import (
 // 同じホストの中の AI ラリーは、向きごとに上限まで届き、超えた物は届けずに断り、宛て先には止めた事を 1 度だけ知らせる。
 // 知らせで始まったターンでは戻らず、送り手か宛て先の AI に利用者トリガートークがあったら数が戻る
 func TestRallyStopsAtTheLimitUntilAUserTalks(t *testing.T) {
+	t.Parallel()
 	for _, talker := range []string{"SA", "SB"} {
 		t.Run(talker, func(t *testing.T) {
 			s, _ := joinWorld(t, joinStore(t))
@@ -60,6 +61,7 @@ func TestRallyStopsAtTheLimitUntilAUserTalks(t *testing.T) {
 
 // ほかのホストから届く物は、こちらの数と封筒の送り手の側の数の両方が上限を超えたときだけ止め、封筒に数を載せないホストからならこちらの数だけで決める
 func TestRallyFromAnotherHostCountsBothSides(t *testing.T) {
+	t.Parallel()
 	h := emptyHub(t)
 	peerFrom := func(rally int) bool {
 		h.mu.Lock()
@@ -88,6 +90,7 @@ func TestRallyFromAnotherHostCountsBothSides(t *testing.T) {
 
 // ほかのホストへ送る数は、送り手の AI に利用者トリガートークがあったら戻る
 func TestRallySentCountGoesBackWhenTheSenderTalks(t *testing.T) {
+	t.Parallel()
 	h := emptyHub(t)
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -109,6 +112,7 @@ func TestRallySentCountGoesBackWhenTheSenderTalks(t *testing.T) {
 
 // ペアリングしたホストの上限は、記録の値（範囲の外と無い物は既定）
 func TestRallyLimitOfAPairedHost(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct{ in, want int }{{0, rallyLimitDefault}, {1, 1}, {50, 50}, {51, rallyLimitDefault}, {-3, rallyLimitDefault}} {
 		if got := rallyLimitOf(pairedHostRecord{RallyLimit: c.in}); got != c.want {
 			t.Errorf("%d = %d", c.in, got)
@@ -119,6 +123,7 @@ func TestRallyLimitOfAPairedHost(t *testing.T) {
 // ペアリングしたホストの間: 受けるホストの利用者が決めた上限（rallyLimit）で止め、送り手には rally-limit で断り、宛て先には 1 度だけ知らせる。
 // 送り手の利用者が送り手の AI に話しかけたら、送り手のホストが封筒に載せる数が戻るので、また届き、宛て先にはその事を先に知らせる
 func TestRallyBetweenPairedHosts(t *testing.T) {
+	t.Parallel()
 	as, bs, _, b := pairedWorlds(t)
 	s1 := joinedIn(t, as.URL, "LA", "100", "SA", "s1")
 	joinedIn(t, bs.URL, "LB", "200", "SB", "s2")
@@ -152,6 +157,7 @@ func TestRallyBetweenPairedHosts(t *testing.T) {
 // アクションが返す AI 間メッセージも AI ラリーに数え、上限を超える物は、noRecipient が refuse ならバルクごと rally-limit で断り、skip なら送らないだけ。
 // 同じバルクで同じ宛て先へ送る物も先の物から数える
 func TestActionEnvelopesStopAtTheRallyLimit(t *testing.T) {
+	t.Parallel()
 	s, hub := joinWorld(t, joinStore(t))
 	joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")

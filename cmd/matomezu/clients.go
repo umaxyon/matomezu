@@ -6,6 +6,9 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -107,20 +110,41 @@ type claudeHookCmd struct {
 	Prompt     claudePromptCmd     `cmd:"" help:"UserPromptSubmit: tell matomezu the user talked, and add the notes that wait for AI."`
 	Model      claudeModelCmd      `cmd:"" help:"SessionStart and PostModelSwitch: tell matomezu the session's model."`
 	Permission claudePermissionCmd `cmd:"" help:"PreToolUse: let the matomezu tools that only read be used without asking."`
-	Stop       claudeStopCmd       `cmd:"" help:"Stop: write the work title to the display name of the ADE workspace this session runs in, if any, and tell matomezu how much context the session uses (prints nothing)."`
+	Stop       claudeStopCmd       `cmd:"" help:"Stop: write the work title to the display name of the ADE workspace this session runs in, if any, tell matomezu how much context the session uses, and keep the turn going once when the session's AI must write a handoff page first (refresh-request) or be told its conversation could not be cleared."`
 	ContextUse claudeContextUseCmd `cmd:"" name:"context-use" help:"PostToolUse: tell matomezu how much context the session uses, read from its transcript (prints nothing)."`
 }
 
 type claudeStopCmd struct{}
 
-// Run は、ターンの終わりに、作業名を ADE のワークスペースの表示名に書き、コンテキストの量を知らせる
+// Run は、ターンの終わりに、作業名を ADE のワークスペースの表示名に書き、コンテキストの量を知らせ、AI がする事が残っていればターンを止めずに続けさせる
 func (claudeStopCmd) Run() error {
 	claudeDev()
 	hook := stdinHook()
 	hook.Host = hookHost(claudelaunch.HooksSendHost)
 	hookStop(hook)
 	sendContextUse(hook, claudeContextUse, runningAPI("api/ai/context-use"))
+	blockForHandoff(os.Stdout, hook, runningAPI("api/ai/handoff-due"))
 	return nil
+}
+
+// blockForHandoff は、セッションの AI がターンを終える前にする事（引継ぎページの頼みか、会話を空にできなかった知らせ）を常駐に訊き、
+// あれば Claude Code の Stop フックの答え {"decision":"block","reason"} を出して続けさせる。
+// 止めて続けさせたターンの終わり（stop_hook_active）は止めない（1 ターンに 1 度。利用者がそのワーカーブックを直している間は書けず、止め続けると抜けられない）。
+// サブエージェント・常駐に届かない・する事が無いなら何も出さない
+func blockForHandoff(out io.Writer, hook hookInput, api hookAPI) {
+	if api == nil || hook.SessionID == "" || hook.AgentID != "" || hook.StopHookActive {
+		return
+	}
+	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID})
+	got, err := api(body)
+	var reply struct {
+		Text string `json:"text"`
+	}
+	if err != nil || json.Unmarshal(got, &reply) != nil || reply.Text == "" {
+		return
+	}
+	b, _ := json.Marshal(map[string]string{"decision": "block", "reason": reply.Text})
+	fmt.Fprintln(out, string(b))
 }
 
 type claudeContextUseCmd struct{}

@@ -8,6 +8,7 @@ import { readerOf, sourceOf } from "../core/record-source"
 import { langOf, restoreSettings } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import {
+  handoffDueIn,
   JOINED_MESSAGE,
   leftTitleIn,
   myWorkdeskIn,
@@ -68,6 +69,12 @@ export function myWorkdesk(of: Assembled, workroom: string, folders: string): st
   const source = hostSource({}) ?? sourceOf({})
   const { folders: table } = rowsLibraryOf(JSON.parse(folders) as unknown[], {})
   return JSON.stringify(myWorkdeskIn(of.catalog.core, source, table, workroom))
+}
+
+// engine.ts の matomezuHandoffDue の中身: ワークルーム workroom の AI が、ターンを終える前に書く引継ぎページの頼み（無ければ空）。レコードはホストの読み口から引く
+export function handoffDue(of: Assembled, workroom: string): string {
+  const source = hostSource({}) ?? sourceOf({})
+  return handoffDueIn(of.catalog.core, source, workroom)
 }
 
 // engine.ts の matomezuWorkroomActivities の中身: ワークルームの id の並び workrooms（JSON）それぞれの作業の様子（id → working・idle・unknown の JSON）。レコードはホストの読み口から引く

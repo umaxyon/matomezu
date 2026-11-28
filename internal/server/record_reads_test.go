@@ -36,11 +36,12 @@ func (c *countingStore) Find(subject string, q storage.Query) ([]storage.Found, 
 
 // 郵便を 1 通送るとき、今ある郵便の中身は 1 通も開けない（読むのは索引キーだけ）。今ある郵便が増えても変わらない
 func TestMailSendOpensNoBodies(t *testing.T) {
+	t.Parallel()
 	inner, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { inner.Close() })
+	cleanup(t, func() { inner.Close() })
 	eng, err := engine.New()
 	if err != nil {
 		t.Fatal(err)
@@ -50,7 +51,7 @@ func TestMailSendOpensNoBodies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(hub.CloseAll)
+	cleanup(t, hub.CloseAll)
 	sendMail := func(i int) {
 		t.Helper()
 		args := json.RawMessage(fmt.Sprintf(`{"from":"t","title":"mail %d","body":"body"}`, i))
