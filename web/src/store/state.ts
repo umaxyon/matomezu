@@ -13,6 +13,7 @@ import type { UnreadableItem } from "../core/folders-unreadable"
 import type { History } from "../core/history"
 import type { Lang, Params } from "../core/i18n/i18n"
 import { type Books, splitTrash } from "../core/library"
+import type { PageUsers } from "../core/page-users"
 import type { Written } from "../core/patch"
 import type { Counters, Records } from "../core/records"
 import type { Book } from "../core/schema/book"
@@ -297,6 +298,9 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物を、ホストに書かずに数えてもらう（BROKEN なら、読めない物のフォルダの行が形に合わず、何も移らない）。
   // base のフックを通して使う（プラグインに渡す actions には入れない）。ホストが無いか、頼めなければ投げる
   movedIfOff(ids: readonly string[]): Promise<readonly MovedIfOff[] | typeof BROKEN>
+  // ページ ids のそれぞれを使っている見える所のページを、ホストに引いてもらう（書庫の全部のページを見るため。core/page-users.ts）。
+  // base のフックを通して使う（プラグインに渡す actions には入れない）。ホストが無いか、頼めなければ投げる
+  pageUsers(ids: readonly string[]): Promise<PageUsers>
   // 窓のタイトル（ブラウザのタブとタイトルバーに出る文字）を替える。base のフック useWindowTitle を通して使う（プラグインに渡す actions には入れない）
   setWindowTitle(title: string): void
   // 今の窓のタイトル（替えたあとで戻すため）。口が無ければ空
@@ -490,6 +494,8 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
     purge(id: string): Promise<Purged>
     movedIfOff(ids: readonly string[]): Promise<readonly MovedIfOff[] | typeof BROKEN>
   }
+  // ページを使っている所をホストに引いてもらう口。無ければ、頼むと投げる（E418）
+  pageUsers?: (ids: readonly string[]) => Promise<PageUsers>
   setWindowTitle?: (title: string) => void // 窓のタイトルを替える。無ければ何もしない
   reloadWindow?: () => void // 窓を読み込み直す。無ければ何もしない
   windowTitle?: () => string // 今の窓のタイトル。無ければ空

@@ -1,7 +1,9 @@
 // ホストクライアント: 画面がホスト（常駐サーバー）とブラウザに頼むこと（読む・行ったアクションを渡す・外の変化を受ける）を 1 つの型にまとめる。画面のコードは、この口からしか外に触らない。
 // 実装は常駐に頼むもの（server.ts）。テストはメモリに持つもの（test/host-client/memory.ts）を使う
+
 import type { AssetPut } from "../core/assets"
 import type { BROKEN } from "../core/folders"
+import type { PageUsers } from "../core/page-users"
 import type { MovedIfOff, Purged, UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
 import type { WideSearchAnswer, WideSearchQuery } from "../core/wide-search"
@@ -50,6 +52,8 @@ export interface HostClient {
   purgeUnreadable(id: string): Promise<Purged>
   // 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物を、書かずに数えてもらう。常駐が断るか（200 でない）つながらなければ E408 を投げる
   movedIfOff(ids: readonly string[]): Promise<readonly MovedIfOff[] | typeof BROKEN>
+  // ページ ids のそれぞれを使っている見える所のページを、常駐に引いてもらう（完全に消す前の確かめ）。常駐が断るか（200 でない）つながらなければ E419 を投げる
+  pageUsers(ids: readonly string[]): Promise<PageUsers>
   // 新しい版を今確かめるのを頼む（結果は知らせでも入る）。常駐が断るか（200 でない）つながらなければ E410 を投げる
   checkUpdate(): Promise<void>
   // ワークルーム workroom（id）の AI に、版を上げるよう頼む（起こす知らせ）。そこに参加の確定した AI がいなければ false。常駐が断るか（200 でない）つながらなければ E411 を投げる

@@ -47,3 +47,13 @@ const (
 	AssetTooLarge = "too-large" // 上限を超える
 	AssetNotImage = "not-image" // 受ける種類の画像として読めない
 )
+
+// AI に画像のページの画像を見せる口（/api/ai/pages/{page}/image）の、見せない理由（答えの reason）
+const (
+	ImageNone     = "no-image"    // ページのタイプが指す画像が無い
+	ImageSeveral  = "several"     // ページのタイプが画像をいくつも指す（見せるのは 1 つを指すページだけ）
+	ImageUnsure   = "unsure"      // ページのタイプが答えられない
+	ImageMissing  = "no-asset"    // 指す画像が置き場に無い
+	ImageTooLarge = "too-large"   // 開くには大きすぎる
+	ImageUnread   = "cannot-read" // 縮めるために開けない（動く WebP など）
+)

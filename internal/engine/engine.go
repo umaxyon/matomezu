@@ -49,6 +49,7 @@ type Engine struct {
 	updateCheck  func(string) bool
 	hostSettings func(string) string
 	assetsInUse  func(string) string
+	pageUsers    func(string, string, string) string
 	needs        func(string, string) string
 	roles        func() string
 	aiRecords    func(string, string, string, string) string
@@ -156,6 +157,7 @@ func New() (*Engine, error) {
 		{"matomezuUpdateCheck", &e.updateCheck},
 		{"matomezuHostSettings", &e.hostSettings},
 		{"matomezuAssetsInUse", &e.assetsInUse},
+		{"matomezuPageUsers", &e.pageUsers},
 		{"matomezuCheckRecords", &e.records},
 		{"matomezuRunOnceActions", &e.once},
 		{"matomezuSystemFolderTitles", &e.sysFolders},

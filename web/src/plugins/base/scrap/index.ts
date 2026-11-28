@@ -95,3 +95,4 @@ export {
   scrapSize,
   wholeScrapOf,
 } from "./scrap"
+export { scrapUsersOf } from "./users"

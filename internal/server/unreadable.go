@@ -132,6 +132,15 @@ func (h *Hub) MovedIfOff(ids []string) (moved []engine.MovedUnit, broken bool, e
 	return h.engine.MovedIfOff(ids, pages, folders, settings, stamp())
 }
 
+// PageUsers は、画面が頼んだ、ページ ids のそれぞれを使っている見える所のページ（完全に消す前の確かめ。書かない）。
+// 全部のページを見るので、行を写してから h.mu を離して引く
+func (h *Hub) PageUsers(ids []string) (engine.PageUsers, error) {
+	h.mu.Lock()
+	pages, folders := h.allRows()
+	h.mu.Unlock()
+	return h.engine.PageUsers(pages, folders, ids)
+}
+
 // purgeUnreadable は、読めない物のフォルダの直下の物 id を、中の物の行とページのアノテーションごと置き場所から消す（ほかのフォルダも持つ行は消さない。窓に知らせる）。
 // 直下に無ければ false（h.mu を持って呼ぶ）
 func (h *Hub) purgeUnreadable(id string) (bool, error) {

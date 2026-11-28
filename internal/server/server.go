@@ -186,10 +186,12 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/message/approve", o.screen(o.approveMessage))
 	mux.Handle("POST /api/message/cancel", o.screen(o.cancelMessage))
 	mux.Handle("POST /api/unreadable/if-off", o.screen(o.movedIfOff))
+	mux.Handle("POST /api/page-users", o.screen(o.pageUsers))
 	mux.Handle("GET /api/ai/view", o.ai(o.aiView))
 	mux.Handle("GET /api/ai/books", o.ai(o.aiBooks))
 	mux.Handle("GET /api/ai/books/{id}", o.ai(o.aiBook))
 	mux.Handle("GET /api/ai/pages/{page}", o.ai(o.aiPage))
+	mux.Handle("GET /api/ai/pages/{page}/image", o.ai(o.aiPageImage))
 	mux.Handle("GET /api/ai/folder", o.ai(o.aiFolder))
 	mux.Handle("GET /api/ai/awaiting", o.ai(o.aiAwaiting))
 	mux.Handle("GET /api/ai/watch", o.ai(o.aiWatch))
@@ -463,6 +465,26 @@ func (o Options) movedIfOff(w http.ResponseWriter, r *http.Request) {
 		moved = []engine.MovedUnit{}
 	}
 	writeJSON(w, map[string]any{"ok": true, "moved": moved})
+}
+
+// pageUsers は、画面の口: ページ ids のそれぞれを使っている見える所のページ（{ users: { id: [ページの id] }, sure }。書かない）
+func (o Options) pageUsers(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&req); err != nil || len(req.IDs) == 0 || slices.Contains(req.IDs, "") {
+		http.Error(w, "the body must be {\"ids\"}", http.StatusBadRequest)
+		return
+	}
+	users, err := o.Hub.PageUsers(req.IDs)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if users.Users == nil {
+		users.Users = map[string][]string{}
+	}
+	writeJSON(w, users)
 }
 
 func (o Options) events(w http.ResponseWriter, r *http.Request) {
