@@ -109,7 +109,41 @@ func TestReceiverChain(t *testing.T) {
 	}
 }
 
-// レシーバーが断った返事は、覚えを戻すので、もう一度返せる
+// replyToOf は、届いた 1 行 line の返事の封筒の id（無ければ空）
+func replyToOf(line string) string {
+	if m := regexp.MustCompile(`\(replyTo "([^"]+)"\)$`).FindStringSubmatch(line); m != nil {
+		return m[1]
+	}
+	return ""
+}
+
+// AI とレシーバーの往復は止めない: 返事を受けたレシーバーが、返した AI 自身にまた返事を求めても届き、AI はまた返せる。
+// AI の返事から始まった鎖なので、届く行に利用者の頼みの印は付かない
+func TestReceiverRoundTrips(t *testing.T) {
+	t.Parallel()
+	hub, b := receiverWorld(t)
+	ask := `[{"to":{"workroom":"すずめ"},"text":"your move","replyReceiver":{"receiver":"ex16:tally-receive"}}]`
+	if out, err := hub.Perform(fromWindow(ask, "")); err != nil || !out.OK {
+		t.Fatalf("send = %+v, %v", out, err)
+	}
+	line := hub.OpenWakesWith("200", "", WakeLimits{})
+	woke := wakes(hub, line)
+	for round := range rallyLocalLimit + 2 {
+		if len(woke) != 1 || replyToOf(woke[0]) == "" {
+			t.Fatalf("round %d: wakes = %q", round, woke)
+		}
+		if round > 0 && !strings.HasPrefix(woke[0], `matomezu from AI "すずめ": "again"`) {
+			t.Fatalf("round %d: the line from the receiver = %q", round, woke[0])
+		}
+		again := `[{"to":{"workroom":"すずめ"},"text":"again","replyReceiver":{"receiver":"ex16:tally-receive"}}]`
+		if sent, err := hub.SendMessage(MessageRequest{ReplyTo: replyToOf(woke[0]), Args: json.RawMessage(`{"n":1,"next":` + again + `}`), Participant: b}, time.Now()); err != nil || !sent.OK {
+			t.Fatalf("round %d: reply = %+v, %v", round, sent, err)
+		}
+		woke = wakes(hub, line)
+	}
+}
+
+// レシーバーが断った返事は、覚えを戻すので、もう一度返せる。参加していない者は返せず、受けた参加者が退室すれば忘れる
 func TestRefusedReplyCanBeSentAgain(t *testing.T) {
 	t.Parallel()
 	hub, b := receiverWorld(t)
@@ -122,11 +156,26 @@ func TestRefusedReplyCanBeSentAgain(t *testing.T) {
 	if envelope == nil {
 		t.Fatalf("wakes = %q", woke)
 	}
+	if sent, _ := hub.SendMessage(MessageRequest{ReplyTo: envelope[1], Args: json.RawMessage(`{"n":1}`), Participant: "someone"}, time.Now()); sent.OK || sent.Reason != "not-joined" {
+		t.Fatalf("a reply from someone not joined = %+v", sent)
+	}
 	if sent, _ := hub.SendMessage(MessageRequest{ReplyTo: envelope[1], Args: json.RawMessage(`{"n":-1}`), Participant: b}, time.Now()); sent.OK || sent.Reason != "refused" {
 		t.Fatalf("a refused reply = %+v", sent)
 	}
 	if sent, _ := hub.SendMessage(MessageRequest{ReplyTo: envelope[1], Args: json.RawMessage(`{"n":1}`), Participant: b}, time.Now()); !sent.OK {
 		t.Fatalf("the reply again = %+v", sent)
+	}
+	if out, err := hub.Perform(fromWindow(ask, "")); err != nil || !out.OK {
+		t.Fatalf("send again = %+v, %v", out, err)
+	}
+	if out, err := hub.Perform(performOne("@matomezu/base:participant-remove", json.RawMessage(`{}`), &engine.On{Record: b})); err != nil || !out.OK {
+		t.Fatalf("remove = %+v, %v", out, err)
+	}
+	hub.mu.Lock()
+	left := len(hub.replies) + len(hub.replyOrder)
+	hub.mu.Unlock()
+	if left != 0 {
+		t.Fatalf("replies after the recipient left = %d", left)
 	}
 }
 
@@ -193,7 +242,15 @@ func TestReceiverRefusals(t *testing.T) {
 			t.Fatalf("%s = %+v", payloads, out)
 		}
 	}
+	if out, _ := hub.Perform(fromWindow(`[{"to":{"receiver":"ex16:tally-receive"},"id":"","args":{"n":1}}]`, "")); out.OK || !strings.Contains(out.Detail, "has no id") {
+		t.Fatalf("a payload without an id = %+v", out)
+	}
 	if ids := tallies(hub); len(ids) != 0 {
 		t.Fatalf("tallies after the refusals = %v", ids)
+	}
+	// AI の actions には、返事を受けるレシーバーを receives と出し、届かなかった結果を受けるレシーバーは出さない
+	catalog := string(hub.AICatalog([]string{"ex16:tally-receive", "ex16:tally-undelivered"}))
+	if !strings.Contains(catalog, `"receives":"messages"`) || !strings.Contains(catalog, `"unknown":["ex16:tally-undelivered"]`) {
+		t.Fatalf("the AI's actions = %s", catalog)
 	}
 }

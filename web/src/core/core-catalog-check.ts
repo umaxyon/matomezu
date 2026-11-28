@@ -211,6 +211,9 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   for (const a of parts.actions)
     if (!BASE_TARGETS.includes(a.target) && !subjects.has(a.target))
       problems.push(problem("E046", { id: a.id, target: a.target }))
+  // レシーバーは、レコードが対象のアクションだけ（型は never で防ぐが、動的に取り込むプラグインは型を通らない）
+  for (const a of parts.actions)
+    if (a.receives && BASE_TARGETS.includes(a.target)) problems.push(problem("E135", { id: a.id }))
   // アクションの対象と writes に書ける種類は、アクションと同じプラグインの種類か、持ち主が writableBy に許した種類。writes は、台帳にある種類で、対象でなく、番号を振る種類でない
   const numbered = new Set(parts.subjects.filter(s => s.numbered).map(s => s.id))
   for (const a of parts.actions) {

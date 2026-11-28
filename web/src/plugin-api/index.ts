@@ -50,7 +50,6 @@ export type {
   ActionDef,
   Declined,
   Destination,
-  MessagePayload,
   NoRecipient,
   Payload,
   PayloadSender,
@@ -62,6 +61,7 @@ export type {
   RecordRead,
   Undelivered,
   WorkroomDestination,
+  WorkroomPayload,
 } from "../core/def/action"
 export { ANY_PAGE_TYPE, isReceiverPayload, NO_CONTROL_CENTER, UNDELIVERED_ARGS } from "../core/def/action"
 export type { AnnotationDef } from "../core/def/annotation"

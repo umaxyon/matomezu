@@ -73,7 +73,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 }
 
 // performOnce は、h.mu を持ってアクションバルク p を行い、結果と、あとで行うレシーバー宛ての 1 通を返す
-func (h *Hub) performOnce(p Perform) (Performed, []receive, error) {
+func (h *Hub) performOnce(p Perform) (Performed, []pendingReceive, error) {
 	if len(p.Actions) == 0 {
 		return Performed{}, nil, ErrNoActions
 	}
@@ -178,6 +178,7 @@ func (h *Hub) performOnce(p Perform) (Performed, []receive, error) {
 	h.applyWrites(plan, out, p, by, act)
 	h.noteDepartures(leaving, leavingRooms, p) // 消えた参加者を、その会話に伝えるまで覚える（departure.go。知らせの行列の stale より先）
 	h.dropGonePendingHeld()                    // 受け手が退室した承認待ちは、知らせずに消す（pending_message.go）
+	h.dropGoneRepliesHeld()                    // 受けた参加者が退室した、返事を待つ 1 通も消す（receiver.go）
 	for _, e := range envelopes {
 		h.deliver(e)
 	}

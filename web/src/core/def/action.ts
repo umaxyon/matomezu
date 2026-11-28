@@ -144,11 +144,11 @@ export type NoRecipient = "refuse" | "skip"
 // 利用者が画面で行ったアクションが送った物には、利用者の頼みの印が付く（常駐が利用者として行うアクションは送れない）。
 // 届けられないとき（ワークルーム宛てなら、参加の確定したほかの参加者がいない・AI ラリーの上限を超える。レシーバー宛てなら、段数の上限を超える）、
 // noRecipient が refuse（省いたとき）ならバルクごと断り（no-recipient・rally-limit・hop-limit）、skip ならその 1 通を送らないだけにする
-export type Payload = MessagePayload | ReceiverPayload
+export type Payload = WorkroomPayload | ReceiverPayload
 
 // ワークルームの AI への 1 通: 文 text（AI に見せる英語。利用者の言語に合わせない）。
 // replyReceiver を書けば、受けた AI は send_message の replyTo でこの 1 通に 1 回だけ返事でき、返事はそのレシーバーに届く
-export interface MessagePayload {
+export interface WorkroomPayload {
   to: WorkroomDestination
   text: string
   noRecipient?: NoRecipient

@@ -758,13 +758,15 @@ func sendMessage(c *conn, args map[string]any) (string, bool) {
 	replyTo, _ := args["replyTo"].(string)
 	to, _ := args["to"].(string)
 	text, _ := args["text"].(string)
+	host, _ := args["host"].(string)
 	switch {
+	case replyTo != "" && (to != "" || text != "" || host != ""):
+		return refusalText("bad-args", "send_message with replyTo takes args, not to, host or text"), false
 	case replyTo != "":
 		body = map[string]any{"replyTo": replyTo, "args": args["args"]}
 	case to == "" || text == "":
 		return refusalText("bad-args", "send_message takes to and text, or replyTo and args"), false
-	}
-	if host, _ := args["host"].(string); host != "" && replyTo == "" {
+	case host != "":
 		body["host"] = host
 	}
 	out, err := c.Post("api/ai/message", body)

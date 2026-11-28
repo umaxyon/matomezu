@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 
 	"github.com/umaxyon/matomezu/internal/engine"
@@ -43,8 +44,8 @@ func (c chain) next(byWindow bool) sendChain {
 	return sendChain{byWindow: byWindow || c.fromWindow, inReceiver: c.received != nil, hops: c.hops}
 }
 
-// receive は、あとで行うレシーバー宛ての 1 通
-type receive struct {
+// pendingReceive は、あとで行うレシーバー宛ての 1 通
+type pendingReceive struct {
 	envelope    string
 	to          engine.ReceiverDestination
 	args        json.RawMessage
@@ -63,7 +64,7 @@ type replyWait struct {
 }
 
 // receiveAll は、レシーバー宛ての 1 通 rs を前から順に行う（行った run が返したレシーバー宛ては後ろに足す。h.mu を持たずに呼ぶ）
-func (h *Hub) receiveAll(rs []receive) {
+func (h *Hub) receiveAll(rs []pendingReceive) {
 	for len(rs) > 0 {
 		_, more := h.receiveOne(rs[0])
 		rs = append(rs[1:], more...)
@@ -71,7 +72,7 @@ func (h *Hub) receiveAll(rs []receive) {
 }
 
 // receiveOne は、レシーバー宛ての 1 通 r を行い、結果と、その run が返したレシーバー宛ての 1 通を返す。断られたら、届かなかった結果の先を行う（h.mu を持たずに呼ぶ）
-func (h *Hub) receiveOne(r receive) (Performed, []receive) {
+func (h *Hub) receiveOne(r pendingReceive) (Performed, []pendingReceive) {
 	c := chain{received: &engine.Received{Envelope: r.envelope, From: r.from, InReplyTo: r.inReplyTo}, hops: r.hops, fromWindow: r.fromWindow}
 	done, more, err := h.performOnce(receivePerform(r.to, r.args, r.participant, c, "envelope:"+r.envelope))
 	if err != nil {
@@ -112,13 +113,13 @@ func receivePerform(to engine.ReceiverDestination, args json.RawMessage, partici
 	return p
 }
 
-// replyBody は、AI 宛ての封筒 e の、届く 1 行の本文。返事を受けるレシーバーがあれば、送り先の参加者 to の返事を待つ物として覚え、封筒の id を添える（h.mu を持って呼ぶ）
-func (h *Hub) replyBody(e Envelope, to string) string {
-	if e.Reply == nil {
-		return quote(e.Text)
+// replyBody は、AI 宛ての 1 通 d の、届く 1 行の本文。返事を受けるレシーバーがあれば、送り先の参加者の返事を待つ物として覚え、封筒の id を添える（h.mu を持って呼ぶ）
+func (h *Hub) replyBody(d delivery) string {
+	if d.reply == nil {
+		return quote(d.envelope.Text)
 	}
-	h.keepReplyHeld(e.ID, replyWait{to: *e.Reply, recipient: to})
-	return quote(e.Text) + " (replyTo " + quote(e.ID) + ")"
+	h.keepReplyHeld(d.envelope.ID, replyWait{to: *d.reply, recipient: d.to})
+	return quote(d.envelope.Text) + " (replyTo " + quote(d.envelope.ID) + ")"
 }
 
 // keepReplyHeld は、返事を待つ 1 通を覚える（repliesMax 件まで。古い物から忘れる。h.mu を持って呼ぶ）
@@ -126,34 +127,72 @@ func (h *Hub) keepReplyHeld(id string, w replyWait) {
 	if h.replies == nil {
 		h.replies = map[string]replyWait{}
 	}
-	if _, ok := h.replies[id]; !ok {
-		h.replyOrder = append(h.replyOrder, id)
-	}
+	h.forgetReplyHeld(id)
 	h.replies[id] = w
+	h.replyOrder = append(h.replyOrder, id)
 	for len(h.replyOrder) > repliesMax {
 		delete(h.replies, h.replyOrder[0])
 		h.replyOrder = h.replyOrder[1:]
 	}
 }
 
+// forgetReplyHeld は、返事を待つ 1 通 id を忘れる（h.mu を持って呼ぶ）
+func (h *Hub) forgetReplyHeld(id string) {
+	if _, ok := h.replies[id]; !ok {
+		return
+	}
+	delete(h.replies, id)
+	h.replyOrder = slices.DeleteFunc(h.replyOrder, func(o string) bool { return o == id })
+}
+
+// dropGoneRepliesHeld は、受けた参加者が退室した、返事を待つ 1 通を忘れる（行き場が無いので。h.mu を持って呼ぶ）
+func (h *Hub) dropGoneRepliesHeld() {
+	if len(h.replies) == 0 {
+		return
+	}
+	records, err := h.participantsHeld()
+	if err != nil {
+		return
+	}
+	joined := map[string]bool{}
+	for _, r := range records {
+		if r.accepted() {
+			joined[r.ID] = true
+		}
+	}
+	for id, w := range h.replies {
+		if !joined[w.recipient] {
+			h.forgetReplyHeld(id)
+		}
+	}
+}
+
 // replyTo は、参加者 req.Participant が、封筒 req.ReplyTo に返事する（引数 req.Args で、返事を受けるレシーバーをその AI が行う）。
-// 返事を待つ 1 通がその参加者宛てでなければ断る。レシーバーが断ったら、もう一度返せるように覚えを戻して、断りを返す
+// 送り手が参加の確定した AI でないか、返事を待つ 1 通がその参加者宛てでなければ断る。レシーバーが断ったら、もう一度返せるように覚えを戻して、断りを返す
 func (h *Hub) replyTo(req MessageRequest) (MessageSent, error) {
+	records, err := h.records()
+	if err != nil {
+		return MessageSent{}, err
+	}
+	rooms, err := h.workrooms()
+	if err != nil {
+		return MessageSent{}, err
+	}
 	h.mu.Lock()
+	sender, refused := h.senderHeld(records, h.occupants(records), req.Participant)
+	if refused != nil {
+		h.mu.Unlock()
+		return *refused, nil
+	}
 	w, ok := h.replies[req.ReplyTo]
 	if !ok || w.recipient != req.Participant {
 		h.mu.Unlock()
 		return MessageSent{Reason: "no-reply-wait", Detail: "no message to you waits for a reply with that replyTo (a message takes one reply)"}, nil
 	}
-	from, err := h.senderRoomHeld(req.Participant)
-	if err != nil {
-		h.mu.Unlock()
-		return MessageSent{}, err
-	}
-	delete(h.replies, req.ReplyTo)
+	h.forgetReplyHeld(req.ReplyTo)
 	h.mu.Unlock()
-	done, more := h.receiveOne(receive{envelope: newEnvelopeID(), to: w.to, args: req.Args, participant: req.Participant,
-		from: engine.PayloadSender{Kind: "ai", Workroom: from}, inReplyTo: req.ReplyTo})
+	done, more := h.receiveOne(pendingReceive{envelope: newEnvelopeID(), to: w.to, args: req.Args, participant: req.Participant,
+		from: engine.PayloadSender{Kind: "ai", Workroom: roomName(rooms, sender.Workroom)}, inReplyTo: req.ReplyTo})
 	h.receiveAll(more)
 	if !done.OK {
 		h.mu.Lock()
@@ -164,25 +203,7 @@ func (h *Hub) replyTo(req MessageRequest) (MessageSent, error) {
 	return MessageSent{OK: true, Result: done.Result}, nil
 }
 
-// senderRoomHeld は、参加者 id の入っているワークルームの名前（h.mu を持って呼ぶ）
-func (h *Hub) senderRoomHeld(id string) (string, error) {
-	records, err := h.participantsHeld()
-	if err != nil {
-		return "", err
-	}
-	rooms, err := h.workroomsHeld()
-	if err != nil {
-		return "", err
-	}
-	for _, r := range records {
-		if r.ID == id {
-			return roomName(rooms, r.Workroom), nil
-		}
-	}
-	return "", nil
-}
-
 // hopLimitDetail は、段数の上限を超えるレシーバー宛ての 1 通を断るときの、AI への説明
 func hopLimitDetail(receiver string) string {
-	return "the payload to the receiver " + receiver + " would pass " + strconv.Itoa(hopLimit) + " receivers in a row without a person or an AI; nothing was changed"
+	return "the payload to the receiver " + receiver + " would be passed on from receiver to receiver more than " + strconv.Itoa(hopLimit) + " times without a person or an AI; nothing was changed"
 }

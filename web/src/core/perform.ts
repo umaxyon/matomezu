@@ -198,6 +198,9 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
       reason: "refused",
       detail: "this action only receives payloads; answer a message that asks for a reply with send_message replyTo",
     }
+  // 届いた 1 通からは、レシーバーだけを行う
+  if (!action.receives && ctx.received)
+    return { ok: false, reason: "refused", detail: `${id} is not an action that receives payloads` }
   if (action.target === "page" || action.target === "annotations") {
     const at = subject as PageAt
     if (at.book === NOT_IN_BOOK) return performOutsidePage(action, at, args, ctx) as Performed<Id, S>
@@ -297,18 +300,19 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
   } as Performed<Id, S>
 }
 
-// 書庫を was から next に変えるアクション action の結果の確かめ（書庫が対象のアクションと、ブックの外のバインダに行った、ブックが対象のアクションで同じ決まりを使う）。
-// 認可ステップの守らせること・ブックと書庫ホームやフォルダの行の形・システムフォルダ・バックヤード（in-backyard）・ページのタイプ・名前の重なり・ブックの外の決まりとページの形のどれかを守らなければ、その断り（守れば null）
-// matomezu ペイロード p の送り先と返事・届かなかった結果の先が、その印を持つレシーバーでなければ、AI への説明
+// matomezu ペイロード p の送り先と返事・届かなかった結果の先が、その印を持つレシーバーでなければ（レシーバー宛てなら、封筒の id が空でも）、AI への説明
 function payloadRefusal(catalog: CoreCatalog, p: Payload): string | null {
   const not = (to: ReceiverDestination | undefined, receives: Receives): string | null =>
     to === undefined || catalog.actions.get(to.receiver)?.receives === receives
       ? null
       : `the payload names ${to.receiver}, which is not an action that receives ${receives}`
-  return isReceiverPayload(p)
-    ? (not(p.to, "messages") ?? not(p.undelivered, "undelivered"))
-    : not(p.replyReceiver, "messages")
+  if (!isReceiverPayload(p)) return not(p.replyReceiver, "messages")
+  if (p.id === "") return `the payload to ${p.to.receiver} has no id`
+  return not(p.to, "messages") ?? not(p.undelivered, "undelivered")
 }
+
+// 書庫を was から next に変えるアクション action の結果の確かめ（書庫が対象のアクションと、ブックの外のバインダに行った、ブックが対象のアクションで同じ決まりを使う）。
+// 認可ステップの守らせること・ブックと書庫ホームやフォルダの行の形・システムフォルダ・バックヤード（in-backyard）・ページのタイプ・名前の重なり・ブックの外の決まりとページの形のどれかを守らなければ、その断り（守れば null）
 
 function libraryRefusal(ctx: ActionContext, action: ActionDef, was: Library, next: Library): Refused | null {
   const refused: Refused = { ok: false, reason: "refused" }
